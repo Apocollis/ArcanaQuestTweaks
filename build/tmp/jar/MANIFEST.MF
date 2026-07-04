@@ -1,0 +1,9 @@
+Manifest-Version: 1.0
+Implementation-Title: ArcanaQuestTweaks
+Implementation-Version: 1.0
+Specification-Vendor: apocollis
+Specification-Title: aqtweaks
+Implementation-Timestamp: 2026-07-04T03:52:41-0400
+Specification-Version: 1
+Implementation-Vendor: apocollis
+
