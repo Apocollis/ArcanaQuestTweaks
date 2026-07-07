@@ -34,6 +34,28 @@ public class Reflect {
     private static net.minecraftforge.common.capabilities.Capability<?> absorptionCap;
     private static Method getAbsorptionMethod;
 
+    // Reskillable reflection
+    private static boolean isReskillableLoaded = false;
+    private static Class<?> playerDataHandlerClass;
+    private static Method playerDataGetMethod;
+    private static Class<?> reskillableRegistriesClass;
+    private static Object skillsRegistry;
+    private static Object unlockablesRegistry;
+    private static Method registryGetValueMethod;
+    private static Class<?> playerDataClass;
+    private static Method getSkillInfoMethod;
+    private static Class<?> unlockableClass;
+    private static Method getParentSkillMethod;
+    private static Class<?> playerSkillInfoClass;
+    private static Method isUnlockedMethod;
+
+    // Simple Difficulty reflection
+    private static boolean isSimpleDifficultyLoaded = false;
+    private static Class<?> sdCapabilitiesClass;
+    private static Method getThirstDataMethod;
+    private static Class<?> thirstCapabilityClass;
+    private static Method addThirstExhaustionMethod;
+
     static {
         // isSprinting
         try {
@@ -159,6 +181,46 @@ public class Reflect {
             getAbsorptionMethod = iAbsClass.getMethod("getAbsorption");
         } catch (Exception e) {
             e.printStackTrace();
+        }
+
+        // Reskillable reflection initialization
+        try {
+            playerDataHandlerClass = Class.forName("codersafterdark.reskillable.api.data.PlayerDataHandler");
+            playerDataGetMethod = playerDataHandlerClass.getMethod("get", EntityPlayer.class);
+            
+            reskillableRegistriesClass = Class.forName("codersafterdark.reskillable.api.ReskillableRegistries");
+            skillsRegistry = reskillableRegistriesClass.getField("SKILLS").get(null);
+            unlockablesRegistry = reskillableRegistriesClass.getField("UNLOCKABLES").get(null);
+            
+            Class<?> forgeRegistryClass = Class.forName("net.minecraftforge.registries.IForgeRegistry");
+            registryGetValueMethod = forgeRegistryClass.getMethod("getValue", net.minecraft.util.ResourceLocation.class);
+            
+            playerDataClass = Class.forName("codersafterdark.reskillable.api.data.PlayerData");
+            Class<?> skillClass = Class.forName("codersafterdark.reskillable.api.skill.Skill");
+            getSkillInfoMethod = playerDataClass.getMethod("getSkillInfo", skillClass);
+            
+            unlockableClass = Class.forName("codersafterdark.reskillable.api.unlockable.Unlockable");
+            getParentSkillMethod = unlockableClass.getMethod("getParentSkill");
+            
+            playerSkillInfoClass = Class.forName("codersafterdark.reskillable.api.data.PlayerSkillInfo");
+            isUnlockedMethod = playerSkillInfoClass.getMethod("isUnlocked", unlockableClass);
+            
+            isReskillableLoaded = true;
+        } catch (Exception e) {
+            // Not loaded or failed
+        }
+
+        // Simple Difficulty reflection
+        try {
+            if (net.minecraftforge.fml.common.Loader.isModLoaded("simpledifficulty")) {
+                sdCapabilitiesClass = Class.forName("com.charles445.simpledifficulty.api.SDCapabilities");
+                getThirstDataMethod = sdCapabilitiesClass.getMethod("getThirstData", EntityPlayer.class);
+                thirstCapabilityClass = Class.forName("com.charles445.simpledifficulty.api.thirst.IThirstCapability");
+                addThirstExhaustionMethod = thirstCapabilityClass.getMethod("addThirstExhaustion", float.class);
+                isSimpleDifficultyLoaded = true;
+            }
+        } catch (Exception e) {
+            // Not loaded or failed
         }
     }
 
@@ -332,13 +394,95 @@ public class Reflect {
         return 0;
     }
 
-    public static int getWeight(EntityPlayer player) {
-        if (player.world.isRemote) {
-            return com.elenai.elenaidodge2.util.ClientStorage.weight;
-        } else if (player instanceof net.minecraft.entity.player.EntityPlayerMP) {
-            return com.elenai.elenaidodge2.api.FeathersHelper.getWeight((net.minecraft.entity.player.EntityPlayerMP) player);
+    public static int getBaseWeight(EntityPlayer player) {
+        String[] weights = com.elenai.elenaidodge2.ModConfig.common.weights.weights;
+        if (weights == null || weights.length == 0) return 0;
+
+        double totalWeight = 0.0;
+        boolean head = false;
+        boolean chest = false;
+        boolean legs = false;
+        boolean feet = false;
+
+        for (String entry : weights) {
+            String[] itemAndVal = entry.split("=");
+            if (itemAndVal.length < 2) continue;
+            net.minecraft.item.Item item = net.minecraft.item.Item.getByNameOrId(itemAndVal[0]);
+            if (item == null) continue;
+
+            if (!head && player.getItemStackFromSlot(net.minecraft.inventory.EntityEquipmentSlot.HEAD).getItem() == item) {
+                totalWeight += Double.parseDouble(itemAndVal[1]);
+                head = true;
+            }
+            if (!chest && player.getItemStackFromSlot(net.minecraft.inventory.EntityEquipmentSlot.CHEST).getItem() == item) {
+                totalWeight += Double.parseDouble(itemAndVal[1]);
+                chest = true;
+            }
+            if (!legs && player.getItemStackFromSlot(net.minecraft.inventory.EntityEquipmentSlot.LEGS).getItem() == item) {
+                totalWeight += Double.parseDouble(itemAndVal[1]);
+                legs = true;
+            }
+            if (!feet && player.getItemStackFromSlot(net.minecraft.inventory.EntityEquipmentSlot.FEET).getItem() == item) {
+                totalWeight += Double.parseDouble(itemAndVal[1]);
+                feet = true;
+            }
         }
-        return 0;
+
+        int intWeight = (int) Math.round(totalWeight);
+        int lightweightLevel = com.elenai.elenaidodge2.util.Utils.getTotalEnchantmentLevel(
+            com.elenai.elenaidodge2.init.EnchantmentInit.LIGHTWEIGHT, player
+        );
+        intWeight -= lightweightLevel;
+
+        boolean halfFeathers = com.elenai.elenaidodge2.ModConfig.common.feathers.half;
+        int finalWeight = 0;
+        if (!halfFeathers) {
+            finalWeight = (int) (Math.floor(intWeight / 2.0) * 2);
+        } else {
+            finalWeight = intWeight;
+        }
+        return Math.max(0, finalWeight);
+    }
+
+    public static boolean hasUnlockable(EntityPlayer player, String registryId) {
+        if (!isReskillableLoaded || registryId == null || registryId.isEmpty()) return false;
+        try {
+            net.minecraft.util.ResourceLocation res = new net.minecraft.util.ResourceLocation(registryId);
+            Object unlockable = registryGetValueMethod.invoke(unlockablesRegistry, res);
+            if (unlockable != null) {
+                Object data = playerDataGetMethod.invoke(null, player);
+                if (data != null) {
+                    Object skill = getParentSkillMethod.invoke(unlockable);
+                    if (skill != null) {
+                        Object info = getSkillInfoMethod.invoke(data, skill);
+                        if (info != null) {
+                            return (Boolean) isUnlockedMethod.invoke(info, unlockable);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        return false;
+    }
+
+    public static int getWeight(EntityPlayer player) {
+        int baseWeight = getBaseWeight(player);
+
+        // Apply Armor Mastery reduction
+        if (ArcanaQuestTweaksConfig.staminaModule.reskillable.enableReskillable && 
+            hasUnlockable(player, ArcanaQuestTweaksConfig.staminaModule.reskillable.armorMasteryPerkId)) {
+            int pieces = 0;
+            for (net.minecraft.item.ItemStack armor : player.getArmorInventoryList()) {
+                if (armor != null && !armor.isEmpty()) {
+                    pieces++;
+                }
+            }
+            int reduction = (int) Math.round(pieces * ArcanaQuestTweaksConfig.staminaModule.reskillable.armorMasteryReductionPerPiece);
+            baseWeight = Math.max(0, baseWeight - reduction);
+        }
+        return baseWeight;
     }
 
     public static boolean hasEnoughStamina(EntityPlayer player, int cost) {
@@ -352,18 +496,36 @@ public class Reflect {
         int absorption = getAbsorptionFeathers(player);
         int weight = getWeight(player);
 
-        // Check 1: total feathers check
-        if (dodges + absorption < cost) {
-            return false;
+        // Model Elenai's spend order: absorption first, overflow to dodges
+        int remainingCost = cost;
+
+        // Absorption absorbs as much as it can
+        if (absorption > 0) {
+            int absorbedByGold = Math.min(absorption, remainingCost);
+            remainingCost -= absorbedByGold;
         }
 
-        // Check 2: weight check (iron feathers check)
-        if (weight > 0) {
-            if (dodges - cost < weight && absorption - cost < 0) {
-                return false;
-            }
-        }
+        // Whatever is left comes out of regular dodges
+        int dodgesAfterSpend = dodges - remainingCost;
+
+        // Must not go below 0
+        if (dodgesAfterSpend < 0) return false;
+
+        // Must not go below weight threshold (iron feathers)
+        if (dodgesAfterSpend < weight) return false;
 
         return true;
+    }
+
+    public static void addThirstExhaustion(EntityPlayer player, float amount) {
+        if (!isSimpleDifficultyLoaded) return;
+        try {
+            Object thirst = getThirstDataMethod.invoke(null, player);
+            if (thirst != null) {
+                addThirstExhaustionMethod.invoke(thirst, amount);
+            }
+        } catch (Exception e) {
+            // ignore
+        }
     }
 }

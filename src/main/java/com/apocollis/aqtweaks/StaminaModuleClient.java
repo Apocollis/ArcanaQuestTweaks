@@ -100,6 +100,28 @@ public class StaminaModuleClient {
         }
     }
 
+    @SubscribeEvent(priority = net.minecraftforge.fml.common.eventhandler.EventPriority.LOWEST)
+    @SideOnly(Side.CLIENT)
+    public void onClientTickLowest(net.minecraftforge.fml.common.gameevent.TickEvent.ClientTickEvent event) {
+        if (event.phase != net.minecraftforge.fml.common.gameevent.TickEvent.Phase.END) return;
+
+        Minecraft mc = Minecraft.getMinecraft();
+        EntityPlayer player = mc.player;
+        if (player == null) return;
+
+        // Enforce Armor Mastery weight reduction on the client side
+        if (ArcanaQuestTweaksConfig.staminaModule.reskillable.enableReskillable && 
+            Reflect.hasUnlockable(player, ArcanaQuestTweaksConfig.staminaModule.reskillable.armorMasteryPerkId)) {
+            int reducedWeight = Reflect.getWeight(player);
+            if (ClientStorage.weight != reducedWeight) {
+                ClientStorage.weight = reducedWeight;
+                com.elenai.elenaidodge2.network.PacketHandler.instance.sendToServer(
+                    new com.elenai.elenaidodge2.network.message.SWeightMessage(reducedWeight)
+                );
+            }
+        }
+    }
+
     @SideOnly(Side.CLIENT)
     private void handleClientClimbing(net.minecraft.client.entity.EntityPlayerSP player) {
         if (!ArcanaQuestTweaksConfig.staminaModule.climbing.enableClimbCost || !ArcanaQuestTweaksConfig.staminaModule.climbing.fallOnDepleted) return;

@@ -54,7 +54,7 @@ public class StaminaModule {
     }
 
     public static WeaponType getWeaponType(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) return WeaponType.NONE;
+        if (stack == null || stack.isEmpty()) return WeaponType.LIGHT;
         Item item = stack.getItem();
         if (item.getRegistryName() == null) return WeaponType.NONE;
         String name = item.getRegistryName().toString();
@@ -113,6 +113,30 @@ public class StaminaModule {
             handleServerClimbing(playerMP);
             handleServerGrappling(playerMP);
             handleServerGliding(playerMP);
+            handleServerShieldBlocking(playerMP);
+
+            // Mining Fatigue exhaustion check
+            if (ArcanaQuestTweaksConfig.staminaModule.mining.enableMiningCost) {
+                int regularFeathers = FeathersHelper.getFeatherLevel(playerMP);
+                if (regularFeathers <= ArcanaQuestTweaksConfig.staminaModule.mining.miningFatigueThreshold) {
+                    playerMP.addPotionEffect(new net.minecraft.potion.PotionEffect(net.minecraft.init.MobEffects.MINING_FATIGUE, 40, 2, true, false));
+                }
+            }
+
+            // Simple Difficulty thirst cost for feather regeneration
+            if (ArcanaQuestTweaksConfig.staminaModule.simpleDifficulty.enableThirstCost) {
+                int currentFeathers = FeathersHelper.getFeatherLevel(playerMP);
+                String key = "StaminaTweaksPrevFeathers";
+                if (playerMP.getEntityData().hasKey(key)) {
+                    int prevFeathers = playerMP.getEntityData().getInteger(key);
+                    if (currentFeathers > prevFeathers) {
+                        int diff = currentFeathers - prevFeathers;
+                        float exhaustion = diff * (float) ArcanaQuestTweaksConfig.staminaModule.simpleDifficulty.thirstExhaustionPerFeather;
+                        Reflect.addThirstExhaustion(playerMP, exhaustion);
+                    }
+                }
+                playerMP.getEntityData().setInteger(key, currentFeathers);
+            }
         }
     }
 
@@ -191,7 +215,21 @@ public class StaminaModule {
 
             if (!costEnabled) return;
 
-            boolean isClimbing = Reflect.getMotionY(player) > 0.0 || player.isSneaking();
+            // Track Y position ourselves — at Phase.START, the current tick's
+            // climbing motion hasn't been applied yet, so posY reflects the
+            // FINAL position after the previous tick's full movement cycle.
+            // By storing it in NBT at the end of this handler each tick, we
+            // get a reliable one-tick comparison.
+            String yKey = "StaminaTweaksClimbPrevY";
+            boolean isClimbing;
+            if (player.getEntityData().hasKey(yKey)) {
+                double prevY = player.getEntityData().getDouble(yKey);
+                isClimbing = (player.posY > prevY + 0.001) || player.isSneaking();
+            } else {
+                // First tick on ladder — sneaking still counts
+                isClimbing = player.isSneaking();
+            }
+            player.getEntityData().setDouble(yKey, player.posY);
 
             if (isClimbing) {
                 if (Reflect.hasEnoughStamina(player, cost)) {
@@ -217,6 +255,7 @@ public class StaminaModule {
             }
         } else {
             player.getEntityData().setInteger("StaminaTweaksClimbTicks", 0);
+            player.getEntityData().removeTag("StaminaTweaksClimbPrevY");
         }
     }
 
@@ -334,6 +373,81 @@ public class StaminaModule {
             double penalty = attacker.getEntityData().getDouble("StaminaTweaksAttackPenalty");
             event.setAmount((float) (event.getAmount() * penalty));
             attacker.getEntityData().removeTag("StaminaTweaksAttackPenalty");
+        }
+    }
+
+    private void handleServerShieldBlocking(EntityPlayerMP player) {
+        if (!ArcanaQuestTweaksConfig.staminaModule.shield.enableShieldCost) return;
+
+        boolean isBlocking = player.isActiveItemStackBlocking();
+        boolean wasBlocking = player.getEntityData().getBoolean("StaminaTweaksShieldActive");
+
+        if (isBlocking) {
+            if (!wasBlocking) {
+                // Initial block cost
+                int cost = ArcanaQuestTweaksConfig.staminaModule.shield.shieldRaiseCost;
+                if (Reflect.hasEnoughStamina(player, cost)) {
+                    FeathersHelper.decreaseFeathers(player, cost);
+                    player.getEntityData().setBoolean("StaminaTweaksShieldActive", true);
+                    player.getEntityData().setInteger("StaminaTweaksShieldTicks", 0);
+                } else {
+                    Reflect.resetActiveHand(player);
+                    player.getEntityData().setBoolean("StaminaTweaksShieldActive", false);
+                }
+            } else {
+                // Holding cost over time
+                int ticks = player.getEntityData().getInteger("StaminaTweaksShieldTicks") + 1;
+                if (ticks >= ArcanaQuestTweaksConfig.staminaModule.shield.shieldHoldInterval) {
+                    int cost = ArcanaQuestTweaksConfig.staminaModule.shield.shieldHoldCost;
+                    if (Reflect.hasEnoughStamina(player, cost)) {
+                        FeathersHelper.decreaseFeathers(player, cost);
+                        ticks = 0;
+                    } else {
+                        Reflect.resetActiveHand(player);
+                        player.getEntityData().setBoolean("StaminaTweaksShieldActive", false);
+                        ticks = 0;
+                    }
+                }
+                player.getEntityData().setInteger("StaminaTweaksShieldTicks", ticks);
+            }
+        } else {
+            if (wasBlocking) {
+                player.getEntityData().setBoolean("StaminaTweaksShieldActive", false);
+                player.getEntityData().setInteger("StaminaTweaksShieldTicks", 0);
+            }
+        }
+    }
+
+    @SubscribeEvent
+    public void onBlockBreak(net.minecraftforge.event.world.BlockEvent.BreakEvent event) {
+        EntityPlayer player = event.getPlayer();
+        if (player == null || player.world.isRemote || Reflect.isCreative(player) || player.isSpectator()) return;
+
+        if (!ArcanaQuestTweaksConfig.staminaModule.mining.enableMiningCost) return;
+
+        Block block = event.getState().getBlock();
+        boolean isOreOrObsidian = block == net.minecraft.init.Blocks.OBSIDIAN || 
+                                  (block.getRegistryName() != null && block.getRegistryName().toString().toLowerCase().contains("ore"));
+
+        int cost = isOreOrObsidian ? ArcanaQuestTweaksConfig.staminaModule.mining.oreCost : ArcanaQuestTweaksConfig.staminaModule.mining.defaultCost;
+
+        EntityPlayerMP playerMP = (EntityPlayerMP) player;
+        if (ArcanaQuestTweaksConfig.staminaModule.reskillable.enableReskillable && 
+            Reflect.hasUnlockable(playerMP, ArcanaQuestTweaksConfig.staminaModule.reskillable.miningEfficiencyPerkId)) {
+            cost = Math.max(0, cost - ArcanaQuestTweaksConfig.staminaModule.reskillable.miningEfficiencyReduction);
+        }
+        if (cost <= 0) return;
+        if (Reflect.hasEnoughStamina(playerMP, cost)) {
+            FeathersHelper.decreaseFeathers(playerMP, cost);
+        } else {
+            int currentFeathers = FeathersHelper.getFeatherLevel(playerMP);
+            int weight = Reflect.getWeight(playerMP);
+            int usable = currentFeathers - weight;
+            int absorption = Reflect.getAbsorptionFeathers(playerMP);
+            int totalUsable = usable + absorption;
+            if (totalUsable > 0) {
+                FeathersHelper.decreaseFeathers(playerMP, totalUsable);
+            }
         }
     }
 }

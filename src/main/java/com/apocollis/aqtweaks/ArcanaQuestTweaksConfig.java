@@ -37,6 +37,22 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Open Glider")
         @Config.Comment("Configure hang glider stamina consumption")
         public Glider glider = new Glider();
+
+        @Config.Name("Shield Blocking")
+        @Config.Comment("Configure shield stamina consumption")
+        public Shield shield = new Shield();
+
+        @Config.Name("Mining")
+        @Config.Comment("Configure mining/block breaking stamina consumption")
+        public Mining mining = new Mining();
+
+        @Config.Name("Reskillable Integration")
+        @Config.Comment("Configure Reskillable integration settings")
+        public Reskillable reskillable = new Reskillable();
+
+        @Config.Name("Simple Difficulty Integration")
+        @Config.Comment("Configure Simple Difficulty integration settings")
+        public SimpleDifficulty simpleDifficulty = new SimpleDifficulty();
     }
 
     public static class Jumping {
@@ -89,7 +105,7 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Ladder Climb Cost")
         @Config.Comment("Stamina cost (in half-feathers) per interval on ladders")
         @Config.RangeInt(min = 0)
-        public int ladderCost = 1;
+        public int ladderCost = 2;
 
         @Config.Name("Vine Climb Tick Interval")
         @Config.Comment("Ticks between feather consumption on vines (20 ticks = 1 second)")
@@ -99,7 +115,7 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Vine Climb Cost")
         @Config.Comment("Stamina cost (in half-feathers) per interval on vines")
         @Config.RangeInt(min = 0)
-        public int vineCost = 2;
+        public int vineCost = 3;
 
         @Config.Name("Enable Rope Climb Cost")
         @Config.Comment("Does climbing/clinging to ropes consume stamina?")
@@ -113,7 +129,7 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Rope Climb Cost")
         @Config.Comment("Stamina cost (in half-feathers) per interval on ropes")
         @Config.RangeInt(min = 0)
-        public int ropeCost = 1;
+        public int ropeCost = 3;
 
         @Config.Name("Fall on Stamina Depleted")
         @Config.Comment("If true, the player will lose their grip and fall/slide when out of stamina.")
@@ -156,7 +172,7 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Heavy Weapons Cost")
         @Config.Comment("Feather cost (in half-feathers) for heavy weapons")
         @Config.RangeInt(min = 0)
-        public int heavyCost = 3;
+        public int heavyCost = 4;
 
         @Config.Name("Heavy Weapons Damage Multiplier")
         @Config.Comment("Damage multiplier applied if attacking without enough feathers")
@@ -198,6 +214,83 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Stamina cost (in half-feathers) consumed per glide interval")
         @Config.RangeInt(min = 0)
         public int gliderCost = 1;
+    }
+
+    public static class Shield {
+        @Config.Name("Enable Shield Stamina Cost")
+        @Config.Comment("Does raising and holding a shield consume stamina?")
+        public boolean enableShieldCost = true;
+
+        @Config.Name("Shield Raise Cost")
+        @Config.Comment("Stamina cost (in half-feathers) charged instantly upon raising a shield")
+        @Config.RangeInt(min = 0)
+        public int shieldRaiseCost = 1;
+
+        @Config.Name("Shield Hold Tick Interval")
+        @Config.Comment("Ticks between feather consumption while holding a shield raised (20 ticks = 1 second)")
+        @Config.RangeInt(min = 1)
+        public int shieldHoldInterval = 20;
+
+        @Config.Name("Shield Hold Cost")
+        @Config.Comment("Stamina cost (in half-feathers) consumed per hold interval")
+        @Config.RangeInt(min = 0)
+        public int shieldHoldCost = 1;
+    }
+
+    public static class Mining {
+        @Config.Name("Enable Mining Stamina Cost")
+        @Config.Comment("Does breaking blocks consume stamina?")
+        public boolean enableMiningCost = true;
+
+        @Config.Name("Ore/Obsidian Break Cost")
+        @Config.Comment("Stamina cost (in half-feathers) for breaking ores and obsidian")
+        @Config.RangeInt(min = 0)
+        public int oreCost = 2;
+
+        @Config.Name("Default Block Break Cost")
+        @Config.Comment("Stamina cost (in half-feathers) for breaking any other block")
+        @Config.RangeInt(min = 0)
+        public int defaultCost = 1;
+
+        @Config.Name("Mining Fatigue Feather Threshold")
+        @Config.Comment("Number of regular feathers (in half-feathers, e.g. 4 = 2 full feathers) at or below which Mining Fatigue III is applied")
+        @Config.RangeInt(min = 0)
+        public int miningFatigueThreshold = 4;
+    }
+
+    public static class Reskillable {
+        @Config.Name("Enable Reskillable Perks")
+        @Config.Comment("Should we enable integration with custom Reskillable perks?")
+        public boolean enableReskillable = true;
+
+        @Config.Name("Armor Mastery Perk ID")
+        @Config.Comment("Registry ID of the Armor Mastery perk (defaults to aqtweaks:armor_mastery)")
+        public String armorMasteryPerkId = "aqtweaks:armor_mastery";
+
+        @Config.Name("Armor Mastery Reduction")
+        @Config.Comment("Stamina weight cost reduction (in half-feathers) per piece of armor worn")
+        @Config.RangeDouble(min = 0.0, max = 10.0)
+        public double armorMasteryReductionPerPiece = 1.0;
+
+        @Config.Name("Mining Efficiency Perk ID")
+        @Config.Comment("Registry ID of the Mining Efficiency perk (defaults to aqtweaks:mining_efficiency)")
+        public String miningEfficiencyPerkId = "aqtweaks:mining_efficiency";
+
+        @Config.Name("Mining Efficiency Reduction")
+        @Config.Comment("Stamina cost reduction (in half-feathers) applied to mining actions")
+        @Config.RangeInt(min = 0, max = 20)
+        public int miningEfficiencyReduction = 1;
+    }
+
+    public static class SimpleDifficulty {
+        @Config.Name("Enable Thirst Cost")
+        @Config.Comment("Should restoring feathers consume Simple Difficulty hydration?")
+        public boolean enableThirstCost = true;
+
+        @Config.Name("Thirst Exhaustion Per Feather")
+        @Config.Comment("Thirst exhaustion added per half-feather regenerated (4.0 exhaustion consumes 1 point of thirst saturation/level)")
+        @Config.RangeDouble(min = 0.0, max = 4.0)
+        public double thirstExhaustionPerFeather = 0.1;
     }
 
     @Mod.EventBusSubscriber(modid = ArcanaQuestTweaks.MODID)
