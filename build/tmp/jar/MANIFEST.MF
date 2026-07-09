@@ -1,9 +1,9 @@
 Manifest-Version: 1.0
-Implementation-Title: ArcanaQuestTweaks
-Implementation-Version: 1.0
+Implementation-Title: ArcanaQuestTweaksDEVBOX
+Implementation-Version: 1.1
 Specification-Vendor: apocollis
 Specification-Title: aqtweaks
-Implementation-Timestamp: 2026-07-07T00:49:15-0400
+Implementation-Timestamp: 2026-07-09T17:54:09-0400
 Specification-Version: 1
 Implementation-Vendor: apocollis
 

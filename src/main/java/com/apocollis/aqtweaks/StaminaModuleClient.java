@@ -97,6 +97,7 @@ public class StaminaModuleClient {
                 }
             }
             handleClientClimbing((net.minecraft.client.entity.EntityPlayerSP) player);
+            handleClientLedgeClimbing((net.minecraft.client.entity.EntityPlayerSP) player);
         }
     }
 
@@ -124,7 +125,53 @@ public class StaminaModuleClient {
 
     @SideOnly(Side.CLIENT)
     private void handleClientClimbing(net.minecraft.client.entity.EntityPlayerSP player) {
-        if (!ArcanaQuestTweaksConfig.staminaModule.climbing.enableClimbCost || !ArcanaQuestTweaksConfig.staminaModule.climbing.fallOnDepleted) return;
+        if (!ArcanaQuestTweaksConfig.staminaModule.climbing.enableClimbCost) return;
+
+        if (Reflect.isOnLadder(player)) {
+            // Send jump input every tick while on ladder to prevent state desync
+            boolean isJumpPressed = player.movementInput.jump;
+            ArcanaQuestTweaks.NETWORK.sendToServer(new PacketSyncClimbingInput(isJumpPressed));
+            player.getEntityData().setBoolean("StaminaTweaksLastJumpInput", isJumpPressed);
+
+            if (!ArcanaQuestTweaksConfig.staminaModule.climbing.fallOnDepleted) return;
+
+            // Get the block at player's position to see if rope climbing cost is enabled
+            int x = net.minecraft.util.math.MathHelper.floor(player.posX);
+            int y = net.minecraft.util.math.MathHelper.floor(player.getEntityBoundingBox().minY);
+            int z = net.minecraft.util.math.MathHelper.floor(player.posZ);
+            net.minecraft.util.math.BlockPos pos = new net.minecraft.util.math.BlockPos(x, y, z);
+            net.minecraft.block.Block block = player.world.getBlockState(pos).getBlock();
+
+            boolean isRope = Reflect.isRopeBlock(block);
+            boolean isVine = !isRope && (block instanceof net.minecraft.block.BlockVine || block.getClass().getSimpleName().toLowerCase().contains("vine"));
+            int cost = isRope ? ArcanaQuestTweaksConfig.staminaModule.climbing.ropeCost : (isVine ? ArcanaQuestTweaksConfig.staminaModule.climbing.vineCost : ArcanaQuestTweaksConfig.staminaModule.climbing.ladderCost);
+
+            if (isRope && !ArcanaQuestTweaksConfig.staminaModule.climbing.enableRopeCost) return;
+
+            boolean isClimbing = player.movementInput.jump || Reflect.getMotionY(player) > 0.0 || player.isSneaking();
+            if (isClimbing) {
+                if (!Reflect.hasEnoughStamina(player, 1)) {
+                    Reflect.setMotionY(player, -0.15);
+                }
+            }
+
+            if (!Reflect.hasEnoughStamina(player, 1)) {
+                Reflect.setMotionY(player, -0.15);
+            }
+        } else {
+            // Clean up last jump input state
+            if (player.getEntityData().getBoolean("StaminaTweaksLastJumpInput")) {
+                ArcanaQuestTweaks.NETWORK.sendToServer(new PacketSyncClimbingInput(false));
+                player.getEntityData().setBoolean("StaminaTweaksLastJumpInput", false);
+            }
+        }
+    }
+
+    @SubscribeEvent
+    @SideOnly(Side.CLIENT)
+    public void onInputUpdate(net.minecraftforge.client.event.InputUpdateEvent event) {
+        EntityPlayer player = event.getEntityPlayer();
+        if (player == null || Reflect.isCreative(player) || player.isSpectator()) return;
 
         if (Reflect.isOnLadder(player)) {
             // Get the block at player's position to see if rope climbing cost is enabled
@@ -140,15 +187,109 @@ public class StaminaModuleClient {
 
             if (isRope && !ArcanaQuestTweaksConfig.staminaModule.climbing.enableRopeCost) return;
 
-            boolean isClimbing = Reflect.getMotionY(player) > 0.0 || player.isSneaking();
-            if (isClimbing) {
-                if (!Reflect.hasEnoughStamina(player, cost)) {
-                    Reflect.setMotionY(player, -0.15);
+            if (!Reflect.hasEnoughStamina(player, 1)) {
+                event.getMovementInput().jump = false;
+                event.getMovementInput().sneak = false;
+            }
+        }
+    }
+
+    @SideOnly(Side.CLIENT)
+    private void handleClientLedgeClimbing(net.minecraft.client.entity.EntityPlayerSP player) {
+        if (!ArcanaQuestTweaksConfig.staminaModule.ledgeClimb.enableLedgeClimb) return;
+
+        int state = player.getEntityData().getInteger("StaminaTweaksLedgeClimbState");
+
+        if (state == 0) {
+            // Check target conditions
+            if (player.onGround || Reflect.isOnLadder(player) || player.isInWater() || player.isInLava() || player.isRiding()) return;
+
+            // Must hold forward and jump
+            if (!player.movementInput.jump || player.movementInput.moveForward <= 0.0F) return;
+
+            // Check if player has enough stamina
+            int cost = ArcanaQuestTweaksConfig.staminaModule.ledgeClimb.ledgeClimbCost;
+            if (!Reflect.hasEnoughStamina(player, cost)) return;
+
+            // Ledge detection
+            double yawRad = Math.toRadians(player.rotationYaw);
+            double dx = -Math.sin(yawRad);
+            double dz = Math.cos(yawRad);
+
+            double reach = 0.4D;
+            double checkX = player.posX + dx * reach;
+            double checkZ = player.posZ + dz * reach;
+
+            net.minecraft.world.World world = player.world;
+            double foundLedgeY = -1.0D;
+
+            // Scan from top to bottom at potential wall heights
+            double[] checkHeights = new double[] { 1.5D, 1.0D, 0.5D };
+            for (double h : checkHeights) {
+                net.minecraft.util.math.BlockPos wallPos = new net.minecraft.util.math.BlockPos(checkX, player.posY + h, checkZ);
+                net.minecraft.block.state.IBlockState wallState = world.getBlockState(wallPos);
+                
+                // If it is solid block
+                if (wallState.getCollisionBoundingBox(world, wallPos) != net.minecraft.block.Block.NULL_AABB) {
+                    double ledgeY = wallPos.getY() + 1.0D;
+                    double diff = ledgeY - player.posY;
+                    if (diff > 0.5D && diff <= 2.2D) {
+                        // Check if space above is clear
+                        net.minecraft.util.math.BlockPos space1 = wallPos.up();
+                        net.minecraft.util.math.BlockPos space2 = wallPos.up(2);
+                        if (world.getBlockState(space1).getCollisionBoundingBox(world, space1) == net.minecraft.block.Block.NULL_AABB &&
+                            world.getBlockState(space2).getCollisionBoundingBox(world, space2) == net.minecraft.block.Block.NULL_AABB) {
+                            foundLedgeY = ledgeY;
+                            break;
+                        }
+                    }
                 }
             }
 
-            if (!Reflect.hasEnoughStamina(player, cost)) {
-                Reflect.setMotionY(player, -0.15);
+            if (foundLedgeY > 0.0D) {
+                // Deduct stamina on server
+                ArcanaQuestTweaks.NETWORK.sendToServer(new PacketLedgeClimb());
+
+                // Set client state variables
+                player.getEntityData().setInteger("StaminaTweaksLedgeClimbState", 1);
+                player.getEntityData().setDouble("StaminaTweaksLedgeClimbTargetY", foundLedgeY);
+                player.getEntityData().setDouble("StaminaTweaksLedgeClimbDx", dx);
+                player.getEntityData().setDouble("StaminaTweaksLedgeClimbDz", dz);
+
+                // Set initial lift velocity (1/8 of original climb rate. Original net rate = 0.25 - 0.08 = 0.17. Target net rate = 0.02125. motionY = 0.08 + 0.02125 = 0.10125D)
+                player.motionY = 0.10125D;
+                player.motionX = dx * 0.005D;
+                player.motionZ = dz * 0.005D;
+            }
+        } else if (state == 1) {
+            // Check fail conditions
+            if (player.onGround || Reflect.isOnLadder(player) || player.isInWater() || player.isInLava() || player.isRiding()) {
+                player.getEntityData().setInteger("StaminaTweaksLedgeClimbState", 0);
+                return;
+            }
+
+            // Climbing should only continue while jump and forward keys are still held
+            if (!player.movementInput.jump || player.movementInput.moveForward <= 0.0F) {
+                player.getEntityData().setInteger("StaminaTweaksLedgeClimbState", 0);
+                return;
+            }
+
+            double targetY = player.getEntityData().getDouble("StaminaTweaksLedgeClimbTargetY");
+            double dx = player.getEntityData().getDouble("StaminaTweaksLedgeClimbDx");
+            double dz = player.getEntityData().getDouble("StaminaTweaksLedgeClimbDz");
+
+            if (player.posY >= targetY - 0.1D) {
+                // Clear block - do not add any forward movement on the block after
+                player.motionX = 0.0D;
+                player.motionZ = 0.0D;
+                player.motionY = 0.0D;
+
+                player.getEntityData().setInteger("StaminaTweaksLedgeClimbState", 0);
+            } else {
+                // Continue climbing (1/8 of original climb rate. motionY = 0.08 + 0.02125 = 0.10125D)
+                player.motionY = 0.10125D;
+                player.motionX = dx * 0.005D;
+                player.motionZ = dz * 0.005D;
             }
         }
     }

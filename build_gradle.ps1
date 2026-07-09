@@ -2,7 +2,7 @@
 $ErrorActionPreference = "Stop"
 
 $scriptDir = (Split-Path -Parent $MyInvocation.MyCommand.Path).Replace("\", "/")
-$workspaceDir = [System.IO.Path]::GetFullPath((Join-Path $scriptDir "../..")).Replace("\", "/")
+$workspaceDir = $scriptDir
 
 Write-Output "=== Arcana Quest Tweaks Gradle Build ==="
 Write-Output "Workspace: $workspaceDir"
@@ -31,12 +31,15 @@ try {
     cd $oldPwd
 }
 
-# 4. Copy output jar to mods folder
-$buildJar = "$scriptDir/build/libs/ArcanaQuestTweaks-1.0.jar"
-$modsJar = "$workspaceDir/mods/ArcanaQuestTweaks-1.0.jar"
+# 4. Copy output jar to mods folders (both Google Drive and local game instance)
+$buildJar = "$scriptDir/build/libs/ArcanaQuestTweaks-1.1.jar"
+$modsJar = "$workspaceDir/mods/ArcanaQuestTweaks-1.1.jar"
+$localModsJar = "c:/Users/hughe/curseforge/minecraft/Instances/Arcana Quest DEVBOX/mods/ArcanaQuestTweaks-1.1.jar"
 if (Test-Path $buildJar) {
-    Write-Output "Copying compiled mod to mods folder..."
+    Write-Output "Copying compiled mod to Google Drive mods folder..."
     Copy-Item -Path $buildJar -Destination $modsJar -Force
+    Write-Output "Copying compiled mod to local game mods folder..."
+    Copy-Item -Path $buildJar -Destination $localModsJar -Force
     Write-Output "=== Build and Deployment Succeeded! ==="
 } else {
     Write-Error "Output jar not found! Build might have failed."

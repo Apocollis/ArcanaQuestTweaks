@@ -1,6 +1,6 @@
-Args: "--in-jar", "C:\Users\hughe\curseforge\minecraft\Instances\Arcana Quest DEVBOX\mods_dev\ArcanaQuestTweaks\build\libs\ArcanaQuestTweaks-1.0.jar", "--out-jar", "C:\Users\hughe\curseforge\minecraft\Instances\Arcana Quest DEVBOX\mods_dev\ArcanaQuestTweaks\build\reobfJar\output.jar", "--srg-in", "C:\Users\hughe\curseforge\minecraft\Instances\Arcana Quest DEVBOX\mods_dev\ArcanaQuestTweaks\build\createMcpToSrg\output.tsrg", "--live"
+Args: "--in-jar", "G:\My Drive\Arcana Quest\ArcanaQuestTweaksDEVBOX\build\libs\ArcanaQuestTweaks-1.1.jar", "--out-jar", "G:\My Drive\Arcana Quest\ArcanaQuestTweaksDEVBOX\build\reobfJar\output.jar", "--srg-in", "G:\My Drive\Arcana Quest\ArcanaQuestTweaksDEVBOX\build\createMcpToSrg\output.tsrg", "--live"
 Classpath: C:\Users\hughe\.gradle\caches\forge_gradle\maven_downloader\net\md-5\SpecialSource\1.8.3\SpecialSource-1.8.3-shaded.jar
-Classpath: C:\Users\hughe\curseforge\minecraft\Instances\Arcana Quest DEVBOX\mods_dev\ArcanaQuestTweaks\libs\ElenaiDodge2-1.12.2-1.1.0.jar
+Classpath: G:\My Drive\Arcana Quest\ArcanaQuestTweaksDEVBOX\libs\ElenaiDodge2-1.12.2-1.1.0.jar
 Classpath: C:\Users\hughe\.gradle\caches\forge_gradle\minecraft_user_repo\net\minecraftforge\forge\1.12.2-14.23.5.2864_mapped_snapshot_20171003-1.12\forge-1.12.2-14.23.5.2864_mapped_snapshot_20171003-1.12.jar
 Classpath: C:\Users\hughe\.gradle\caches\forge_gradle\minecraft_repo\versions\1.12.2\client-extra.jar
 Classpath: C:\Users\hughe\.gradle\caches\modules-2\files-2.1\com.google.code.findbugs\jsr305\3.0.1\f7be08ec23c21485b9b5a1cf1654c2ec8c58168d\jsr305-3.0.1.jar
@@ -61,7 +61,7 @@ Classpath: C:\Users\hughe\.gradle\caches\modules-2\files-2.1\org.lwjgl.lwjgl\lwj
 Classpath: C:\Users\hughe\.gradle\caches\modules-2\files-2.1\org.lwjgl.lwjgl\lwjgl-platform\2.9.4-nightly-20150209\b04f3ee8f5e43fa3b162981b50bb72fe1acabb33\lwjgl-platform-2.9.4-nightly-20150209.jar
 Classpath: C:\Users\hughe\.gradle\caches\modules-2\files-2.1\com.mojang\text2speech\1.10.3\48fd510879dff266c3815947de66e3d4809f8668\text2speech-1.10.3.jar
 Classpath: C:\Users\hughe\.gradle\caches\modules-2\files-2.1\org.codehaus.plexus\plexus-utils\3.1.0\60eecb6f15abdb1c653ad80abaac6fe188b3feaa\plexus-utils-3.1.0.jar
-WorkDir: C:\Users\hughe\curseforge\minecraft\Instances\Arcana Quest DEVBOX\mods_dev\ArcanaQuestTweaks\build\reobfJar
+WorkDir: G:\My Drive\Arcana Quest\ArcanaQuestTweaksDEVBOX\build\reobfJar
 Main: net.md_5.specialsource.SpecialSource
 ====================================
 Loading mappings

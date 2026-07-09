@@ -9,9 +9,11 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks")
 public class ArcanaQuestTweaksConfig {
 
-    @Config.Name("Stamina Module")
-    @Config.Comment("Configure the Stamina Module settings")
     public static StaminaModuleConfig staminaModule = new StaminaModuleConfig();
+
+    @Config.Name("Grimoire of Gaia Module")
+    @Config.Comment("Configure the Grimoire of Gaia Module settings")
+    public static GrimoireOfGaiaConfig grimoireOfGaia = new GrimoireOfGaiaConfig();
 
     public static class StaminaModuleConfig {
         @Config.Name("Jumping")
@@ -53,6 +55,10 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Simple Difficulty Integration")
         @Config.Comment("Configure Simple Difficulty integration settings")
         public SimpleDifficulty simpleDifficulty = new SimpleDifficulty();
+
+        @Config.Name("Ledge Climbing")
+        @Config.Comment("Configure ledge climbing stamina consumption")
+        public LedgeClimb ledgeClimb = new LedgeClimb();
     }
 
     public static class Jumping {
@@ -290,7 +296,24 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Thirst Exhaustion Per Feather")
         @Config.Comment("Thirst exhaustion added per half-feather regenerated (4.0 exhaustion consumes 1 point of thirst saturation/level)")
         @Config.RangeDouble(min = 0.0, max = 4.0)
-        public double thirstExhaustionPerFeather = 0.1;
+        public double thirstExhaustionPerFeather = 0.25;
+    }
+
+    public static class LedgeClimb {
+        @Config.Name("Enable Ledge Climbing")
+        @Config.Comment("Should players be able to grab and climb up ledges?")
+        public boolean enableLedgeClimb = true;
+
+        @Config.Name("Ledge Climb Cost")
+        @Config.Comment("Stamina cost (in half-feathers) per ledge climb")
+        @Config.RangeInt(min = 0)
+        public int ledgeClimbCost = 2;
+    }
+
+    public static class GrimoireOfGaiaConfig {
+        @Config.Name("Disable Piercing Damage")
+        @Config.Comment("Should piercing/penetrating damage from Grimoire of Gaia mobs be converted to normal damage that is reducible by physical armor?")
+        public boolean disablePiercingDamage = true;
     }
 
     @Mod.EventBusSubscriber(modid = ArcanaQuestTweaks.MODID)

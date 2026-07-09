@@ -215,27 +215,26 @@ public class StaminaModule {
 
             if (!costEnabled) return;
 
-            // Track Y position ourselves — at Phase.START, the current tick's
-            // climbing motion hasn't been applied yet, so posY reflects the
-            // FINAL position after the previous tick's full movement cycle.
-            // By storing it in NBT at the end of this handler each tick, we
-            // get a reliable one-tick comparison.
             String yKey = "StaminaTweaksClimbPrevY";
+            boolean isJumpPressed = player.getEntityData().getBoolean("StaminaTweaksClimbJumpInput");
             boolean isClimbing;
             if (player.getEntityData().hasKey(yKey)) {
                 double prevY = player.getEntityData().getDouble(yKey);
-                isClimbing = (player.posY > prevY + 0.001) || player.isSneaking();
+                isClimbing = isJumpPressed || (player.posY > prevY + 0.001) || player.isSneaking();
             } else {
-                // First tick on ladder — sneaking still counts
-                isClimbing = player.isSneaking();
+                // First tick on ladder — sneaking or jumping counts
+                isClimbing = isJumpPressed || player.isSneaking();
             }
             player.getEntityData().setDouble(yKey, player.posY);
 
             if (isClimbing) {
-                if (Reflect.hasEnoughStamina(player, cost)) {
+                // Calculate sub-interval for granular charging (1 half-feather per sub-interval)
+                int singleInterval = Math.max(1, interval / Math.max(1, cost));
+
+                if (Reflect.hasEnoughStamina(player, 1)) {
                     int ticks = player.getEntityData().getInteger("StaminaTweaksClimbTicks") + 1;
-                    if (ticks >= interval) {
-                        FeathersHelper.decreaseFeathers(player, cost);
+                    if (ticks >= singleInterval) {
+                        FeathersHelper.decreaseFeathers(player, 1);
                         ticks = 0;
                     }
                     player.getEntityData().setInteger("StaminaTweaksClimbTicks", ticks);
@@ -246,16 +245,25 @@ public class StaminaModule {
                     }
                 }
             } else {
-                player.getEntityData().setInteger("StaminaTweaksClimbTicks", 0);
+                // Slowly decay climb ticks instead of resetting to 0 instantly
+                int ticks = player.getEntityData().getInteger("StaminaTweaksClimbTicks");
+                if (ticks > 0) {
+                    player.getEntityData().setInteger("StaminaTweaksClimbTicks", ticks - 1);
+                }
             }
 
             // If feathers are completely depleted, slide down
-            if (!Reflect.hasEnoughStamina(player, cost) && ArcanaQuestTweaksConfig.staminaModule.climbing.fallOnDepleted) {
+            if (!Reflect.hasEnoughStamina(player, 1) && ArcanaQuestTweaksConfig.staminaModule.climbing.fallOnDepleted) {
                 Reflect.setMotionY(player, -0.15);
             }
         } else {
-            player.getEntityData().setInteger("StaminaTweaksClimbTicks", 0);
+            // Decay climb ticks when off the ladder completely
+            int ticks = player.getEntityData().getInteger("StaminaTweaksClimbTicks");
+            if (ticks > 0) {
+                player.getEntityData().setInteger("StaminaTweaksClimbTicks", ticks - 1);
+            }
             player.getEntityData().removeTag("StaminaTweaksClimbPrevY");
+            player.getEntityData().removeTag("StaminaTweaksClimbJumpInput");
         }
     }
 
@@ -448,6 +456,14 @@ public class StaminaModule {
             if (totalUsable > 0) {
                 FeathersHelper.decreaseFeathers(playerMP, totalUsable);
             }
+        }
+    }
+
+    @SubscribeEvent
+    public void onPlayerRespawn(net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerRespawnEvent event) {
+        if (event.player instanceof EntityPlayerMP) {
+            EntityPlayerMP playerMP = (EntityPlayerMP) event.player;
+            FeathersHelper.increaseFeathers(playerMP, 20);
         }
     }
 }
