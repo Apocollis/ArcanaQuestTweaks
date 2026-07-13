@@ -9,6 +9,8 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks")
 public class ArcanaQuestTweaksConfig {
 
+    @Config.Name("Stamina Module")
+    @Config.Comment("Configure the Stamina Module settings")
     public static StaminaModuleConfig staminaModule = new StaminaModuleConfig();
 
     @Config.Name("Grimoire of Gaia Module")

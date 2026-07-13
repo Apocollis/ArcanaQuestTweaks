@@ -202,10 +202,23 @@ public class StaminaModuleClient {
 
         if (state == 0) {
             // Check target conditions
-            if (player.onGround || Reflect.isOnLadder(player) || player.isInWater() || player.isInLava() || player.isRiding()) return;
+            if (player.onGround || Reflect.isOnLadder(player) || player.isInWater() || player.isInLava() || player.isRiding()) {
+                player.getEntityData().setInteger("StaminaTweaksLedgeClimbHeldTicks", 0);
+                return;
+            }
 
             // Must hold forward and jump
-            if (!player.movementInput.jump || player.movementInput.moveForward <= 0.0F) return;
+            if (!player.movementInput.jump || player.movementInput.moveForward <= 0.0F) {
+                player.getEntityData().setInteger("StaminaTweaksLedgeClimbHeldTicks", 0);
+                return;
+            }
+
+            // Update consecutive held ticks
+            int heldTicks = player.getEntityData().getInteger("StaminaTweaksLedgeClimbHeldTicks") + 1;
+            player.getEntityData().setInteger("StaminaTweaksLedgeClimbHeldTicks", heldTicks);
+
+            // Must hold for at least 5 ticks
+            if (heldTicks < 5) return;
 
             // Check if player has enough stamina
             int cost = ArcanaQuestTweaksConfig.staminaModule.ledgeClimb.ledgeClimbCost;
@@ -255,6 +268,7 @@ public class StaminaModuleClient {
                 player.getEntityData().setDouble("StaminaTweaksLedgeClimbTargetY", foundLedgeY);
                 player.getEntityData().setDouble("StaminaTweaksLedgeClimbDx", dx);
                 player.getEntityData().setDouble("StaminaTweaksLedgeClimbDz", dz);
+                player.getEntityData().setInteger("StaminaTweaksLedgeClimbHeldTicks", 0); // Reset
 
                 // Set initial lift velocity (1/8 of original climb rate. Original net rate = 0.25 - 0.08 = 0.17. Target net rate = 0.02125. motionY = 0.08 + 0.02125 = 0.10125D)
                 player.motionY = 0.10125D;
@@ -278,7 +292,7 @@ public class StaminaModuleClient {
             double dx = player.getEntityData().getDouble("StaminaTweaksLedgeClimbDx");
             double dz = player.getEntityData().getDouble("StaminaTweaksLedgeClimbDz");
 
-            if (player.posY >= targetY - 0.1D) {
+            if (player.posY >= targetY + 0.2D) {
                 // Clear block - do not add any forward movement on the block after
                 player.motionX = 0.0D;
                 player.motionZ = 0.0D;
