@@ -270,8 +270,8 @@ public class StaminaModuleClient {
                 player.getEntityData().setDouble("StaminaTweaksLedgeClimbDz", dz);
                 player.getEntityData().setInteger("StaminaTweaksLedgeClimbHeldTicks", 0); // Reset
 
-                // Set initial lift velocity (1/8 of original climb rate. Original net rate = 0.25 - 0.08 = 0.17. Target net rate = 0.02125. motionY = 0.08 + 0.02125 = 0.10125D)
-                player.motionY = 0.10125D;
+                // Set initial lift velocity (1/16 of original climb rate. Original net rate = 0.25 - 0.08 = 0.17. Target net rate = 0.010625. motionY = 0.08 + 0.010625 = 0.090625D)
+                player.motionY = 0.090625D;
                 player.motionX = dx * 0.005D;
                 player.motionZ = dz * 0.005D;
             }
@@ -300,8 +300,8 @@ public class StaminaModuleClient {
 
                 player.getEntityData().setInteger("StaminaTweaksLedgeClimbState", 0);
             } else {
-                // Continue climbing (1/8 of original climb rate. motionY = 0.08 + 0.02125 = 0.10125D)
-                player.motionY = 0.10125D;
+                // Continue climbing (1/16 of original climb rate. motionY = 0.08 + 0.010625 = 0.090625D)
+                player.motionY = 0.090625D;
                 player.motionX = dx * 0.005D;
                 player.motionZ = dz * 0.005D;
             }

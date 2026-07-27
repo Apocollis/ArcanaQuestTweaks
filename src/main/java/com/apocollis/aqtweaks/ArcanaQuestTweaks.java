@@ -8,11 +8,11 @@ import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.fml.common.network.NetworkRegistry;
 import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 
-@Mod(modid = ArcanaQuestTweaks.MODID, name = ArcanaQuestTweaks.NAME, version = ArcanaQuestTweaks.VERSION, dependencies = "required-after:elenaidodge2;after:grimoireofgaia")
+@Mod(modid = ArcanaQuestTweaks.MODID, name = ArcanaQuestTweaks.NAME, version = ArcanaQuestTweaks.VERSION, dependencies = "required-after:elenaidodge2;after:grimoireofgaia;after:thaumcraft;after:bewitchment")
 public class ArcanaQuestTweaks {
     public static final String MODID = "aqtweaks";
     public static final String NAME = "Arcana Quest Tweaks";
-    public static final String VERSION = "1.1";
+    public static final String VERSION = "1.2";
 
     public static final SimpleNetworkWrapper NETWORK = NetworkRegistry.INSTANCE.newSimpleChannel(MODID);
 
@@ -35,5 +35,10 @@ public class ArcanaQuestTweaks {
     @Mod.EventHandler
     public void postInit(FMLPostInitializationEvent event) {
         proxy.postInit(event);
+    }
+
+    @Mod.EventHandler
+    public void serverStarting(net.minecraftforge.fml.common.event.FMLServerStartingEvent event) {
+        event.registerServerCommand(new CommandWhereAmI());
     }
 }

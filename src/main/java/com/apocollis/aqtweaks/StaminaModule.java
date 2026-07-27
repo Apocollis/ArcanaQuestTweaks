@@ -216,20 +216,19 @@ public class StaminaModule {
             if (!costEnabled) return;
 
             String yKey = "StaminaTweaksClimbPrevY";
-            boolean isJumpPressed = player.getEntityData().getBoolean("StaminaTweaksClimbJumpInput");
-            boolean isClimbing;
-            if (player.getEntityData().hasKey(yKey)) {
-                double prevY = player.getEntityData().getDouble(yKey);
-                isClimbing = isJumpPressed || (player.posY > prevY + 0.001) || player.isSneaking();
-            } else {
-                // First tick on ladder — sneaking or jumping counts
-                isClimbing = isJumpPressed || player.isSneaking();
-            }
+            double prevY = player.getEntityData().hasKey(yKey) ? player.getEntityData().getDouble(yKey) : player.posY;
+            double deltaY = player.posY - prevY;
             player.getEntityData().setDouble(yKey, player.posY);
 
-            if (isClimbing) {
-                // Calculate sub-interval for granular charging (1 half-feather per sub-interval)
-                int singleInterval = Math.max(1, interval / Math.max(1, cost));
+            boolean isJumpPressed = player.getEntityData().getBoolean("StaminaTweaksClimbJumpInput");
+            boolean isAscending = isJumpPressed || deltaY > 0.001;
+            boolean isStationary = !isAscending && (Math.abs(deltaY) <= 0.001 || player.isSneaking());
+            boolean isDescending = !isAscending && !isStationary && deltaY < -0.001;
+
+            if (isAscending || isStationary) {
+                // Stationary drains at 25% of ascending rate (4x longer interval)
+                int effectiveInterval = isStationary ? (interval * 4) : interval;
+                int singleInterval = Math.max(1, effectiveInterval / Math.max(1, cost));
 
                 if (Reflect.hasEnoughStamina(player, 1)) {
                     int ticks = player.getEntityData().getInteger("StaminaTweaksClimbTicks") + 1;
@@ -245,7 +244,7 @@ public class StaminaModule {
                     }
                 }
             } else {
-                // Slowly decay climb ticks instead of resetting to 0 instantly
+                // Descending: decay climb ticks, no stamina cost
                 int ticks = player.getEntityData().getInteger("StaminaTweaksClimbTicks");
                 if (ticks > 0) {
                     player.getEntityData().setInteger("StaminaTweaksClimbTicks", ticks - 1);
