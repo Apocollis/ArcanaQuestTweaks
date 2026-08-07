@@ -1,6 +1,14 @@
-Args: "--in-jar", "G:\My Drive\Arcana Quest\ArcanaQuestTweaksDEVBOX\build\libs\ArcanaQuestTweaks-1.1.jar", "--out-jar", "G:\My Drive\Arcana Quest\ArcanaQuestTweaksDEVBOX\build\reobfJar\output.jar", "--srg-in", "G:\My Drive\Arcana Quest\ArcanaQuestTweaksDEVBOX\build\createMcpToSrg\output.tsrg", "--live"
+Args: "--in-jar", "G:\My Drive\Arcana Quest\ArcanaQuestTweaksDEVBOX\build\libs\ArcanaQuestTweaks-1.5.jar", "--out-jar", "G:\My Drive\Arcana Quest\ArcanaQuestTweaksDEVBOX\build\reobfJar\output.jar", "--srg-in", "G:\My Drive\Arcana Quest\ArcanaQuestTweaksDEVBOX\build\createMcpToSrg\output.tsrg", "--live"
 Classpath: C:\Users\hughe\.gradle\caches\forge_gradle\maven_downloader\net\md-5\SpecialSource\1.8.3\SpecialSource-1.8.3-shaded.jar
 Classpath: G:\My Drive\Arcana Quest\ArcanaQuestTweaksDEVBOX\libs\ElenaiDodge2-1.12.2-1.1.0.jar
+Classpath: G:\My Drive\Arcana Quest\ArcanaQuestTweaksDEVBOX\libs\bewitchment-1.12.2-0.0.22.65.jar
+Classpath: G:\My Drive\Arcana Quest\ArcanaQuestTweaksDEVBOX\libs\RoguelikeDungeons-Arcana-1.12.2-2.5.0.jar
+Classpath: G:\My Drive\Arcana Quest\ArcanaQuestTweaksDEVBOX\libs\CoFHWorld-1.12.2-1.4.0.1-universal.jar
+Classpath: G:\My Drive\Arcana Quest\ArcanaQuestTweaksDEVBOX\libs\bettercaves-1.12.2-2.0.4.jar
+Classpath: G:\My Drive\Arcana Quest\ArcanaQuestTweaksDEVBOX\libs\RecurrentComplexVolts-1.12.2-2.0.0.7.jar
+Classpath: G:\My Drive\Arcana Quest\ArcanaQuestTweaksDEVBOX\libs\IvToolkit-1.3.3-1.12.jar
+Classpath: G:\My Drive\Arcana Quest\ArcanaQuestTweaksDEVBOX\libs\RTG-1.12.2-7.3.3.6.jar
+Classpath: C:\Users\hughe\.gradle\caches\modules-2\files-2.1\org.spongepowered\mixin\0.8.5\9d1c0c3a304ae6697ecd477218fa61b850bf57fc\mixin-0.8.5.jar
 Classpath: C:\Users\hughe\.gradle\caches\forge_gradle\minecraft_user_repo\net\minecraftforge\forge\1.12.2-14.23.5.2864_mapped_snapshot_20171003-1.12\forge-1.12.2-14.23.5.2864_mapped_snapshot_20171003-1.12.jar
 Classpath: C:\Users\hughe\.gradle\caches\forge_gradle\minecraft_repo\versions\1.12.2\client-extra.jar
 Classpath: C:\Users\hughe\.gradle\caches\modules-2\files-2.1\com.google.code.findbugs\jsr305\3.0.1\f7be08ec23c21485b9b5a1cf1654c2ec8c58168d\jsr305-3.0.1.jar

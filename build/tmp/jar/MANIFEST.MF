@@ -1,9 +1,11 @@
 Manifest-Version: 1.0
 Implementation-Title: ArcanaQuestTweaksDEVBOX
-Implementation-Version: 1.1
+Implementation-Version: 1.5
+FMLCorePluginContainsFMLMod: true
 Specification-Vendor: apocollis
 Specification-Title: aqtweaks
-Implementation-Timestamp: 2026-07-13T13:17:34-0400
+Implementation-Timestamp: 2026-08-07T14:11:10-0400
+ForceLoadAsMod: true
 Specification-Version: 1
 Implementation-Vendor: apocollis
 

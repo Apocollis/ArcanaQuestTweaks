@@ -1,0 +1,26 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.apocollis.aqtweaks.mixin",
+  "compatibilityLevel": "JAVA_8",
+  "client": [],
+  "mixins": [
+    "MixinDungeon",
+    "MixinChunkProviderServer",
+    "cofh.MixinDistributionUniform",
+    "bettercaves.MixinCaveCarver",
+    "bettercaves.MixinCavernCarver",
+    "bettercaves.MixinCaveCarverBuilder",
+    "bettercaves.MixinCavernCarverBuilder",
+    "bettercaves.MixinCarverUtils",
+    "bettercaves.MixinFlattenBedrock",
+    "bettercaves.MixinBetterCavesUtils",
+    "bettercaves.MixinChunkGeneratorRTG",
+    "bettercaves.MixinBetterCavesDebugTrace",
+    "bettercaves.MixinBetterCavesDepthsPass",
+    "bettercaves.MixinCaveNoiseGenerator",
+    "bettercaves.MixinDepthsMapGenCaves",
+    "bettercaves.MixinChunkGeneratorRTGVillage",
+    "reccomplex.MixinRayMatcher"
+  ]
+}
