@@ -6,10 +6,16 @@
 ## 2. Source of Truth & Workflow
 - **Authoritative repo**: This Git directory (`ArcanaQuestTweaks`). Edit here only.
 - **Do not** maintain a parallel editable copy under `ArcanaQuestTweaksDEVBOX` for day-to-day work.
-- **Build**: `powershell -ExecutionPolicy Bypass -File .\build_gradle.ps1`
+- **Build (primary)**: `powershell -ExecutionPolicy Bypass -File .\build_gradle.ps1`
   - Populates `libs/` from the CurseForge instance mods folder
   - Builds a **remapped** jar (`defaultRemapJar = true`)
   - Deploys to workspace `mods/` and `C:\Users\hughe\curseforge\minecraft\Instances\Arcana Quest DEVBOX\mods`
+- **Build (Antigravity / legacy)**: keep `build.ps1` — do **not** delete. It is a legacy javac script that references:
+  - `../../mods` (Antigravity relative layout; falls back to CurseForge DEVBOX `mods` / workspace `mods`)
+  - `C:/Users/hughe/curseforge/minecraft/Install/libraries`
+  - `C:/Users/hughe/curseforge/minecraft/Install/versions/1.12.2/1.12.2.jar`
+  - `C:/Users/hughe/curseforge/minecraft/Install/versions/forge-14.23.5.2864/forge-14.23.5.2864.jar`
+  - `ElenaiDodge2-1.12.2-1.1.0.jar` in the resolved mods folder
 - **Exclusions from git** (see `.gitignore`): `build/`, `.gradle/`, `libs/`, `mods/`, `temp/`, `run/`
 
 ## 3. Structure Loot Table Integration Rule
