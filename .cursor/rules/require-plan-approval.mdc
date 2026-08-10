@@ -1,0 +1,24 @@
+---
+description: Require an implementation plan and explicit approval before any codebase changes
+alwaysApply: true
+---
+
+# Require Plan Approval Before Changes
+
+Never make code, script, asset, config, or file-system changes without approval first.
+
+## Required workflow
+
+1. Investigate and gather context as needed (read-only).
+2. Write a concise implementation plan to `implementation_plan.md` covering:
+   - Problem / goal
+   - Proposed file changes
+   - Risks or user decisions needed
+   - How to verify
+3. Stop and wait for explicit approval (`proceed`, or clear equivalent).
+4. Only then implement, build, or delete.
+
+## Exceptions
+
+- Purely read-only analysis, explanation, or Q&A needs no plan.
+- If the user already gave a complete approved plan in the same turn, follow it without rewriting unless scope changes.

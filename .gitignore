@@ -1,0 +1,16 @@
+build/
+.gradle/
+libs/
+mods/
+temp/
+run/
+out/
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+implementation_plan.md
+.idea/
+*.iml
+.vscode/
+*.log
+.DS_Store
+Thumbs.db

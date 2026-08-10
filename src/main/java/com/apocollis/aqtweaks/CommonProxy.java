@@ -1,5 +1,21 @@
 package com.apocollis.aqtweaks;
 
+import com.apocollis.aqtweaks.stamina.PacketSyncClimbingInput;
+
+import com.apocollis.aqtweaks.thaumcraft.BewitchmentRegistryHandler;
+
+import com.apocollis.aqtweaks.stamina.PacketLedgeClimb;
+
+import com.apocollis.aqtweaks.thaumcraft.ThaumcraftModule;
+
+import com.apocollis.aqtweaks.stamina.StaminaModule;
+
+import com.apocollis.aqtweaks.comfort.ComfortConfigLoader;
+
+import com.apocollis.aqtweaks.gaia.GrimoireOfGaiaModule;
+
+import com.apocollis.aqtweaks.comfort.ComfortSystemHandler;
+
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;

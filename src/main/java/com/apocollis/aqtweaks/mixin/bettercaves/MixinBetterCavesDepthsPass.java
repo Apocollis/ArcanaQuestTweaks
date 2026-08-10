@@ -1,6 +1,7 @@
 package com.apocollis.aqtweaks.mixin.bettercaves;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
+import com.apocollis.aqtweaks.util.Reflect;
 import com.yungnickyoung.minecraft.bettercaves.noise.FastNoise;
 import com.yungnickyoung.minecraft.bettercaves.world.MapGenBetterCaves;
 import net.minecraft.block.state.IBlockState;
@@ -66,15 +67,17 @@ public abstract class MixinBetterCavesDepthsPass {
         int minY = ArcanaQuestTweaksConfig.depthsModule.minWorldY;
         if (minY >= 0) return;
 
-        initNoiseIfNeeded(worldIn.getSeed());
+        initNoiseIfNeeded(Reflect.getSeed(worldIn));
 
         if (!loggedOnce) {
             LOGGER.info("[AQ-DEPTHS] Pass 2 negative Y carver active. minY={}, chunk=[{}, {}]", minY, chunkX, chunkZ);
             loggedOnce = true;
         }
 
-        IBlockState airState = Blocks.AIR.getDefaultState();
-        IBlockState lavaState = Blocks.LAVA.getDefaultState();
+        IBlockState airState = Reflect.getAirState();
+        IBlockState lavaState = Reflect.getLavaState();
+        net.minecraft.block.Block airBlock = Reflect.getAirBlock();
+        net.minecraft.block.Block bedrockBlock = Reflect.getBedrockBlock();
 
         int startX = chunkX * 16;
         int startZ = chunkZ * 16;
@@ -88,8 +91,9 @@ public abstract class MixinBetterCavesDepthsPass {
 
                 // Carve from minY + 1 (-63) up to Y = 0
                 for (int y = minY + 1; y <= 0; ++y) {
-                    IBlockState currentState = primer.getBlockState(localX, y, localZ);
-                    if (currentState == null || currentState.getBlock() == Blocks.AIR || currentState.getBlock() == Blocks.BEDROCK) {
+                    IBlockState currentState = Reflect.getBlockState(primer, localX, y, localZ);
+                    net.minecraft.block.Block currentBlock = Reflect.getBlock(currentState);
+                    if (currentState == null || (airBlock != null && currentBlock == airBlock) || (bedrockBlock != null && currentBlock == bedrockBlock)) {
                         continue;
                     }
 
@@ -114,9 +118,9 @@ public abstract class MixinBetterCavesDepthsPass {
                     if (carve) {
                         carvedCount++;
                         if (y <= lavaLevel) {
-                            primer.setBlockState(localX, y, localZ, lavaState);
+                            Reflect.setBlockState(primer, localX, y, localZ, lavaState);
                         } else {
-                            primer.setBlockState(localX, y, localZ, airState);
+                            Reflect.setBlockState(primer, localX, y, localZ, airState);
                         }
                     }
                 }

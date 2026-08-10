@@ -1,5 +1,7 @@
 package com.apocollis.aqtweaks;
 
+import com.apocollis.aqtweaks.stamina.StaminaModuleClient;
+
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 

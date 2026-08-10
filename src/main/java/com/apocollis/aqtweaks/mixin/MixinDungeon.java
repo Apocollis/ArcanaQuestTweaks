@@ -1,5 +1,7 @@
 package com.apocollis.aqtweaks.mixin;
 
+import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
+
 import greymerk.roguelike.dungeon.Dungeon;
 import greymerk.roguelike.dungeon.settings.DungeonSettings;
 import greymerk.roguelike.worldgen.Coord;
@@ -11,8 +13,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import com.apocollis.aqtweaks.GridStructureTracker;
-import com.apocollis.aqtweaks.RoguelikeDungeonSavedData;
+import com.apocollis.aqtweaks.roguelike.GridStructureTracker;
+import com.apocollis.aqtweaks.roguelike.RoguelikeDungeonSavedData;
+import com.apocollis.aqtweaks.util.Reflect;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
@@ -69,7 +72,7 @@ public abstract class MixinDungeon {
                 Field field = com.github.fnar.minecraft.WorldEditor1_12.class.getDeclaredField("world");
                 field.setAccessible(true);
                 World world = (World) field.get(this.editor);
-                if (world != null && !world.isRemote) {
+                if (world != null && !Reflect.isRemote(world)) {
                     Coord base = greymerk.roguelike.dungeon.towers.TowerType.getBaseCoord(this.editor, this.origin);
                     if (base != null) {
                         List<RoguelikeDungeonSavedData.DungeonBoundingBox> boxes = new ArrayList<>();

@@ -1,6 +1,7 @@
 package com.apocollis.aqtweaks.mixin.bettercaves;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
+import com.apocollis.aqtweaks.util.Reflect;
 import com.yungnickyoung.minecraft.bettercaves.noise.FastNoise;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Biomes;
@@ -65,7 +66,7 @@ public abstract class MixinCaveNoiseGenerator {
     @Inject(method = "<init>(Lnet/minecraft/world/World;)V", remap = false, at = @At("RETURN"))
     private void onInitDepthsBetterCaves(World world, CallbackInfo ci) {
         this.capturedWorld = world;
-        initNoiseIfNeeded(world != null ? world.getSeed() : 1337L);
+        initNoiseIfNeeded(world != null ? Reflect.getSeed(world) : 1337L);
     }
 
     private static synchronized void initNoiseIfNeeded(long worldSeed) {
@@ -122,8 +123,9 @@ public abstract class MixinCaveNoiseGenerator {
         if (world == null) return false;
         try {
             Biome biome = null;
+            Biome fallbackBiome = Reflect.getPlainsBiome();
             if (world.getBiomeProvider() != null) {
-                biome = world.getBiomeProvider().getBiome(new BlockPos(x, 64, z), Biomes.PLAINS);
+                biome = world.getBiomeProvider().getBiome(new BlockPos(x, 64, z), fallbackBiome);
             }
             if (biome == null) return false;
 
@@ -161,7 +163,7 @@ public abstract class MixinCaveNoiseGenerator {
             int minY = ArcanaQuestTweaksConfig.depthsModule.minWorldY;
             if (minY >= 0) return;
 
-            long seed = this.capturedWorld != null ? this.capturedWorld.getSeed() : 1337L;
+            long seed = this.capturedWorld != null ? Reflect.getSeed(this.capturedWorld) : 1337L;
             initNoiseIfNeeded(seed);
 
             if (!loggedOnce) {
@@ -182,10 +184,12 @@ public abstract class MixinCaveNoiseGenerator {
 
             boolean oceanFlooding = ArcanaQuestTweaksConfig.depthsModule.enableOceanWaterCaves;
 
-            IBlockState bedrockState = Blocks.BEDROCK.getDefaultState();
-            IBlockState airState = Blocks.AIR.getDefaultState();
-            IBlockState lavaState = Blocks.LAVA.getDefaultState();
-            IBlockState waterState = Blocks.WATER.getDefaultState();
+            IBlockState bedrockState = Reflect.getBedrockState();
+            IBlockState airState = Reflect.getAirState();
+            IBlockState lavaState = Reflect.getLavaState();
+            IBlockState waterState = Reflect.getWaterState();
+            net.minecraft.block.Block airBlock = Reflect.getAirBlock();
+            net.minecraft.block.Block bedrockBlock = Reflect.getBedrockBlock();
 
             int startX = chunkX * 16;
             int startZ = chunkZ * 16;
@@ -209,7 +213,7 @@ public abstract class MixinCaveNoiseGenerator {
 
                     // 0. Solid flat Bedrock 4 layers thick (Y=-64 to -61)
                     for (int y = minY; y <= minY + 3; ++y) {
-                        primer.setBlockState(localX, y, localZ, bedrockState);
+                        Reflect.setBlockState(primer, localX, y, localZ, bedrockState);
                     }
 
                     boolean isWater = oceanFlooding && isWaterBiome(this.capturedWorld, worldX, worldZ);
@@ -304,8 +308,9 @@ public abstract class MixinCaveNoiseGenerator {
 
                     // 4. Main Carving Loop (Y = minY+4 up to caveTop)
                     for (int y = minY + 4; y <= caveTop; ++y) {
-                        IBlockState currentState = primer.getBlockState(localX, y, localZ);
-                        if (currentState == null || currentState.getBlock() == Blocks.AIR || currentState.getBlock() == Blocks.BEDROCK) {
+                        IBlockState currentState = Reflect.getBlockState(primer, localX, y, localZ);
+                        net.minecraft.block.Block currentBlock = Reflect.getBlock(currentState);
+                        if (currentState == null || (airBlock != null && currentBlock == airBlock) || (bedrockBlock != null && currentBlock == bedrockBlock)) {
                             continue;
                         }
 
@@ -377,17 +382,17 @@ public abstract class MixinCaveNoiseGenerator {
                                 if (y <= lavaLevel && floorVal > 0.12f) {
                                     continue;
                                 } else {
-                                    primer.setBlockState(localX, y, localZ, waterState);
+                                    Reflect.setBlockState(primer, localX, y, localZ, waterState);
                                 }
                             } else {
                                 if (y <= lavaLevel) {
                                     if (floorVal > 0.12f) {
                                         continue;
                                     } else {
-                                        primer.setBlockState(localX, y, localZ, lavaState);
+                                        Reflect.setBlockState(primer, localX, y, localZ, lavaState);
                                     }
                                 } else {
-                                    primer.setBlockState(localX, y, localZ, airState);
+                                    Reflect.setBlockState(primer, localX, y, localZ, airState);
                                 }
                             }
                         }

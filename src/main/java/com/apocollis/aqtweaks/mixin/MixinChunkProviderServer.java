@@ -1,8 +1,9 @@
 package com.apocollis.aqtweaks.mixin;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
-import com.apocollis.aqtweaks.GridStructureTracker;
-import com.apocollis.aqtweaks.RoguelikeDungeonSavedData;
+import com.apocollis.aqtweaks.roguelike.GridStructureTracker;
+import com.apocollis.aqtweaks.util.Reflect;
+import com.apocollis.aqtweaks.roguelike.RoguelikeDungeonSavedData;
 import com.yungnickyoung.minecraft.bettercaves.noise.FastNoise;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Biomes;
@@ -96,8 +97,9 @@ public class MixinChunkProviderServer {
         if (world == null) return false;
         try {
             Biome biome = null;
+            Biome fallbackBiome = Reflect.getPlainsBiome();
             if (world.getBiomeProvider() != null) {
-                biome = world.getBiomeProvider().getBiome(new BlockPos(x, 64, z), Biomes.PLAINS);
+                biome = world.getBiomeProvider().getBiome(new BlockPos(x, 64, z), fallbackBiome);
             }
             if (biome == null) return false;
 
@@ -187,7 +189,7 @@ public class MixinChunkProviderServer {
         if (minY >= 0) return;
 
         World world = this.field_73251_h != null ? this.field_73251_h : chunk.getWorld();
-        long seed = world != null ? world.getSeed() : 1337L;
+        long seed = world != null ? Reflect.getSeed(world) : 1337L;
         initNoiseIfNeeded(seed);
 
         if (!loggedOnce) {
@@ -205,14 +207,12 @@ public class MixinChunkProviderServer {
         float cavernXzComp = 0.7f;
         float cavernYComp = 1.3f;
 
-        IBlockState bedrockState = Blocks.BEDROCK.getDefaultState();
-        IBlockState airState = Blocks.AIR.getDefaultState();
-        IBlockState lavaState = Blocks.LAVA.getDefaultState();
-        IBlockState deepslateState = Blocks.STONE.getDefaultState();
-        net.minecraft.block.Block deepslateBlock = net.minecraft.block.Block.getBlockFromName("depthsupdate:deepslate");
-        if (deepslateBlock != null) {
-            deepslateState = deepslateBlock.getDefaultState();
-        }
+        IBlockState bedrockState = Reflect.getBedrockState();
+        IBlockState airState = Reflect.getAirState();
+        IBlockState lavaState = Reflect.getLavaState();
+        IBlockState deepslateState = Reflect.getDeepslateState();
+        net.minecraft.block.Block airBlock = Reflect.getAirBlock();
+        net.minecraft.block.Block bedrockBlock = Reflect.getBedrockBlock();
 
         int startX = chunkX * 16;
         int startZ = chunkZ * 16;
@@ -238,8 +238,8 @@ public class MixinChunkProviderServer {
 
                 // 0. Bedrock layer (Y = -64 to -61)
                 for (int y = minY; y <= minY + 3; ++y) {
-                    pos.setPos(worldX, y, worldZ);
-                    chunk.setBlockState(pos, bedrockState);
+                    Reflect.setPos(pos, worldX, y, worldZ);
+                    Reflect.setBlockState(chunk, pos, bedrockState);
                 }
 
                 boolean isWater = isWaterBiome(world, worldX, worldZ);
@@ -326,9 +326,10 @@ public class MixinChunkProviderServer {
 
                 // 3. Main Carving Loop (Y = minY+4 up to effectiveMaxY)
                 for (int y = minY + 4; y <= effectiveMaxY; ++y) {
-                    pos.setPos(worldX, y, worldZ);
-                    IBlockState currentState = chunk.getBlockState(pos);
-                    if (currentState == null || currentState.getBlock() == Blocks.AIR || currentState.getBlock() == Blocks.BEDROCK) {
+                    Reflect.setPos(pos, worldX, y, worldZ);
+                    IBlockState currentState = Reflect.getBlockState(chunk, pos);
+                    net.minecraft.block.Block currentBlock = Reflect.getBlock(currentState);
+                    if (currentState == null || (airBlock != null && currentBlock == airBlock) || (bedrockBlock != null && currentBlock == bedrockBlock)) {
                         continue;
                     }
 
@@ -380,10 +381,10 @@ public class MixinChunkProviderServer {
                             if (floorVal > 0.12f) {
                                 continue;
                             } else {
-                                chunk.setBlockState(pos, lavaState);
+                                Reflect.setBlockState(chunk, pos, lavaState);
                             }
                         } else {
-                            chunk.setBlockState(pos, airState);
+                            Reflect.setBlockState(chunk, pos, airState);
                         }
 
                         // 5. Explicit Solid Deepslate Column & Stalagmite Generation
@@ -394,7 +395,7 @@ public class MixinChunkProviderServer {
                                 // Broad base at floor (0.15f threshold), tapering gracefully to 0.32f near ceiling
                                 float pillarThreshold = 0.15f + 0.17f * heightFrac;
                                 if (pillarVal > pillarThreshold) {
-                                    chunk.setBlockState(pos, deepslateState);
+                                    Reflect.setBlockState(chunk, pos, deepslateState);
                                 }
                             }
                         }

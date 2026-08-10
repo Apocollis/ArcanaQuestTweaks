@@ -1,38 +1,37 @@
-buildscript {
-    repositories {
-        maven { url = 'https://maven.minecraftforge.net/' }
-        mavenCentral()
-    }
-    dependencies {
-        classpath 'net.minecraftforge.gradle:ForgeGradle:3.+'
+plugins {
+    id 'java'
+    id 'xyz.wagyourtail.unimined' version '1.4.17-kappa'
+}
+
+group = 'com.apocollis.aqtweaks'
+version = '1.5'
+base {
+    archivesName.set('ArcanaQuestTweaks')
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
     }
 }
-        
-apply plugin: 'net.minecraftforge.gradle'
-apply plugin: 'eclipse'
-apply plugin: 'maven-publish'
 
-version = '1.2'
-group = 'com.apocollis.aqtweaks'
-archivesBaseName = 'ArcanaQuestTweaks'
+configurations {
+    modCompileOnly
+    compileOnly.extendsFrom(modCompileOnly)
+}
 
-sourceCompatibility = targetCompatibility = compileJava.sourceCompatibility = compileJava.targetCompatibility = '1.8'
+unimined.minecraft {
+    version '1.12.2'
 
-minecraft {
-    mappings channel: 'snapshot', version: '20171003-1.12'
-    
-    runs {
-        client {
-            workingDirectory project.file('run')
-            property 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP'
-            property 'forge.logging.console.level', 'debug'
-        }
-
-        server {
-            property 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP'
-            property 'forge.logging.console.level', 'debug'
-        }
+    mappings {
+        mcp('stable', '39-1.12')
     }
+
+    cleanroom {
+        loader('0.5.7-alpha')
+    }
+
+    defaultRemapJar = true
 }
 
 repositories {
@@ -43,19 +42,13 @@ repositories {
 }
 
 dependencies {
-    minecraft 'net.minecraftforge:forge:1.12.2-14.23.5.2864'
-    compile name: 'ElenaiDodge2-1.12.2-1.1.0'
-    compile name: 'bewitchment-1.12.2-0.0.22.65'
-    compile name: 'RoguelikeDungeons-Arcana-1.12.2-2.5.0'
-    compile name: 'CoFHWorld-1.12.2-1.4.0.1-universal'
-    compile name: 'bettercaves-1.12.2-2.0.4'
-    compile name: 'RecurrentComplexVolts-1.12.2-2.0.0.7'
-    compile name: 'IvToolkit-1.3.3-1.12'
-    compile name: 'RTG-1.12.2-7.3.3.6'
-    compile 'org.spongepowered:mixin:0.8.5'
+    fileTree(dir: 'libs', include: ['*.jar']).each { jar ->
+        modCompileOnly files(jar)
+    }
 }
 
 jar {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     manifest {
         attributes([
             "Specification-Title": "aqtweaks",
@@ -65,29 +58,9 @@ jar {
             "Implementation-Version": "${version}",
             "Implementation-Vendor" :"apocollis",
             "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+            "ModType": "CRL",
             "FMLCorePluginContainsFMLMod": "true",
             "ForceLoadAsMod": "true"
         ])
     }
-}
-
-jar.finalizedBy('reobfJar') 
-
-publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            artifact jar
-        }
-    }
-    repositories {
-        maven {
-            url "file:///${project.projectDir}/mcmodsrepo"
-        }
-    }
-}
-
-sourceSets.each {
-    def dir = layout.buildDirectory.file("sourcesSets/$it.name").get().asFile
-    it.output.resourcesDir = dir
-    it.java.outputDir = dir
 }

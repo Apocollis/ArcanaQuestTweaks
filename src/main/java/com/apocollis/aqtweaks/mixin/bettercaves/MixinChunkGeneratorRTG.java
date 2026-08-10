@@ -1,9 +1,8 @@
 package com.apocollis.aqtweaks.mixin.bettercaves;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
-import net.minecraft.block.Block;
+import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.init.Blocks;
 import net.minecraft.world.chunk.ChunkPrimer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -28,22 +27,21 @@ public abstract class MixinChunkGeneratorRTG {
         if (ArcanaQuestTweaksConfig.depthsModule.enableDepthsModule) {
             int minY = ArcanaQuestTweaksConfig.depthsModule.minWorldY;
             if (minY < 0 && primer != null) {
-                IBlockState deepslateState = Blocks.STONE.getDefaultState();
-                Block deepslateBlock = Block.getBlockFromName("depthsupdate:deepslate");
-                if (deepslateBlock != null) {
-                    deepslateState = deepslateBlock.getDefaultState();
-                }
-
-                IBlockState bedrockState = Blocks.BEDROCK.getDefaultState();
+                IBlockState deepslateState = Reflect.getDeepslateState();
+                IBlockState bedrockState = Reflect.getBedrockState();
 
                 for (int x = 0; x < 16; ++x) {
                     for (int z = 0; z < 16; ++z) {
                         // Bedrock floor at minY (-64)
-                        primer.setBlockState(x, minY, z, bedrockState);
+                        if (bedrockState != null) {
+                            Reflect.setBlockState(primer, x, minY, z, bedrockState);
+                        }
 
                         // Fill solid Deepslate from minY + 1 to 0
-                        for (int y = minY + 1; y <= 0; ++y) {
-                            primer.setBlockState(x, y, z, deepslateState);
+                        if (deepslateState != null) {
+                            for (int y = minY + 1; y <= 0; ++y) {
+                                Reflect.setBlockState(primer, x, y, z, deepslateState);
+                            }
                         }
                     }
                 }

@@ -1,6 +1,7 @@
 package com.apocollis.aqtweaks.mixin.bettercaves;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
+import com.apocollis.aqtweaks.util.Reflect;
 import com.yungnickyoung.minecraft.bettercaves.world.carver.CarverUtils;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
@@ -22,19 +23,22 @@ public abstract class MixinCarverUtils {
     private static void onCanReplaceBlock(IBlockState state, IBlockState stateAbove, CallbackInfoReturnable<Boolean> cir) {
         if (ArcanaQuestTweaksConfig.depthsModule.enableDepthsModule) {
             if (state != null) {
-                Block b = state.getBlock();
+                Block b = Reflect.getBlock(state);
                 if (b != null) {
-                    Material mat = state.getMaterial();
-                    if (mat != null && mat != Material.AIR && mat != Material.WATER && mat != Material.LAVA) {
+                    Material mat = Reflect.getMaterial(state);
+                    Material air = Reflect.getMaterialAir();
+                    Material water = Reflect.getMaterialWater();
+                    Material lava = Reflect.getMaterialLava();
+                    if (mat != null && mat != air && mat != water && mat != lava) {
                         // Allow all solid ground/rock/clay/sand/ice terrain materials
-                        if (mat == Material.ROCK
-                                || mat == Material.GROUND
-                                || mat == Material.CLAY
-                                || mat == Material.SAND
-                                || mat == Material.GRASS
-                                || mat == Material.ICE
-                                || mat == Material.PACKED_ICE
-                                || mat == Material.CRAFTED_SNOW) {
+                        if (mat == Reflect.getMaterialRock()
+                                || mat == Reflect.getMaterialGround()
+                                || mat == Reflect.getMaterialClay()
+                                || mat == Reflect.getMaterialSand()
+                                || mat == Reflect.getMaterialGrass()
+                                || mat == Reflect.getMaterialIce()
+                                || mat == Reflect.getMaterialPackedIce()
+                                || mat == Reflect.getMaterialCraftedSnow()) {
                             cir.setReturnValue(true);
                             return;
                         }

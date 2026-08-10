@@ -1,10 +1,10 @@
 package com.apocollis.aqtweaks.mixin.bettercaves;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
+import com.apocollis.aqtweaks.util.Reflect;
 import com.yungnickyoung.minecraft.bettercaves.util.BetterCavesUtils;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.init.Blocks;
 import net.minecraft.world.chunk.ChunkPrimer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -32,24 +32,30 @@ public abstract class MixinBetterCavesUtils {
                 return;
             }
 
+            net.minecraft.block.Block airBlock = Reflect.getAirBlock();
+            Material airMat = Reflect.getMaterialAir();
+            Material waterMat = Reflect.getMaterialWater();
+
             // Search DOWNWARD from Y=254 for the highest solid block that has ONLY air/water above it up to Y=255.
             for (int y = 254; y >= 1; --y) {
-                IBlockState stateAt = primer.getBlockState(x, y, z);
+                IBlockState stateAt = Reflect.getBlockState(primer, x, y, z);
                 if (stateAt == null) continue;
 
-                boolean isSolid = stateAt.getBlock() != Blocks.AIR
-                        && stateAt.getMaterial() != Material.AIR
-                        && stateAt.getMaterial() != Material.WATER;
+                Material matAt = Reflect.getMaterial(stateAt);
+                boolean isSolid = (airBlock == null || Reflect.getBlock(stateAt) != airBlock)
+                        && matAt != airMat
+                        && matAt != waterMat;
 
                 if (isSolid) {
                     // Check if all blocks above y are air or water (open sky)
                     boolean openSkyAbove = true;
                     for (int checkY = y + 1; checkY <= 255; ++checkY) {
-                        IBlockState stateAbove = primer.getBlockState(x, checkY, z);
+                        IBlockState stateAbove = Reflect.getBlockState(primer, x, checkY, z);
                         if (stateAbove != null) {
-                            if (stateAbove.getBlock() != Blocks.AIR
-                                    && stateAbove.getMaterial() != Material.AIR
-                                    && stateAbove.getMaterial() != Material.WATER) {
+                            Material matAbove = Reflect.getMaterial(stateAbove);
+                            if ((airBlock != null && Reflect.getBlock(stateAbove) != airBlock)
+                                    && matAbove != airMat
+                                    && matAbove != waterMat) {
                                 openSkyAbove = false;
                                 break;
                             }

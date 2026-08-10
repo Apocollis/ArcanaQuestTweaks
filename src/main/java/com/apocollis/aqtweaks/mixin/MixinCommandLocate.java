@@ -13,7 +13,7 @@ import java.util.List;
 @Mixin(CommandLocate.class)
 public class MixinCommandLocate {
 
-    @Inject(method = "func_184883_a", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "getTabCompletions", at = @At("HEAD"), cancellable = true)
     private void onGetTabCompletions(MinecraftServer server, ICommandSender sender, String[] args, BlockPos pos, CallbackInfoReturnable<List<String>> cir) {
         if (args.length == 1) {
             String[] vanillaWithRoguelike = new String[] {

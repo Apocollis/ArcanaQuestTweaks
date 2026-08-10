@@ -7,7 +7,20 @@
   "mixins": [
     "MixinDungeon",
     "MixinChunkProviderServer",
+    "MixinCommandLocate",
+    "depthsupdate.MixinDepthsCaveNoiseGenerator",
     "cofh.MixinDistributionUniform",
-    "reccomplex.MixinRayMatcher"
+    "reccomplex.MixinRayMatcher",
+    "roguelike.MixinDungeonSettings",
+    "bettercaves.MixinCaveNoiseGenerator",
+    "bettercaves.MixinBetterCavesDepthsPass",
+    "bettercaves.MixinDepthsMapGenCaves",
+    "bettercaves.MixinFlattenBedrock",
+    "bettercaves.MixinCaveCarver",
+    "bettercaves.MixinCavernCarver",
+    "bettercaves.MixinCarverUtils",
+    "bettercaves.MixinBetterCavesUtils",
+    "bettercaves.MixinChunkGeneratorRTG",
+    "bettercaves.MixinChunkGeneratorRTGVillage"
   ]
 }

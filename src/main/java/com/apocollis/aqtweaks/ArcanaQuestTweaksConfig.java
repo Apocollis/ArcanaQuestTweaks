@@ -1,5 +1,9 @@
 package com.apocollis.aqtweaks;
 
+import com.apocollis.aqtweaks.thaumcraft.ThaumcraftModule;
+
+import com.apocollis.aqtweaks.stamina.StaminaModule;
+
 import net.minecraftforge.common.config.Config;
 import net.minecraftforge.common.config.ConfigManager;
 import net.minecraftforge.fml.client.event.ConfigChangedEvent;
@@ -129,11 +133,6 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Multiplier on Bow Hold Interval for throwing weapons (2 = half the bow drain rate)")
         @Config.RangeInt(min = 1)
         public int throwingHoldIntervalMultiplier = 2;
-
-        @Config.Name("Throwing Draw Cost Divisor")
-        @Config.Comment("Divisor on Bow Draw Cost for throwing weapons (2 = half the bow draw cost)")
-        @Config.RangeInt(min = 1)
-        public int throwingDrawCostDivisor = 2;
 
         @Config.Name("Throwing Release Cost")
         @Config.Comment("Stamina cost (in half-feathers) charged when releasing a throw (same as light weapon attack)")
@@ -269,11 +268,6 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Enable Shield Stamina Cost")
         @Config.Comment("Does raising and holding a shield consume stamina?")
         public boolean enableShieldCost = true;
-
-        @Config.Name("Shield Raise Cost")
-        @Config.Comment("Stamina cost (in half-feathers) charged instantly upon raising a shield")
-        @Config.RangeInt(min = 0)
-        public int shieldRaiseCost = 1;
 
         @Config.Name("Shield Hold Tick Interval")
         @Config.Comment("Ticks between feather consumption while holding a shield raised (20 ticks = 1 second)")
@@ -513,11 +507,6 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Grid Seed Offset")
         @Config.Comment("Seed salt value to ensure different worlds spawn dungeons in different grid coordinates.")
         public int gridSeedOffset = 1432289;
-
-        @Config.Name("Dungeon Radius")
-        @Config.Comment("The radius (in blocks) from the center chunk that defines the dungeon structure boundary.")
-        @Config.RangeInt(min = 8)
-        public int dungeonRadius = 48;
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_depths")
@@ -593,7 +582,7 @@ public class ArcanaQuestTweaksConfig {
 
         @Config.Name("Force 10 Dungeon Levels For Testing")
         @Config.Comment("If true, Roguelike Dungeons will always force 10 floors for testing. If false, dungeons generate strictly the number of levels defined in their JSON theme settings.")
-        public boolean force10LevelsForTesting = true;
+        public boolean force10LevelsForTesting = false;
 
         @Config.Name("Enable RTG Village Terrain Smoothing")
         @Config.Comment("Should RTG terrain around villages be smoothed and leveled out to prevent steep cliffs and floating/buried buildings?")
