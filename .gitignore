@@ -7,10 +7,16 @@ run/
 out/
 *.jar
 !gradle/wrapper/gradle-wrapper.jar
-implementation_plan.md
 .idea/
 *.iml
 .vscode/
 *.log
 .DS_Store
 Thumbs.db
+
+# Agent / AI tooling (local only — do not sync to GitHub)
+.agents/
+.cursor/
+CLAUDE.md
+AGENTS.md
+implementation_plan.md
