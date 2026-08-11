@@ -276,52 +276,88 @@ public class StaminaModule {
         }
     }
 
+    private static final double CLIMB_ASCEND_EPS = 0.02;
+
     private void handleServerClimbing(EntityPlayerMP player) {
         if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.enableClimbCost) return;
 
         NBTTagCompound pData = Reflect.getEntityData(player);
-        if (Reflect.isOnLadder(player)) {
-            net.minecraft.world.World world = Reflect.getWorld(player);
-            if (world == null) return;
+        final String prevYKey = "StaminaTweaksClimbPrevY";
+        final String ticksKey = "StaminaTweaksLadderTicks";
 
-            // Get the block at player's position to see if rope climbing cost is enabled
-            int x = net.minecraft.util.math.MathHelper.floor(Reflect.getPosX(player));
-            int y = net.minecraft.util.math.MathHelper.floor(Reflect.getBoundingBoxMinY(player));
-            int z = net.minecraft.util.math.MathHelper.floor(Reflect.getPosZ(player));
-            net.minecraft.util.math.BlockPos pos = new net.minecraft.util.math.BlockPos(x, y, z);
-            net.minecraft.block.Block block = Reflect.getBlock(world, pos);
-
-            boolean isRope = Reflect.isRopeBlock(block);
-            boolean isVine = !isRope && (block instanceof net.minecraft.block.BlockVine || block.getClass().getSimpleName().toLowerCase().contains("vine"));
-            int cost = isRope ? ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.ropeCost : (isVine ? ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.vineCost : ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.ladderCost);
-
-            if (isRope && !ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.enableRopeCost) return;
-
-            // Check if player sent jump input from client, or motionY > 0, or sneaking
-            boolean isJumpPressed = Reflect.getBoolean(pData, "StaminaTweaksClimbJumpInput");
-            boolean isClimbing = isJumpPressed || Reflect.getMotionY(player) > 0.0 || Reflect.isSneaking(player);
-
-            if (isClimbing) {
-                int ticks = Reflect.getInteger(pData, "StaminaTweaksLadderTicks") + 1;
-                int interval = isRope ? ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.ropeInterval : 
-                               (isVine ? ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.vineInterval : ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.ladderInterval);
-
-                if (ticks >= interval) {
-                    if (Reflect.hasEnoughStamina(player, cost)) {
-                        FeathersHelper.decreaseFeathers(player, cost);
-                        ticks = 0;
-                    }
-                }
-                Reflect.setInteger(pData, "StaminaTweaksLadderTicks", ticks);
-            } else {
-                if (Reflect.getInteger(pData, "StaminaTweaksLadderTicks") > 0) {
-                    Reflect.setInteger(pData, "StaminaTweaksLadderTicks", 0);
-                }
+        if (!Reflect.isOnLadder(player)) {
+            if (Reflect.getInteger(pData, ticksKey) > 0) {
+                Reflect.setInteger(pData, ticksKey, 0);
             }
-        } else {
-            if (Reflect.getInteger(pData, "StaminaTweaksLadderTicks") > 0) {
-                Reflect.setInteger(pData, "StaminaTweaksLadderTicks", 0);
+            if (Reflect.hasKey(pData, prevYKey)) {
+                Reflect.removeTag(pData, prevYKey);
             }
+            return;
+        }
+
+        net.minecraft.world.World world = Reflect.getWorld(player);
+        if (world == null) return;
+
+        int x = net.minecraft.util.math.MathHelper.floor(Reflect.getPosX(player));
+        int y = net.minecraft.util.math.MathHelper.floor(Reflect.getBoundingBoxMinY(player));
+        int z = net.minecraft.util.math.MathHelper.floor(Reflect.getPosZ(player));
+        net.minecraft.util.math.BlockPos pos = new net.minecraft.util.math.BlockPos(x, y, z);
+        net.minecraft.block.Block block = Reflect.getBlock(world, pos);
+
+        boolean isRope = Reflect.isRopeBlock(block);
+        boolean isVine = !isRope && (block instanceof net.minecraft.block.BlockVine
+                || block.getClass().getSimpleName().toLowerCase().contains("vine"));
+
+        if (isRope && !ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.enableRopeCost) {
+            Reflect.setInteger(pData, ticksKey, 0);
+            Reflect.setDouble(pData, prevYKey, Reflect.getPosY(player));
+            return;
+        }
+
+        int cost = isRope ? ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.ropeCost
+                : (isVine ? ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.vineCost
+                        : ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.ladderCost);
+        int baseInterval = isRope ? ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.ropeInterval
+                : (isVine ? ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.vineInterval
+                        : ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.ladderInterval);
+
+        double posY = Reflect.getPosY(player);
+        boolean ascending = false;
+        boolean holding = false;
+
+        if (Reflect.hasKey(pData, prevYKey)) {
+            double dy = posY - Reflect.getDouble(pData, prevYKey);
+            if (dy > CLIMB_ASCEND_EPS) {
+                ascending = true;
+            } else if (dy < -CLIMB_ASCEND_EPS && !Reflect.isSneaking(player)) {
+                // Sliding down without sneak-hold — free
+            } else if (Reflect.isSneaking(player) || Math.abs(dy) <= CLIMB_ASCEND_EPS) {
+                holding = true;
+            }
+        }
+        Reflect.setDouble(pData, prevYKey, posY);
+
+        if (ascending || holding) {
+            int interval = ascending
+                    ? baseInterval
+                    : Math.max(1, baseInterval * ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.clingIntervalMultiplier);
+            int ticks = Reflect.getInteger(pData, ticksKey) + 1;
+
+            if (ticks >= interval) {
+                if (cost > 0 && Reflect.hasEnoughStamina(player, cost)) {
+                    FeathersHelper.decreaseFeathers(player, cost);
+                }
+                ticks = 0; // always reset — avoid latching when spend fails
+            }
+            Reflect.setInteger(pData, ticksKey, ticks);
+        } else if (Reflect.getInteger(pData, ticksKey) > 0) {
+            Reflect.setInteger(pData, ticksKey, 0);
+        }
+
+        if (ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.fallOnDepleted
+                && cost > 0
+                && !Reflect.hasEnoughStamina(player, cost)) {
+            Reflect.setMotionY(player, -0.15);
         }
     }
 

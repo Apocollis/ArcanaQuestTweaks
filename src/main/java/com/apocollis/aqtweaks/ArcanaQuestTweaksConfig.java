@@ -118,42 +118,47 @@ public class ArcanaQuestTweaksConfig {
 
     public static class Climbing {
         @Config.Name("Enable Climbing Stamina Cost")
-        @Config.Comment("Does climbing/clinging to ladders/vines consume stamina?")
+        @Config.Comment("Does ascending or clinging to ladders/vines consume stamina?")
         public boolean enableClimbCost = true;
 
         @Config.Name("Ladder Climb Tick Interval")
-        @Config.Comment("Ticks between feather consumption on ladders (20 ticks = 1 second)")
+        @Config.Comment("Ticks between feather consumption while ascending ladders (20 ticks = 1 second)")
         @Config.RangeInt(min = 1)
         public int ladderInterval = 20;
 
         @Config.Name("Ladder Climb Cost")
-        @Config.Comment("Stamina cost (in half-feathers) per interval on ladders")
+        @Config.Comment("Stamina cost (in half-feathers) per ascend interval on ladders")
         @Config.RangeInt(min = 0)
         public int ladderCost = 2;
 
         @Config.Name("Vine Climb Tick Interval")
-        @Config.Comment("Ticks between feather consumption on vines (20 ticks = 1 second)")
+        @Config.Comment("Ticks between feather consumption while ascending vines (20 ticks = 1 second)")
         @Config.RangeInt(min = 1)
         public int vineInterval = 20;
 
         @Config.Name("Vine Climb Cost")
-        @Config.Comment("Stamina cost (in half-feathers) per interval on vines")
+        @Config.Comment("Stamina cost (in half-feathers) per ascend interval on vines")
         @Config.RangeInt(min = 0)
         public int vineCost = 3;
 
         @Config.Name("Enable Rope Climb Cost")
-        @Config.Comment("Does climbing/clinging to ropes consume stamina?")
+        @Config.Comment("Does ascending or clinging to ropes consume stamina?")
         public boolean enableRopeCost = true;
 
         @Config.Name("Rope Climb Tick Interval")
-        @Config.Comment("Ticks between feather consumption on ropes (20 ticks = 1 second)")
+        @Config.Comment("Ticks between feather consumption while ascending ropes (20 ticks = 1 second)")
         @Config.RangeInt(min = 1)
         public int ropeInterval = 20;
 
         @Config.Name("Rope Climb Cost")
-        @Config.Comment("Stamina cost (in half-feathers) per interval on ropes")
+        @Config.Comment("Stamina cost (in half-feathers) per ascend interval on ropes")
         @Config.RangeInt(min = 0)
         public int ropeCost = 3;
+
+        @Config.Name("Cling Interval Multiplier")
+        @Config.Comment("Multiplier applied to the climb interval while holding/clinging without ascending (2 = half the ascend drain rate)")
+        @Config.RangeInt(min = 1)
+        public int clingIntervalMultiplier = 2;
 
         @Config.Name("Fall on Stamina Depleted")
         @Config.Comment("If true, the player will lose their grip and fall/slide when out of stamina.")
