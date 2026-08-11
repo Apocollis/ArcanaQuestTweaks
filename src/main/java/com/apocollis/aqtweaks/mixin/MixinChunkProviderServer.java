@@ -84,14 +84,15 @@ public class MixinChunkProviderServer {
 
     @Inject(method = "func_185932_a", at = @At("RETURN"))
     private void onProvideChunkBreachReinforce(int chunkX, int chunkZ, CallbackInfoReturnable<Chunk> cir) {
-        if (!ArcanaQuestTweaksConfig.depthsModule.enableDepthsModule || !ArcanaQuestTweaksConfig.depthsModule.enableBetterCavesNegativeY) {
+        if (!ArcanaQuestTweaksConfig.DepthsModuleConfig.general.enableDepthsModule
+                || !ArcanaQuestTweaksConfig.DepthsModuleConfig.general.enableBetterDepthsCaves) {
             return;
         }
 
         Chunk chunk = cir.getReturnValue();
         if (chunk == null) return;
 
-        int minY = ArcanaQuestTweaksConfig.depthsModule.minWorldY;
+        int minY = ArcanaQuestTweaksConfig.DepthsModuleConfig.general.minWorldY;
         if (minY >= 0) return;
 
         World world = this.field_73251_h != null ? this.field_73251_h : chunk.getWorld();

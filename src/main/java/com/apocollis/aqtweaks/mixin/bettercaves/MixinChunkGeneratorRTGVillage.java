@@ -24,7 +24,7 @@ public abstract class MixinChunkGeneratorRTGVillage {
      */
     @Inject(method = "getNewerNoise", at = @At("RETURN"))
     private void smoothRTGVillageTerrain(BiomeProvider biomeProvider, int chunkX, int chunkZ, ChunkLandscape landscape, CallbackInfo ci) {
-        if (!ArcanaQuestTweaksConfig.depthsModule.enableRTGVillageSmoothing || villageGenerator == null || landscape == null || landscape.noise == null) {
+        if (!ArcanaQuestTweaksConfig.DepthsModuleConfig.structures.enableRTGVillageSmoothing || villageGenerator == null || landscape == null || landscape.noise == null) {
             return;
         }
 

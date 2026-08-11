@@ -17,8 +17,9 @@ public abstract class MixinDistributionUniform {
         )
     )
     private int redirectMinYClamp(int val1, int val2) {
-        if (ArcanaQuestTweaksConfig.depthsModule.enableDepthsModule && ArcanaQuestTweaksConfig.depthsModule.enableCoFHNegativeY) {
-            return Math.max(val1, ArcanaQuestTweaksConfig.depthsModule.minWorldY);
+        if (ArcanaQuestTweaksConfig.DepthsModuleConfig.general.enableDepthsModule
+                && ArcanaQuestTweaksConfig.DepthsModuleConfig.compatibility.enableCoFHNegativeY) {
+            return Math.max(val1, ArcanaQuestTweaksConfig.DepthsModuleConfig.general.minWorldY);
         }
         return Math.max(val1, val2);
     }

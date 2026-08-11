@@ -1,5 +1,6 @@
 package com.apocollis.aqtweaks;
 
+import com.apocollis.aqtweaks.depths.DepthsFogHandler;
 import com.apocollis.aqtweaks.stamina.StaminaModuleClient;
 
 import net.minecraftforge.common.MinecraftForge;
@@ -10,5 +11,6 @@ public class ClientProxy extends CommonProxy {
     public void init(FMLInitializationEvent event) {
         super.init(event);
         MinecraftForge.EVENT_BUS.register(new StaminaModuleClient());
+        MinecraftForge.EVENT_BUS.register(new DepthsFogHandler());
     }
 }

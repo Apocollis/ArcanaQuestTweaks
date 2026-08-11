@@ -13,7 +13,8 @@ public abstract class MixinFlattenBedrock {
 
     @Inject(method = "flattenBedrock", at = @At("HEAD"), cancellable = true)
     private static void onFlattenBedrock(ChunkPrimer primer, int width, CallbackInfo ci) {
-        if (ArcanaQuestTweaksConfig.depthsModule.enableDepthsModule && ArcanaQuestTweaksConfig.depthsModule.adjustBetterCavesBedrock) {
+        if (ArcanaQuestTweaksConfig.DepthsModuleConfig.general.enableDepthsModule
+                && ArcanaQuestTweaksConfig.DepthsModuleConfig.compatibility.adjustBetterCavesBedrock) {
             ci.cancel();
         }
     }

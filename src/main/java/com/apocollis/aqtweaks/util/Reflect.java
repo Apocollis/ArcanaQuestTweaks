@@ -1255,15 +1255,15 @@ public class Reflect {
         int baseWeight = getBaseWeight(player);
 
         // Apply Armor Mastery reduction
-        if (ArcanaQuestTweaksConfig.staminaModule.reskillable.enableReskillable && 
-            hasUnlockable(player, ArcanaQuestTweaksConfig.staminaModule.reskillable.armorMasteryPerkId)) {
+        if (ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.enableReskillable && 
+            hasUnlockable(player, ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.armorMasteryPerkId)) {
             int pieces = 0;
             for (net.minecraft.item.ItemStack armor : player.getArmorInventoryList()) {
                 if (armor != null && !armor.isEmpty()) {
                     pieces++;
                 }
             }
-            int reduction = (int) Math.round(pieces * ArcanaQuestTweaksConfig.staminaModule.reskillable.armorMasteryReductionPerPiece);
+            int reduction = (int) Math.round(pieces * ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.armorMasteryReductionPerPiece);
             baseWeight = Math.max(0, baseWeight - reduction);
         }
         return baseWeight;

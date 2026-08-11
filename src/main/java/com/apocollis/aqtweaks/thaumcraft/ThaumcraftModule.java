@@ -33,7 +33,7 @@ public class ThaumcraftModule {
 
     @SubscribeEvent
     public void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
-        if (!ArcanaQuestTweaksConfig.thaumcraftModule.enableDimensionWarp) return;
+        if (!ArcanaQuestTweaksConfig.ThaumcraftConfig.enableDimensionWarp) return;
 
         EntityPlayer player = event.player;
         if (Reflect.isRemote(player)) return;
@@ -74,13 +74,13 @@ public class ThaumcraftModule {
                         boolean addedTemp = false;
 
                         // Award warp
-                        if (ArcanaQuestTweaksConfig.thaumcraftModule.dimensionNormalWarp > 0) {
-                            ThaumcraftHelper.addWarp(player, 0, ArcanaQuestTweaksConfig.thaumcraftModule.dimensionNormalWarp);
+                        if (ArcanaQuestTweaksConfig.ThaumcraftConfig.dimensionNormalWarp > 0) {
+                            ThaumcraftHelper.addWarp(player, 0, ArcanaQuestTweaksConfig.ThaumcraftConfig.dimensionNormalWarp);
                             addedNormal = true;
                         }
 
-                        if (ArcanaQuestTweaksConfig.thaumcraftModule.dimensionTempWarp > 0) {
-                            ThaumcraftHelper.addWarp(player, 1, ArcanaQuestTweaksConfig.thaumcraftModule.dimensionTempWarp);
+                        if (ArcanaQuestTweaksConfig.ThaumcraftConfig.dimensionTempWarp > 0) {
+                            ThaumcraftHelper.addWarp(player, 1, ArcanaQuestTweaksConfig.ThaumcraftConfig.dimensionTempWarp);
                             addedTemp = true;
                         }
 
@@ -88,17 +88,17 @@ public class ThaumcraftModule {
                             ThaumcraftHelper.syncWarp(player);
 
                             // Play sound effect
-                            String soundName = ArcanaQuestTweaksConfig.thaumcraftModule.dimensionEntrySound;
+                            String soundName = ArcanaQuestTweaksConfig.ThaumcraftConfig.dimensionEntrySound;
                             if (soundName != null && !soundName.isEmpty()) {
                                 SoundEvent sound = Reflect.getSoundEvent(soundName);
                                 if (sound != null && pWorld != null) {
-                                    float volume = ArcanaQuestTweaksConfig.thaumcraftModule.dimensionEntrySoundVolume;
+                                    float volume = ArcanaQuestTweaksConfig.ThaumcraftConfig.dimensionEntrySoundVolume;
                                     Reflect.playSound(pWorld, null, Reflect.getPosX(player), Reflect.getPosY(player), Reflect.getPosZ(player), sound, SoundCategory.PLAYERS, volume, 1.0F);
                                 }
                             }
 
                             // Send chat message
-                            String chatMsg = ArcanaQuestTweaksConfig.thaumcraftModule.dimensionChatMessageText;
+                            String chatMsg = ArcanaQuestTweaksConfig.ThaumcraftConfig.dimensionChatMessageText;
                             if (chatMsg != null && !chatMsg.isEmpty()) {
                                 Reflect.sendMessage(player, new TextComponentString(chatMsg));
                             }
@@ -111,7 +111,7 @@ public class ThaumcraftModule {
 
     @SubscribeEvent
     public void onPlayerWakeUp(PlayerWakeUpEvent event) {
-        if (!ArcanaQuestTweaksConfig.thaumcraftModule.enableWarpCleansing) return;
+        if (!ArcanaQuestTweaksConfig.ThaumcraftConfig.enableWarpCleansing) return;
 
         EntityPlayer player = event.getEntityPlayer();
         if (Reflect.isRemote(player) || event.wakeImmediately()) return;
@@ -124,19 +124,19 @@ public class ThaumcraftModule {
             boolean clearedTemp = false;
 
             // Reduce Normal Warp
-            if (ArcanaQuestTweaksConfig.thaumcraftModule.clearNormalWarp) {
+            if (ArcanaQuestTweaksConfig.ThaumcraftConfig.clearNormalWarp) {
                 int currentNormal = ThaumcraftHelper.getWarp(player, 0);
                 if (currentNormal > 0) {
-                    ThaumcraftHelper.reduceWarp(player, 0, ArcanaQuestTweaksConfig.thaumcraftModule.normalWarpReduction);
+                    ThaumcraftHelper.reduceWarp(player, 0, ArcanaQuestTweaksConfig.ThaumcraftConfig.normalWarpReduction);
                     clearedNormal = true;
                 }
             }
 
             // Reduce Temporary Warp
-            if (ArcanaQuestTweaksConfig.thaumcraftModule.clearTempWarp) {
+            if (ArcanaQuestTweaksConfig.ThaumcraftConfig.clearTempWarp) {
                 int currentTemp = ThaumcraftHelper.getWarp(player, 1);
                 if (currentTemp > 0) {
-                    ThaumcraftHelper.reduceWarp(player, 1, ArcanaQuestTweaksConfig.thaumcraftModule.tempWarpReduction);
+                    ThaumcraftHelper.reduceWarp(player, 1, ArcanaQuestTweaksConfig.ThaumcraftConfig.tempWarpReduction);
                     clearedTemp = true;
                 }
             }
@@ -145,8 +145,8 @@ public class ThaumcraftModule {
             if (clearedNormal || clearedTemp) {
                 ThaumcraftHelper.syncWarp(player);
 
-                String chatMsg = ArcanaQuestTweaksConfig.thaumcraftModule.chatMessageText;
-                if (ArcanaQuestTweaksConfig.thaumcraftModule.enableChatMessage && chatMsg != null && !chatMsg.isEmpty()) {
+                String chatMsg = ArcanaQuestTweaksConfig.ThaumcraftConfig.chatMessageText;
+                if (ArcanaQuestTweaksConfig.ThaumcraftConfig.enableChatMessage && chatMsg != null && !chatMsg.isEmpty()) {
                     Reflect.sendMessage(player, new TextComponentString(chatMsg));
                 }
             }
@@ -161,13 +161,13 @@ public class ThaumcraftModule {
     }
 
     private void evaluateExposureWarp(EntityPlayer player) {
-        if (!ArcanaQuestTweaksConfig.thaumcraftModule.enableExposureWarp) return;
+        if (!ArcanaQuestTweaksConfig.ThaumcraftConfig.enableExposureWarp) return;
 
         int shortestInterval = Integer.MAX_VALUE;
 
         // 1. Check dimension exposure
         int playerDim = Reflect.getDimension(player);
-        for (String entry : ArcanaQuestTweaksConfig.thaumcraftModule.exposureDimensionsConfig) {
+        for (String entry : ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureDimensionsConfig) {
             String[] parts = entry.split("=");
             if (parts.length == 2) {
                 try {
@@ -183,16 +183,16 @@ public class ThaumcraftModule {
         }
 
         // 2. Check deep underground exposure
-        if (ArcanaQuestTweaksConfig.thaumcraftModule.enableUndergroundExposure &&
-            Reflect.getPosY(player) <= ArcanaQuestTweaksConfig.thaumcraftModule.exposureUndergroundY) {
-            shortestInterval = Math.min(shortestInterval, ArcanaQuestTweaksConfig.thaumcraftModule.exposureUndergroundInterval);
+        if (ArcanaQuestTweaksConfig.ThaumcraftConfig.enableUndergroundExposure &&
+            Reflect.getPosY(player) <= ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureUndergroundY) {
+            shortestInterval = Math.min(shortestInterval, ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureUndergroundInterval);
         }
 
         // 3. Check dungeon exposure
         net.minecraft.world.World pWorld = Reflect.getWorld(player);
-        if (ArcanaQuestTweaksConfig.thaumcraftModule.enableDungeonExposure && pWorld != null) {
+        if (ArcanaQuestTweaksConfig.ThaumcraftConfig.enableDungeonExposure && pWorld != null) {
             if (RoguelikeDungeonSavedData.get(pWorld).isInside(Reflect.getPosition(player))) {
-                shortestInterval = Math.min(shortestInterval, ArcanaQuestTweaksConfig.thaumcraftModule.exposureDungeonInterval);
+                shortestInterval = Math.min(shortestInterval, ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureDungeonInterval);
             }
         }
 
@@ -208,12 +208,12 @@ public class ThaumcraftModule {
                 ThaumcraftHelper.addWarp(player, 1, 1);
                 ThaumcraftHelper.syncWarp(player);
                 
-                if (ArcanaQuestTweaksConfig.thaumcraftModule.enableExposureSound) {
-                    String soundName = ArcanaQuestTweaksConfig.thaumcraftModule.exposureSoundEffect;
+                if (ArcanaQuestTweaksConfig.ThaumcraftConfig.enableExposureSound) {
+                    String soundName = ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureSoundEffect;
                     if (soundName != null && !soundName.isEmpty()) {
                         SoundEvent sound = Reflect.getSoundEvent(soundName);
                         if (sound != null && pWorld != null) {
-                            float volume = ArcanaQuestTweaksConfig.thaumcraftModule.exposureSoundVolume;
+                            float volume = ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureSoundVolume;
                             Reflect.playSound(pWorld, null, Reflect.getPosX(player), Reflect.getPosY(player), Reflect.getPosZ(player), sound, SoundCategory.PLAYERS, volume, 1.0F);
                         }
                     }

@@ -24,8 +24,8 @@ public abstract class MixinDungeonSettings {
      */
     @Inject(method = "getNumLevels", at = @At("HEAD"), cancellable = true)
     private void getNumLevelsDepths(CallbackInfoReturnable<Integer> cir) {
-        if (ArcanaQuestTweaksConfig.depthsModule.enableDepthsModule) {
-            if (ArcanaQuestTweaksConfig.depthsModule.force10LevelsForTesting) {
+        if (ArcanaQuestTweaksConfig.DepthsModuleConfig.general.enableDepthsModule) {
+            if (ArcanaQuestTweaksConfig.DepthsModuleConfig.structures.force10LevelsForTesting) {
                 cir.setReturnValue(10);
             } else if (this.levels != null && !this.levels.isEmpty()) {
                 int maxLevel = 0;
@@ -48,7 +48,7 @@ public abstract class MixinDungeonSettings {
      */
     @Inject(method = "getLevelSettings()Ljava/util/Map;", at = @At("RETURN"))
     private void populateAllLevelsInMap(CallbackInfoReturnable<Map<Integer, LevelSettings>> cir) {
-        if (ArcanaQuestTweaksConfig.depthsModule.enableDepthsModule) {
+        if (ArcanaQuestTweaksConfig.DepthsModuleConfig.general.enableDepthsModule) {
             Map<Integer, LevelSettings> map = cir.getReturnValue();
             if (map != null) {
                 for (int level = 0; level < 10; level++) {
@@ -75,7 +75,7 @@ public abstract class MixinDungeonSettings {
      */
     @Inject(method = "getLevelSettings(I)Lgreymerk/roguelike/dungeon/settings/LevelSettings;", at = @At("HEAD"), cancellable = true)
     private void getLevelSettingsFallback(int level, CallbackInfoReturnable<LevelSettings> cir) {
-        if (ArcanaQuestTweaksConfig.depthsModule.enableDepthsModule && level >= 0) {
+        if (ArcanaQuestTweaksConfig.DepthsModuleConfig.general.enableDepthsModule && level >= 0) {
             Map<Integer, LevelSettings> levelsMap = this.levels;
             if (levelsMap != null) {
                 if (levelsMap.containsKey(level)) {

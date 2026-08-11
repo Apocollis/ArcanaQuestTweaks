@@ -12,79 +12,55 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
 public class ArcanaQuestTweaksConfig {
 
-    @Config.Name("Stamina Module")
-    @Config.Comment("Configure the Stamina Module settings")
-    public static StaminaModuleConfig staminaModule = new StaminaModuleConfig();
-
-    @Config.Name("Grimoire of Gaia Module")
-    @Config.Comment("Configure the Grimoire of Gaia Module settings")
-    public static GrimoireOfGaiaConfig grimoireOfGaia = new GrimoireOfGaiaConfig();
-
-    @Config.Name("Thaumcraft Module")
-    @Config.Comment("Configure Thaumcraft integration settings")
-    public static ThaumcraftConfig thaumcraftModule = new ThaumcraftConfig();
-
-    @Config.Name("Bewitchment Module")
-    @Config.Comment("Configure Bewitchment integration settings")
-    public static BewitchmentConfig bewitchmentModule = new BewitchmentConfig();
-
-    @Config.Name("Roguelike Dungeons Module")
-    @Config.Comment("Configure Roguelike Dungeons structure integration settings")
-    public static RoguelikeDungeonsConfig roguelikeModule = new RoguelikeDungeonsConfig();
-
-    @Config.Name("Depths Module")
-    @Config.Comment("Configure Depths Update (-Y levels) compatibility settings")
-    public static DepthsModuleConfig depthsModule = new DepthsModuleConfig();
-
-    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_stamina")
+    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_stamina", category = "")
     public static class StaminaModuleConfig {
         @Config.Name("Jumping")
         @Config.Comment("Configure jumping stamina consumption")
-        public Jumping jumping = new Jumping();
+        public static final Jumping jumping = new Jumping();
 
         @Config.Name("Bow Drawing")
         @Config.Comment("Configure bow-drawing stamina consumption")
-        public BowDrawing bowDrawing = new BowDrawing();
+        public static final BowDrawing bowDrawing = new BowDrawing();
 
         @Config.Name("Climbing")
         @Config.Comment("Configure ladder, vine, and rope climbing stamina consumption")
-        public Climbing climbing = new Climbing();
+        public static final Climbing climbing = new Climbing();
 
         @Config.Name("Weapons (Melee)")
         @Config.Comment("Configure melee weapon stamina consumption")
-        public Weapons weapons = new Weapons();
+        public static final Weapons weapons = new Weapons();
 
         @Config.Name("Grapple Mod")
         @Config.Comment("Configure grappling hook stamina consumption")
-        public Grapple grapple = new Grapple();
+        public static final Grapple grapple = new Grapple();
 
         @Config.Name("Open Glider")
         @Config.Comment("Configure hang glider stamina consumption")
-        public Glider glider = new Glider();
+        public static final Glider glider = new Glider();
 
         @Config.Name("Shield Blocking")
         @Config.Comment("Configure shield stamina consumption")
-        public Shield shield = new Shield();
+        public static final Shield shield = new Shield();
 
         @Config.Name("Mining")
         @Config.Comment("Configure mining/block breaking stamina consumption")
-        public Mining mining = new Mining();
+        public static final Mining mining = new Mining();
 
         @Config.Name("Reskillable Integration")
         @Config.Comment("Configure Reskillable integration settings")
-        public Reskillable reskillable = new Reskillable();
+        public static final Reskillable reskillable = new Reskillable();
 
         @Config.Name("Simple Difficulty Integration")
         @Config.Comment("Configure Simple Difficulty integration settings")
-        public SimpleDifficulty simpleDifficulty = new SimpleDifficulty();
+        public static final SimpleDifficulty simpleDifficulty = new SimpleDifficulty();
 
         @Config.Name("Ledge Climbing")
         @Config.Comment("Configure ledge climbing stamina consumption")
-        public LedgeClimb ledgeClimb = new LedgeClimb();
+        public static final LedgeClimb ledgeClimb = new LedgeClimb();
 
         @Config.Name("Throwing Weapons")
         @Config.Comment("Configure throwing weapon (javelins, throwing knives, etc.) stamina consumption")
-        public ThrowingWeapons throwingWeapons = new ThrowingWeapons();
+        public static final ThrowingWeapons throwingWeapons = new ThrowingWeapons();
     }
 
     public static class Jumping {
@@ -351,71 +327,71 @@ public class ArcanaQuestTweaksConfig {
     public static class GrimoireOfGaiaConfig {
         @Config.Name("Disable Piercing Damage")
         @Config.Comment("Should piercing/penetrating damage from Grimoire of Gaia mobs be converted to normal damage that is reducible by physical armor?")
-        public boolean disablePiercingDamage = true;
+        public static boolean disablePiercingDamage = true;
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_thaumcraft")
     public static class ThaumcraftConfig {
         @Config.Name("Enable Sleep Warp Cleansing")
         @Config.Comment("Should sleeping in a bed clear a small amount of Thaumcraft warp?")
-        public boolean enableWarpCleansing = true;
+        public static boolean enableWarpCleansing = true;
 
         @Config.Name("Clear Normal Warp")
         @Config.Comment("Should normal (sticky) warp be reduced on successful sleep?")
-        public boolean clearNormalWarp = true;
+        public static boolean clearNormalWarp = true;
 
         @Config.Name("Normal Warp Reduction")
         @Config.Comment("Amount of normal (sticky) warp to clear per successful sleep")
         @Config.RangeInt(min = 0)
-        public int normalWarpReduction = 1;
+        public static int normalWarpReduction = 1;
 
         @Config.Name("Clear Temporary Warp")
         @Config.Comment("Should temporary warp be reduced on successful sleep?")
-        public boolean clearTempWarp = true;
+        public static boolean clearTempWarp = true;
 
         @Config.Name("Temporary Warp Reduction")
         @Config.Comment("Amount of temporary warp to clear per successful sleep")
         @Config.RangeInt(min = 0)
-        public int tempWarpReduction = 2;
+        public static int tempWarpReduction = 2;
 
         @Config.Name("Enable Sleep Chat Message")
         @Config.Comment("Should players receive a chat message informing them that their mind feels clearer upon waking up?")
-        public boolean enableChatMessage = true;
+        public static boolean enableChatMessage = true;
 
         @Config.Name("Sleep Chat Message Text")
         @Config.Comment("The text of the message sent to players when their warp is reduced by sleeping")
-        public String chatMessageText = "§5You wake up feeling refreshed, and the whispers in your mind grow quieter...§r";
+        public static String chatMessageText = "§5You wake up feeling refreshed, and the whispers in your mind grow quieter...§r";
 
         @Config.Name("Enable Dimension Entry Warp")
         @Config.Comment("Should players gain warp when entering a new dimension for the first time?")
-        public boolean enableDimensionWarp = true;
+        public static boolean enableDimensionWarp = true;
 
         @Config.Name("Dimension Entry Normal Warp")
         @Config.Comment("Amount of normal (sticky) warp gained when entering a new dimension for the first time")
         @Config.RangeInt(min = 0)
-        public int dimensionNormalWarp = 2;
+        public static int dimensionNormalWarp = 2;
 
         @Config.Name("Dimension Entry Temporary Warp")
         @Config.Comment("Amount of temporary warp gained when entering a new dimension for the first time")
         @Config.RangeInt(min = 0)
-        public int dimensionTempWarp = 5;
+        public static int dimensionTempWarp = 5;
 
         @Config.Name("Dimension Chat Message Text")
         @Config.Comment("The text of the message sent to players when they gain warp from entering a new dimension")
-        public String dimensionChatMessageText = "§5Entering this strange dimension fills your mind with ancient whispers...§r";
+        public static String dimensionChatMessageText = "§5Entering this strange dimension fills your mind with ancient whispers...§r";
 
         @Config.Name("Dimension Entry Sound")
         @Config.Comment("The sound registry name to play when the player gains warp from entering a new dimension. Leave empty to play no sound.")
-        public String dimensionEntrySound = "thaumcraft:whispers";
+        public static String dimensionEntrySound = "thaumcraft:whispers";
 
         @Config.Name("Dimension Entry Sound Volume")
         @Config.Comment("The volume of the sound played when entering a new dimension. Higher values increase sound reach and loudness.")
         @Config.RangeDouble(min = 0.0, max = 10.0)
-        public float dimensionEntrySoundVolume = 2.0F;
+        public static float dimensionEntrySoundVolume = 2.0F;
 
         @Config.Name("Enable Warp Exposure")
         @Config.Comment("Should players slowly accumulate temporary warp over time when exposed to certain environments?")
-        public boolean enableExposureWarp = true;
+        public static boolean enableExposureWarp = true;
 
         @Config.Name("Exposure Dimensions Config")
         @Config.Comment({
@@ -424,46 +400,46 @@ public class ArcanaQuestTweaksConfig {
             "Example: -1=300 (Nether accumulates 1 warp every 5 minutes)",
             "Example: 1=180 (The End accumulates 1 warp every 3 minutes)"
         })
-        public String[] exposureDimensionsConfig = new String[] {
+        public static String[] exposureDimensionsConfig = new String[] {
             "-1=300",
             "1=180"
         };
 
         @Config.Name("Enable Deep Underground Exposure")
         @Config.Comment("Should players slowly accumulate temporary warp while deep underground?")
-        public boolean enableUndergroundExposure = true;
+        public static boolean enableUndergroundExposure = true;
 
         @Config.Name("Underground Y Threshold")
         @Config.Comment("Y level at or below which the player accumulates temporary warp.")
         @Config.RangeInt(min = -1, max = 256)
-        public int exposureUndergroundY = 30;
+        public static int exposureUndergroundY = 30;
 
         @Config.Name("Underground Exposure Interval")
         @Config.Comment("Seconds of underground exposure required to gain 1 point of temporary warp.")
         @Config.RangeInt(min = 1)
-        public int exposureUndergroundInterval = 300;
+        public static int exposureUndergroundInterval = 300;
 
         @Config.Name("Enable Dungeon Exposure")
         @Config.Comment("Should players slowly accumulate temporary warp while inside a Roguelike Dungeon?")
-        public boolean enableDungeonExposure = true;
+        public static boolean enableDungeonExposure = true;
 
         @Config.Name("Dungeon Exposure Interval")
         @Config.Comment("Seconds of dungeon exposure required to gain 1 point of temporary warp.")
         @Config.RangeInt(min = 1)
-        public int exposureDungeonInterval = 180;
+        public static int exposureDungeonInterval = 180;
 
         @Config.Name("Enable Exposure Sound")
         @Config.Comment("Should a sound effect play when temporary warp is gained from environmental exposure?")
-        public boolean enableExposureSound = true;
+        public static boolean enableExposureSound = true;
 
         @Config.Name("Exposure Sound Effect")
         @Config.Comment("The sound registry name to play when temporary warp is gained from environmental exposure. Default: thaumcraft:whispers")
-        public String exposureSoundEffect = "thaumcraft:whispers";
+        public static String exposureSoundEffect = "thaumcraft:whispers";
 
         @Config.Name("Exposure Sound Volume")
         @Config.Comment("The volume of the sound played when temporary warp is gained from environmental exposure. Higher values increase sound reach and loudness.")
         @Config.RangeDouble(min = 0.0, max = 10.0)
-        public float exposureSoundVolume = 2.0F;
+        public static float exposureSoundVolume = 2.0F;
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_bewitchment")
@@ -473,7 +449,7 @@ public class ArcanaQuestTweaksConfig {
             "List of Bewitchment ritual registry names that should grant Thaumcraft warp upon completion.",
             "Format: registry_name=normal,temporary,permanent (permanent is optional and defaults to 0)"
         })
-        public String[] ritualWarpList = new String[] {
+        public static String[] ritualWarpList = new String[] {
             "bewitchment:conjure_imp=1,3",
             "bewitchment:conjure_demon=2,5",
             "bewitchment:conjure_baphomet=5,15,2",
@@ -492,62 +468,95 @@ public class ArcanaQuestTweaksConfig {
     public static class RoguelikeDungeonsConfig {
         @Config.Name("Enable Grid Spawning")
         @Config.Comment("Should Roguelike Dungeons be forced to spawn on a predictable mathematical grid instead of randomly?")
-        public boolean enableGridSpawning = true;
+        public static boolean enableGridSpawning = true;
 
         @Config.Name("Minimum Chunk Distance")
         @Config.Comment("The minimum chunk distance between Roguelike Dungeon spawns.")
         @Config.RangeInt(min = 1)
-        public int minChunkDistance = 32;
+        public static int minChunkDistance = 32;
 
         @Config.Name("Maximum Chunk Distance")
         @Config.Comment("The maximum chunk distance between Roguelike Dungeon spawns. MUST be larger than Minimum Chunk Distance.")
         @Config.RangeInt(min = 2)
-        public int maxChunkDistance = 48;
+        public static int maxChunkDistance = 48;
 
         @Config.Name("Grid Seed Offset")
         @Config.Comment("Seed salt value to ensure different worlds spawn dungeons in different grid coordinates.")
-        public int gridSeedOffset = 1432289;
+        public static int gridSeedOffset = 1432289;
     }
 
-    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_depths")
+    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_depths", category = "")
     public static class DepthsModuleConfig {
-        @Config.Name("Enable Depths Module")
-        @Config.Comment("Should negative Y-level compatibility enhancements be enabled for Depths Update?")
-        public boolean enableDepthsModule = true;
 
-        @Config.Name("Minimum World Y Elevation")
-        @Config.Comment("The minimum Y coordinate boundary of the world (defaults to -64 for Depths Update).")
-        @Config.RangeInt(min = -256, max = 0)
-        public int minWorldY = -64;
+        @Config.Name("General")
+        @Config.Comment("Core Depths Update compatibility")
+        public static final General general = new General();
 
-        @Config.Name("Enable CoFH World Negative Y")
-        @Config.Comment("Should CoFH World features evaluate and place blocks below Y = 0 down to Minimum World Y?")
-        public boolean enableCoFHNegativeY = true;
+        @Config.Name("Client")
+        @Config.Comment("Client-only visuals for negative Y")
+        public static final Client client = new Client();
 
-        @Config.Name("Enable Better Caves Negative Y")
-        @Config.Comment("Should YUNG's Better Caves carve caves and caverns down to Minimum World Y?")
-        public boolean enableBetterCavesNegativeY = true;
+        @Config.Name("Compatibility")
+        @Config.Comment("Per-mod negative-Y hooks")
+        public static final Compatibility compatibility = new Compatibility();
 
-        @Config.Name("Adjust Better Caves Bedrock Height")
-        @Config.Comment("Should YUNG's Better Caves bedrock generation layer be shifted down to Minimum World Y?")
-        public boolean adjustBetterCavesBedrock = true;
+        @Config.Name("Structures")
+        @Config.Comment("Roguelike / RTG depth-related options")
+        public static final Structures structures = new Structures();
 
-        @Config.Name("Enable Recurrent Complex Negative Y")
-        @Config.Comment("Should Recurrent Complex Volts placement rays scan below Y = 0 down to Minimum World Y?")
-        public boolean enableRecurrentComplexNegativeY = true;
+        public static class General {
+            @Config.Name("Enable Depths Module")
+            @Config.Comment("Should negative Y-level compatibility enhancements be enabled for Depths Update?")
+            public boolean enableDepthsModule = true;
 
-        @Config.Name("Roguelike Dungeons Maximum Levels")
-        @Config.Comment("Maximum number of levels for Roguelike Dungeons to generate (levels 5+ extend below Y = 0 into deepslate).")
-        @Config.RangeInt(min = 5, max = 10)
-        public int roguelikeMaxLevels = 10;
+            @Config.Name("Minimum World Y Elevation")
+            @Config.Comment("The minimum Y coordinate boundary of the world (defaults to -64 for Depths Update).")
+            @Config.RangeInt(min = -256, max = 0)
+            public int minWorldY = -64;
 
-        @Config.Name("Force 10 Dungeon Levels For Testing")
-        @Config.Comment("If true, Roguelike Dungeons will always force 10 floors for testing. If false, dungeons generate strictly the number of levels defined in their JSON theme settings.")
-        public boolean force10LevelsForTesting = false;
+            @Config.Name("Better Depths Caves")
+            @Config.Comment("Enable AQTweaks Depths cave generation (BC-style upper tunnels, chambers, lower deep, sparse shafts, Y0 mouths into +Y Better Caves). Affects new chunks only. When false, AQTweaks skips that carve path.")
+            public boolean enableBetterDepthsCaves = true;
+        }
 
-        @Config.Name("Enable RTG Village Terrain Smoothing")
-        @Config.Comment("Should RTG terrain around villages be smoothed and leveled out to prevent steep cliffs and floating/buried buildings?")
-        public boolean enableRTGVillageSmoothing = true;
+        public static class Client {
+            @Config.Name("Lighten Deep Cave Fog")
+            @Config.Comment("When below Y = 0, lighten fog color and push fog distance out so Depths caves stay readable with lighting.")
+            public boolean lightenDeepCaveFog = true;
+        }
+
+        public static class Compatibility {
+            @Config.Name("Enable CoFH World Negative Y")
+            @Config.Comment("Should CoFH World features evaluate and place blocks below Y = 0 down to Minimum World Y?")
+            public boolean enableCoFHNegativeY = true;
+
+            @Config.Name("Enable Better Caves Negative Y")
+            @Config.Comment("Should YUNG's Better Caves -Y compatibility hooks run (e.g. surface altitude utils)? Separate from Better Depths Caves generation.")
+            public boolean enableBetterCavesNegativeY = true;
+
+            @Config.Name("Adjust Better Caves Bedrock Height")
+            @Config.Comment("Should YUNG's Better Caves bedrock generation layer be shifted down to Minimum World Y?")
+            public boolean adjustBetterCavesBedrock = true;
+
+            @Config.Name("Enable Recurrent Complex Negative Y")
+            @Config.Comment("Should Recurrent Complex Volts placement rays scan below Y = 0 down to Minimum World Y?")
+            public boolean enableRecurrentComplexNegativeY = true;
+        }
+
+        public static class Structures {
+            @Config.Name("Roguelike Dungeons Maximum Levels")
+            @Config.Comment("Maximum number of levels for Roguelike Dungeons to generate (levels 5+ extend below Y = 0 into deepslate).")
+            @Config.RangeInt(min = 5, max = 10)
+            public int roguelikeMaxLevels = 10;
+
+            @Config.Name("Force 10 Dungeon Levels For Testing")
+            @Config.Comment("If true, Roguelike Dungeons will always force 10 floors for testing. If false, dungeons generate strictly the number of levels defined in their JSON theme settings.")
+            public boolean force10LevelsForTesting = false;
+
+            @Config.Name("Enable RTG Village Terrain Smoothing")
+            @Config.Comment("Should RTG terrain around villages be smoothed and leveled out to prevent steep cliffs and floating/buried buildings?")
+            public boolean enableRTGVillageSmoothing = true;
+        }
     }
 
     @Mod.EventBusSubscriber(modid = ArcanaQuestTweaks.MODID)

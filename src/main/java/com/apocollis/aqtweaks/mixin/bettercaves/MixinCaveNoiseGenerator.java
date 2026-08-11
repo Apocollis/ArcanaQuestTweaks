@@ -263,12 +263,13 @@ public abstract class MixinCaveNoiseGenerator {
 
     @Inject(method = "generate(IILnet/minecraft/world/chunk/ChunkPrimer;[Lnet/minecraft/world/biome/Biome;)V", remap = false, at = @At("HEAD"), cancellable = true)
     private void onGenerateDepthsBetterCaves(int chunkX, int chunkZ, ChunkPrimer primer, Biome[] biomes, CallbackInfo ci) {
-        if (!(ArcanaQuestTweaksConfig.depthsModule.enableDepthsModule && ArcanaQuestTweaksConfig.depthsModule.enableBetterCavesNegativeY)) {
+        if (!(ArcanaQuestTweaksConfig.DepthsModuleConfig.general.enableDepthsModule
+                && ArcanaQuestTweaksConfig.DepthsModuleConfig.general.enableBetterDepthsCaves)) {
             return;
         }
         if (primer == null) return;
 
-        int minY = ArcanaQuestTweaksConfig.depthsModule.minWorldY;
+        int minY = ArcanaQuestTweaksConfig.DepthsModuleConfig.general.minWorldY;
         if (minY >= 0) return;
 
         long seed = this.capturedWorld != null ? Reflect.getSeed(this.capturedWorld) : 1337L;

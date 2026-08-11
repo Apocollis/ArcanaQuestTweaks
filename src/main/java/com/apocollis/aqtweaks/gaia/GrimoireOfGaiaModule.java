@@ -52,7 +52,7 @@ public class GrimoireOfGaiaModule {
 
     @SubscribeEvent(priority = EventPriority.HIGH)
     public void onProjectileImpact(ProjectileImpactEvent event) {
-        if (!ArcanaQuestTweaksConfig.grimoireOfGaia.disablePiercingDamage) return;
+        if (!ArcanaQuestTweaksConfig.GrimoireOfGaiaConfig.disablePiercingDamage) return;
         if (event.getRayTraceResult() == null || !(event.getRayTraceResult().entityHit instanceof EntityPlayer)) return;
 
         EntityPlayer player = (EntityPlayer) event.getRayTraceResult().entityHit;
@@ -66,7 +66,7 @@ public class GrimoireOfGaiaModule {
 
     @SubscribeEvent(priority = EventPriority.HIGH)
     public void onLivingHurt(LivingHurtEvent event) {
-        if (!ArcanaQuestTweaksConfig.grimoireOfGaia.disablePiercingDamage) return;
+        if (!ArcanaQuestTweaksConfig.GrimoireOfGaiaConfig.disablePiercingDamage) return;
         if (!(event.getEntityLiving() instanceof EntityPlayer)) return;
 
         EntityPlayer player = (EntityPlayer) event.getEntityLiving();

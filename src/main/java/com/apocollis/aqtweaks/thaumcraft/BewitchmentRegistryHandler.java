@@ -17,7 +17,7 @@ public class BewitchmentRegistryHandler {
 
         IForgeRegistry<Ritual> registry = event.getRegistry();
 
-        for (String entry : ArcanaQuestTweaksConfig.bewitchmentModule.ritualWarpList) {
+        for (String entry : ArcanaQuestTweaksConfig.BewitchmentConfig.ritualWarpList) {
             String[] parts = entry.split("=");
             if (parts.length != 2) continue;
 

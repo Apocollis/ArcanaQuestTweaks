@@ -117,8 +117,8 @@ public class StaminaModuleClient {
         if (player == null) return;
 
         // Enforce Armor Mastery weight reduction on the client side
-        if (ArcanaQuestTweaksConfig.staminaModule.reskillable.enableReskillable && 
-            Reflect.hasUnlockable(player, ArcanaQuestTweaksConfig.staminaModule.reskillable.armorMasteryPerkId)) {
+        if (ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.enableReskillable && 
+            Reflect.hasUnlockable(player, ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.armorMasteryPerkId)) {
             int reducedWeight = Reflect.getWeight(player);
             if (ClientStorage.weight != reducedWeight) {
                 ClientStorage.weight = reducedWeight;
@@ -131,7 +131,7 @@ public class StaminaModuleClient {
 
     @SideOnly(Side.CLIENT)
     private void handleClientClimbing(net.minecraft.client.entity.EntityPlayerSP player) {
-        if (!ArcanaQuestTweaksConfig.staminaModule.climbing.enableClimbCost) return;
+        if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.enableClimbCost) return;
 
         if (Reflect.isOnLadder(player)) {
             // Send jump input every tick while on ladder to prevent state desync
@@ -139,7 +139,7 @@ public class StaminaModuleClient {
             ArcanaQuestTweaks.NETWORK.sendToServer(new PacketSyncClimbingInput(isJumpPressed));
             Reflect.setBoolean(Reflect.getEntityData(player), "StaminaTweaksLastJumpInput", isJumpPressed);
 
-            if (!ArcanaQuestTweaksConfig.staminaModule.climbing.fallOnDepleted) return;
+            if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.fallOnDepleted) return;
 
             // Get the block at player's position to see if rope climbing cost is enabled
             int x = net.minecraft.util.math.MathHelper.floor(Reflect.getPosX(player));
@@ -151,9 +151,9 @@ public class StaminaModuleClient {
 
             boolean isRope = Reflect.isRopeBlock(block);
             boolean isVine = !isRope && (block instanceof net.minecraft.block.BlockVine || block.getClass().getSimpleName().toLowerCase().contains("vine"));
-            int cost = isRope ? ArcanaQuestTweaksConfig.staminaModule.climbing.ropeCost : (isVine ? ArcanaQuestTweaksConfig.staminaModule.climbing.vineCost : ArcanaQuestTweaksConfig.staminaModule.climbing.ladderCost);
+            int cost = isRope ? ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.ropeCost : (isVine ? ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.vineCost : ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.ladderCost);
 
-            if (isRope && !ArcanaQuestTweaksConfig.staminaModule.climbing.enableRopeCost) return;
+            if (isRope && !ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.enableRopeCost) return;
 
             boolean isClimbing = Reflect.isJumpPressed(player) || Reflect.getMotionY(player) > 0.0 || Reflect.isSneaking(player);
             if (isClimbing) {
@@ -192,9 +192,9 @@ public class StaminaModuleClient {
 
             boolean isRope = Reflect.isRopeBlock(block);
             boolean isVine = !isRope && (block instanceof net.minecraft.block.BlockVine || block.getClass().getSimpleName().toLowerCase().contains("vine"));
-            int cost = isRope ? ArcanaQuestTweaksConfig.staminaModule.climbing.ropeCost : (isVine ? ArcanaQuestTweaksConfig.staminaModule.climbing.vineCost : ArcanaQuestTweaksConfig.staminaModule.climbing.ladderCost);
+            int cost = isRope ? ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.ropeCost : (isVine ? ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.vineCost : ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.ladderCost);
 
-            if (isRope && !ArcanaQuestTweaksConfig.staminaModule.climbing.enableRopeCost) return;
+            if (isRope && !ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.enableRopeCost) return;
 
             if (!Reflect.hasEnoughStamina(player, 1)) {
                 Reflect.setJumpPressed(player, false);
@@ -205,7 +205,7 @@ public class StaminaModuleClient {
 
     @SideOnly(Side.CLIENT)
     private void handleClientLedgeClimbing(net.minecraft.client.entity.EntityPlayerSP player) {
-        if (!ArcanaQuestTweaksConfig.staminaModule.ledgeClimb.enableLedgeClimb) return;
+        if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.ledgeClimb.enableLedgeClimb) return;
 
         NBTTagCompound clientData = Reflect.getEntityData(player);
         int state = Reflect.getInteger(clientData, "StaminaTweaksLedgeClimbState");

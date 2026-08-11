@@ -13,12 +13,12 @@ import java.util.Random;
 public class GridStructureTracker {
 
     public static boolean shouldSpawnAt(World world, int chunkX, int chunkZ) {
-        if (!ArcanaQuestTweaksConfig.roguelikeModule.enableGridSpawning) {
+        if (!ArcanaQuestTweaksConfig.RoguelikeDungeonsConfig.enableGridSpawning) {
             return true; // Use default mod rules if grid spawning is disabled
         }
 
-        int minSpacing = ArcanaQuestTweaksConfig.roguelikeModule.minChunkDistance;
-        int maxSpacing = ArcanaQuestTweaksConfig.roguelikeModule.maxChunkDistance;
+        int minSpacing = ArcanaQuestTweaksConfig.RoguelikeDungeonsConfig.minChunkDistance;
+        int maxSpacing = ArcanaQuestTweaksConfig.RoguelikeDungeonsConfig.maxChunkDistance;
         if (minSpacing >= maxSpacing) {
             maxSpacing = minSpacing + 1;
         }
@@ -32,7 +32,7 @@ public class GridStructureTracker {
             gridX * 341873128712L + 
             gridZ * 132897987541L + 
             seed + 
-            ArcanaQuestTweaksConfig.roguelikeModule.gridSeedOffset
+            ArcanaQuestTweaksConfig.RoguelikeDungeonsConfig.gridSeedOffset
         );
 
         int offsetMax = maxSpacing - minSpacing;
@@ -54,10 +54,10 @@ public class GridStructureTracker {
     }
 
     public static ChunkPos getNearestStructure(World world, int currentChunkX, int currentChunkZ) {
-        int maxSpacing = ArcanaQuestTweaksConfig.roguelikeModule.maxChunkDistance;
+        int maxSpacing = ArcanaQuestTweaksConfig.RoguelikeDungeonsConfig.maxChunkDistance;
         if (maxSpacing <= 0) maxSpacing = 32;
 
-        int minSpacing = ArcanaQuestTweaksConfig.roguelikeModule.minChunkDistance;
+        int minSpacing = ArcanaQuestTweaksConfig.RoguelikeDungeonsConfig.minChunkDistance;
         if (minSpacing >= maxSpacing) minSpacing = maxSpacing - 1;
         if (minSpacing < 0) minSpacing = 0;
         int offsetMax = maxSpacing - minSpacing;
@@ -83,7 +83,7 @@ public class GridStructureTracker {
                         cellX * 341873128712L + 
                         cellZ * 132897987541L + 
                         seed + 
-                        ArcanaQuestTweaksConfig.roguelikeModule.gridSeedOffset
+                        ArcanaQuestTweaksConfig.RoguelikeDungeonsConfig.gridSeedOffset
                     );
 
                     int offsetX = rand.nextInt(offsetMax);

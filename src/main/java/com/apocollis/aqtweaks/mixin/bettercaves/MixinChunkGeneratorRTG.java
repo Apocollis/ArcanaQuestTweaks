@@ -24,8 +24,8 @@ public abstract class MixinChunkGeneratorRTG {
      */
     @Inject(method = "generateTerrain", at = @At("TAIL"))
     private void onGenerateTerrain(ChunkPrimer primer, float[] noise, CallbackInfo ci) {
-        if (ArcanaQuestTweaksConfig.depthsModule.enableDepthsModule) {
-            int minY = ArcanaQuestTweaksConfig.depthsModule.minWorldY;
+        if (ArcanaQuestTweaksConfig.DepthsModuleConfig.general.enableDepthsModule) {
+            int minY = ArcanaQuestTweaksConfig.DepthsModuleConfig.general.minWorldY;
             if (minY < 0 && primer != null) {
                 IBlockState deepslateState = Reflect.getDeepslateState();
                 IBlockState bedrockState = Reflect.getBedrockState();

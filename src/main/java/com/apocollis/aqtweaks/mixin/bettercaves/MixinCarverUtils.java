@@ -21,7 +21,7 @@ public abstract class MixinCarverUtils {
      */
     @Inject(method = "canReplaceBlock", at = @At("HEAD"), cancellable = true)
     private static void onCanReplaceBlock(IBlockState state, IBlockState stateAbove, CallbackInfoReturnable<Boolean> cir) {
-        if (ArcanaQuestTweaksConfig.depthsModule.enableDepthsModule) {
+        if (ArcanaQuestTweaksConfig.DepthsModuleConfig.general.enableDepthsModule) {
             if (state != null) {
                 Block b = Reflect.getBlock(state);
                 if (b != null) {

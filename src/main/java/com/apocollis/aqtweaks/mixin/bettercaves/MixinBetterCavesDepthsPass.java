@@ -39,14 +39,14 @@ public abstract class MixinBetterCavesDepthsPass {
 
     @Inject(method = "func_186125_a", at = @At("RETURN"))
     private void onAfterBetterCavesBreachTunnels(World worldIn, int chunkX, int chunkZ, ChunkPrimer primer, CallbackInfo ci) {
-        if (!ArcanaQuestTweaksConfig.depthsModule.enableDepthsModule
-                || !ArcanaQuestTweaksConfig.depthsModule.enableBetterCavesNegativeY) {
+        if (!ArcanaQuestTweaksConfig.DepthsModuleConfig.general.enableDepthsModule
+                || !ArcanaQuestTweaksConfig.DepthsModuleConfig.general.enableBetterDepthsCaves) {
             return;
         }
         if (worldIn == null || primer == null) return;
         if (worldIn.provider != null && worldIn.provider.getDimension() != 0) return;
 
-        int minY = ArcanaQuestTweaksConfig.depthsModule.minWorldY;
+        int minY = ArcanaQuestTweaksConfig.DepthsModuleConfig.general.minWorldY;
         if (minY >= 0) return;
 
         UpperTunnelNetwork.init(Reflect.getSeed(worldIn));

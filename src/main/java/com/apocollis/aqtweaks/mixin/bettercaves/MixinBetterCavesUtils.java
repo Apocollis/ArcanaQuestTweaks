@@ -26,7 +26,8 @@ public abstract class MixinBetterCavesUtils {
      */
     @Inject(method = "getSurfaceAltitudeForColumn", at = @At("HEAD"), cancellable = true)
     private static void onGetSurfaceAltitudeForColumn(ChunkPrimer primer, int x, int z, CallbackInfoReturnable<Integer> cir) {
-        if (ArcanaQuestTweaksConfig.depthsModule.enableDepthsModule && ArcanaQuestTweaksConfig.depthsModule.enableBetterCavesNegativeY) {
+        if (ArcanaQuestTweaksConfig.DepthsModuleConfig.general.enableDepthsModule
+                && ArcanaQuestTweaksConfig.DepthsModuleConfig.compatibility.enableBetterCavesNegativeY) {
             if (primer == null) {
                 cir.setReturnValue(64);
                 return;

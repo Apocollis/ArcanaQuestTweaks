@@ -53,7 +53,7 @@ public abstract class MixinDungeon {
 
     @Inject(method = "selectLocation", at = @At("HEAD"), cancellable = true)
     private void onSelectLocation(java.util.Random rand, int startX, int startZ, CallbackInfoReturnable<java.util.Optional<Coord>> cir) {
-        if (com.apocollis.aqtweaks.ArcanaQuestTweaksConfig.roguelikeModule.enableGridSpawning) {
+        if (com.apocollis.aqtweaks.ArcanaQuestTweaksConfig.RoguelikeDungeonsConfig.enableGridSpawning) {
             int centerX = startX + 8;
             int centerZ = startZ + 8;
             Coord coord = new Coord(centerX, 0, centerZ);

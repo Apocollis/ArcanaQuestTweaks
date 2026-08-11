@@ -34,8 +34,9 @@ public abstract class MixinRayMatcher {
     public OptionalInt cast(WorldCache worldCache, StructurePlaceContext context, IvBlockCollection collection, Set<BlockPos> set, int y) {
         Set<BlockPos> shifted = RayAverageMatcher.shifted(context, collection, set);
         int height = worldCache.world.getHeight();
-        int minY = (ArcanaQuestTweaksConfig.depthsModule.enableDepthsModule && ArcanaQuestTweaksConfig.depthsModule.enableRecurrentComplexNegativeY)
-                   ? ArcanaQuestTweaksConfig.depthsModule.minWorldY : 0;
+        int minY = (ArcanaQuestTweaksConfig.DepthsModuleConfig.general.enableDepthsModule
+                && ArcanaQuestTweaksConfig.DepthsModuleConfig.compatibility.enableRecurrentComplexNegativeY)
+                   ? ArcanaQuestTweaksConfig.DepthsModuleConfig.general.minWorldY : 0;
 
         while (y >= minY && y < height) {
             if (this.matches(worldCache, context, shifted, y, this.requiredRatio)) {

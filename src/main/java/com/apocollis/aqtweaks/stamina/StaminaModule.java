@@ -84,7 +84,7 @@ public class StaminaModule {
                                                 className.contains("axe") || className.contains("dagger");
 
                 if (isThrownWeaponEntity) {
-                    if (ArcanaQuestTweaksConfig.staminaModule.throwingWeapons.enableThrowingCost) {
+                    if (ArcanaQuestTweaksConfig.StaminaModuleConfig.throwingWeapons.enableThrowingCost) {
                         // Stamina cost (1 feather) is handled authoritatively upon release in onItemUseStop.
                         // If player had insufficient stamina, the throw release event was already canceled.
                     }
@@ -104,18 +104,18 @@ public class StaminaModule {
         String name = item.getRegistryName().toString();
 
         // Check custom lists
-        if (ArcanaQuestTweaksConfig.staminaModule.weapons.lightWeaponsCustom != null) {
-            for (String s : ArcanaQuestTweaksConfig.staminaModule.weapons.lightWeaponsCustom) {
+        if (ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.lightWeaponsCustom != null) {
+            for (String s : ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.lightWeaponsCustom) {
                 if (name.equals(s)) return WeaponType.LIGHT;
             }
         }
-        if (ArcanaQuestTweaksConfig.staminaModule.weapons.mediumWeaponsCustom != null) {
-            for (String s : ArcanaQuestTweaksConfig.staminaModule.weapons.mediumWeaponsCustom) {
+        if (ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.mediumWeaponsCustom != null) {
+            for (String s : ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.mediumWeaponsCustom) {
                 if (name.equals(s)) return WeaponType.MEDIUM;
             }
         }
-        if (ArcanaQuestTweaksConfig.staminaModule.weapons.heavyWeaponsCustom != null) {
-            for (String s : ArcanaQuestTweaksConfig.staminaModule.weapons.heavyWeaponsCustom) {
+        if (ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.heavyWeaponsCustom != null) {
+            for (String s : ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.heavyWeaponsCustom) {
                 if (name.equals(s)) return WeaponType.HEAVY;
             }
         }
@@ -191,15 +191,15 @@ public class StaminaModule {
             handleServerShieldBlocking(playerMP);
 
             // Mining Fatigue exhaustion check
-            if (ArcanaQuestTweaksConfig.staminaModule.mining.enableMiningCost) {
+            if (ArcanaQuestTweaksConfig.StaminaModuleConfig.mining.enableMiningCost) {
                 int regularFeathers = FeathersHelper.getFeatherLevel(playerMP);
-                if (regularFeathers <= ArcanaQuestTweaksConfig.staminaModule.mining.miningFatigueThreshold) {
+                if (regularFeathers <= ArcanaQuestTweaksConfig.StaminaModuleConfig.mining.miningFatigueThreshold) {
                     Reflect.addPotionEffect(playerMP, new net.minecraft.potion.PotionEffect(net.minecraft.init.MobEffects.MINING_FATIGUE, 40, 2, true, false));
                 }
             }
 
             // Simple Difficulty thirst cost for feather regeneration
-            if (ArcanaQuestTweaksConfig.staminaModule.simpleDifficulty.enableThirstCost) {
+            if (ArcanaQuestTweaksConfig.StaminaModuleConfig.simpleDifficulty.enableThirstCost) {
                 int currentFeathers = FeathersHelper.getFeatherLevel(playerMP);
                 String key = "StaminaTweaksPrevFeathers";
                 NBTTagCompound pData = Reflect.getEntityData(playerMP);
@@ -207,7 +207,7 @@ public class StaminaModule {
                     int prevFeathers = Reflect.getInteger(pData, key);
                     if (currentFeathers > prevFeathers) {
                         int diff = currentFeathers - prevFeathers;
-                        float exhaustion = diff * (float) ArcanaQuestTweaksConfig.staminaModule.simpleDifficulty.thirstExhaustionPerFeather;
+                        float exhaustion = diff * (float) ArcanaQuestTweaksConfig.StaminaModuleConfig.simpleDifficulty.thirstExhaustionPerFeather;
                         Reflect.addThirstExhaustion(playerMP, exhaustion);
                     }
                 }
@@ -217,7 +217,7 @@ public class StaminaModule {
     }
 
     private void handleServerBowDrawing(EntityPlayerMP player) {
-        if (!ArcanaQuestTweaksConfig.staminaModule.bowDrawing.enableBowCost) return;
+        if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.bowDrawing.enableBowCost) return;
 
         // Bows only (throwing weapons handled separately in handleServerThrowingHold)
         ItemStack activeStack = Reflect.getActiveItemStack(player);
@@ -227,10 +227,10 @@ public class StaminaModule {
         NBTTagCompound pData = Reflect.getEntityData(player);
         if (isDrawing) {
             int ticks = Reflect.getInteger(pData, "StaminaTweaksBowTicks") + 1;
-            int interval = ArcanaQuestTweaksConfig.staminaModule.bowDrawing.bowHoldInterval;
+            int interval = ArcanaQuestTweaksConfig.StaminaModuleConfig.bowDrawing.bowHoldInterval;
 
             if (ticks >= interval) {
-                int cost = ArcanaQuestTweaksConfig.staminaModule.bowDrawing.bowHoldCost;
+                int cost = ArcanaQuestTweaksConfig.StaminaModuleConfig.bowDrawing.bowHoldCost;
                 if (Reflect.hasEnoughStamina(player, cost)) {
                     FeathersHelper.decreaseFeathers(player, cost);
                     ticks = 0;
@@ -248,7 +248,7 @@ public class StaminaModule {
     }
 
     private void handleServerThrowingHold(EntityPlayerMP player) {
-        if (!ArcanaQuestTweaksConfig.staminaModule.throwingWeapons.enableThrowingCost) return;
+        if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.throwingWeapons.enableThrowingCost) return;
 
         ItemStack activeStack = Reflect.getActiveItemStack(player);
         boolean isAiming = Reflect.isHandActive(player) && isThrowingWeapon(activeStack);
@@ -256,10 +256,10 @@ public class StaminaModule {
         NBTTagCompound pData = Reflect.getEntityData(player);
         if (isAiming) {
             int ticks = Reflect.getInteger(pData, "StaminaTweaksThrowTicks") + 1;
-            int interval = ArcanaQuestTweaksConfig.staminaModule.bowDrawing.bowHoldInterval * ArcanaQuestTweaksConfig.staminaModule.throwingWeapons.throwingHoldIntervalMultiplier;
+            int interval = ArcanaQuestTweaksConfig.StaminaModuleConfig.bowDrawing.bowHoldInterval * ArcanaQuestTweaksConfig.StaminaModuleConfig.throwingWeapons.throwingHoldIntervalMultiplier;
 
             if (ticks >= interval) {
-                int cost = ArcanaQuestTweaksConfig.staminaModule.bowDrawing.bowHoldCost;
+                int cost = ArcanaQuestTweaksConfig.StaminaModuleConfig.bowDrawing.bowHoldCost;
                 if (Reflect.hasEnoughStamina(player, cost)) {
                     FeathersHelper.decreaseFeathers(player, cost);
                     ticks = 0;
@@ -277,7 +277,7 @@ public class StaminaModule {
     }
 
     private void handleServerClimbing(EntityPlayerMP player) {
-        if (!ArcanaQuestTweaksConfig.staminaModule.climbing.enableClimbCost) return;
+        if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.enableClimbCost) return;
 
         NBTTagCompound pData = Reflect.getEntityData(player);
         if (Reflect.isOnLadder(player)) {
@@ -293,9 +293,9 @@ public class StaminaModule {
 
             boolean isRope = Reflect.isRopeBlock(block);
             boolean isVine = !isRope && (block instanceof net.minecraft.block.BlockVine || block.getClass().getSimpleName().toLowerCase().contains("vine"));
-            int cost = isRope ? ArcanaQuestTweaksConfig.staminaModule.climbing.ropeCost : (isVine ? ArcanaQuestTweaksConfig.staminaModule.climbing.vineCost : ArcanaQuestTweaksConfig.staminaModule.climbing.ladderCost);
+            int cost = isRope ? ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.ropeCost : (isVine ? ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.vineCost : ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.ladderCost);
 
-            if (isRope && !ArcanaQuestTweaksConfig.staminaModule.climbing.enableRopeCost) return;
+            if (isRope && !ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.enableRopeCost) return;
 
             // Check if player sent jump input from client, or motionY > 0, or sneaking
             boolean isJumpPressed = Reflect.getBoolean(pData, "StaminaTweaksClimbJumpInput");
@@ -303,8 +303,8 @@ public class StaminaModule {
 
             if (isClimbing) {
                 int ticks = Reflect.getInteger(pData, "StaminaTweaksLadderTicks") + 1;
-                int interval = isRope ? ArcanaQuestTweaksConfig.staminaModule.climbing.ropeInterval : 
-                               (isVine ? ArcanaQuestTweaksConfig.staminaModule.climbing.vineInterval : ArcanaQuestTweaksConfig.staminaModule.climbing.ladderInterval);
+                int interval = isRope ? ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.ropeInterval : 
+                               (isVine ? ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.vineInterval : ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.ladderInterval);
 
                 if (ticks >= interval) {
                     if (Reflect.hasEnoughStamina(player, cost)) {
@@ -326,15 +326,15 @@ public class StaminaModule {
     }
 
     private void handleServerGrappling(EntityPlayerMP player) {
-        if (!ArcanaQuestTweaksConfig.staminaModule.grapple.enableGrappleCost) return;
+        if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.grapple.enableGrappleCost) return;
 
         NBTTagCompound pData = Reflect.getEntityData(player);
         if (Reflect.isGrappling(player)) {
             int ticks = Reflect.getInteger(pData, "StaminaTweaksGrappleTicks") + 1;
-            int interval = ArcanaQuestTweaksConfig.staminaModule.grapple.grappleHoldInterval;
+            int interval = ArcanaQuestTweaksConfig.StaminaModuleConfig.grapple.grappleHoldInterval;
 
             if (ticks >= interval) {
-                int cost = ArcanaQuestTweaksConfig.staminaModule.grapple.grappleHoldCost;
+                int cost = ArcanaQuestTweaksConfig.StaminaModuleConfig.grapple.grappleHoldCost;
                 if (Reflect.hasEnoughStamina(player, cost)) {
                     FeathersHelper.decreaseFeathers(player, cost);
                     ticks = 0;
@@ -352,15 +352,15 @@ public class StaminaModule {
     }
 
     private void handleServerGliding(EntityPlayerMP player) {
-        if (!ArcanaQuestTweaksConfig.staminaModule.glider.enableGliderCost) return;
+        if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.glider.enableGliderCost) return;
 
         NBTTagCompound pData = Reflect.getEntityData(player);
         if (Reflect.isGliding(player)) {
             int ticks = Reflect.getInteger(pData, "StaminaTweaksGliderTicks") + 1;
-            int interval = ArcanaQuestTweaksConfig.staminaModule.glider.gliderInterval;
+            int interval = ArcanaQuestTweaksConfig.StaminaModuleConfig.glider.gliderInterval;
 
             if (ticks >= interval) {
-                int cost = ArcanaQuestTweaksConfig.staminaModule.glider.gliderCost;
+                int cost = ArcanaQuestTweaksConfig.StaminaModuleConfig.glider.gliderCost;
                 if (Reflect.hasEnoughStamina(player, cost)) {
                     FeathersHelper.decreaseFeathers(player, cost);
                     ticks = 0;
@@ -384,11 +384,11 @@ public class StaminaModule {
         EntityPlayer player = (EntityPlayer) event.getEntityLiving();
         if (Reflect.isRemote(player) || Reflect.isCreative(player) || Reflect.isSpectator(player)) return;
 
-        if (!ArcanaQuestTweaksConfig.staminaModule.jumping.enableJumpCost) return;
+        if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.jumping.enableJumpCost) return;
 
         EntityPlayerMP playerMP = (EntityPlayerMP) player;
-        int threshold = ArcanaQuestTweaksConfig.staminaModule.jumping.jumpThreshold;
-        int cost = ArcanaQuestTweaksConfig.staminaModule.jumping.jumpCost;
+        int threshold = ArcanaQuestTweaksConfig.StaminaModuleConfig.jumping.jumpThreshold;
+        int cost = ArcanaQuestTweaksConfig.StaminaModuleConfig.jumping.jumpCost;
 
         if (Reflect.hasEnoughStamina(playerMP, threshold)) {
             FeathersHelper.decreaseFeathers(playerMP, cost);
@@ -403,7 +403,7 @@ public class StaminaModule {
         EntityPlayer player = event.getEntityPlayer();
         if (Reflect.isRemote(player) || Reflect.isCreative(player) || Reflect.isSpectator(player)) return;
 
-        if (!ArcanaQuestTweaksConfig.staminaModule.weapons.enableAttackCost) return;
+        if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.enableAttackCost) return;
 
         EntityPlayerMP playerMP = (EntityPlayerMP) player;
         ItemStack held = Reflect.getHeldItemMainhand(playerMP);
@@ -411,10 +411,10 @@ public class StaminaModule {
 
         if (type == WeaponType.NONE) return;
 
-        int cost = (type == WeaponType.LIGHT) ? ArcanaQuestTweaksConfig.staminaModule.weapons.lightCost : 
-                   (type == WeaponType.HEAVY ? ArcanaQuestTweaksConfig.staminaModule.weapons.heavyCost : ArcanaQuestTweaksConfig.staminaModule.weapons.mediumCost);
-        double multiplier = (type == WeaponType.LIGHT) ? ArcanaQuestTweaksConfig.staminaModule.weapons.lightDamageMultiplier : 
-                             (type == WeaponType.HEAVY ? ArcanaQuestTweaksConfig.staminaModule.weapons.heavyDamageMultiplier : ArcanaQuestTweaksConfig.staminaModule.weapons.mediumDamageMultiplier);
+        int cost = (type == WeaponType.LIGHT) ? ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.lightCost : 
+                   (type == WeaponType.HEAVY ? ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.heavyCost : ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.mediumCost);
+        double multiplier = (type == WeaponType.LIGHT) ? ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.lightDamageMultiplier : 
+                             (type == WeaponType.HEAVY ? ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.heavyDamageMultiplier : ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.mediumDamageMultiplier);
 
         int currentFeathers = FeathersHelper.getFeatherLevel(playerMP);
 
@@ -445,15 +445,15 @@ public class StaminaModule {
 
     private void handleWeaponSwing(EntityPlayer player) {
         if (player == null || Reflect.isRemote(player) || Reflect.isCreative(player) || Reflect.isSpectator(player)) return;
-        if (!ArcanaQuestTweaksConfig.staminaModule.weapons.enableAttackCost) return;
+        if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.enableAttackCost) return;
 
         EntityPlayerMP playerMP = (EntityPlayerMP) player;
         ItemStack held = Reflect.getHeldItemMainhand(playerMP);
         WeaponType type = getWeaponType(held);
         if (type == WeaponType.NONE) return;
 
-        int cost = (type == WeaponType.LIGHT) ? ArcanaQuestTweaksConfig.staminaModule.weapons.lightCost : 
-                   (type == WeaponType.HEAVY ? ArcanaQuestTweaksConfig.staminaModule.weapons.heavyCost : ArcanaQuestTweaksConfig.staminaModule.weapons.mediumCost);
+        int cost = (type == WeaponType.LIGHT) ? ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.lightCost : 
+                   (type == WeaponType.HEAVY ? ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.heavyCost : ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.mediumCost);
 
         if (Reflect.hasEnoughStamina(playerMP, cost)) {
             FeathersHelper.decreaseFeathers(playerMP, cost);
@@ -471,8 +471,8 @@ public class StaminaModule {
         if (Reflect.isEmpty(stack)) return;
 
         if (Reflect.getItem(stack) instanceof ItemBow) {
-            if (!ArcanaQuestTweaksConfig.staminaModule.bowDrawing.enableBowCost) return;
-            int drawCost = ArcanaQuestTweaksConfig.staminaModule.bowDrawing.bowDrawCost;
+            if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.bowDrawing.enableBowCost) return;
+            int drawCost = ArcanaQuestTweaksConfig.StaminaModuleConfig.bowDrawing.bowDrawCost;
             if (Reflect.hasEnoughStamina(playerMP, drawCost)) {
                 FeathersHelper.decreaseFeathers(playerMP, drawCost);
             } else {
@@ -495,10 +495,10 @@ public class StaminaModule {
         int ticksUsed = Reflect.getMaxItemUseDuration(stack) - duration;
 
         if (Reflect.getItem(stack) instanceof ItemBow) {
-            if (!ArcanaQuestTweaksConfig.staminaModule.bowDrawing.enableBowCost) return;
-            int interval = ArcanaQuestTweaksConfig.staminaModule.bowDrawing.bowHoldInterval;
+            if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.bowDrawing.enableBowCost) return;
+            int interval = ArcanaQuestTweaksConfig.StaminaModuleConfig.bowDrawing.bowHoldInterval;
             if (ticksUsed > 0 && ticksUsed % interval == 0) {
-                int cost = ArcanaQuestTweaksConfig.staminaModule.bowDrawing.bowHoldCost;
+                int cost = ArcanaQuestTweaksConfig.StaminaModuleConfig.bowDrawing.bowHoldCost;
                 if (Reflect.hasEnoughStamina(playerMP, cost)) {
                     FeathersHelper.decreaseFeathers(playerMP, cost);
                 } else {
@@ -519,8 +519,8 @@ public class StaminaModule {
         if (Reflect.isEmpty(stack)) return;
 
         if (isThrowingWeapon(stack)) {
-            if (!ArcanaQuestTweaksConfig.staminaModule.throwingWeapons.enableThrowingCost) return;
-            int releaseCost = ArcanaQuestTweaksConfig.staminaModule.throwingWeapons.throwingReleaseCost;
+            if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.throwingWeapons.enableThrowingCost) return;
+            int releaseCost = ArcanaQuestTweaksConfig.StaminaModuleConfig.throwingWeapons.throwingReleaseCost;
             if (Reflect.hasEnoughStamina(playerMP, releaseCost)) {
                 FeathersHelper.decreaseFeathers(playerMP, releaseCost);
             } else {
@@ -548,15 +548,15 @@ public class StaminaModule {
     }
 
     private void handleServerShieldBlocking(EntityPlayerMP player) {
-        if (!ArcanaQuestTweaksConfig.staminaModule.shield.enableShieldCost) return;
+        if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.shield.enableShieldCost) return;
 
         NBTTagCompound data = Reflect.getEntityData(player);
         boolean wasBlocking = Reflect.getBoolean(data, "StaminaTweaksShieldActive");
         boolean isBlocking = Reflect.isActiveItemStackBlocking(player);
 
         if (isBlocking) {
-            int interval = ArcanaQuestTweaksConfig.staminaModule.shield.shieldHoldInterval;
-            int cost = ArcanaQuestTweaksConfig.staminaModule.shield.shieldHoldCost;
+            int interval = ArcanaQuestTweaksConfig.StaminaModuleConfig.shield.shieldHoldInterval;
+            int cost = ArcanaQuestTweaksConfig.StaminaModuleConfig.shield.shieldHoldCost;
 
             if (!wasBlocking) {
                 Reflect.setBoolean(data, "StaminaTweaksShieldActive", true);
@@ -593,18 +593,18 @@ public class StaminaModule {
         EntityPlayer player = event.getPlayer();
         if (player == null || Reflect.isRemote(player) || Reflect.isCreative(player) || Reflect.isSpectator(player)) return;
 
-        if (!ArcanaQuestTweaksConfig.staminaModule.mining.enableMiningCost) return;
+        if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.mining.enableMiningCost) return;
 
         Block block = Reflect.getBlock(event.getState());
         boolean isOreOrObsidian = block == net.minecraft.init.Blocks.OBSIDIAN || 
                                   (block.getRegistryName() != null && block.getRegistryName().toString().toLowerCase().contains("ore"));
 
-        int cost = isOreOrObsidian ? ArcanaQuestTweaksConfig.staminaModule.mining.oreCost : ArcanaQuestTweaksConfig.staminaModule.mining.defaultCost;
+        int cost = isOreOrObsidian ? ArcanaQuestTweaksConfig.StaminaModuleConfig.mining.oreCost : ArcanaQuestTweaksConfig.StaminaModuleConfig.mining.defaultCost;
 
         EntityPlayerMP playerMP = (EntityPlayerMP) player;
-        if (ArcanaQuestTweaksConfig.staminaModule.reskillable.enableReskillable && 
-            Reflect.hasUnlockable(playerMP, ArcanaQuestTweaksConfig.staminaModule.reskillable.miningEfficiencyPerkId)) {
-            cost = Math.max(0, cost - ArcanaQuestTweaksConfig.staminaModule.reskillable.miningEfficiencyReduction);
+        if (ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.enableReskillable && 
+            Reflect.hasUnlockable(playerMP, ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.miningEfficiencyPerkId)) {
+            cost = Math.max(0, cost - ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.miningEfficiencyReduction);
         }
         if (cost <= 0) return;
         if (Reflect.hasEnoughStamina(playerMP, cost)) {
