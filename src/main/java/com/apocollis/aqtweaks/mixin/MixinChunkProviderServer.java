@@ -1,6 +1,7 @@
 package com.apocollis.aqtweaks.mixin;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
+import com.apocollis.aqtweaks.depths.DepthsBiomeUtil;
 import com.apocollis.aqtweaks.depths.UpperTunnelNetwork;
 import com.apocollis.aqtweaks.roguelike.GridStructureTracker;
 import com.apocollis.aqtweaks.util.Reflect;
@@ -10,10 +11,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
-import net.minecraft.world.biome.Biome;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.gen.ChunkProviderServer;
-import net.minecraftforge.common.BiomeDictionary;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.spongepowered.asm.mixin.Mixin;
@@ -34,34 +33,6 @@ public class MixinChunkProviderServer {
 
     private static final Logger LOGGER = LogManager.getLogger("AQTweaks-BetterCavesUniversal");
     private static boolean loggedOnce = false;
-
-    private static boolean isWaterBiome(World world, int x, int z) {
-        if (world == null) return false;
-        try {
-            Biome biome = null;
-            Biome fallbackBiome = Reflect.getPlainsBiome();
-            if (world.getBiomeProvider() != null) {
-                biome = world.getBiomeProvider().getBiome(new BlockPos(x, 64, z), fallbackBiome);
-            }
-            if (biome == null) return false;
-
-            if (BiomeDictionary.hasType(biome, BiomeDictionary.Type.WATER) ||
-                BiomeDictionary.hasType(biome, BiomeDictionary.Type.OCEAN) ||
-                BiomeDictionary.hasType(biome, BiomeDictionary.Type.RIVER) ||
-                BiomeDictionary.hasType(biome, BiomeDictionary.Type.BEACH)) {
-                return true;
-            }
-
-            if (biome.getRegistryName() != null) {
-                String name = biome.getRegistryName().toString().toLowerCase();
-                return name.contains("ocean") || name.contains("deep_ocean") ||
-                       name.contains("beach") || name.contains("river") ||
-                       name.contains("coral") || name.contains("kelp");
-            }
-        } catch (Throwable ignored) {
-        }
-        return false;
-    }
 
     @Shadow
     public WorldServer field_73251_h;
@@ -145,9 +116,10 @@ public class MixinChunkProviderServer {
             int worldX = startX + localX;
             for (int localZ = 0; localZ < 16; ++localZ) {
                 int worldZ = startZ + localZ;
-                boolean isWater = isWaterBiome(world, worldX, worldZ);
+                boolean isWater = DepthsBiomeUtil.isWaterBiome(world, worldX, worldZ);
+                UpperTunnelNetwork.ColumnDigCache dig = UpperTunnelNetwork.forColumn(worldX, worldZ);
 
-                if (!isWater && UpperTunnelNetwork.shouldOpenSeam(worldX, worldZ)) {
+                if (!isWater && dig.shouldOpenSeam()) {
                     for (int y = 0; y <= UpperTunnelNetwork.SEAM_TOP; ++y) {
                         Reflect.setPos(pos, worldX, y, worldZ);
                         IBlockState cur = Reflect.getBlockState(chunk, pos);

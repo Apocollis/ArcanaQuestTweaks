@@ -4,34 +4,49 @@ import com.yungnickyoung.minecraft.bettercaves.noise.FastNoise;
 import net.minecraft.util.math.MathHelper;
 
 /**
- * Upper deep tunnels in Better Caves surface-cave style:
- * dual-simplex 3D worms (intersect) with xz/y compression, y-adjustment headroom,
- * two worm systems OR'd for winding / branching / interconnecting tubes from ~Y4 to ~-25.
- * Chambers are discrete widenings attached to the worm network.
+ * Upper deep tunnels mimicking Better Caves 1.12.2 {@code CaveCarver}:
+ * dual-noise high-threshold intersection (Type 1 CubicFractal RigidMulti + Type 2 Simplex),
+ * F1/F2 upward y-adjustment for headroom, soft close near DIG_TOP.
+ * Chambers are discrete widenings on the worm network.
+ * Lower-deep breaches are sparse: only when tunnel floor sits within 1 of the lower ceiling.
  */
 public final class UpperTunnelNetwork {
 
+    public static final int SEAM_MIN_Y = -1;
     public static final int SEAM_MAX_Y = 2;
     public static final int SEAM_TOP = 4;
-    public static final int DIG_BOTTOM = -25;
+    /** Normal tunnel floor stop — above lower-deep shell (~-27…-23). */
+    public static final int DIG_BOTTOM = -22;
     public static final int DIG_TOP = 4;
 
-    /** BC-like compressions (vertical higher → steeper vertical play) */
-    private static final float XZ_COMP = 1.0f;
-    private static final float Y_COMP = 2.5f;
-    /** Abs dual-noise tube width (~3–4 block worms) */
-    private static final float WORM_WIDTH = 0.115f;
-    private static final float WORM_WIDTH_SPUR = 0.09f;
-    /** Headroom: only +1 above core, same tightness as primary */
-    private static final float Y_ADJUST_WIDTH = 0.115f;
+    private static final int DIG_HEIGHT = DIG_TOP - DIG_BOTTOM + 1;
+
+    // --- Type 1 (worm-like) — BC Cubic defaults ---
+    private static final float T1_XZ = 1.6f;
+    private static final float T1_Y = 5.0f;
+    private static final float T1_THR = 0.95f;
+    private static final float T1_F1 = 0.9f;
+    private static final float T1_F2 = 0.9f;
+    private static final float T1_FREQ = 0.03f;
+
+    // --- Type 2 (open spur) — BC Simplex defaults ---
+    private static final float T2_XZ = 0.9f;
+    private static final float T2_Y = 2.2f;
+    private static final float T2_THR = 0.82f;
+    private static final float T2_F1 = 0.95f;
+    private static final float T2_F2 = 0.5f;
+    private static final float T2_FREQ = 0.025f;
+
+    /** Soft-close depth near DIG_TOP (BC surfaceCutoff-style). */
+    private static final int TOP_CUTOFF = 5;
 
     public static final int CHAMBER_SPACING = 23;
     public static final float CHAMBER_SPAWN_MIN = 0.08f;
 
-    private static FastNoise wormA1;
-    private static FastNoise wormA2;
-    private static FastNoise wormB1;
-    private static FastNoise wormB2;
+    private static FastNoise type1A;
+    private static FastNoise type1B;
+    private static FastNoise type2A;
+    private static FastNoise type2B;
     private static FastNoise chamberSpawn;
     private static FastNoise chamberJitter;
     private static FastNoise chamberShape;
@@ -45,23 +60,27 @@ public final class UpperTunnelNetwork {
         int seed1 = (int) (worldSeed & 0xFFFF);
         int seed2 = (int) ((worldSeed >> 16) & 0xFFFF);
 
-        // System A — primary winding worms (BC surface-cave style)
-        wormA1 = new FastNoise(seed1 + 5555);
-        wormA1.SetNoiseType(FastNoise.NoiseType.Simplex);
-        wormA1.SetFrequency(0.025f);
+        type1A = new FastNoise(seed1 + 5555);
+        type1A.SetNoiseType(FastNoise.NoiseType.CubicFractal);
+        type1A.SetFractalType(FastNoise.FractalType.RigidMulti);
+        type1A.SetFrequency(T1_FREQ);
+        type1A.SetFractalOctaves(1);
+        type1A.SetFractalGain(0.3f);
 
-        wormA2 = new FastNoise(seed2 + 6666);
-        wormA2.SetNoiseType(FastNoise.NoiseType.Simplex);
-        wormA2.SetFrequency(0.025f);
+        type1B = new FastNoise(seed2 + 6666);
+        type1B.SetNoiseType(FastNoise.NoiseType.CubicFractal);
+        type1B.SetFractalType(FastNoise.FractalType.RigidMulti);
+        type1B.SetFrequency(T1_FREQ);
+        type1B.SetFractalOctaves(1);
+        type1B.SetFractalGain(0.3f);
 
-        // System B — second network for branches / interconnects
-        wormB1 = new FastNoise(seed1 + 7771);
-        wormB1.SetNoiseType(FastNoise.NoiseType.Simplex);
-        wormB1.SetFrequency(0.028f);
+        type2A = new FastNoise(seed1 + 7771);
+        type2A.SetNoiseType(FastNoise.NoiseType.Simplex);
+        type2A.SetFrequency(T2_FREQ);
 
-        wormB2 = new FastNoise(seed2 + 8882);
-        wormB2.SetNoiseType(FastNoise.NoiseType.Simplex);
-        wormB2.SetFrequency(0.028f);
+        type2B = new FastNoise(seed2 + 8882);
+        type2B.SetNoiseType(FastNoise.NoiseType.Simplex);
+        type2B.SetFrequency(T2_FREQ);
 
         chamberSpawn = new FastNoise(seed1 + 5900);
         chamberSpawn.SetNoiseType(FastNoise.NoiseType.Simplex);
@@ -82,59 +101,146 @@ public final class UpperTunnelNetwork {
         initialized = true;
     }
 
-    private static boolean wormCoreAt(FastNoise n1, FastNoise n2, int x, int y, int z, float width) {
-        float a = n1.GetNoise(x * XZ_COMP, y * Y_COMP, z * XZ_COMP);
-        float b = n2.GetNoise(x * XZ_COMP, y * Y_COMP, z * XZ_COMP);
-        return Math.abs(a) < width && Math.abs(b) < width;
-    }
-
-    /** True if this block is inside a BC-style worm dig (either system). */
-    public static boolean wormDigCore(int worldX, int y, int worldZ) {
-        if (y < DIG_BOTTOM || y > DIG_TOP) return false;
-        if (wormCoreAt(wormA1, wormA2, worldX, y, worldZ, WORM_WIDTH)) return true;
-        return wormCoreAt(wormB1, wormB2, worldX, y, worldZ, WORM_WIDTH_SPUR);
+    private static float thresholdAt(int y, float baseThr) {
+        int boundary = DIG_TOP - TOP_CUTOFF;
+        if (y < boundary || DIG_TOP == boundary) return baseThr;
+        float t = (float) (y - boundary) / (float) (DIG_TOP - boundary);
+        return baseThr * (1.0f + 0.3f * t);
     }
 
     /**
-     * Worm dig including BC-like y-adjustment (headroom above a core dig).
+     * BC CaveCarver dig for one dual-noise system: sample → y-adjust upward → dig if both ≥ thr.
      */
-    public static boolean carveTunnelAt(int worldX, int worldZ, int y) {
-        if (y < DIG_BOTTOM || y > DIG_TOP) return false;
-        if (wormDigCore(worldX, y, worldZ)) return true;
-
-        // y-adjustment: only +1 block headroom above a core dig
-        if (y - 1 >= DIG_BOTTOM && wormDigCore(worldX, y - 1, worldZ)) {
-            return wormCoreAt(wormA1, wormA2, worldX, y - 1, worldZ, Y_ADJUST_WIDTH)
-                    || wormCoreAt(wormB1, wormB2, worldX, y - 1, worldZ, Y_ADJUST_WIDTH);
+    private static boolean[] digSystem(FastNoise n1, FastNoise n2, float xzComp, float yComp,
+                                       float baseThr, float f1, float f2, int worldX, int worldZ) {
+        float[] a = new float[DIG_HEIGHT];
+        float[] b = new float[DIG_HEIGHT];
+        for (int y = DIG_BOTTOM; y <= DIG_TOP; ++y) {
+            int i = y - DIG_BOTTOM;
+            a[i] = n1.GetNoise(worldX * xzComp, y * yComp, worldZ * xzComp);
+            b[i] = n2.GetNoise(worldX * xzComp, y * yComp, worldZ * xzComp);
         }
 
-        // Chamber connector: ±1 neighbor only (exits without hollowing the room)
-        if (isInChamberFootprint(worldX, worldZ)) {
-            for (int dx = -1; dx <= 1; ++dx) {
-                for (int dz = -1; dz <= 1; ++dz) {
-                    if (dx == 0 && dz == 0) continue;
-                    if (wormDigCore(worldX + dx, y, worldZ + dz)) return true;
-                    if (y - 1 >= DIG_BOTTOM && wormDigCore(worldX + dx, y - 1, worldZ + dz)) return true;
+        // preprocess: top → bottom; when cell digs, blend into cells above (headroom)
+        for (int y = DIG_TOP; y >= DIG_BOTTOM; --y) {
+            int i = y - DIG_BOTTOM;
+            float thr = thresholdAt(y, baseThr);
+            if (a[i] < thr || b[i] < thr) continue;
+
+            if (y + 1 <= DIG_TOP) {
+                int j = i + 1;
+                a[j] = (1.0f - f1) * a[j] + f1 * a[i];
+                b[j] = (1.0f - f1) * b[j] + f1 * b[i];
+            }
+            if (y + 2 <= DIG_TOP) {
+                int j = i + 2;
+                a[j] = (1.0f - f2) * a[j] + f2 * a[i];
+                b[j] = (1.0f - f2) * b[j] + f2 * b[i];
+            }
+        }
+
+        boolean[] dig = new boolean[DIG_HEIGHT];
+        for (int y = DIG_BOTTOM; y <= DIG_TOP; ++y) {
+            int i = y - DIG_BOTTOM;
+            float thr = thresholdAt(y, baseThr);
+            dig[i] = a[i] >= thr && b[i] >= thr;
+        }
+        return dig;
+    }
+
+    private static boolean rawDigAt(FastNoise n1, FastNoise n2, float xzComp, float yComp,
+                                    float baseThr, int worldX, int y, int worldZ) {
+        if (y < DIG_BOTTOM || y > DIG_TOP) return false;
+        float thr = thresholdAt(y, baseThr);
+        float a = n1.GetNoise(worldX * xzComp, y * yComp, worldZ * xzComp);
+        float b = n2.GetNoise(worldX * xzComp, y * yComp, worldZ * xzComp);
+        return a >= thr && b >= thr;
+    }
+
+    /** True if this block is inside a tunnel dig (either Type 1 or Type 2), raw (no y-adjust). */
+    public static boolean wormDigCore(int worldX, int y, int worldZ) {
+        if (rawDigAt(type1A, type1B, T1_XZ, T1_Y, T1_THR, worldX, y, worldZ)) return true;
+        return rawDigAt(type2A, type2B, T2_XZ, T2_Y, T2_THR, worldX, y, worldZ);
+    }
+
+    public static boolean carveTunnelAt(int worldX, int worldZ, int y) {
+        return forColumn(worldX, worldZ).carveTunnelAt(y);
+    }
+
+    public static boolean shouldOpenSeam(int worldX, int worldZ) {
+        return forColumn(worldX, worldZ).shouldOpenSeam();
+    }
+
+    /** @deprecated use {@link ColumnDigCache#shouldBreachLower(int)} with ceilY */
+    @Deprecated
+    public static boolean breachesLower(int worldX, int worldZ) {
+        return false;
+    }
+
+    public static boolean chamberBounds(int worldX, int worldZ, int[] outFloorTop) {
+        return forColumn(worldX, worldZ).chamberBounds(outFloorTop);
+    }
+
+    public static boolean carveUpperAt(int worldX, int worldZ, int y) {
+        return forColumn(worldX, worldZ).carveUpperAt(y);
+    }
+
+    /** Build dig/chamber/seam flags once per column (hot path for primer / seam). */
+    public static ColumnDigCache forColumn(int worldX, int worldZ) {
+        boolean[] t1 = digSystem(type1A, type1B, T1_XZ, T1_Y, T1_THR, T1_F1, T1_F2, worldX, worldZ);
+        boolean[] t2 = digSystem(type2A, type2B, T2_XZ, T2_Y, T2_THR, T2_F1, T2_F2, worldX, worldZ);
+
+        boolean[] tunnel = new boolean[DIG_HEIGHT];
+        for (int i = 0; i < DIG_HEIGHT; ++i) {
+            tunnel[i] = t1[i] || t2[i];
+        }
+
+        int[] ft = new int[2];
+        boolean hasChamber = chamberBoundsRaw(worldX, worldZ, ft, true);
+        int chamberFloor = hasChamber ? ft[0] : 0;
+        int chamberTop = hasChamber ? ft[1] : Integer.MIN_VALUE;
+
+        // Chamber connectors: ±1 neighbor raw dig (exits without hollowing the room)
+        if (hasChamber) {
+            for (int y = DIG_BOTTOM; y <= DIG_TOP; ++y) {
+                int i = y - DIG_BOTTOM;
+                if (tunnel[i]) continue;
+                if (y < chamberFloor - 1 || y > chamberTop + 1) continue;
+                outer:
+                for (int dx = -1; dx <= 1; ++dx) {
+                    for (int dz = -1; dz <= 1; ++dz) {
+                        if (dx == 0 && dz == 0) continue;
+                        if (wormDigCore(worldX + dx, y, worldZ + dz)
+                                || (y - 1 >= DIG_BOTTOM && wormDigCore(worldX + dx, y - 1, worldZ + dz))) {
+                            tunnel[i] = true;
+                            break outer;
+                        }
+                    }
                 }
             }
         }
-        return false;
-    }
 
-    /** Column has worm opening near the Y0 seam. */
-    public static boolean shouldOpenSeam(int worldX, int worldZ) {
+        int tunnelFloorY = Integer.MAX_VALUE;
+        for (int y = DIG_BOTTOM; y <= DIG_TOP; ++y) {
+            if (tunnel[y - DIG_BOTTOM]) {
+                tunnelFloorY = y;
+                break;
+            }
+        }
+        // Chamber floor can be the walking surface when present
+        if (hasChamber && chamberFloor < tunnelFloorY) {
+            tunnelFloorY = chamberFloor;
+        }
+
+        boolean openSeam = false;
         for (int y = -2; y <= SEAM_TOP; ++y) {
-            if (carveTunnelAt(worldX, worldZ, y)) return true;
+            if (y >= DIG_BOTTOM && y <= DIG_TOP && tunnel[y - DIG_BOTTOM]) {
+                openSeam = true;
+                break;
+            }
         }
-        return false;
-    }
 
-    /** Column has worm cutting the lower-deep ceiling band. */
-    public static boolean breachesLower(int worldX, int worldZ) {
-        for (int y = -26; y <= -22; ++y) {
-            if (carveTunnelAt(worldX, worldZ, y)) return true;
-        }
-        return false;
+        return new ColumnDigCache(tunnel, hasChamber, chamberFloor, chamberTop, openSeam, tunnelFloorY);
     }
 
     private static boolean columnHasWorm(int worldX, int worldZ) {
@@ -144,14 +250,6 @@ public final class UpperTunnelNetwork {
         return false;
     }
 
-    private static boolean isInChamberFootprint(int worldX, int worldZ) {
-        int[] ft = new int[2];
-        return chamberBoundsRaw(worldX, worldZ, ft, true);
-    }
-
-    /**
-     * Chamber bounds; requireWorm means center must sit on the worm network.
-     */
     private static boolean chamberBoundsRaw(int worldX, int worldZ, int[] outFloorTop, boolean requireWorm) {
         int spacing = CHAMBER_SPACING;
         int cellX = Math.floorDiv(worldX, spacing);
@@ -191,15 +289,14 @@ public final class UpperTunnelNetwork {
                     norm = dist / half;
                 }
 
-                // Flat floor near local worm mid-band
                 int chamberFloor = -16;
-                for (int y = -22; y <= -8; ++y) {
+                for (int y = -20; y <= -8; ++y) {
                     if (wormDigCore(centerX, y, centerZ)) {
                         chamberFloor = y;
                         break;
                     }
                 }
-                chamberFloor = MathHelper.clamp(chamberFloor, -22, -8);
+                chamberFloor = MathHelper.clamp(chamberFloor, -20, -8);
 
                 float hFrac = (float) Math.sqrt(Math.max(0.0, 1.0 - norm * norm));
                 int maxH = MathHelper.clamp(5 + Math.round(3.0f * hFrac), 4, 8);
@@ -219,16 +316,65 @@ public final class UpperTunnelNetwork {
         return true;
     }
 
-    public static boolean chamberBounds(int worldX, int worldZ, int[] outFloorTop) {
-        return chamberBoundsRaw(worldX, worldZ, outFloorTop, true);
-    }
+    /** Per-column dig/chamber/seam cache for primer and seam hot paths. */
+    public static final class ColumnDigCache {
+        private final boolean[] tunnel;
+        private final boolean hasChamber;
+        private final int chamberFloor;
+        private final int chamberTop;
+        private final boolean openSeam;
+        private final int tunnelFloorY;
 
-    public static boolean carveUpperAt(int worldX, int worldZ, int y) {
-        if (y < DIG_BOTTOM - 1 || y > DIG_TOP) return false;
-        if (carveTunnelAt(worldX, worldZ, y)) return true;
+        private ColumnDigCache(boolean[] tunnel, boolean hasChamber, int chamberFloor, int chamberTop,
+                               boolean openSeam, int tunnelFloorY) {
+            this.tunnel = tunnel;
+            this.hasChamber = hasChamber;
+            this.chamberFloor = chamberFloor;
+            this.chamberTop = chamberTop;
+            this.openSeam = openSeam;
+            this.tunnelFloorY = tunnelFloorY;
+        }
 
-        int[] ft = new int[2];
-        if (!chamberBounds(worldX, worldZ, ft)) return false;
-        return y >= ft[0] && y <= ft[1];
+        public boolean carveTunnelAt(int y) {
+            if (y < DIG_BOTTOM || y > DIG_TOP) return false;
+            return tunnel[y - DIG_BOTTOM];
+        }
+
+        public boolean carveUpperAt(int y) {
+            if (y < DIG_BOTTOM || y > DIG_TOP) return false;
+            if (carveTunnelAt(y)) return true;
+            return hasChamber && y >= chamberFloor && y <= chamberTop;
+        }
+
+        public boolean shouldOpenSeam() {
+            return openSeam;
+        }
+
+        /** Lowest tunnel/chamber floor Y, or Integer.MAX_VALUE if none. */
+        public int tunnelFloorY() {
+            return tunnelFloorY;
+        }
+
+        /**
+         * Sparse lower breach: tunnel floor sits on or 1 block above the lower-deep ceiling.
+         */
+        public boolean shouldBreachLower(int ceilY) {
+            if (tunnelFloorY == Integer.MAX_VALUE) return false;
+            return tunnelFloorY >= ceilY && tunnelFloorY <= ceilY + 1;
+        }
+
+        /** Vertical shaft Y range through the shell into lower deep (inclusive). */
+        public boolean isBreachShaft(int y, int ceilY) {
+            if (!shouldBreachLower(ceilY)) return false;
+            int shaftBottom = ceilY - 2;
+            return y >= shaftBottom && y <= tunnelFloorY;
+        }
+
+        public boolean chamberBounds(int[] outFloorTop) {
+            if (!hasChamber) return false;
+            outFloorTop[0] = chamberFloor;
+            outFloorTop[1] = chamberTop;
+            return true;
+        }
     }
 }

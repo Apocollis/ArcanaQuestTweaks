@@ -5,7 +5,7 @@ Specification-Version: 1
 Implementation-Title: ArcanaQuestTweaks
 Implementation-Version: 1.5
 Implementation-Vendor: apocollis
-Implementation-Timestamp: 2026-08-11T13:05:52-0400
+Implementation-Timestamp: 2026-08-11T14:01:59-0400
 ModType: CRL
 FMLCorePluginContainsFMLMod: true
 ForceLoadAsMod: true

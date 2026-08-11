@@ -19,13 +19,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /**
  * Depths primer -Y authority (replaces Depths cave generate).
  * All -Y carve + decor happen here so structures stick (Chunk -Y writes are unreliable).
+ * Do not inject into Better Caves CaveCarver / CavernCarver to force bottomY — +Y BC keeps its own floor;
+ * -Y is owned by this primer + the post-BC seam pass.
+ * Upper tunnels mimic BC CaveCarver (dual high-threshold + y-adjust); lower breaches are sparse shafts only.
  */
 @Mixin(targets = "sayys.depthsupdate.world.generation.noise.CaveNoiseGenerator", remap = false)
 public abstract class MixinCaveNoiseGenerator {
 
     private static final Logger LOGGER = LogManager.getLogger("AQTweaks-DepthsBetterCaves");
 
-    /** Cuboid upper tunnels via UpperTunnelNetwork; lower cavern open threshold */
+    /** BC-style upper worms via UpperTunnelNetwork; lower cavern open threshold */
     private static final float LOWER_CAVERN_OPEN = 0.45f;
 
     /** Landmass vs lava lakes/streams (majority land) */
@@ -179,14 +182,16 @@ public abstract class MixinCaveNoiseGenerator {
     }
 
     /**
-     * Natural land-bridge ridge: returns top deck Y, or Integer.MIN_VALUE if none.
-     * Caller fills solid from near lava up to deck (ridge), not a floating staircase.
+     * Natural land-bridge ridge: deckY / fillBottom, or null if none.
+     * Caller fills solid from fillBottom up to deck (ridge), not a floating staircase.
      */
-    private static int bridgeDeckY(int worldX, int worldZ, int lavaLevel) {
+    private static int[] bridgeInfo(int worldX, int worldZ, int lavaLevel) {
         int spacing = BRIDGE_SPACING;
         int cellX = Math.floorDiv(worldX, spacing);
         int cellZ = Math.floorDiv(worldZ, spacing);
         int bestDeck = Integer.MIN_VALUE;
+        float bestU = 0.0f;
+        boolean foundSpan = false;
 
         for (int dx = -1; dx <= 1; ++dx) {
             for (int dz = -1; dz <= 1; ++dz) {
@@ -221,67 +226,33 @@ public abstract class MixinCaveNoiseGenerator {
 
                 float edgeJitter = bridgeEdgeNoise.GetNoise(worldX * 0.8f, worldZ * 0.8f) * 0.45f;
                 float halfW = BRIDGE_HALF_WIDTH + edgeJitter;
-                // Mild widen only at very ends so bridge merges into land
                 float endBlend = MathHelper.clamp(Math.abs(along) / (float) BRIDGE_HALF_SPAN, 0.0f, 1.0f);
                 halfW += endBlend * endBlend * 0.45f;
                 if (Math.abs(across) > halfW) continue;
 
-                // Wide high crest: most of span stays near peak; short ramps at ends
                 float u = MathHelper.clamp(along / (float) BRIDGE_HALF_SPAN, -1.0f, 1.0f);
                 float absU = Math.abs(u);
-                // 1 - |u|^2.4 → flat mid plateau, steeper near ends
                 float arch = 1.0f - (float) Math.pow(absU, 2.4);
                 float riseN = bridgeRiseNoise.GetNoise(cx * 5.1f, cz * 9.7f) * 0.5f + 0.5f;
                 float rise = BRIDGE_RISE_MIN + riseN * (BRIDGE_RISE_MAX - BRIDGE_RISE_MIN);
                 float topJitter = bridgeEdgeNoise.GetNoise(worldX * 1.3f + 9.0f, worldZ * 1.3f) * 0.45f;
                 int endY = lavaLevel + 1;
                 int deckY = Math.round(endY + rise * arch + topJitter);
-                if (deckY > bestDeck) bestDeck = deckY;
-            }
-        }
-        return bestDeck;
-    }
-
-    /** How much solid to fill under the deck (thicker near ends = land-bridge piers). */
-    private static int bridgeFillBottom(int worldX, int worldZ, int lavaLevel, int deckY) {
-        int spacing = BRIDGE_SPACING;
-        int cellX = Math.floorDiv(worldX, spacing);
-        int cellZ = Math.floorDiv(worldZ, spacing);
-        float bestU = 0.0f;
-        boolean found = false;
-
-        for (int dx = -1; dx <= 1; ++dx) {
-            for (int dz = -1; dz <= 1; ++dz) {
-                int cx = cellX + dx;
-                int cz = cellZ + dz;
-                if (bridgeSpawnNoise.GetNoise(cx * 19.1f, cz * 27.3f) < BRIDGE_SPAWN_MIN) continue;
-
-                float jx = bridgeJitterNoise.GetNoise(cx * 11.7f, cz * 29.3f);
-                float jz = bridgeJitterNoise.GetNoise(cx * 31.1f + 40.0f, cz * 13.9f);
-                int centerX = Math.round(cx * spacing + spacing * 0.5f + jx * (spacing * 0.15f));
-                int centerZ = Math.round(cz * spacing + spacing * 0.5f + jz * (spacing * 0.15f));
-                float dir = bridgeDirNoise.GetNoise(cx * 7.3f, cz * 17.9f);
-                boolean alongX = dir >= 0.0f;
-                float along = alongX ? (worldX - centerX) : (worldZ - centerZ);
-                float across = alongX ? (worldZ - centerZ) : (worldX - centerX);
-                if (Math.abs(along) > BRIDGE_HALF_SPAN + 0.5f) continue;
-                if (Math.abs(across) > BRIDGE_HALF_WIDTH + 0.8f) continue;
-                float u = Math.abs(MathHelper.clamp(along / (float) BRIDGE_HALF_SPAN, -1.0f, 1.0f));
-                if (!found || u > bestU) {
-                    bestU = u;
-                    found = true;
+                if (deckY > bestDeck) {
+                    bestDeck = deckY;
+                    bestU = absU;
+                    foundSpan = true;
                 }
             }
         }
-        if (!found) return lavaLevel + 1;
-        // Arched underside: thin at mid (2–3), curves down toward ends to meet land
-        // undersideRise follows same crest curve as deck so void under mid is smooth
-        float arch = 1.0f - (float) Math.pow(bestU, 2.4); // 1 at mid, 0 at ends
-        int thickness = 2 + Math.round(bestU * 1.5f); // 2 mid → ~3–4 near ends
-        int underside = deckY - thickness - Math.round((1.0f - arch) * Math.max(0, deckY - (lavaLevel + 3)) * 0.85f);
-        // Soften with slight noise
+        if (bestDeck == Integer.MIN_VALUE) return null;
+
+        float arch = 1.0f - (float) Math.pow(foundSpan ? bestU : 0.0f, 2.4);
+        int thickness = 2 + Math.round(bestU * 1.5f);
+        int underside = bestDeck - thickness - Math.round((1.0f - arch) * Math.max(0, bestDeck - (lavaLevel + 3)) * 0.85f);
         underside += Math.round(bridgeEdgeNoise.GetNoise(worldX * 0.9f, worldZ * 0.9f) * 0.6f);
-        return MathHelper.clamp(underside, lavaLevel + 1, deckY - 2);
+        int fillBottom = MathHelper.clamp(underside, lavaLevel + 1, bestDeck - 2);
+        return new int[]{bestDeck, fillBottom};
     }
 
     private static int ceilingYAt(int worldX, int worldZ) {
@@ -305,7 +276,7 @@ public abstract class MixinCaveNoiseGenerator {
         UpperTunnelNetwork.init(seed);
 
         if (!loggedOnce) {
-            LOGGER.info("[AQ-DEPTHS] Primer: BC-style upper worms + chambers, landmass floor");
+            LOGGER.info("[AQ-DEPTHS] Primer: BC CaveCarver tunnels + sparse lower shafts");
             loggedOnce = true;
         }
 
@@ -352,8 +323,11 @@ public abstract class MixinCaveNoiseGenerator {
                 }
                 int landSurfaceY = lavaLevel + landExtra;
 
-                boolean lowerAdit = UpperTunnelNetwork.breachesLower(worldX, worldZ);
-                int archDeckY = bridgeDeckY(worldX, worldZ, lavaLevel);
+                UpperTunnelNetwork.ColumnDigCache dig = UpperTunnelNetwork.forColumn(worldX, worldZ);
+                boolean lowerBreach = dig.shouldBreachLower(ceilY);
+                int[] bridge = bridgeInfo(worldX, worldZ, lavaLevel);
+                int archDeckY = bridge != null ? bridge[0] : Integer.MIN_VALUE;
+                int archFillBottom = bridge != null ? bridge[1] : Integer.MIN_VALUE;
 
                 float[] lower1 = new float[Math.max(1, lowerHeight)];
                 float[] lower2 = new float[Math.max(1, lowerHeight)];
@@ -371,20 +345,25 @@ public abstract class MixinCaveNoiseGenerator {
 
                     boolean carve = false;
 
-                    // Sloping cuboid tunnels + chambers (+ short +Y neck / lower adit via floor grade)
-                    if (UpperTunnelNetwork.carveUpperAt(worldX, worldZ, y)) {
+                    // BC CaveCarver-style tunnels + chambers
+                    if (dig.carveUpperAt(y)) {
                         carve = true;
                     }
 
-                    // Lower cavern air (above land/lava surface)
-                    if (!carve && lowerHeight > 0 && y >= lowerBottom && y <= LOWER_MAX_Y && (y < ceilY || lowerAdit)) {
+                    // Sparse vertical shaft into lower deep (floor within 1 of ceilY)
+                    if (!carve && dig.isBreachShaft(y, ceilY)) {
+                        carve = true;
+                    }
+
+                    // Lower cavern air — never ignore the ceiling shell except via shaft above
+                    if (!carve && lowerHeight > 0 && y >= lowerBottom && y < ceilY) {
                         if (land && y <= landSurfaceY) {
                             // keep solid
                         } else {
                             int idx = y - lowerBottom;
                             if (idx >= 0 && idx < lowerHeight) {
                                 float openThr = LOWER_CAVERN_OPEN;
-                                if (!lowerAdit && y >= ceilY - 4) {
+                                if (y >= ceilY - 4) {
                                     float frac = (float) (ceilY - y) / 4.0f;
                                     openThr *= MathHelper.clamp(0.30f + 0.70f * frac, 0.25f, 1.0f);
                                 }
@@ -413,7 +392,7 @@ public abstract class MixinCaveNoiseGenerator {
                     }
                 }
 
-                // Ensure landmass fill even where carve didn't run (solid default)
+                // Ensure landmass fill where carve loop skipped air/bedrock cells
                 if (land && deepslateState != null) {
                     for (int y = bedrockTop + 1; y <= landSurfaceY; ++y) {
                         Reflect.setBlockState(primer, localX, y, localZ, deepslateState);
@@ -430,26 +409,17 @@ public abstract class MixinCaveNoiseGenerator {
                     }
                 }
 
-                // Roof shell — leave open where sloping tunnels breach into lower
+                // Roof shell — solid over lower deep; only sparse breach shafts stay open
                 if (deepslateState != null) {
-                    if (lowerAdit) {
-                        for (int y = -28; y <= -22; ++y) {
-                            net.minecraft.block.Block b = Reflect.getBlock(Reflect.getBlockState(primer, localX, y, localZ));
-                            if (b != null && airBlock != null && b != airBlock
-                                    && (bedrockBlock == null || b != bedrockBlock)
-                                    && UpperTunnelNetwork.carveTunnelAt(worldX, worldZ, y)) {
-                                Reflect.setBlockState(primer, localX, y, localZ, airState);
-                            }
+                    for (int y = ceilY; y <= -23; ++y) {
+                        if (dig.isBreachShaft(y, ceilY)) {
+                            Reflect.setBlockState(primer, localX, y, localZ, airState);
+                            continue;
                         }
-                    } else {
-                        for (int y = ceilY; y <= -23; ++y) {
-                            IBlockState st = Reflect.getBlockState(primer, localX, y, localZ);
-                            net.minecraft.block.Block b = Reflect.getBlock(st);
-                            if (b != null && airBlock != null && (b == airBlock || (lavaBlock != null && b == lavaBlock))) {
-                                // Don't reseal active tunnel cuboid cutting the shell
-                                if (UpperTunnelNetwork.carveTunnelAt(worldX, worldZ, y)) continue;
-                                Reflect.setBlockState(primer, localX, y, localZ, deepslateState);
-                            }
+                        IBlockState st = Reflect.getBlockState(primer, localX, y, localZ);
+                        net.minecraft.block.Block b = Reflect.getBlock(st);
+                        if (b != null && airBlock != null && (b == airBlock || (lavaBlock != null && b == lavaBlock))) {
+                            Reflect.setBlockState(primer, localX, y, localZ, deepslateState);
                         }
                     }
                 }
@@ -458,7 +428,7 @@ public abstract class MixinCaveNoiseGenerator {
 
                 // Columns
                 for (int y = lowerBottom; y <= ceilY; ++y) {
-                    if (UpperTunnelNetwork.carveTunnelAt(worldX, worldZ, y)) continue;
+                    if (dig.isBreachShaft(y, ceilY)) continue;
                     float heightFrac = (float) (y - lowerBottom) / (float) Math.max(1, ceilY - lowerBottom);
                     if (columnStrength(worldX, worldZ, heightFrac) > 0.18f) {
                         Reflect.setBlockState(primer, localX, y, localZ, deepslateState);
@@ -483,7 +453,7 @@ public abstract class MixinCaveNoiseGenerator {
                 }
 
                 // Stalactites from ceiling (more common than floor spikes)
-                if (spikeVal < -0.15f) {
+                if (spikeVal < -0.15f && !lowerBreach) {
                     int titeH = MathHelper.clamp(5 + (int) ((-spikeVal - 0.15f) * 18.0f), 5, 16);
                     for (int y = ceilY - 1; y >= ceilY - titeH && y > landSurfaceY; --y) {
                         net.minecraft.block.Block b = Reflect.getBlock(Reflect.getBlockState(primer, localX, y, localZ));
@@ -496,11 +466,11 @@ public abstract class MixinCaveNoiseGenerator {
                 }
 
                 // Natural land-bridge ridge (solid fill under smooth arch)
-                int archFillBottom = Integer.MIN_VALUE;
-                if (archDeckY != Integer.MIN_VALUE && archDeckY > lavaLevel && archDeckY < ceilY - 2) {
-                    archFillBottom = bridgeFillBottom(worldX, worldZ, lavaLevel, archDeckY);
+                if (archDeckY != Integer.MIN_VALUE && archDeckY > lavaLevel && archDeckY < ceilY - 2
+                        && archFillBottom != Integer.MIN_VALUE) {
                     for (int y = archFillBottom; y <= archDeckY; ++y) {
                         if (y <= lavaLevel || y >= ceilY) continue;
+                        if (dig.isBreachShaft(y, ceilY)) continue;
                         net.minecraft.block.Block b = Reflect.getBlock(Reflect.getBlockState(primer, localX, y, localZ));
                         if (b != null && airBlock != null && (b == airBlock || (lavaBlock != null && b == lavaBlock))) {
                             Reflect.setBlockState(primer, localX, y, localZ, deepslateState);
@@ -513,6 +483,7 @@ public abstract class MixinCaveNoiseGenerator {
                     if (archFillBottom != Integer.MIN_VALUE && y >= archFillBottom && y <= archDeckY) {
                         continue;
                     }
+                    if (dig.isBreachShaft(y, ceilY)) continue;
                     float hf = (float) (y - lowerBottom) / (float) Math.max(1, ceilY - lowerBottom);
                     if (columnStrength(worldX, worldZ, hf) > 0.15f) continue;
                     if (land && y <= landSurfaceY + 5) continue; // protect short floor spikes
@@ -554,10 +525,11 @@ public abstract class MixinCaveNoiseGenerator {
                     }
                 }
 
-                // Keep sloping lower-adit mouths open through the ceiling shell after decor
-                if (lowerAdit && airState != null) {
-                    for (int y = -28; y <= -22; ++y) {
-                        if (!UpperTunnelNetwork.carveTunnelAt(worldX, worldZ, y)) continue;
+                // Keep sparse breach shafts open after decor
+                if (lowerBreach && airState != null) {
+                    int floorY = dig.tunnelFloorY();
+                    for (int y = ceilY - 2; y <= floorY; ++y) {
+                        if (!dig.isBreachShaft(y, ceilY)) continue;
                         net.minecraft.block.Block b = Reflect.getBlock(Reflect.getBlockState(primer, localX, y, localZ));
                         if (b != null && airBlock != null && b != airBlock
                                 && (bedrockBlock == null || b != bedrockBlock)) {

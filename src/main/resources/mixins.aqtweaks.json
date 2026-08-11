@@ -16,8 +16,6 @@
     "bettercaves.MixinBetterCavesDepthsPass",
     "bettercaves.MixinDepthsMapGenCaves",
     "bettercaves.MixinFlattenBedrock",
-    "bettercaves.MixinCaveCarver",
-    "bettercaves.MixinCavernCarver",
     "bettercaves.MixinCarverUtils",
     "bettercaves.MixinBetterCavesUtils",
     "bettercaves.MixinChunkGeneratorRTG",

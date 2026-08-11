@@ -1,17 +1,13 @@
 package com.apocollis.aqtweaks.mixin.bettercaves;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
-import com.apocollis.aqtweaks.depths.BreachTunnelNoise;
+import com.apocollis.aqtweaks.depths.DepthsBiomeUtil;
 import com.apocollis.aqtweaks.depths.UpperTunnelNetwork;
 import com.apocollis.aqtweaks.util.Reflect;
 import com.yungnickyoung.minecraft.bettercaves.world.MapGenBetterCaves;
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.init.Biomes;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
-import net.minecraft.world.biome.Biome;
 import net.minecraft.world.chunk.ChunkPrimer;
-import net.minecraftforge.common.BiomeDictionary;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.spongepowered.asm.mixin.Mixin;
@@ -28,30 +24,6 @@ public abstract class MixinBetterCavesDepthsPass {
 
     private static final Logger LOGGER = LogManager.getLogger("AQTweaks-BreachPass");
     private static boolean loggedOnce = false;
-
-    private static boolean isWaterBiome(World world, int x, int z) {
-        if (world == null) return false;
-        try {
-            Biome biome = null;
-            if (world.getBiomeProvider() != null) {
-                biome = world.getBiomeProvider().getBiome(new BlockPos(x, 64, z), Biomes.PLAINS);
-            }
-            if (biome == null) return false;
-            if (BiomeDictionary.hasType(biome, BiomeDictionary.Type.WATER)
-                    || BiomeDictionary.hasType(biome, BiomeDictionary.Type.OCEAN)
-                    || BiomeDictionary.hasType(biome, BiomeDictionary.Type.RIVER)
-                    || BiomeDictionary.hasType(biome, BiomeDictionary.Type.BEACH)) {
-                return true;
-            }
-            if (biome.getRegistryName() != null) {
-                String name = biome.getRegistryName().toString().toLowerCase();
-                return name.contains("ocean") || name.contains("river") || name.contains("beach")
-                        || name.contains("coral") || name.contains("kelp");
-            }
-        } catch (Throwable ignored) {
-        }
-        return false;
-    }
 
     private static void tryCarve(ChunkPrimer primer, int localX, int localZ, int y,
                                  IBlockState airState, net.minecraft.block.Block airBlock,
@@ -96,12 +68,13 @@ public abstract class MixinBetterCavesDepthsPass {
             int worldX = startX + localX;
             for (int localZ = 0; localZ < 16; ++localZ) {
                 int worldZ = startZ + localZ;
-                if (isWaterBiome(worldIn, worldX, worldZ)) continue;
+                if (DepthsBiomeUtil.isWaterBiome(worldIn, worldX, worldZ)) continue;
 
-                if (!UpperTunnelNetwork.shouldOpenSeam(worldX, worldZ)) continue;
+                UpperTunnelNetwork.ColumnDigCache dig = UpperTunnelNetwork.forColumn(worldX, worldZ);
+                if (!dig.shouldOpenSeam()) continue;
 
                 seamCore[localX][localZ] = true;
-                for (int y = BreachTunnelNoise.SEAM_MIN_Y; y <= BreachTunnelNoise.TOP; ++y) {
+                for (int y = UpperTunnelNetwork.SEAM_MIN_Y; y <= UpperTunnelNetwork.SEAM_TOP; ++y) {
                     tryCarve(primer, localX, localZ, y, airState, airBlock, bedrockBlock);
                 }
             }
@@ -110,7 +83,7 @@ public abstract class MixinBetterCavesDepthsPass {
         for (int localX = 0; localX < 16; ++localX) {
             for (int localZ = 0; localZ < 16; ++localZ) {
                 if (!seamCore[localX][localZ]) continue;
-                for (int y = BreachTunnelNoise.SEAM_MIN_Y; y <= BreachTunnelNoise.SEAM_MAX_Y; ++y) {
+                for (int y = UpperTunnelNetwork.SEAM_MIN_Y; y <= UpperTunnelNetwork.SEAM_MAX_Y; ++y) {
                     for (int dx = -1; dx <= 1; ++dx) {
                         for (int dz = -1; dz <= 1; ++dz) {
                             tryCarve(primer, localX + dx, localZ + dz, y, airState, airBlock, bedrockBlock);
