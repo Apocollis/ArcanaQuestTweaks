@@ -2,6 +2,7 @@ package com.apocollis.aqtweaks.mixin.bettercaves;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.depths.BreachTunnelNoise;
+import com.apocollis.aqtweaks.depths.UpperTunnelNetwork;
 import com.apocollis.aqtweaks.util.Reflect;
 import com.yungnickyoung.minecraft.bettercaves.world.MapGenBetterCaves;
 import net.minecraft.block.state.IBlockState;
@@ -19,8 +20,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * After native Better Caves: carve narrow breach tubes Y4→-25 through Y0 (does not cancel BC).
- * Forces seam continuity + widened mouths at Y≈-1…2 so +Y / -Y connect walkably.
+ * After native Better Caves: open tunnel mouths at Y0 into +Y BC caves (does not cancel BC).
+ * Uses the same {@link UpperTunnelNetwork} path as upper deep caves.
  */
 @Mixin(value = MapGenBetterCaves.class, remap = false)
 public abstract class MixinBetterCavesDepthsPass {
@@ -76,10 +77,10 @@ public abstract class MixinBetterCavesDepthsPass {
         int minY = ArcanaQuestTweaksConfig.depthsModule.minWorldY;
         if (minY >= 0) return;
 
-        BreachTunnelNoise.init(Reflect.getSeed(worldIn));
+        UpperTunnelNetwork.init(Reflect.getSeed(worldIn));
 
         if (!loggedOnce) {
-            LOGGER.info("[AQ-DEPTHS] BC companion: narrow breach tubes + forced Y0 seam mouths");
+            LOGGER.info("[AQ-DEPTHS] BC companion: tunnel-path mouths into +Y after Better Caves");
             loggedOnce = true;
         }
 
@@ -87,7 +88,6 @@ public abstract class MixinBetterCavesDepthsPass {
         net.minecraft.block.Block airBlock = Reflect.getAirBlock();
         net.minecraft.block.Block bedrockBlock = Reflect.getBedrockBlock();
 
-        int height = BreachTunnelNoise.height();
         int startX = chunkX * 16;
         int startZ = chunkZ * 16;
         boolean[][] seamCore = new boolean[16][16];
@@ -98,27 +98,15 @@ public abstract class MixinBetterCavesDepthsPass {
                 int worldZ = startZ + localZ;
                 if (isWaterBiome(worldIn, worldX, worldZ)) continue;
 
-                float[] v1 = new float[height];
-                float[] v2 = new float[height];
-                BreachTunnelNoise.sampleColumn(worldX, worldZ, v1, v2);
-                boolean forceSeam = BreachTunnelNoise.shouldOpenSeam(v1, v2);
+                if (!UpperTunnelNetwork.shouldOpenSeam(worldX, worldZ)) continue;
 
-                for (int y = BreachTunnelNoise.BOTTOM; y <= BreachTunnelNoise.TOP; ++y) {
-                    if (y < minY + 4) continue;
-                    if (BreachTunnelNoise.shouldCarve(y, v1, v2, forceSeam)) {
-                        tryCarve(primer, localX, localZ, y, airState, airBlock, bedrockBlock);
-                        if (y >= BreachTunnelNoise.SEAM_MIN_Y && y <= BreachTunnelNoise.SEAM_MAX_Y) {
-                            seamCore[localX][localZ] = true;
-                        }
-                    }
-                }
-                if (forceSeam) {
-                    seamCore[localX][localZ] = true;
+                seamCore[localX][localZ] = true;
+                for (int y = BreachTunnelNoise.SEAM_MIN_Y; y <= BreachTunnelNoise.TOP; ++y) {
+                    tryCarve(primer, localX, localZ, y, airState, airBlock, bedrockBlock);
                 }
             }
         }
 
-        // Widen Y0 seam mouths (3×3) so +Y / -Y connect walkably
         for (int localX = 0; localX < 16; ++localX) {
             for (int localZ = 0; localZ < 16; ++localZ) {
                 if (!seamCore[localX][localZ]) continue;

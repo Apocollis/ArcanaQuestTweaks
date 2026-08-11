@@ -1,7 +1,7 @@
 package com.apocollis.aqtweaks.mixin;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
-import com.apocollis.aqtweaks.depths.BreachTunnelNoise;
+import com.apocollis.aqtweaks.depths.UpperTunnelNetwork;
 import com.apocollis.aqtweaks.roguelike.GridStructureTracker;
 import com.apocollis.aqtweaks.util.Reflect;
 import com.apocollis.aqtweaks.roguelike.RoguelikeDungeonSavedData;
@@ -125,10 +125,10 @@ public class MixinChunkProviderServer {
 
         World world = this.field_73251_h != null ? this.field_73251_h : chunk.getWorld();
         long seed = world != null ? Reflect.getSeed(world) : 1337L;
-        BreachTunnelNoise.init(seed);
+        UpperTunnelNetwork.init(seed);
 
         if (!loggedOnce) {
-            LOGGER.info("[AQ-DEPTHS] Chunk pass: breach seam reinforce Y0–4 (narrow tubes + forced mouths)");
+            LOGGER.info("[AQ-DEPTHS] Chunk pass: tunnel-path seam reinforce Y0–4 after BC");
             loggedOnce = true;
         }
 
@@ -139,7 +139,6 @@ public class MixinChunkProviderServer {
 
         int startX = chunkX * 16;
         int startZ = chunkZ * 16;
-        int height = BreachTunnelNoise.height();
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
 
         for (int localX = 0; localX < 16; ++localX) {
@@ -148,24 +147,15 @@ public class MixinChunkProviderServer {
                 int worldZ = startZ + localZ;
                 boolean isWater = isWaterBiome(world, worldX, worldZ);
 
-                float[] v1 = new float[height];
-                float[] v2 = new float[height];
-                BreachTunnelNoise.sampleColumn(worldX, worldZ, v1, v2);
-                boolean forceSeam = !isWater && BreachTunnelNoise.shouldOpenSeam(v1, v2);
-
-                if (!isWater) {
-                    for (int y = 0; y <= BreachTunnelNoise.TOP; ++y) {
-                        if (!BreachTunnelNoise.shouldCarve(y, v1, v2, forceSeam)) continue;
-
+                if (!isWater && UpperTunnelNetwork.shouldOpenSeam(worldX, worldZ)) {
+                    for (int y = 0; y <= UpperTunnelNetwork.SEAM_TOP; ++y) {
                         Reflect.setPos(pos, worldX, y, worldZ);
                         IBlockState cur = Reflect.getBlockState(chunk, pos);
                         net.minecraft.block.Block b = Reflect.getBlock(cur);
                         if (cur != null && airBlock != null && b != airBlock && (bedrockBlock == null || b != bedrockBlock)) {
                             Reflect.setBlockState(chunk, pos, airState);
                         }
-
-                        // Widen mouth at seam Y0–2
-                        if (y <= BreachTunnelNoise.SEAM_MAX_Y) {
+                        if (y <= UpperTunnelNetwork.SEAM_MAX_Y) {
                             for (int dx = -1; dx <= 1; ++dx) {
                                 for (int dz = -1; dz <= 1; ++dz) {
                                     if (dx == 0 && dz == 0) continue;
@@ -184,7 +174,6 @@ public class MixinChunkProviderServer {
                     }
                 }
 
-                // NEVER refill land Y0 — that was sealing breaches into +Y caves
                 if (isWater && deepslateState != null) {
                     Reflect.setPos(pos, worldX, 0, worldZ);
                     IBlockState atZero = Reflect.getBlockState(chunk, pos);
