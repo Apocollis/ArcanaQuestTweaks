@@ -528,47 +528,44 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Should YUNG's Better Caves carve caves and caverns down to Minimum World Y?")
         public boolean enableBetterCavesNegativeY = true;
 
-        // --- Breach Tunnels (Y -25 → +4, connect into overworld caves) ---
         @Config.Name("Negative Y Cave Tunnels Top")
-        @Config.Comment("Highest Y for breach tunnels connecting into overworld caves (typically 4).")
+        @Config.Comment("Breach tunnel tops (~4). Continuous winding tunnels carve down to Negative Y Cave Tunnels Bottom.")
         public int caveTopY = 4;
 
         @Config.Name("Negative Y Cave Tunnels Bottom")
-        @Config.Comment("Lowest Y for breach tunnels (roots into deep cavern ceilings, typically -25).")
+        @Config.Comment("Breach tunnel bottoms / lower cavern ceiling (~-25).")
         public int caveBottomY = -25;
 
         @Config.Name("Negative Y Cave XZ Compression")
-        @Config.Comment("Horizontal compression factor for cave tunnels (0.9 = Better Caves default).")
+        @Config.Comment("Horizontal compression for breach tunnels (internal defaults may override for steep tubes).")
         public float caveXzCompression = 0.9f;
 
         @Config.Name("Negative Y Cave Y Compression")
-        @Config.Comment("Vertical compression factor for cave tunnels (2.2 = Better Caves default).")
+        @Config.Comment("Vertical compression for breach tunnels (lower = steeper).")
         public float caveYCompression = 2.2f;
 
-        // --- Deep Cavern Chambers (floor → ceiling ~Y -25) ---
         @Config.Name("Negative Y Caverns Top")
-        @Config.Comment("Deep cavern ceiling Y (typically -25). Large chambers top out here.")
+        @Config.Comment("Lower deep cavern ceiling (~-25). Spanning underworld below this.")
         public int cavernTopY = -25;
 
         @Config.Name("Negative Y Caverns Bottom")
-        @Config.Comment("Lowest Y for deep cavernous chambers.")
+        @Config.Comment("Lowest carve Y for lower deep caverns (above 4-thick bedrock top at minY+3).")
         public int cavernBottomY = -60;
 
         @Config.Name("Negative Y Cavern XZ Compression")
-        @Config.Comment("Horizontal compression factor for -Y caverns (0.7 = Better Caves default).")
+        @Config.Comment("Horizontal compression for lower deep caverns.")
         public float cavernXzCompression = 0.7f;
 
         @Config.Name("Negative Y Cavern Y Compression")
-        @Config.Comment("Vertical compression factor for -Y caverns (1.3 = Better Caves default).")
+        @Config.Comment("Vertical compression for lower deep caverns.")
         public float cavernYCompression = 1.3f;
 
-        // --- Mid Chambers (smaller voids between deep caverns and breach zone) ---
         @Config.Name("Negative Y Mid Cave Top")
-        @Config.Comment("Highest Y for smaller mid-depth cave chambers (typically -5).")
+        @Config.Comment("Upper deep cave top (~-5). Chambers + branches down to mid bottom.")
         public int midCaveTopY = -5;
 
         @Config.Name("Negative Y Mid Cave Bottom")
-        @Config.Comment("Lowest Y for mid-depth cave chambers (typically -25, meets deep cavern ceilings).")
+        @Config.Comment("Upper deep cave bottom / shared ceiling with lower caverns (~-25).")
         public int midCaveBottomY = -25;
 
         // --- Deepslate Pillars ---
@@ -585,12 +582,12 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Deepslate Pillar Spawn Threshold")
         @Config.Comment("Higher = fewer pillars. Noise must exceed this for a cell to spawn a pillar.")
         @Config.RangeDouble(min = 0.0, max = 1.0)
-        public float pillarSpawnThreshold = 0.42f;
+        public float pillarSpawnThreshold = 0.28f;
 
         // --- Ocean Water Flooding ---
         @Config.Name("Enable Ocean Water Flooded Caves")
-        @Config.Comment("Should caves and caverns in ocean/water biomes be 100% flooded with water below sea level?")
-        public boolean enableOceanWaterCaves = true;
+        @Config.Comment("DEPRECATED — deep caves under oceans/rivers are always air-filled. Only breach tunnels are suppressed in water biomes.")
+        public boolean enableOceanWaterCaves = false;
 
         @Config.Name("Adjust Better Caves Bedrock Height")
         @Config.Comment("Should YUNG's Better Caves bedrock generation layer be shifted down to Minimum World Y?")
