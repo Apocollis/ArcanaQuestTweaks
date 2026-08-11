@@ -3,7 +3,9 @@
   "minVersion": "0.8",
   "package": "com.apocollis.aqtweaks.mixin",
   "compatibilityLevel": "JAVA_8",
-  "client": [],
+  "client": [
+    "MixinRenderGlobal"
+  ],
   "mixins": [
     "MixinDungeon",
     "MixinChunkProviderServer",
