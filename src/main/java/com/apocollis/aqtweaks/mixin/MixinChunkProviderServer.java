@@ -1,10 +1,10 @@
 package com.apocollis.aqtweaks.mixin;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
+import com.apocollis.aqtweaks.depths.BreachTunnelNoise;
 import com.apocollis.aqtweaks.roguelike.GridStructureTracker;
 import com.apocollis.aqtweaks.util.Reflect;
 import com.apocollis.aqtweaks.roguelike.RoguelikeDungeonSavedData;
-import com.yungnickyoung.minecraft.bettercaves.noise.FastNoise;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
@@ -33,33 +33,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public class MixinChunkProviderServer {
 
     private static final Logger LOGGER = LogManager.getLogger("AQTweaks-BetterCavesUniversal");
-    private static final float BREACH_THRESHOLD = 0.075f;
-
-    private static FastNoise breachNoise1;
-    private static FastNoise breachNoise2;
-    private static boolean noiseInitialized = false;
     private static boolean loggedOnce = false;
-
-    private static synchronized void initNoiseIfNeeded(long worldSeed) {
-        if (!noiseInitialized) {
-            int seed1 = (int) (worldSeed & 0xFFFF);
-            int seed2 = (int) ((worldSeed >> 16) & 0xFFFF);
-
-            breachNoise1 = new FastNoise(seed1 + 1111);
-            breachNoise1.SetNoiseType(FastNoise.NoiseType.SimplexFractal);
-            breachNoise1.SetFrequency(0.018f);
-            breachNoise1.SetFractalOctaves(1);
-            breachNoise1.SetFractalGain(0.3f);
-
-            breachNoise2 = new FastNoise(seed2 + 2222);
-            breachNoise2.SetNoiseType(FastNoise.NoiseType.SimplexFractal);
-            breachNoise2.SetFrequency(0.018f);
-            breachNoise2.SetFractalOctaves(1);
-            breachNoise2.SetFractalGain(0.3f);
-
-            noiseInitialized = true;
-        }
-    }
 
     private static boolean isWaterBiome(World world, int x, int z) {
         if (world == null) return false;
@@ -151,10 +125,10 @@ public class MixinChunkProviderServer {
 
         World world = this.field_73251_h != null ? this.field_73251_h : chunk.getWorld();
         long seed = world != null ? Reflect.getSeed(world) : 1337L;
-        initNoiseIfNeeded(seed);
+        BreachTunnelNoise.init(seed);
 
         if (!loggedOnce) {
-            LOGGER.info("[AQ-DEPTHS] Chunk pass: breach reinforce Y0–4 only (no land Y0 seal; -Y decor in primer)");
+            LOGGER.info("[AQ-DEPTHS] Chunk pass: breach seam reinforce Y0–4 (narrow tubes + forced mouths)");
             loggedOnce = true;
         }
 
@@ -165,10 +139,7 @@ public class MixinChunkProviderServer {
 
         int startX = chunkX * 16;
         int startZ = chunkZ * 16;
-        int breachTop = 4;
-        int breachBottom = -25; // sample for continuity, but only WRITE y>=0 on chunk
-        int height = breachTop - breachBottom + 1;
-
+        int height = BreachTunnelNoise.height();
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
 
         for (int localX = 0; localX < 16; ++localX) {
@@ -179,50 +150,37 @@ public class MixinChunkProviderServer {
 
                 float[] v1 = new float[height];
                 float[] v2 = new float[height];
-                sampleDual(breachNoise1, breachNoise2, worldX, worldZ, breachBottom, breachTop, 1.0f, 0.70f, v1, v2);
-                applyTopDownYAdjust(v1, v2, height, BREACH_THRESHOLD);
+                BreachTunnelNoise.sampleColumn(worldX, worldZ, v1, v2);
+                boolean forceSeam = !isWater && BreachTunnelNoise.shouldOpenSeam(v1, v2);
 
-                boolean breachMouth = false;
                 if (!isWater) {
-                    for (int y = 0; y <= breachTop; ++y) {
-                        int idx = y - breachBottom;
-                        if (idx >= 0 && idx < height && v1[idx] > BREACH_THRESHOLD && v2[idx] > BREACH_THRESHOLD) {
-                            breachMouth = true;
-                            Reflect.setPos(pos, worldX, y, worldZ);
-                            IBlockState cur = Reflect.getBlockState(chunk, pos);
-                            net.minecraft.block.Block b = Reflect.getBlock(cur);
-                            if (cur != null && airBlock != null && b != airBlock && (bedrockBlock == null || b != bedrockBlock)) {
-                                Reflect.setBlockState(chunk, pos, airState);
-                            }
-                            // Widen mouth at Y0–2
-                            if (y <= 2) {
-                                for (int dx = -1; dx <= 1; ++dx) {
-                                    for (int dz = -1; dz <= 1; ++dz) {
-                                        if (dx == 0 && dz == 0) continue;
-                                        Reflect.setPos(pos, worldX + dx, y, worldZ + dz);
-                                        // only same chunk
-                                        if (((worldX + dx) >> 4) != chunkX || ((worldZ + dz) >> 4) != chunkZ) continue;
-                                        IBlockState n = Reflect.getBlockState(chunk, pos);
-                                        net.minecraft.block.Block nb = Reflect.getBlock(n);
-                                        if (n != null && airBlock != null && nb != airBlock && (bedrockBlock == null || nb != bedrockBlock)) {
-                                            Reflect.setBlockState(chunk, pos, airState);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    // Also open Y0 if tunnel is strong just below (sampled) even if Y0 sample weak
-                    int idxM1 = -1 - breachBottom;
-                    if (!breachMouth && idxM1 >= 0 && idxM1 < height
-                            && v1[idxM1] > BREACH_THRESHOLD && v2[idxM1] > BREACH_THRESHOLD) {
-                        Reflect.setPos(pos, worldX, 0, worldZ);
+                    for (int y = 0; y <= BreachTunnelNoise.TOP; ++y) {
+                        if (!BreachTunnelNoise.shouldCarve(y, v1, v2, forceSeam)) continue;
+
+                        Reflect.setPos(pos, worldX, y, worldZ);
                         IBlockState cur = Reflect.getBlockState(chunk, pos);
                         net.minecraft.block.Block b = Reflect.getBlock(cur);
                         if (cur != null && airBlock != null && b != airBlock && (bedrockBlock == null || b != bedrockBlock)) {
                             Reflect.setBlockState(chunk, pos, airState);
                         }
-                        breachMouth = true;
+
+                        // Widen mouth at seam Y0–2
+                        if (y <= BreachTunnelNoise.SEAM_MAX_Y) {
+                            for (int dx = -1; dx <= 1; ++dx) {
+                                for (int dz = -1; dz <= 1; ++dz) {
+                                    if (dx == 0 && dz == 0) continue;
+                                    int nx = worldX + dx;
+                                    int nz = worldZ + dz;
+                                    if ((nx >> 4) != chunkX || (nz >> 4) != chunkZ) continue;
+                                    Reflect.setPos(pos, nx, y, nz);
+                                    IBlockState n = Reflect.getBlockState(chunk, pos);
+                                    net.minecraft.block.Block nb = Reflect.getBlock(n);
+                                    if (n != null && airBlock != null && nb != airBlock && (bedrockBlock == null || nb != bedrockBlock)) {
+                                        Reflect.setBlockState(chunk, pos, airState);
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -234,51 +192,6 @@ public class MixinChunkProviderServer {
                         Reflect.setBlockState(chunk, pos, deepslateState);
                     }
                 }
-            }
-        }
-    }
-
-    private static void applyTopDownYAdjust(float[] v1, float[] v2, int height, float threshold) {
-        for (int idx = height - 1; idx >= 0; --idx) {
-            if (v1[idx] >= threshold && v2[idx] >= threshold) {
-                if (idx - 1 >= 0) {
-                    v1[idx - 1] = 0.10f * v1[idx - 1] + 0.90f * v1[idx];
-                    v2[idx - 1] = 0.10f * v2[idx - 1] + 0.90f * v2[idx];
-                }
-                if (idx - 2 >= 0) {
-                    v1[idx - 2] = 0.30f * v1[idx - 2] + 0.70f * v1[idx];
-                    v2[idx - 2] = 0.30f * v2[idx - 2] + 0.70f * v2[idx];
-                }
-            }
-        }
-    }
-
-    private static void sampleDual(FastNoise n1, FastNoise n2, int worldX, int worldZ,
-                                   int yBottom, int yTop, float xzComp, float yComp,
-                                   float[] out1, float[] out2) {
-        int h = yTop - yBottom + 1;
-        if (h <= 0) return;
-        for (int y = yBottom; y <= yTop; y += 4) {
-            int idx = y - yBottom;
-            if (idx >= 0 && idx < h) {
-                out1[idx] = n1.GetNoise(worldX * xzComp, y * yComp, worldZ * xzComp);
-                out2[idx] = n2.GetNoise(worldX * xzComp, y * yComp, worldZ * xzComp);
-            }
-        }
-        int last = h - 1;
-        if (last % 4 != 0) {
-            out1[last] = n1.GetNoise(worldX * xzComp, yTop * yComp, worldZ * xzComp);
-            out2[last] = n2.GetNoise(worldX * xzComp, yTop * yComp, worldZ * xzComp);
-        }
-        for (int sub = 0; sub < h - 1; sub += 4) {
-            int end = Math.min(sub + 4, h - 1);
-            float s1 = out1[sub], e1 = out1[end];
-            float s2 = out2[sub], e2 = out2[end];
-            int span = end - sub;
-            for (int i = 1; i < span; ++i) {
-                float t = (float) i / (float) span;
-                out1[sub + i] = s1 * (1.0f - t) + e1 * t;
-                out2[sub + i] = s2 * (1.0f - t) + e2 * t;
             }
         }
     }

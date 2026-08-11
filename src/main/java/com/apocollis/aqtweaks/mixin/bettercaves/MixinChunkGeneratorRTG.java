@@ -37,9 +37,10 @@ public abstract class MixinChunkGeneratorRTG {
                             Reflect.setBlockState(primer, x, minY, z, bedrockState);
                         }
 
-                        // Fill solid Deepslate from minY + 1 to 0
+                        // Fill solid Deepslate from minY+1 to -1 only.
+                        // Do NOT overwrite Y=0 — that created a solid deepslate lid blocking breach mouths into +Y caves.
                         if (deepslateState != null) {
-                            for (int y = minY + 1; y <= 0; ++y) {
+                            for (int y = minY + 1; y <= -1; ++y) {
                                 Reflect.setBlockState(primer, x, y, z, deepslateState);
                             }
                         }
