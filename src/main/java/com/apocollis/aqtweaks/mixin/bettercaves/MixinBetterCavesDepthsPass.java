@@ -5,7 +5,6 @@ import com.apocollis.aqtweaks.util.Reflect;
 import com.yungnickyoung.minecraft.bettercaves.noise.FastNoise;
 import com.yungnickyoung.minecraft.bettercaves.world.MapGenBetterCaves;
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.init.Blocks;
 import net.minecraft.world.World;
 import net.minecraft.world.chunk.ChunkPrimer;
 import org.apache.logging.log4j.LogManager;
@@ -16,16 +15,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * PASS 2: Dedicated Negative Y Carver Pass.
+ * PASS 2: Primer-stage negative-Y assist only.
  *
- * Targets MapGenBetterCaves (remap = false since it's a mod class) to inject
- * at the RETURN of func_186125_a. This guarantees execution after Pass 1
- * completes its native positive Y carving.
- *
- * Layer Distribution:
- * - Type 1 Winding Caves: Y = -40 to 0 (connects into positive Y caves at Y = 0)
- * - Type 2 Cavernous Chambers: Y = -64 to -20 (wide open underground chambers)
- * - Floored & Liquid Caverns: Y = -64 to -20 (lava lakes below Y = -54)
+ * Caps at Y <= -2 so it cannot open a 1-block air seam at Y=0.
+ * Final layering (deep caverns → mid chambers → breach tunnels → pillars)
+ * is owned by MixinChunkProviderServer's universal pass.
  */
 @Mixin(value = MapGenBetterCaves.class, remap = false)
 public abstract class MixinBetterCavesDepthsPass {
@@ -37,13 +31,14 @@ public abstract class MixinBetterCavesDepthsPass {
     private static boolean noiseInitialized = false;
     private static boolean loggedOnce = false;
 
+    /** Never carve at or above this Y — universal pass owns the Y≈0 seam + breach mouths. */
+    private static final int MAX_CARVE_Y = -2;
+
     private static void initNoiseIfNeeded(long seed) {
         if (!noiseInitialized) {
-            // Type 1 Winding Caves Noise (Y = -40 to 0)
             windingTunnelNoise.SetNoiseType(FastNoise.NoiseType.Simplex);
             windingTunnelNoise.SetFrequency(0.022f);
 
-            // Type 2 Cavernous Chambers Noise (Y = -64 to -20)
             cavernChamberNoise.SetNoiseType(FastNoise.NoiseType.SimplexFractal);
             cavernChamberNoise.SetFrequency(0.014f);
             cavernChamberNoise.SetFractalOctaves(2);
@@ -61,7 +56,6 @@ public abstract class MixinBetterCavesDepthsPass {
         }
         if (worldIn == null || primer == null) return;
 
-        // Only run on Overworld (Dim 0)
         if (worldIn.provider != null && worldIn.provider.getDimension() != 0) return;
 
         int minY = ArcanaQuestTweaksConfig.depthsModule.minWorldY;
@@ -70,7 +64,7 @@ public abstract class MixinBetterCavesDepthsPass {
         initNoiseIfNeeded(Reflect.getSeed(worldIn));
 
         if (!loggedOnce) {
-            LOGGER.info("[AQ-DEPTHS] Pass 2 negative Y carver active. minY={}, chunk=[{}, {}]", minY, chunkX, chunkZ);
+            LOGGER.info("[AQ-DEPTHS] Pass 2 primer assist active (maxY={}). Universal pass owns final layering.", MAX_CARVE_Y);
             loggedOnce = true;
         }
 
@@ -81,16 +75,17 @@ public abstract class MixinBetterCavesDepthsPass {
 
         int startX = chunkX * 16;
         int startZ = chunkZ * 16;
-        int lavaLevel = minY + 10; // Lava lakes below Y = -54
-        int carvedCount = 0;
+        int lavaLevel = minY + 10;
+        int cavernTop = ArcanaQuestTweaksConfig.depthsModule.cavernTopY;
+        int midTop = ArcanaQuestTweaksConfig.depthsModule.midCaveTopY;
+        int maxY = Math.min(MAX_CARVE_Y, Math.max(cavernTop, midTop));
 
         for (int localX = 0; localX < 16; ++localX) {
             int worldX = startX + localX;
             for (int localZ = 0; localZ < 16; ++localZ) {
                 int worldZ = startZ + localZ;
 
-                // Carve from minY + 1 (-63) up to Y = 0
-                for (int y = minY + 1; y <= 0; ++y) {
+                for (int y = minY + 1; y <= maxY; ++y) {
                     IBlockState currentState = Reflect.getBlockState(primer, localX, y, localZ);
                     net.minecraft.block.Block currentBlock = Reflect.getBlock(currentState);
                     if (currentState == null || (airBlock != null && currentBlock == airBlock) || (bedrockBlock != null && currentBlock == bedrockBlock)) {
@@ -99,16 +94,16 @@ public abstract class MixinBetterCavesDepthsPass {
 
                     boolean carve = false;
 
-                    // Type 1 Winding Caves Layer (Y = -40 to 0)
-                    if (y >= -40) {
+                    // Mid / breach assist (above deep cavern ceiling, still below Y=-2)
+                    if (y >= cavernTop) {
                         float wNoise = windingTunnelNoise.GetNoise(worldX * 0.8f, y * 1.2f, worldZ * 0.8f);
-                        if (wNoise > 0.02f) {
+                        if (wNoise > 0.08f) {
                             carve = true;
                         }
                     }
 
-                    // Type 2 Cavernous Chambers & Floored Caverns Layer (Y = -64 to -20)
-                    if (y <= -20) {
+                    // Deep cavern assist
+                    if (y <= cavernTop) {
                         float cNoise = cavernChamberNoise.GetNoise(worldX * 0.7f, y * 0.8f, worldZ * 0.7f);
                         if (cNoise > 0.04f) {
                             carve = true;
@@ -116,7 +111,6 @@ public abstract class MixinBetterCavesDepthsPass {
                     }
 
                     if (carve) {
-                        carvedCount++;
                         if (y <= lavaLevel) {
                             Reflect.setBlockState(primer, localX, y, localZ, lavaState);
                         } else {
@@ -125,10 +119,6 @@ public abstract class MixinBetterCavesDepthsPass {
                     }
                 }
             }
-        }
-
-        if (carvedCount > 0 && !loggedOnce) {
-            LOGGER.info("[AQ-DEPTHS] Carved {} blocks in chunk [{}, {}]", carvedCount, chunkX, chunkZ);
         }
     }
 }

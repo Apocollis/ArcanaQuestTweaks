@@ -528,14 +528,14 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Should YUNG's Better Caves carve caves and caverns down to Minimum World Y?")
         public boolean enableBetterCavesNegativeY = true;
 
-        // --- Simplex Cave Tunnels Layer (-Y Tunnels) ---
+        // --- Breach Tunnels (Y -25 → +4, connect into overworld caves) ---
         @Config.Name("Negative Y Cave Tunnels Top")
-        @Config.Comment("The highest Y level for negative Y cave tunnels (capped at 4 for breach connections into overworld caves).")
+        @Config.Comment("Highest Y for breach tunnels connecting into overworld caves (typically 4).")
         public int caveTopY = 4;
 
         @Config.Name("Negative Y Cave Tunnels Bottom")
-        @Config.Comment("The lowest Y level for negative Y cave tunnels.")
-        public int caveBottomY = -60;
+        @Config.Comment("Lowest Y for breach tunnels (roots into deep cavern ceilings, typically -25).")
+        public int caveBottomY = -25;
 
         @Config.Name("Negative Y Cave XZ Compression")
         @Config.Comment("Horizontal compression factor for cave tunnels (0.9 = Better Caves default).")
@@ -545,13 +545,13 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Vertical compression factor for cave tunnels (2.2 = Better Caves default).")
         public float caveYCompression = 2.2f;
 
-        // --- Cavern Chambers Layer (-Y Caverns) ---
+        // --- Deep Cavern Chambers (floor → ceiling ~Y -25) ---
         @Config.Name("Negative Y Caverns Top")
-        @Config.Comment("The highest Y level for negative Y cavernous chambers.")
-        public int cavernTopY = -12;
+        @Config.Comment("Deep cavern ceiling Y (typically -25). Large chambers top out here.")
+        public int cavernTopY = -25;
 
         @Config.Name("Negative Y Caverns Bottom")
-        @Config.Comment("The lowest Y level for negative Y cavernous chambers.")
+        @Config.Comment("Lowest Y for deep cavernous chambers.")
         public int cavernBottomY = -60;
 
         @Config.Name("Negative Y Cavern XZ Compression")
@@ -561,6 +561,31 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Negative Y Cavern Y Compression")
         @Config.Comment("Vertical compression factor for -Y caverns (1.3 = Better Caves default).")
         public float cavernYCompression = 1.3f;
+
+        // --- Mid Chambers (smaller voids between deep caverns and breach zone) ---
+        @Config.Name("Negative Y Mid Cave Top")
+        @Config.Comment("Highest Y for smaller mid-depth cave chambers (typically -5).")
+        public int midCaveTopY = -5;
+
+        @Config.Name("Negative Y Mid Cave Bottom")
+        @Config.Comment("Lowest Y for mid-depth cave chambers (typically -25, meets deep cavern ceilings).")
+        public int midCaveBottomY = -25;
+
+        // --- Deepslate Pillars ---
+        @Config.Name("Deepslate Pillar Radius")
+        @Config.Comment("Base radius in blocks for rounded deepslate pillars (~3.5 → diameter 6–8).")
+        @Config.RangeDouble(min = 2.0, max = 8.0)
+        public float pillarRadius = 3.5f;
+
+        @Config.Name("Deepslate Pillar Spacing")
+        @Config.Comment("Approximate cell size in blocks between potential pillar centers.")
+        @Config.RangeInt(min = 12, max = 64)
+        public int pillarSpacing = 28;
+
+        @Config.Name("Deepslate Pillar Spawn Threshold")
+        @Config.Comment("Higher = fewer pillars. Noise must exceed this for a cell to spawn a pillar.")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public float pillarSpawnThreshold = 0.42f;
 
         // --- Ocean Water Flooding ---
         @Config.Name("Enable Ocean Water Flooded Caves")

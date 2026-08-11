@@ -6,8 +6,6 @@ import com.apocollis.aqtweaks.util.Reflect;
 import com.apocollis.aqtweaks.roguelike.RoguelikeDungeonSavedData;
 import com.yungnickyoung.minecraft.bettercaves.noise.FastNoise;
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.init.Biomes;
-import net.minecraft.init.Blocks;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.MathHelper;
@@ -31,14 +29,18 @@ public class MixinChunkProviderServer {
     private static final Logger LOGGER = LogManager.getLogger("AQTweaks-BetterCavesUniversal");
 
     private static final float CAVE_THRESHOLD = 0.28f;
-    private static final float CAVERN_THRESHOLD = 0.22f;
+    private static final float BREACH_SEAM_THRESHOLD = 0.38f; // Stricter through Y≈0 so we don't open a sheet
+    private static final float MID_CAVE_THRESHOLD = 0.32f;
 
     private static FastNoise tunnelNoise1;
     private static FastNoise tunnelNoise2;
     private static FastNoise cavernNoise1;
     private static FastNoise cavernNoise2;
+    private static FastNoise midCaveNoise1;
+    private static FastNoise midCaveNoise2;
     private static FastNoise cavernRegionNoise;
-    private static FastNoise pillarNoise;
+    private static FastNoise pillarSpawnNoise;
+    private static FastNoise pillarJitterNoise;
     private static FastNoise floorIslandNoise;
 
     private static boolean noiseInitialized = false;
@@ -49,7 +51,7 @@ public class MixinChunkProviderServer {
             int seed1 = (int) (worldSeed & 0xFFFF);
             int seed2 = (int) ((worldSeed >> 16) & 0xFFFF);
 
-            // Cave Tunnels (SimplexFractal)
+            // Breach tunnels (SimplexFractal dual intersection)
             tunnelNoise1 = new FastNoise(seed1 + 1111);
             tunnelNoise1.SetNoiseType(FastNoise.NoiseType.SimplexFractal);
             tunnelNoise1.SetFrequency(0.025f);
@@ -62,28 +64,44 @@ public class MixinChunkProviderServer {
             tunnelNoise2.SetFractalOctaves(1);
             tunnelNoise2.SetFractalGain(0.3f);
 
-            // Cavern Chambers (YUNG's ConfigFlooredCavern$Advanced defaults: freq 0.028f, gain 0.3f, octaves 1)
+            // Deep caverns (lower frequency → wide chambers)
             cavernNoise1 = new FastNoise(seed1 + 3333);
             cavernNoise1.SetNoiseType(FastNoise.NoiseType.SimplexFractal);
-            cavernNoise1.SetFrequency(0.028f);
+            cavernNoise1.SetFrequency(0.022f);
             cavernNoise1.SetFractalOctaves(1);
             cavernNoise1.SetFractalGain(0.3f);
 
             cavernNoise2 = new FastNoise(seed2 + 4444);
             cavernNoise2.SetNoiseType(FastNoise.NoiseType.SimplexFractal);
-            cavernNoise2.SetFrequency(0.028f);
+            cavernNoise2.SetFrequency(0.022f);
             cavernNoise2.SetFractalOctaves(1);
             cavernNoise2.SetFractalGain(0.3f);
 
-            // 2D Cavern Region Noise (~40% cavern coverage, tighter solid wall separation)
-            cavernRegionNoise = new FastNoise(seed1 + 5555);
+            // Mid chambers (-25 → -5): higher frequency → smaller rooms
+            midCaveNoise1 = new FastNoise(seed1 + 5555);
+            midCaveNoise1.SetNoiseType(FastNoise.NoiseType.SimplexFractal);
+            midCaveNoise1.SetFrequency(0.040f);
+            midCaveNoise1.SetFractalOctaves(1);
+            midCaveNoise1.SetFractalGain(0.3f);
+
+            midCaveNoise2 = new FastNoise(seed2 + 6666);
+            midCaveNoise2.SetNoiseType(FastNoise.NoiseType.SimplexFractal);
+            midCaveNoise2.SetFrequency(0.040f);
+            midCaveNoise2.SetFractalOctaves(1);
+            midCaveNoise2.SetFractalGain(0.3f);
+
+            cavernRegionNoise = new FastNoise(seed1 + 7777);
             cavernRegionNoise.SetNoiseType(FastNoise.NoiseType.Simplex);
             cavernRegionNoise.SetFrequency(0.008f);
 
-            // Massive Stalagmite & Column Pillars (grand natural pillars holding up the cavern roof)
-            pillarNoise = new FastNoise(seed1 + 7777);
-            pillarNoise.SetNoiseType(FastNoise.NoiseType.Simplex);
-            pillarNoise.SetFrequency(0.018f);
+            // Cell-based pillar spawn + jitter for rounded off-grid centers
+            pillarSpawnNoise = new FastNoise(seed1 + 8888);
+            pillarSpawnNoise.SetNoiseType(FastNoise.NoiseType.Simplex);
+            pillarSpawnNoise.SetFrequency(1.0f);
+
+            pillarJitterNoise = new FastNoise(seed2 + 9999);
+            pillarJitterNoise.SetNoiseType(FastNoise.NoiseType.Simplex);
+            pillarJitterNoise.SetFrequency(1.0f);
 
             floorIslandNoise = new FastNoise(seed2 + 9876);
             floorIslandNoise.SetNoiseType(FastNoise.NoiseType.Simplex);
@@ -91,6 +109,44 @@ public class MixinChunkProviderServer {
 
             noiseInitialized = true;
         }
+    }
+
+    /**
+     * Rounded pillar radius at this column, or 0 if outside any pillar.
+     * Cell grid + jittered centers → ~6–8 block diameter cylinders that taper with heightFrac.
+     */
+    private static float pillarRadiusAt(int worldX, int worldZ, float heightFrac, float baseRadius, int spacing, float spawnThreshold) {
+        if (spacing < 1) return 0.0f;
+        int cellX = Math.floorDiv(worldX, spacing);
+        int cellZ = Math.floorDiv(worldZ, spacing);
+        float best = 0.0f;
+
+        // Check this cell and neighbors so pillars near cell edges stay continuous
+        for (int dx = -1; dx <= 1; ++dx) {
+            for (int dz = -1; dz <= 1; ++dz) {
+                int cx = cellX + dx;
+                int cz = cellZ + dz;
+                float spawn = pillarSpawnNoise.GetNoise(cx * 17.3f, cz * 31.7f);
+                if (spawn < spawnThreshold) continue;
+
+                float jx = pillarJitterNoise.GetNoise(cx * 13.1f, cz * 19.7f);
+                float jz = pillarJitterNoise.GetNoise(cx * 23.9f + 50.0f, cz * 11.3f);
+                float centerX = cx * spacing + spacing * 0.5f + jx * (spacing * 0.28f);
+                float centerZ = cz * spacing + spacing * 0.5f + jz * (spacing * 0.28f);
+                float dist = MathHelper.sqrt((worldX - centerX) * (worldX - centerX) + (worldZ - centerZ) * (worldZ - centerZ));
+
+                // Broad base, taper toward ceiling (heightFrac 0 at floor → 1 at cavern top)
+                float radius = baseRadius * (1.0f - 0.55f * heightFrac);
+                float edge = 0.85f; // soft round edge
+                if (dist <= radius) {
+                    float strength = 1.0f - (dist / Math.max(0.001f, radius));
+                    if (strength > edge) strength = 1.0f;
+                    else strength = strength / edge;
+                    if (strength > best) best = strength;
+                }
+            }
+        }
+        return best;
     }
 
     private static boolean isWaterBiome(World world, int x, int z) {
@@ -174,7 +230,11 @@ public class MixinChunkProviderServer {
 
     /**
      * Universal Better Caves -Y carving injected into ChunkProviderServer.provideChunk (func_185932_a).
-     * Works on ALL world generators (Vanilla, RTG, BOP, etc.) with 0 classloader/mixin shadow crashes.
+     * Layer map:
+     * - Deep caverns: cavernBottom → cavernTop (~-25)
+     * - Mid chambers: midCaveBottom (~-25) → midCaveTop (~-5)
+     * - Breach tunnels: caveBottom (~-25) → caveTop (~4), sparse through Y≈0
+     * - Rounded deepslate pillars from floor up into deep cavern ceilings
      */
     @Inject(method = "func_185932_a", at = @At("RETURN"))
     private void onProvideChunkBetterCavesUniversal(int chunkX, int chunkZ, CallbackInfoReturnable<Chunk> cir) {
@@ -193,19 +253,37 @@ public class MixinChunkProviderServer {
         initNoiseIfNeeded(seed);
 
         if (!loggedOnce) {
-            LOGGER.info("[AQ-DEPTHS] Pre-carving native Better Caves -Y terrain in ChunkProviderServer.provideChunk (Universal RTG/Vanilla/BOP compatibility).");
+            LOGGER.info("[AQ-DEPTHS] Universal -Y carve: deep caverns→{}, mid→{}, breach→{}, pillars r={}",
+                    ArcanaQuestTweaksConfig.depthsModule.cavernTopY,
+                    ArcanaQuestTweaksConfig.depthsModule.midCaveTopY,
+                    ArcanaQuestTweaksConfig.depthsModule.caveTopY,
+                    ArcanaQuestTweaksConfig.depthsModule.pillarRadius);
             loggedOnce = true;
         }
 
         int caveTop = Math.min(4, ArcanaQuestTweaksConfig.depthsModule.caveTopY);
-        int caveBottom = ArcanaQuestTweaksConfig.depthsModule.caveBottomY; // -60
+        int caveBottom = ArcanaQuestTweaksConfig.depthsModule.caveBottomY;
+        // Migrate pre-1.6 defaults that left caverns at -12 and tunnels to -60
+        if (caveBottom < -40) {
+            caveBottom = -25;
+        }
         float caveXzComp = ArcanaQuestTweaksConfig.depthsModule.caveXzCompression;
         float caveYComp = ArcanaQuestTweaksConfig.depthsModule.caveYCompression;
 
-        int cavernTop = -15; // Cavern chambers capped at Y = -15
+        int cavernTop = ArcanaQuestTweaksConfig.depthsModule.cavernTopY;
+        if (cavernTop > -20) {
+            cavernTop = -25;
+        }
         int cavernBottom = Math.max(minY + 4, ArcanaQuestTweaksConfig.depthsModule.cavernBottomY);
-        float cavernXzComp = 0.7f;
-        float cavernYComp = 1.3f;
+        float cavernXzComp = ArcanaQuestTweaksConfig.depthsModule.cavernXzCompression;
+        float cavernYComp = ArcanaQuestTweaksConfig.depthsModule.cavernYCompression;
+
+        int midTop = ArcanaQuestTweaksConfig.depthsModule.midCaveTopY;
+        int midBottom = ArcanaQuestTweaksConfig.depthsModule.midCaveBottomY;
+
+        float pillarRadius = ArcanaQuestTweaksConfig.depthsModule.pillarRadius;
+        int pillarSpacing = ArcanaQuestTweaksConfig.depthsModule.pillarSpacing;
+        float pillarSpawnThreshold = ArcanaQuestTweaksConfig.depthsModule.pillarSpawnThreshold;
 
         IBlockState bedrockState = Reflect.getBedrockState();
         IBlockState airState = Reflect.getAirState();
@@ -218,16 +296,20 @@ public class MixinChunkProviderServer {
         int startZ = chunkZ * 16;
         int lavaLevel = minY + 9; // Y = -55
 
-        int caveHeight = caveTop - caveBottom + 1;
-        int cavernHeight = cavernTop - cavernBottom + 1;
+        int caveHeight = Math.max(1, caveTop - caveBottom + 1);
+        int cavernHeight = Math.max(1, cavernTop - cavernBottom + 1);
+        int midHeight = Math.max(1, midTop - midBottom + 1);
 
-        int cavernCeilingStart = -22;
+        int cavernCeilingStart = cavernTop - 8;
         int cavernFloorEnd;
         if (cavernBottom < lavaLevel) {
             cavernFloorEnd = lavaLevel + 8;
         } else {
             cavernFloorEnd = cavernBottom + 7;
         }
+
+        int pillarBaseY = minY + 4; // ~-60
+        int pillarTopY = cavernTop; // taper into deep cavern ceiling
 
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
 
@@ -245,162 +327,177 @@ public class MixinChunkProviderServer {
                 boolean isWater = isWaterBiome(world, worldX, worldZ);
                 float floorVal = floorIslandNoise.GetNoise(worldX, worldZ);
                 float cavernRegionVal = cavernRegionNoise.GetNoise(worldX, worldZ);
-                float pillarVal = pillarNoise.GetNoise(worldX, worldZ);
 
-                // 1. Sample Tunnel Noise (Winding tubes breaching up to Y = 4)
+                // 1. Sample breach tunnel noise (caveBottom → caveTop)
                 float[] tunnelVal1 = new float[caveHeight];
                 float[] tunnelVal2 = new float[caveHeight];
+                sampleDualNoise(tunnelNoise1, tunnelNoise2, worldX, worldZ, caveBottom, caveTop,
+                        caveXzComp, caveYComp, tunnelVal1, tunnelVal2);
 
-                for (int y = caveBottom; y <= caveTop; y += 4) {
-                    int idx = y - caveBottom;
-                    if (idx >= 0 && idx < caveHeight) {
-                        float tx = worldX * caveXzComp;
-                        float ty = y * caveYComp;
-                        float tz = worldZ * caveXzComp;
-                        tunnelVal1[idx] = tunnelNoise1.GetNoise(tx, ty, tz);
-                        tunnelVal2[idx] = tunnelNoise2.GetNoise(tx, ty, tz);
-                    }
-                }
-                {
-                    int lastIdx = caveHeight - 1;
-                    if (lastIdx % 4 != 0) {
-                        float tx = worldX * caveXzComp;
-                        float ty = caveTop * caveYComp;
-                        float tz = worldZ * caveXzComp;
-                        tunnelVal1[lastIdx] = tunnelNoise1.GetNoise(tx, ty, tz);
-                        tunnelVal2[lastIdx] = tunnelNoise2.GetNoise(tx, ty, tz);
-                    }
-                }
-
-                for (int sub = 0; sub < caveHeight - 1; sub += 4) {
-                    int endIdx = Math.min(sub + 4, caveHeight - 1);
-                    float s1 = tunnelVal1[sub], e1 = tunnelVal1[endIdx];
-                    float s2 = tunnelVal2[sub], e2 = tunnelVal2[endIdx];
-                    int span = endIdx - sub;
-                    for (int i = 1; i < span; ++i) {
-                        float t = (float) i / (float) span;
-                        tunnelVal1[sub + i] = s1 * (1.0f - t) + e1 * t;
-                        tunnelVal2[sub + i] = s2 * (1.0f - t) + e2 * t;
-                    }
-                }
-
-                // 2. Sample Cavern Noise (Cavern chambers capped at Y = -15)
+                // 2. Sample deep cavern noise
                 float[] cavernVal1 = new float[cavernHeight];
                 float[] cavernVal2 = new float[cavernHeight];
+                sampleDualNoise(cavernNoise1, cavernNoise2, worldX, worldZ, cavernBottom, cavernTop,
+                        cavernXzComp, cavernYComp, cavernVal1, cavernVal2);
 
-                for (int y = cavernBottom; y <= cavernTop; y += 4) {
-                    int idx = y - cavernBottom;
-                    if (idx >= 0 && idx < cavernHeight) {
-                        float cx = worldX * cavernXzComp;
-                        float cy = y * cavernYComp;
-                        float cz = worldZ * cavernXzComp;
-                        cavernVal1[idx] = cavernNoise1.GetNoise(cx, cy, cz);
-                        cavernVal2[idx] = cavernNoise2.GetNoise(cx, cy, cz);
-                    }
-                }
-                {
-                    int lastIdx = cavernHeight - 1;
-                    if (lastIdx % 4 != 0) {
-                        float cx = worldX * cavernXzComp;
-                        float ty = cavernTop * cavernYComp;
-                        float cz = worldZ * cavernXzComp;
-                        cavernVal1[lastIdx] = cavernNoise1.GetNoise(cx, ty, cz);
-                        cavernVal2[lastIdx] = cavernNoise2.GetNoise(cx, ty, cz);
-                    }
-                }
+                // 3. Sample mid chamber noise
+                float[] midVal1 = new float[midHeight];
+                float[] midVal2 = new float[midHeight];
+                sampleDualNoise(midCaveNoise1, midCaveNoise2, worldX, worldZ, midBottom, midTop,
+                        1.0f, 1.4f, midVal1, midVal2);
 
-                for (int sub = 0; sub < cavernHeight - 1; sub += 4) {
-                    int endIdx = Math.min(sub + 4, cavernHeight - 1);
-                    float s1 = cavernVal1[sub], e1 = cavernVal1[endIdx];
-                    float s2 = cavernVal2[sub], e2 = cavernVal2[endIdx];
-                    int span = endIdx - sub;
-                    for (int i = 1; i < span; ++i) {
-                        float t = (float) i / (float) span;
-                        cavernVal1[sub + i] = s1 * (1.0f - t) + e1 * t;
-                        cavernVal2[sub + i] = s2 * (1.0f - t) + e2 * t;
+                // Breach flag at Y=0 for seam sealing
+                boolean breachAtZero = false;
+                if (!isWater && caveBottom <= 0 && 0 <= caveTop) {
+                    int idx0 = 0 - caveBottom;
+                    if (idx0 >= 0 && idx0 < caveHeight
+                            && tunnelVal1[idx0] > BREACH_SEAM_THRESHOLD
+                            && tunnelVal2[idx0] > BREACH_SEAM_THRESHOLD) {
+                        breachAtZero = true;
                     }
                 }
 
-                // Water biomes are strictly capped at Y = -20 with zero breaching tunnels and zero water blocks
                 int effectiveMaxY = isWater ? -20 : caveTop;
 
-                // 3. Main Carving Loop (Y = minY+4 up to effectiveMaxY)
+                // 4. Main carving loop
                 for (int y = minY + 4; y <= effectiveMaxY; ++y) {
                     Reflect.setPos(pos, worldX, y, worldZ);
                     IBlockState currentState = Reflect.getBlockState(chunk, pos);
                     net.minecraft.block.Block currentBlock = Reflect.getBlock(currentState);
-                    if (currentState == null || (airBlock != null && currentBlock == airBlock) || (bedrockBlock != null && currentBlock == bedrockBlock)) {
+                    boolean isAir = airBlock != null && currentBlock == airBlock;
+                    if (currentState == null || (bedrockBlock != null && currentBlock == bedrockBlock)) {
                         continue;
                     }
 
                     boolean carve = false;
 
-                    // A. Cave Tunnels (Dual-simplex tubes breaching up to Y = 4 in non-water biomes)
+                    // A. Breach tunnels (-25 → 4). Near Y=0 use stricter threshold (no sheet gap).
                     if (!isWater && y >= caveBottom && y <= caveTop) {
                         int idx = y - caveBottom;
+                        float threshold = CAVE_THRESHOLD;
+                        if (y >= -2 && y <= 1) {
+                            threshold = BREACH_SEAM_THRESHOLD;
+                        }
                         float tunnelTaper = 1.0f;
                         if (y >= 0) {
                             tunnelTaper = MathHelper.clamp((float) (caveTop - y) / 4.0f, 0.0f, 1.0f);
                         }
-                        float taperedThreshold = CAVE_THRESHOLD + ((1.0f - CAVE_THRESHOLD) * (1.0f - tunnelTaper));
-                        if (tunnelVal1[idx] > taperedThreshold && tunnelVal2[idx] > taperedThreshold) {
+                        float taperedThreshold = threshold + ((1.0f - threshold) * (1.0f - tunnelTaper));
+                        if (idx >= 0 && idx < caveHeight
+                                && tunnelVal1[idx] > taperedThreshold
+                                && tunnelVal2[idx] > taperedThreshold) {
                             carve = true;
                         }
                     }
 
-                    // B. Cavern Chambers (Expansive vaulted galleries and sweeping arches, capped at Y = -15)
+                    // B. Deep caverns (bottom → ~-25)
                     if (!carve && cavernRegionVal > -0.05f && y >= cavernBottom && y <= cavernTop) {
                         int idx = y - cavernBottom;
+                        if (idx >= 0 && idx < cavernHeight) {
+                            float product = cavernVal1[idx] * cavernVal2[idx];
+                            float currentThreshold = 0.20f;
 
-                        float val1 = cavernVal1[idx];
-                        float val2 = cavernVal2[idx];
-                        float product = val1 * val2;
-
-                        float currentThreshold = 0.20f;
-
-                        // Smooth dome ceiling taper from Y = -22 up to Y = -15
-                        if (y >= cavernCeilingStart) {
-                            float frac = (float) (cavernTop - y) / (float) Math.max(1, cavernTop - cavernCeilingStart);
-                            currentThreshold += (1.0f - currentThreshold) * (1.0f - MathHelper.clamp(frac, 0.0f, 1.0f));
-                        }
-
-                        if (y < cavernFloorEnd) {
-                            float frac = (float) (y - cavernBottom) / (float) Math.max(1, cavernFloorEnd - cavernBottom);
-                            currentThreshold += (1.0f - currentThreshold) * (1.0f - MathHelper.clamp(frac, 0.0f, 1.0f));
-                        }
-
-                        // Carve wide open cavern halls with sweeping arches inside solid stone
-                        if (product > currentThreshold) {
-                            carve = true;
+                            if (y >= cavernCeilingStart) {
+                                float frac = (float) (cavernTop - y) / (float) Math.max(1, cavernTop - cavernCeilingStart);
+                                currentThreshold += (1.0f - currentThreshold) * (1.0f - MathHelper.clamp(frac, 0.0f, 1.0f));
+                            }
+                            if (y < cavernFloorEnd) {
+                                float frac = (float) (y - cavernBottom) / (float) Math.max(1, cavernFloorEnd - cavernBottom);
+                                currentThreshold += (1.0f - currentThreshold) * (1.0f - MathHelper.clamp(frac, 0.0f, 1.0f));
+                            }
+                            if (product > currentThreshold) {
+                                carve = true;
+                            }
                         }
                     }
 
-                    // 4. Block Placement (Air or Lava only; zero water block placement in -Y)
-                    if (carve) {
+                    // C. Mid chambers (~-25 → ~-5) — smaller product rooms
+                    if (!carve && y >= midBottom && y <= midTop) {
+                        int idx = y - midBottom;
+                        if (idx >= 0 && idx < midHeight) {
+                            float product = midVal1[idx] * midVal2[idx];
+                            float currentThreshold = MID_CAVE_THRESHOLD;
+                            // Soft ceiling into solid stone under Y≈-5
+                            if (y >= midTop - 4) {
+                                float frac = (float) (midTop - y) / 4.0f;
+                                currentThreshold += (1.0f - currentThreshold) * (1.0f - MathHelper.clamp(frac, 0.0f, 1.0f));
+                            }
+                            if (product > currentThreshold) {
+                                carve = true;
+                            }
+                        }
+                    }
+
+                    if (carve && !isAir) {
                         if (y <= lavaLevel) {
                             if (floorVal > 0.12f) {
-                                continue;
+                                // keep solid floor islands
                             } else {
                                 Reflect.setBlockState(chunk, pos, lavaState);
                             }
                         } else {
                             Reflect.setBlockState(chunk, pos, airState);
+                            isAir = true;
                         }
+                    }
 
-                        // 5. Explicit Solid Deepslate Column & Stalagmite Generation
-                        // Generates thick solid pillars rising from the lava floor (Y=-55) tapering up to the ceiling (Y=-15)
-                        if (y <= -15 && cavernRegionVal > -0.05f) {
-                            if (pillarVal > 0.15f) {
-                                float heightFrac = MathHelper.clamp((float) (y - (-55)) / 40.0f, 0.0f, 1.0f);
-                                // Broad base at floor (0.15f threshold), tapering gracefully to 0.32f near ceiling
-                                float pillarThreshold = 0.15f + 0.17f * heightFrac;
-                                if (pillarVal > pillarThreshold) {
-                                    Reflect.setBlockState(chunk, pos, deepslateState);
-                                }
-                            }
+                    // D. Rounded deepslate pillars (floor → deep cavern ceiling)
+                    if (deepslateState != null && y >= pillarBaseY && y <= pillarTopY && cavernRegionVal > -0.10f) {
+                        float heightFrac = MathHelper.clamp(
+                                (float) (y - pillarBaseY) / (float) Math.max(1, pillarTopY - pillarBaseY),
+                                0.0f, 1.0f);
+                        float strength = pillarRadiusAt(worldX, worldZ, heightFrac, pillarRadius, pillarSpacing, pillarSpawnThreshold);
+                        if (strength > 0.35f) {
+                            Reflect.setBlockState(chunk, pos, deepslateState);
                         }
                     }
                 }
+
+                // 5. Seal Y=0 seam: refill stray air left by earlier passes unless this is a breach mouth
+                if (!isWater && deepslateState != null && !breachAtZero) {
+                    Reflect.setPos(pos, worldX, 0, worldZ);
+                    IBlockState atZero = Reflect.getBlockState(chunk, pos);
+                    if (atZero != null && airBlock != null && Reflect.getBlock(atZero) == airBlock) {
+                        Reflect.setBlockState(chunk, pos, deepslateState);
+                    }
+                }
+            }
+        }
+    }
+
+    private static void sampleDualNoise(FastNoise n1, FastNoise n2, int worldX, int worldZ,
+                                        int yBottom, int yTop, float xzComp, float yComp,
+                                        float[] out1, float[] out2) {
+        int height = yTop - yBottom + 1;
+        if (height <= 0) return;
+
+        for (int y = yBottom; y <= yTop; y += 4) {
+            int idx = y - yBottom;
+            if (idx >= 0 && idx < height) {
+                float tx = worldX * xzComp;
+                float ty = y * yComp;
+                float tz = worldZ * xzComp;
+                out1[idx] = n1.GetNoise(tx, ty, tz);
+                out2[idx] = n2.GetNoise(tx, ty, tz);
+            }
+        }
+        int lastIdx = height - 1;
+        if (lastIdx % 4 != 0) {
+            float tx = worldX * xzComp;
+            float ty = yTop * yComp;
+            float tz = worldZ * xzComp;
+            out1[lastIdx] = n1.GetNoise(tx, ty, tz);
+            out2[lastIdx] = n2.GetNoise(tx, ty, tz);
+        }
+        for (int sub = 0; sub < height - 1; sub += 4) {
+            int endIdx = Math.min(sub + 4, height - 1);
+            float s1 = out1[sub], e1 = out1[endIdx];
+            float s2 = out2[sub], e2 = out2[endIdx];
+            int span = endIdx - sub;
+            for (int i = 1; i < span; ++i) {
+                float t = (float) i / (float) span;
+                out1[sub + i] = s1 * (1.0f - t) + e1 * t;
+                out2[sub + i] = s2 * (1.0f - t) + e2 * t;
             }
         }
     }
