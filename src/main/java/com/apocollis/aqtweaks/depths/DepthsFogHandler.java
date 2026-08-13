@@ -11,25 +11,23 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 /**
- * Client-only: below Y0, lighten fog color and push fog distance so Depths caves stay readable.
+ * Client-only: below Y0, dark gray fog that starts ~32 blocks from the camera.
  */
 @SideOnly(Side.CLIENT)
 public class DepthsFogHandler {
 
-    /** How strongly to pull fog RGB toward the lit-cave target (0–1). */
-    private static final float COLOR_BLEND = 0.55f;
-    private static final float TARGET_R = 0.58f;
-    private static final float TARGET_G = 0.60f;
-    private static final float TARGET_B = 0.62f;
+    private static final float COLOR_BLEND = 0.85f;
+    private static final float TARGET_R = 0.10f;
+    private static final float TARGET_G = 0.10f;
+    private static final float TARGET_B = 0.12f;
 
-    /** Multiply vanilla/DS far-plane distance when below Y0. */
-    private static final float DISTANCE_SCALE = 1.85f;
-    private static final float FOG_START_FRAC = 0.55f;
+    private static final float FOG_START = 32.0f;
+    private static final float FOG_END = 52.0f;
 
     private static boolean isActive(Entity entity, float partialTicks) {
         if (entity == null || entity.world == null) return false;
         if (!ArcanaQuestTweaksConfig.DepthsModuleConfig.general.enableDepthsModule) return false;
-        if (!ArcanaQuestTweaksConfig.DepthsModuleConfig.client.lightenDeepCaveFog) return false;
+        if (!ArcanaQuestTweaksConfig.DepthsModuleConfig.client.deepCaveFog) return false;
         if (entity.world.provider != null && entity.world.provider.getDimension() != 0) return false;
 
         double eyeY = entity.getPositionEyes(partialTicks).y;
@@ -55,9 +53,7 @@ public class DepthsFogHandler {
     public void onRenderFog(EntityViewRenderEvent.RenderFogEvent event) {
         if (!isActive(event.getEntity(), (float) event.getRenderPartialTicks())) return;
 
-        float far = event.getFarPlaneDistance() * DISTANCE_SCALE;
-        float start = far * FOG_START_FRAC;
-        net.minecraft.client.renderer.GlStateManager.setFogStart(start);
-        net.minecraft.client.renderer.GlStateManager.setFogEnd(far);
+        net.minecraft.client.renderer.GlStateManager.setFogStart(FOG_START);
+        net.minecraft.client.renderer.GlStateManager.setFogEnd(FOG_END);
     }
 }

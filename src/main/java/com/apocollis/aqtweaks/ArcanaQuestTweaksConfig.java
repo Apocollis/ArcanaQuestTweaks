@@ -525,9 +525,9 @@ public class ArcanaQuestTweaksConfig {
         }
 
         public static class Client {
-            @Config.Name("Lighten Deep Cave Fog")
-            @Config.Comment("When below Y = 0, lighten fog color and push fog distance out so Depths caves stay readable with lighting.")
-            public boolean lightenDeepCaveFog = true;
+            @Config.Name("Deep Cave Fog")
+            @Config.Comment("When below Y = 0 in the Overworld, apply dark gray fog starting about 32 blocks from the camera. Client-only. Skipped in water/lava.")
+            public boolean deepCaveFog = true;
 
             @Config.Name("Hide Skybox Below Y 0")
             @Config.Comment("When below Y = 0 in the Overworld, skip rendering the skybox (sun, moon, stars, sky dome). Client-only.")
