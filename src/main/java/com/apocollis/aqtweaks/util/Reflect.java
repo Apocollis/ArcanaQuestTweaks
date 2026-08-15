@@ -759,7 +759,7 @@ public class Reflect {
             try { blockStateGetMaterialMethod = bsClass.getMethod("func_185904_a"); } catch (Throwable t) {
                 try { blockStateGetMaterialMethod = bsClass.getMethod("getMaterial"); } catch (Throwable ignored) {}
             }
-            try { blockStateGetCollisionBoundingBoxMethod = bsClass.getMethod("func_185900_c", IBlockAccess.class, BlockPos.class); } catch (Throwable t) {
+            try { blockStateGetCollisionBoundingBoxMethod = bsClass.getMethod("func_185890_d", IBlockAccess.class, BlockPos.class); } catch (Throwable t) {
                 try { blockStateGetCollisionBoundingBoxMethod = bsClass.getMethod("getCollisionBoundingBox", IBlockAccess.class, BlockPos.class); } catch (Throwable ignored) {}
             }
         } catch (Throwable ignored) {}

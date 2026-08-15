@@ -158,7 +158,11 @@ public class StaminaModuleClient {
                     : (isVine ? ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.vineCost
                             : ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.ladderCost);
 
-            if (cost > 0 && !Reflect.hasEnoughStamina(player, cost)) {
+            NBTTagCompound climbData = Reflect.getEntityData(player);
+            boolean ledgeActive = Reflect.getInteger(climbData, "StaminaTweaksLedgeClimbState") == 1;
+            boolean mantleIntent = Reflect.isJumpPressed(player) && Reflect.getMoveForward(player) > 0.0F;
+
+            if (!ledgeActive && !mantleIntent && cost > 0 && !Reflect.hasEnoughStamina(player, cost)) {
                 Reflect.setMotionY(player, -0.15);
             }
         } else {
@@ -198,8 +202,13 @@ public class StaminaModuleClient {
                         : ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.ladderCost);
 
         if (cost > 0 && !Reflect.hasEnoughStamina(player, cost)) {
-            Reflect.setJumpPressed(player, false);
-            Reflect.setSneakPressed(player, false);
+            NBTTagCompound climbData = Reflect.getEntityData(player);
+            boolean ledgeActive = Reflect.getInteger(climbData, "StaminaTweaksLedgeClimbState") == 1;
+            boolean mantleIntent = Reflect.isJumpPressed(player) && Reflect.getMoveForward(player) > 0.0F;
+            if (!ledgeActive && !mantleIntent) {
+                Reflect.setJumpPressed(player, false);
+                Reflect.setSneakPressed(player, false);
+            }
         }
     }
 
@@ -211,8 +220,8 @@ public class StaminaModuleClient {
         int state = Reflect.getInteger(clientData, "StaminaTweaksLedgeClimbState");
 
         if (state == 0) {
-            // Check target conditions
-            if (Reflect.isOnGround(player) || Reflect.isOnLadder(player) || Reflect.isInWater(player) || Reflect.isInLava(player) || Reflect.isRiding(player)) {
+            // Check target conditions (vines/ladders at the face must not block a 1-block mantle)
+            if (Reflect.isOnGround(player) || Reflect.isInWater(player) || Reflect.isInLava(player) || Reflect.isRiding(player)) {
                 Reflect.setInteger(clientData, "StaminaTweaksLedgeClimbHeldTicks", 0);
                 return;
             }
@@ -285,7 +294,7 @@ public class StaminaModuleClient {
             }
         } else if (state == 1) {
             // Check fail conditions
-            if (Reflect.isOnGround(player) || Reflect.isOnLadder(player) || Reflect.isInWater(player) || Reflect.isInLava(player) || Reflect.isRiding(player)) {
+            if (Reflect.isOnGround(player) || Reflect.isInWater(player) || Reflect.isInLava(player) || Reflect.isRiding(player)) {
                 Reflect.setInteger(clientData, "StaminaTweaksLedgeClimbState", 0);
                 return;
             }

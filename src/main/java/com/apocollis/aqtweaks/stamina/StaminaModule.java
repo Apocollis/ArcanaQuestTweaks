@@ -356,7 +356,10 @@ public class StaminaModule {
 
         if (ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.fallOnDepleted
                 && cost > 0
-                && !Reflect.hasEnoughStamina(player, cost)) {
+                && !Reflect.hasEnoughStamina(player, cost)
+                && Reflect.getInteger(pData, "StaminaTweaksLedgeClimbState") != 1
+                && Reflect.getInteger(pData, "StaminaTweaksLedgeClimbGrace") <= Reflect.getTicksExisted(player)
+                && !Reflect.getBoolean(pData, "StaminaTweaksClimbJumpInput")) {
             Reflect.setMotionY(player, -0.15);
         }
     }

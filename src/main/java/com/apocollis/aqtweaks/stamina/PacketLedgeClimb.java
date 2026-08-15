@@ -11,6 +11,7 @@ import net.minecraft.block.Block;
 import net.minecraft.block.SoundType;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.SoundCategory;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
@@ -39,6 +40,9 @@ public class PacketLedgeClimb implements IMessage {
                     int cost = ArcanaQuestTweaksConfig.StaminaModuleConfig.ledgeClimb.ledgeClimbCost;
                     if (Reflect.hasEnoughStamina(player, cost)) {
                         FeathersHelper.decreaseFeathers(player, cost);
+                        NBTTagCompound pData = Reflect.getEntityData(player);
+                        Reflect.setInteger(pData, "StaminaTweaksLedgeClimbState", 1);
+                        Reflect.setInteger(pData, "StaminaTweaksLedgeClimbGrace", Reflect.getTicksExisted(player) + 60);
 
                         // Play a scraping step sound of the block the player is climbing
                         World world = Reflect.getWorld(player);
