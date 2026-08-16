@@ -6,6 +6,8 @@ import com.apocollis.aqtweaks.thaumcraft.BewitchmentRegistryHandler;
 
 import com.apocollis.aqtweaks.stamina.PacketLedgeClimb;
 
+import com.apocollis.aqtweaks.stamina.PacketSyncGrappleInput;
+
 import com.apocollis.aqtweaks.thaumcraft.ThaumcraftModule;
 
 import com.apocollis.aqtweaks.stamina.StaminaModule;
@@ -26,6 +28,7 @@ public class CommonProxy {
     public void preInit(FMLPreInitializationEvent event) {
         ArcanaQuestTweaks.NETWORK.registerMessage(PacketSyncClimbingInput.Handler.class, PacketSyncClimbingInput.class, 0, Side.SERVER);
         ArcanaQuestTweaks.NETWORK.registerMessage(PacketLedgeClimb.Handler.class, PacketLedgeClimb.class, 1, Side.SERVER);
+        ArcanaQuestTweaks.NETWORK.registerMessage(PacketSyncGrappleInput.Handler.class, PacketSyncGrappleInput.class, 2, Side.SERVER);
         ComfortConfigLoader.load(event.getModConfigurationDirectory());
     }
 

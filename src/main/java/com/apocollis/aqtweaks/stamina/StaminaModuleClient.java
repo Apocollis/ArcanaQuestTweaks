@@ -105,6 +105,7 @@ public class StaminaModuleClient {
             }
             handleClientClimbing((net.minecraft.client.entity.EntityPlayerSP) player);
             handleClientLedgeClimbing((net.minecraft.client.entity.EntityPlayerSP) player);
+            handleClientGrappling(player);
         }
     }
 
@@ -171,6 +172,36 @@ public class StaminaModuleClient {
                 ArcanaQuestTweaks.NETWORK.sendToServer(new PacketSyncClimbingInput(false));
                 Reflect.setBoolean(clientData, "StaminaTweaksLastJumpInput", false);
             }
+        }
+    }
+
+    @SideOnly(Side.CLIENT)
+    private void handleClientGrappling(EntityPlayer player) {
+        ArcanaQuestTweaksConfig.Grapple grapple = ArcanaQuestTweaksConfig.StaminaModuleConfig.grapple;
+        if (!grapple.enableGrappleCost && !grapple.motorRequiresEmber) return;
+        if (!Reflect.isGrappleLoaded()) return;
+
+        NBTTagCompound data = Reflect.getEntityData(player);
+        if (!Reflect.isGrappling(player)) {
+            if (Reflect.getInteger(data, "StaminaTweaksGrappleClientSentTick") > 0) {
+                Reflect.setInteger(data, "StaminaTweaksGrappleClientSentTick", 0);
+            }
+            return;
+        }
+
+        int mode = GrappleClientInput.getMode(player);
+        boolean motor = GrappleClientInput.isMotorPulling(player);
+        int now = Reflect.getTicksExisted(player);
+        int lastTick = Reflect.getInteger(data, "StaminaTweaksGrappleClientSentTick");
+        int lastMode = Reflect.getInteger(data, "StaminaTweaksGrappleClientSentMode");
+        boolean lastMotor = Reflect.getBoolean(data, "StaminaTweaksGrappleClientSentMotor");
+        boolean sentOnce = lastTick > 0;
+
+        if (!sentOnce || mode != lastMode || motor != lastMotor || now - lastTick >= 10) {
+            ArcanaQuestTweaks.NETWORK.sendToServer(new PacketSyncGrappleInput(mode, motor));
+            Reflect.setInteger(data, "StaminaTweaksGrappleClientSentTick", Math.max(now, 1));
+            Reflect.setInteger(data, "StaminaTweaksGrappleClientSentMode", mode);
+            Reflect.setBoolean(data, "StaminaTweaksGrappleClientSentMotor", motor);
         }
     }
 

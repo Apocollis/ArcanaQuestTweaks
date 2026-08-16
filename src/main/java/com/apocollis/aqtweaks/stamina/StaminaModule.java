@@ -364,30 +364,101 @@ public class StaminaModule {
         }
     }
 
+    private static final int GRAPPLE_SWING_HYSTERESIS = 3;
+
     private void handleServerGrappling(EntityPlayerMP player) {
-        if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.grapple.enableGrappleCost) return;
+        ArcanaQuestTweaksConfig.Grapple grapple = ArcanaQuestTweaksConfig.StaminaModuleConfig.grapple;
+        if (!grapple.enableGrappleCost && !grapple.motorRequiresEmber) return;
 
         NBTTagCompound pData = Reflect.getEntityData(player);
-        if (Reflect.isGrappling(player)) {
-            int ticks = Reflect.getInteger(pData, "StaminaTweaksGrappleTicks") + 1;
-            int interval = ArcanaQuestTweaksConfig.StaminaModuleConfig.grapple.grappleHoldInterval;
-
-            if (ticks >= interval) {
-                int cost = ArcanaQuestTweaksConfig.StaminaModuleConfig.grapple.grappleHoldCost;
-                if (Reflect.hasEnoughStamina(player, cost)) {
-                    FeathersHelper.decreaseFeathers(player, cost);
-                    ticks = 0;
-                } else {
-                    Reflect.detachGrapple(player);
-                    ticks = 0;
-                }
-            }
-            Reflect.setInteger(pData, "StaminaTweaksGrappleTicks", ticks);
-        } else {
+        if (!Reflect.isGrappling(player)) {
             if (Reflect.getInteger(pData, "StaminaTweaksGrappleTicks") > 0) {
                 Reflect.setInteger(pData, "StaminaTweaksGrappleTicks", 0);
             }
+            if (Reflect.getInteger(pData, "StaminaTweaksGrappleEmberTicks") > 0) {
+                Reflect.setInteger(pData, "StaminaTweaksGrappleEmberTicks", 0);
+            }
+            if (Reflect.getInteger(pData, "StaminaTweaksGrappleSwingStreak") > 0) {
+                Reflect.setInteger(pData, "StaminaTweaksGrappleSwingStreak", 0);
+            }
+            return;
         }
+
+        int mode = Reflect.getInteger(pData, "StaminaTweaksGrappleMode");
+        boolean motorPacket = Reflect.getBoolean(pData, "StaminaTweaksGrappleMotor");
+        boolean motorActive = motorPacket && EmberMotorHelper.hasEmber(player, grapple.motorEmberCost);
+
+        if (motorActive && EmberMotorHelper.requiresEmber()) {
+            int emberTicks = Reflect.getInteger(pData, "StaminaTweaksGrappleEmberTicks") + 1;
+            if (emberTicks >= grapple.motorEmberInterval) {
+                if (!EmberMotorHelper.consumeEmber(player, grapple.motorEmberCost)) {
+                    motorActive = false;
+                }
+                emberTicks = 0;
+            }
+            Reflect.setInteger(pData, "StaminaTweaksGrappleEmberTicks", emberTicks);
+        } else if (Reflect.getInteger(pData, "StaminaTweaksGrappleEmberTicks") > 0) {
+            Reflect.setInteger(pData, "StaminaTweaksGrappleEmberTicks", 0);
+        }
+
+        if (!grapple.enableGrappleCost) return;
+
+        if (mode == PacketSyncGrappleInput.MODE_DESCEND) {
+            Reflect.setInteger(pData, "StaminaTweaksGrappleTicks", 0);
+            Reflect.setInteger(pData, "StaminaTweaksGrappleLastCostMode", -1);
+            return;
+        }
+
+        int cost;
+        int interval;
+        int costMode;
+        if (motorActive && grapple.motorUsesHangCost) {
+            cost = grapple.grappleHoldCost;
+            interval = grapple.grappleHoldInterval;
+            costMode = 10; // motor hang
+        } else if (mode == PacketSyncGrappleInput.MODE_CLIMB) {
+            cost = grapple.grappleClimbCost;
+            interval = grapple.grappleClimbInterval;
+            costMode = PacketSyncGrappleInput.MODE_CLIMB;
+        } else if (isGrappleSwinging(player, pData, grapple.grappleSwingSpeedThreshold)) {
+            cost = grapple.grappleSwingCost;
+            interval = grapple.grappleSwingInterval;
+            costMode = 3; // swing
+        } else {
+            cost = grapple.grappleHoldCost;
+            interval = grapple.grappleHoldInterval;
+            costMode = PacketSyncGrappleInput.MODE_NEUTRAL;
+        }
+
+        if (Reflect.getInteger(pData, "StaminaTweaksGrappleLastCostMode") != costMode) {
+            Reflect.setInteger(pData, "StaminaTweaksGrappleLastCostMode", costMode);
+            Reflect.setInteger(pData, "StaminaTweaksGrappleTicks", 0);
+        }
+
+        int ticks = Reflect.getInteger(pData, "StaminaTweaksGrappleTicks") + 1;
+        if (ticks >= interval) {
+            if (cost > 0) {
+                if (Reflect.hasEnoughStamina(player, cost)) {
+                    FeathersHelper.decreaseFeathers(player, cost);
+                } else {
+                    Reflect.detachGrapple(player);
+                }
+            }
+            ticks = 0;
+        }
+        Reflect.setInteger(pData, "StaminaTweaksGrappleTicks", ticks);
+    }
+
+    private boolean isGrappleSwinging(EntityPlayerMP player, NBTTagCompound pData, double threshold) {
+        boolean wantSwing = Reflect.getHorizontalSpeed(player) >= threshold;
+        int streak = Reflect.getInteger(pData, "StaminaTweaksGrappleSwingStreak");
+        if (wantSwing) {
+            streak = Math.min(streak + 1, GRAPPLE_SWING_HYSTERESIS);
+        } else {
+            streak = Math.max(streak - 1, 0);
+        }
+        Reflect.setInteger(pData, "StaminaTweaksGrappleSwingStreak", streak);
+        return streak >= GRAPPLE_SWING_HYSTERESIS;
     }
 
     private void handleServerGliding(EntityPlayerMP player) {

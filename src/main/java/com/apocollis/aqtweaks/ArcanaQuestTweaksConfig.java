@@ -218,15 +218,58 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Does active grappling consume stamina?")
         public boolean enableGrappleCost = true;
 
+        @Config.Name("Grapple Climb Tick Interval")
+        @Config.Comment("Ticks between feather consumption while reeling in / climbing the rope (20 ticks = 1 second)")
+        @Config.RangeInt(min = 1)
+        public int grappleClimbInterval = 20;
+
+        @Config.Name("Grapple Climb Cost")
+        @Config.Comment("Stamina cost (in half-feathers) per climb interval")
+        @Config.RangeInt(min = 0)
+        public int grappleClimbCost = 3;
+
+        @Config.Name("Grapple Swing Tick Interval")
+        @Config.Comment("Ticks between feather consumption while swinging (20 ticks = 1 second)")
+        @Config.RangeInt(min = 1)
+        public int grappleSwingInterval = 20;
+
+        @Config.Name("Grapple Swing Cost")
+        @Config.Comment("Stamina cost (in half-feathers) per swing interval")
+        @Config.RangeInt(min = 0)
+        public int grappleSwingCost = 2;
+
         @Config.Name("Grapple Hold Tick Interval")
-        @Config.Comment("Ticks between feather consumption while grappling (20 ticks = 1 second)")
+        @Config.Comment("Ticks between feather consumption while hanging still (20 ticks = 1 second)")
         @Config.RangeInt(min = 1)
         public int grappleHoldInterval = 20;
 
         @Config.Name("Grapple Hold Cost")
-        @Config.Comment("Stamina cost (in half-feathers) consumed per hold interval")
+        @Config.Comment("Stamina cost (in half-feathers) per hold interval. Lower than climb/swing; 1 is the minimum non-zero cost.")
         @Config.RangeInt(min = 0)
         public int grappleHoldCost = 1;
+
+        @Config.Name("Grapple Swing Speed Threshold")
+        @Config.Comment("Horizontal speed at or above which hanging becomes swinging")
+        @Config.RangeDouble(min = 0.0)
+        public double grappleSwingSpeedThreshold = 0.15;
+
+        @Config.Name("Motor Uses Hang Cost")
+        @Config.Comment("If true, an active motor pull drains hang stamina instead of climb/swing")
+        public boolean motorUsesHangCost = true;
+
+        @Config.Name("Motor Requires Ember")
+        @Config.Comment("If true, motor pull also consumes portable Ember (jar / cartridge / bulb). Ignored if Embers is not loaded.")
+        public boolean motorRequiresEmber = true;
+
+        @Config.Name("Motor Ember Tick Interval")
+        @Config.Comment("Ticks between Ember consumption while the motor is pulling (20 ticks = 1 second)")
+        @Config.RangeInt(min = 1)
+        public int motorEmberInterval = 20;
+
+        @Config.Name("Motor Ember Cost")
+        @Config.Comment("Ember consumed per motor interval")
+        @Config.RangeDouble(min = 0.0)
+        public double motorEmberCost = 10.0;
     }
 
     public static class Glider {

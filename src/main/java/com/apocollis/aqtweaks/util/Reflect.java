@@ -193,7 +193,11 @@ public class Reflect {
     private static boolean isGrappleLoaded = false;
     private static Field grappleControllersField;
     private static Field grappleAttachedField;
+    private static Field grappleAttachedSetField;
+    private static Field grappleAllArrowsField;
+    private static Field grappleControllerCustomField;
     private static Method grappleUnattachMethod;
+    private static Method grappleReceiveEndMethod;
 
     // Elenai Dodge 2 Absorption capability reflection
     private static net.minecraftforge.common.capabilities.Capability<?> absorptionCap;
@@ -945,10 +949,16 @@ public class Reflect {
         try {
             Class<?> grapplemodClass = Class.forName("com.yyon.grapplinghook.grapplemod");
             grappleControllersField = grapplemodClass.getField("controllers");
-            
+            grappleAttachedSetField = grapplemodClass.getField("attached");
+            grappleAllArrowsField = grapplemodClass.getField("allarrows");
+            grappleReceiveEndMethod = grapplemodClass.getMethod("receiveGrappleEnd", int.class, World.class, java.util.HashSet.class);
+
             Class<?> grappleControllerClass = Class.forName("com.yyon.grapplinghook.controllers.grappleController");
             grappleAttachedField = grappleControllerClass.getField("attached");
             grappleUnattachMethod = grappleControllerClass.getMethod("unattach");
+            try {
+                grappleControllerCustomField = grappleControllerClass.getField("custom");
+            } catch (Exception ignored) {}
             isGrappleLoaded = true;
         } catch (Exception e) {
             // Grappling Hook Mod not loaded
@@ -1130,11 +1140,20 @@ public class Reflect {
     }
 
     public static boolean isGrappling(EntityPlayer player) {
-        if (!isGrappleLoaded) return false;
+        if (!isGrappleLoaded || player == null) return false;
+        int id = player.getEntityId();
+        try {
+            if (grappleAttachedSetField != null) {
+                java.util.Set<?> attached = (java.util.Set<?>) grappleAttachedSetField.get(null);
+                if (attached != null && attached.contains(id)) {
+                    return true;
+                }
+            }
+        } catch (Exception ignored) {}
         try {
             java.util.Map<?, ?> controllers = (java.util.Map<?, ?>) grappleControllersField.get(null);
             if (controllers == null) return false;
-            Object controller = controllers.get(player.getEntityId());
+            Object controller = controllers.get(id);
             if (controller == null) return false;
             return grappleAttachedField.getBoolean(controller);
         } catch (Exception e) {
@@ -1142,17 +1161,64 @@ public class Reflect {
         }
     }
 
-    public static void detachGrapple(EntityPlayer player) {
-        if (!isGrappleLoaded) return;
+    public static Object getGrappleController(EntityPlayer player) {
+        if (!isGrappleLoaded || player == null || grappleControllersField == null) return null;
         try {
             java.util.Map<?, ?> controllers = (java.util.Map<?, ?>) grappleControllersField.get(null);
-            if (controllers == null) return;
-            Object controller = controllers.get(player.getEntityId());
-            if (controller == null) return;
-            grappleUnattachMethod.invoke(controller);
+            if (controllers == null) return null;
+            return controllers.get(player.getEntityId());
         } catch (Exception e) {
-            // ignore
+            return null;
         }
+    }
+
+    public static Object getGrappleCustomization(EntityPlayer player) {
+        Object controller = getGrappleController(player);
+        if (controller == null || grappleControllerCustomField == null) return null;
+        try {
+            return grappleControllerCustomField.get(controller);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public static double getHorizontalSpeed(Entity entity) {
+        double mx = getMotionX(entity);
+        double mz = getMotionZ(entity);
+        return Math.sqrt(mx * mx + mz * mz);
+    }
+
+    public static void detachGrapple(EntityPlayer player) {
+        if (!isGrappleLoaded || player == null) return;
+        boolean unattached = false;
+        try {
+            Object controller = getGrappleController(player);
+            if (controller != null && grappleUnattachMethod != null) {
+                grappleUnattachMethod.invoke(controller);
+                unattached = true;
+            }
+        } catch (Exception ignored) {}
+        if (unattached) return;
+        try {
+            if (grappleReceiveEndMethod == null) return;
+            World world = getWorld(player);
+            if (world == null) return;
+            java.util.HashSet<Integer> arrowIds = new java.util.HashSet<>();
+            if (grappleAllArrowsField != null) {
+                java.util.Map<?, ?> allArrows = (java.util.Map<?, ?>) grappleAllArrowsField.get(null);
+                if (allArrows != null) {
+                    Object arrows = allArrows.get(player.getEntityId());
+                    if (arrows instanceof java.util.Collection) {
+                        for (Object arrow : (java.util.Collection<?>) arrows) {
+                            if (arrow instanceof Entity) {
+                                arrowIds.add(((Entity) arrow).getEntityId());
+                            }
+                        }
+                    }
+                }
+            }
+            grappleReceiveEndMethod.invoke(null, player.getEntityId(), world, arrowIds);
+        } catch (Exception ignored) {}
     }
 
     public static boolean isRopeBlock(Block block) {
