@@ -364,7 +364,10 @@ public class StaminaModule {
         }
     }
 
-    private static final int GRAPPLE_SWING_HYSTERESIS = 3;
+    private static final int GRAPPLE_SWING_ENTER_TICKS = 3;
+    private static final int GRAPPLE_SWING_EXIT_TICKS = 15;
+    private static final int GRAPPLE_COST_HANG = PacketSyncGrappleInput.MODE_NEUTRAL;
+    private static final int GRAPPLE_COST_SWING = PacketSyncGrappleInput.MODE_SWING;
 
     private void handleServerGrappling(EntityPlayerMP player) {
         ArcanaQuestTweaksConfig.Grapple grapple = ArcanaQuestTweaksConfig.StaminaModuleConfig.grapple;
@@ -378,15 +381,38 @@ public class StaminaModule {
             if (Reflect.getInteger(pData, "StaminaTweaksGrappleEmberTicks") > 0) {
                 Reflect.setInteger(pData, "StaminaTweaksGrappleEmberTicks", 0);
             }
-            if (Reflect.getInteger(pData, "StaminaTweaksGrappleSwingStreak") > 0) {
+            if (Reflect.getInteger(pData, "StaminaTweaksGrappleSwingStreak") != 0) {
                 Reflect.setInteger(pData, "StaminaTweaksGrappleSwingStreak", 0);
+            }
+            if (Reflect.getBoolean(pData, "StaminaTweaksGrappleIsSwing")) {
+                Reflect.setBoolean(pData, "StaminaTweaksGrappleIsSwing", false);
             }
             return;
         }
 
         int mode = Reflect.getInteger(pData, "StaminaTweaksGrappleMode");
         boolean motorPacket = Reflect.getBoolean(pData, "StaminaTweaksGrappleMotor");
+        boolean grounded = Reflect.getBoolean(pData, "StaminaTweaksGrappleGrounded");
         boolean motorActive = motorPacket && EmberMotorHelper.hasEmber(player, grapple.motorEmberCost);
+
+        // Standing hooked without motor is free. Motor pull still bills hang stamina + Ember
+        // even if onGround / ongroundtimer is set (leaving the ground, walking into a wall, etc.).
+        if (grounded && !motorPacket) {
+            if (Reflect.getInteger(pData, "StaminaTweaksGrappleTicks") > 0) {
+                Reflect.setInteger(pData, "StaminaTweaksGrappleTicks", 0);
+            }
+            if (Reflect.getInteger(pData, "StaminaTweaksGrappleEmberTicks") > 0) {
+                Reflect.setInteger(pData, "StaminaTweaksGrappleEmberTicks", 0);
+            }
+            if (Reflect.getInteger(pData, "StaminaTweaksGrappleSwingStreak") != 0) {
+                Reflect.setInteger(pData, "StaminaTweaksGrappleSwingStreak", 0);
+            }
+            if (Reflect.getBoolean(pData, "StaminaTweaksGrappleIsSwing")) {
+                Reflect.setBoolean(pData, "StaminaTweaksGrappleIsSwing", false);
+            }
+            Reflect.setInteger(pData, "StaminaTweaksGrappleLastCostMode", -1);
+            return;
+        }
 
         if (motorActive && EmberMotorHelper.requiresEmber()) {
             int emberTicks = Reflect.getInteger(pData, "StaminaTweaksGrappleEmberTicks") + 1;
@@ -420,20 +446,23 @@ public class StaminaModule {
             cost = grapple.grappleClimbCost;
             interval = grapple.grappleClimbInterval;
             costMode = PacketSyncGrappleInput.MODE_CLIMB;
-        } else if (isGrappleSwinging(player, pData, grapple.grappleSwingSpeedThreshold)) {
+        } else if (isGrappleSwinging(player, pData, mode, grapple.grappleSwingSpeedThreshold)) {
             cost = grapple.grappleSwingCost;
             interval = grapple.grappleSwingInterval;
-            costMode = 3; // swing
+            costMode = GRAPPLE_COST_SWING;
         } else {
             cost = grapple.grappleHoldCost;
             interval = grapple.grappleHoldInterval;
-            costMode = PacketSyncGrappleInput.MODE_NEUTRAL;
+            costMode = GRAPPLE_COST_HANG;
         }
 
-        if (Reflect.getInteger(pData, "StaminaTweaksGrappleLastCostMode") != costMode) {
-            Reflect.setInteger(pData, "StaminaTweaksGrappleLastCostMode", costMode);
+        int prevCostMode = Reflect.getInteger(pData, "StaminaTweaksGrappleLastCostMode");
+        boolean hangSwingSwap = (costMode == GRAPPLE_COST_HANG || costMode == GRAPPLE_COST_SWING)
+                && (prevCostMode == GRAPPLE_COST_HANG || prevCostMode == GRAPPLE_COST_SWING);
+        if (prevCostMode != costMode && !hangSwingSwap) {
             Reflect.setInteger(pData, "StaminaTweaksGrappleTicks", 0);
         }
+        Reflect.setInteger(pData, "StaminaTweaksGrappleLastCostMode", costMode);
 
         int ticks = Reflect.getInteger(pData, "StaminaTweaksGrappleTicks") + 1;
         if (ticks >= interval) {
@@ -449,16 +478,33 @@ public class StaminaModule {
         Reflect.setInteger(pData, "StaminaTweaksGrappleTicks", ticks);
     }
 
-    private boolean isGrappleSwinging(EntityPlayerMP player, NBTTagCompound pData, double threshold) {
-        boolean wantSwing = Reflect.getHorizontalSpeed(player) >= threshold;
+    private boolean isGrappleSwinging(EntityPlayerMP player, NBTTagCompound pData, int mode, double threshold) {
+        boolean wantSwing = mode == PacketSyncGrappleInput.MODE_SWING
+                || Reflect.getSpeed(player) >= threshold;
+        boolean swinging = Reflect.getBoolean(pData, "StaminaTweaksGrappleIsSwing");
         int streak = Reflect.getInteger(pData, "StaminaTweaksGrappleSwingStreak");
         if (wantSwing) {
-            streak = Math.min(streak + 1, GRAPPLE_SWING_HYSTERESIS);
+            if (swinging) {
+                streak = 0;
+            } else {
+                streak++;
+                if (streak >= GRAPPLE_SWING_ENTER_TICKS) {
+                    swinging = true;
+                    streak = 0;
+                }
+            }
+        } else if (swinging) {
+            streak++;
+            if (streak >= GRAPPLE_SWING_EXIT_TICKS) {
+                swinging = false;
+                streak = 0;
+            }
         } else {
-            streak = Math.max(streak - 1, 0);
+            streak = 0;
         }
         Reflect.setInteger(pData, "StaminaTweaksGrappleSwingStreak", streak);
-        return streak >= GRAPPLE_SWING_HYSTERESIS;
+        Reflect.setBoolean(pData, "StaminaTweaksGrappleIsSwing", swinging);
+        return swinging;
     }
 
     private void handleServerGliding(EntityPlayerMP player) {

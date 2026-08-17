@@ -4,6 +4,8 @@ import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 
 import com.apocollis.aqtweaks.stamina.EmberMotorHelper;
 
+import com.apocollis.aqtweaks.util.Reflect;
+
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import org.objectweb.asm.Opcodes;
@@ -28,13 +30,16 @@ public abstract class MixinGrappleController {
             motor = custom.getClass().getField("motor").getBoolean(custom);
         } catch (Exception ignored) {}
         if (!motor) return false;
-        Entity entity = null;
-        try {
-            entity = (Entity) this.getClass().getField("entity").get(this);
-        } catch (Exception ignored) {}
-        if (!(entity instanceof EntityPlayer)) return true;
-        EntityPlayer player = (EntityPlayer) entity;
         if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.grapple.motorRequiresEmber) return true;
-        return EmberMotorHelper.hasEmber(player, ArcanaQuestTweaksConfig.StaminaModuleConfig.grapple.motorEmberCost);
+
+        Entity rider = null;
+        try {
+            rider = (Entity) this.getClass().getField("entity").get(this);
+        } catch (Exception ignored) {}
+        if (!(rider instanceof EntityPlayer)) {
+            rider = Reflect.getClientPlayer();
+        }
+        if (!(rider instanceof EntityPlayer)) return true;
+        return EmberMotorHelper.hasEmber((EntityPlayer) rider, ArcanaQuestTweaksConfig.StaminaModuleConfig.grapple.motorEmberCost);
     }
 }

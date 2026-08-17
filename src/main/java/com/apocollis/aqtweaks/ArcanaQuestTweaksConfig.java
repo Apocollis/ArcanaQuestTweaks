@@ -249,9 +249,9 @@ public class ArcanaQuestTweaksConfig {
         public int grappleHoldCost = 1;
 
         @Config.Name("Grapple Swing Speed Threshold")
-        @Config.Comment("Horizontal speed at or above which hanging becomes swinging")
+        @Config.Comment("3D speed at or above which hanging becomes swinging. High enough to ignore small hook bob; pendulum arcs still keep swing cost through the apex.")
         @Config.RangeDouble(min = 0.0)
-        public double grappleSwingSpeedThreshold = 0.15;
+        public double grappleSwingSpeedThreshold = 0.35;
 
         @Config.Name("Motor Uses Hang Cost")
         @Config.Comment("If true, an active motor pull drains hang stamina instead of climb/swing")
@@ -269,7 +269,7 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Motor Ember Cost")
         @Config.Comment("Ember consumed per motor interval")
         @Config.RangeDouble(min = 0.0)
-        public double motorEmberCost = 10.0;
+        public double motorEmberCost = 20.0;
     }
 
     public static class Glider {

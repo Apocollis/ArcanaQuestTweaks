@@ -105,7 +105,6 @@ public class StaminaModuleClient {
             }
             handleClientClimbing((net.minecraft.client.entity.EntityPlayerSP) player);
             handleClientLedgeClimbing((net.minecraft.client.entity.EntityPlayerSP) player);
-            handleClientGrappling(player);
         }
     }
 
@@ -191,18 +190,29 @@ public class StaminaModuleClient {
 
         int mode = GrappleClientInput.getMode(player);
         boolean motor = GrappleClientInput.isMotorPulling(player);
+        boolean grounded = GrappleClientInput.isStandingOnGround(player);
         int now = Reflect.getTicksExisted(player);
         int lastTick = Reflect.getInteger(data, "StaminaTweaksGrappleClientSentTick");
         int lastMode = Reflect.getInteger(data, "StaminaTweaksGrappleClientSentMode");
         boolean lastMotor = Reflect.getBoolean(data, "StaminaTweaksGrappleClientSentMotor");
+        boolean lastGrounded = Reflect.getBoolean(data, "StaminaTweaksGrappleClientSentGrounded");
         boolean sentOnce = lastTick > 0;
 
-        if (!sentOnce || mode != lastMode || motor != lastMotor || now - lastTick >= 10) {
-            ArcanaQuestTweaks.NETWORK.sendToServer(new PacketSyncGrappleInput(mode, motor));
+        if (!sentOnce || mode != lastMode || motor != lastMotor || grounded != lastGrounded || now - lastTick >= 10) {
+            ArcanaQuestTweaks.NETWORK.sendToServer(new PacketSyncGrappleInput(mode, motor, grounded));
             Reflect.setInteger(data, "StaminaTweaksGrappleClientSentTick", Math.max(now, 1));
             Reflect.setInteger(data, "StaminaTweaksGrappleClientSentMode", mode);
             Reflect.setBoolean(data, "StaminaTweaksGrappleClientSentMotor", motor);
+            Reflect.setBoolean(data, "StaminaTweaksGrappleClientSentGrounded", grounded);
         }
+    }
+
+    @SubscribeEvent(priority = net.minecraftforge.fml.common.eventhandler.EventPriority.LOWEST)
+    @SideOnly(Side.CLIENT)
+    public void onGrappleInputUpdate(net.minecraftforge.client.event.InputUpdateEvent event) {
+        EntityPlayer player = event.getEntityPlayer();
+        if (player == null || Reflect.isCreative(player) || Reflect.isSpectator(player)) return;
+        handleClientGrappling(player);
     }
 
     @SubscribeEvent
@@ -273,20 +283,22 @@ public class StaminaModuleClient {
             // Only attempt climb when falling or at peak of jump (motionY <= 0.0)
             if (Reflect.getMotionY(player) > 0.0) return;
 
-            // Check raycast for 1-block ledge in front of the player
             double yawRad = Math.toRadians(Reflect.getRotationYaw(player));
             double dx = -Math.sin(yawRad);
             double dz = Math.cos(yawRad);
 
-            net.minecraft.world.World world = player.world;
+            net.minecraft.world.World world = Reflect.getWorld(player);
+            if (world == null) return;
+
             double posX = Reflect.getPosX(player);
             double posY = Reflect.getPosY(player);
             double posZ = Reflect.getPosZ(player);
 
-            double foundLedgeY = -1.0D;
+            boolean foundLedge = false;
+            double foundLedgeY = 0.0D;
+            double[] checkHeights = new double[]{0.4D, 0.7D, 1.0D, 1.3D, 1.6D};
 
-            // Check 2 heights (eye level and slightly below eye level)
-            double[] checkHeights = new double[]{1.2D, 0.6D};
+            // Only the block the player is pressed against (look * 0.7 stays in the adjacent cell)
             for (double h : checkHeights) {
                 int wallX = net.minecraft.util.math.MathHelper.floor(posX + dx * 0.7D);
                 int wallY = net.minecraft.util.math.MathHelper.floor(posY + h);
@@ -294,43 +306,39 @@ public class StaminaModuleClient {
                 net.minecraft.util.math.BlockPos wallPos = new net.minecraft.util.math.BlockPos(wallX, wallY, wallZ);
 
                 net.minecraft.block.state.IBlockState wallState = Reflect.getBlockState(world, wallPos);
-                if (Reflect.getCollisionBoundingBox(wallState, world, wallPos) != net.minecraft.block.Block.NULL_AABB) {
-                    // Check if block above wall is air/clear for player to stand
-                    net.minecraft.util.math.BlockPos space1 = Reflect.up(wallPos);
-                    net.minecraft.util.math.BlockPos space2 = Reflect.up(wallPos, 2);
+                if (Reflect.getCollisionBoundingBox(wallState, world, wallPos) == net.minecraft.block.Block.NULL_AABB) {
+                    continue;
+                }
 
-                    if (Reflect.getCollisionBoundingBox(Reflect.getBlockState(world, space1), world, space1) == net.minecraft.block.Block.NULL_AABB &&
-                        Reflect.getCollisionBoundingBox(Reflect.getBlockState(world, space2), world, space2) == net.minecraft.block.Block.NULL_AABB) {
-                        foundLedgeY = Reflect.getY(wallPos) + 1.0D;
-                        break;
-                    }
+                net.minecraft.util.math.BlockPos space1 = Reflect.up(wallPos);
+                net.minecraft.util.math.BlockPos space2 = Reflect.up(wallPos, 2);
+                if (Reflect.getCollisionBoundingBox(Reflect.getBlockState(world, space1), world, space1) == net.minecraft.block.Block.NULL_AABB &&
+                    Reflect.getCollisionBoundingBox(Reflect.getBlockState(world, space2), world, space2) == net.minecraft.block.Block.NULL_AABB) {
+                    foundLedge = true;
+                    foundLedgeY = Reflect.getY(wallPos) + 1.0D;
+                    break;
                 }
             }
 
-            if (foundLedgeY > 0.0D) {
-                // Deduct stamina on server
+            if (foundLedge) {
                 ArcanaQuestTweaks.NETWORK.sendToServer(new PacketLedgeClimb());
 
-                // Set client state variables
                 Reflect.setInteger(clientData, "StaminaTweaksLedgeClimbState", 1);
                 Reflect.setDouble(clientData, "StaminaTweaksLedgeClimbTargetY", foundLedgeY);
                 Reflect.setDouble(clientData, "StaminaTweaksLedgeClimbDx", dx);
                 Reflect.setDouble(clientData, "StaminaTweaksLedgeClimbDz", dz);
-                Reflect.setInteger(clientData, "StaminaTweaksLedgeClimbHeldTicks", 0); // Reset
+                Reflect.setInteger(clientData, "StaminaTweaksLedgeClimbHeldTicks", 0);
 
-                // Set initial lift velocity (1/16 of original climb rate. motionY = 0.08 + 0.010625 = 0.090625D)
                 Reflect.setMotionY(player, 0.090625D);
                 Reflect.setMotionX(player, dx * 0.005D);
                 Reflect.setMotionZ(player, dz * 0.005D);
             }
         } else if (state == 1) {
-            // Check fail conditions
-            if (Reflect.isOnGround(player) || Reflect.isInWater(player) || Reflect.isInLava(player) || Reflect.isRiding(player)) {
+            if (Reflect.isInWater(player) || Reflect.isInLava(player) || Reflect.isRiding(player)) {
                 Reflect.setInteger(clientData, "StaminaTweaksLedgeClimbState", 0);
                 return;
             }
 
-            // Climbing should only continue while jump and forward keys are still held
             if (!Reflect.isJumpPressed(player) || Reflect.getMoveForward(player) <= 0.0F) {
                 Reflect.setInteger(clientData, "StaminaTweaksLedgeClimbState", 0);
                 return;
@@ -341,14 +349,11 @@ public class StaminaModuleClient {
             double dz = Reflect.getDouble(clientData, "StaminaTweaksLedgeClimbDz");
 
             if (Reflect.getPosY(player) >= targetY + 0.2D) {
-                // Clear block - do not add any forward movement on the block after
                 Reflect.setMotionX(player, 0.0D);
                 Reflect.setMotionZ(player, 0.0D);
                 Reflect.setMotionY(player, 0.0D);
-
                 Reflect.setInteger(clientData, "StaminaTweaksLedgeClimbState", 0);
             } else {
-                // Continue climbing (1/16 of original climb rate. motionY = 0.08 + 0.010625 = 0.090625D)
                 Reflect.setMotionY(player, 0.090625D);
                 Reflect.setMotionX(player, dx * 0.005D);
                 Reflect.setMotionZ(player, dz * 0.005D);

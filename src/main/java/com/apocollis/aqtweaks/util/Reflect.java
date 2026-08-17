@@ -1188,6 +1188,13 @@ public class Reflect {
         return Math.sqrt(mx * mx + mz * mz);
     }
 
+    public static double getSpeed(Entity entity) {
+        double mx = getMotionX(entity);
+        double my = getMotionY(entity);
+        double mz = getMotionZ(entity);
+        return Math.sqrt(mx * mx + my * my + mz * mz);
+    }
+
     public static void detachGrapple(EntityPlayer player) {
         if (!isGrappleLoaded || player == null) return;
         boolean unattached = false;
