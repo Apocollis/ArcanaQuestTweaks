@@ -1,7 +1,5 @@
 package com.apocollis.aqtweaks;
 
-import com.apocollis.aqtweaks.roguelike.CommandWhereAmI;
-
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.SidedProxy;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
@@ -37,10 +35,5 @@ public class ArcanaQuestTweaks {
     @Mod.EventHandler
     public void postInit(FMLPostInitializationEvent event) {
         proxy.postInit(event);
-    }
-
-    @Mod.EventHandler
-    public void serverStarting(net.minecraftforge.fml.common.event.FMLServerStartingEvent event) {
-        event.registerServerCommand(new CommandWhereAmI());
     }
 }

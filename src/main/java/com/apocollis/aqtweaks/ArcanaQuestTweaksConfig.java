@@ -512,27 +512,6 @@ public class ArcanaQuestTweaksConfig {
         };
     }
 
-    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_roguelike")
-    public static class RoguelikeDungeonsConfig {
-        @Config.Name("Enable Grid Spawning")
-        @Config.Comment("Should Roguelike Dungeons be forced to spawn on a predictable mathematical grid instead of randomly?")
-        public static boolean enableGridSpawning = true;
-
-        @Config.Name("Minimum Chunk Distance")
-        @Config.Comment("The minimum chunk distance between Roguelike Dungeon spawns.")
-        @Config.RangeInt(min = 1)
-        public static int minChunkDistance = 32;
-
-        @Config.Name("Maximum Chunk Distance")
-        @Config.Comment("The maximum chunk distance between Roguelike Dungeon spawns. MUST be larger than Minimum Chunk Distance.")
-        @Config.RangeInt(min = 2)
-        public static int maxChunkDistance = 48;
-
-        @Config.Name("Grid Seed Offset")
-        @Config.Comment("Seed salt value to ensure different worlds spawn dungeons in different grid coordinates.")
-        public static int gridSeedOffset = 1432289;
-    }
-
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_depths", category = "")
     public static class DepthsModuleConfig {
 
@@ -549,7 +528,7 @@ public class ArcanaQuestTweaksConfig {
         public static final Compatibility compatibility = new Compatibility();
 
         @Config.Name("Structures")
-        @Config.Comment("Roguelike / RTG depth-related options")
+        @Config.Comment("RTG depth-related options")
         public static final Structures structures = new Structures();
 
         public static class General {
@@ -596,15 +575,6 @@ public class ArcanaQuestTweaksConfig {
         }
 
         public static class Structures {
-            @Config.Name("Roguelike Dungeons Maximum Levels")
-            @Config.Comment("Maximum number of levels for Roguelike Dungeons to generate (levels 5+ extend below Y = 0 into deepslate).")
-            @Config.RangeInt(min = 5, max = 10)
-            public int roguelikeMaxLevels = 10;
-
-            @Config.Name("Force 10 Dungeon Levels For Testing")
-            @Config.Comment("If true, Roguelike Dungeons will always force 10 floors for testing. If false, dungeons generate strictly the number of levels defined in their JSON theme settings.")
-            public boolean force10LevelsForTesting = false;
-
             @Config.Name("Enable RTG Village Terrain Smoothing")
             @Config.Comment("Should RTG terrain around villages be smoothed and leveled out to prevent steep cliffs and floating/buried buildings?")
             public boolean enableRTGVillageSmoothing = true;

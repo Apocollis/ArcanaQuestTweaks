@@ -7,13 +7,10 @@
     "MixinRenderGlobal"
   ],
   "mixins": [
-    "MixinDungeon",
     "MixinChunkProviderServer",
-    "MixinCommandLocate",
     "depthsupdate.MixinDepthsCaveNoiseGenerator",
     "cofh.MixinDistributionUniform",
     "reccomplex.MixinRayMatcher",
-    "roguelike.MixinDungeonSettings",
     "bettercaves.MixinCaveNoiseGenerator",
     "bettercaves.MixinBetterCavesDepthsPass",
     "bettercaves.MixinDepthsMapGenCaves",

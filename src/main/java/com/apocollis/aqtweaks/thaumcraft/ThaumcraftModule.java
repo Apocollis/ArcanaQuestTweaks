@@ -2,11 +2,10 @@ package com.apocollis.aqtweaks.thaumcraft;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 
-import com.apocollis.aqtweaks.roguelike.RoguelikeDungeonSavedData;
-
 import com.apocollis.aqtweaks.util.Reflect;
 
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.world.gen.ChunkProviderServer;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.SoundCategory;
@@ -188,10 +187,12 @@ public class ThaumcraftModule {
             shortestInterval = Math.min(shortestInterval, ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureUndergroundInterval);
         }
 
-        // 3. Check dungeon exposure
+        // 3. Check dungeon exposure (Roguelike mixin on ChunkProviderServer.isInsideStructure)
         net.minecraft.world.World pWorld = Reflect.getWorld(player);
         if (ArcanaQuestTweaksConfig.ThaumcraftConfig.enableDungeonExposure && pWorld != null) {
-            if (RoguelikeDungeonSavedData.get(pWorld).isInside(Reflect.getPosition(player))) {
+            net.minecraft.world.chunk.IChunkProvider provider = pWorld.getChunkProvider();
+            if (provider instanceof ChunkProviderServer
+                    && ((ChunkProviderServer) provider).isInsideStructure(pWorld, "RoguelikeDungeon", Reflect.getPosition(player))) {
                 shortestInterval = Math.min(shortestInterval, ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureDungeonInterval);
             }
         }
