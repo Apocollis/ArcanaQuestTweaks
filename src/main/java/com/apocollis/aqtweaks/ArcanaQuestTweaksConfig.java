@@ -527,10 +527,6 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Per-mod negative-Y hooks")
         public static final Compatibility compatibility = new Compatibility();
 
-        @Config.Name("Structures")
-        @Config.Comment("RTG depth-related options")
-        public static final Structures structures = new Structures();
-
         public static class General {
             @Config.Name("Enable Depths Module")
             @Config.Comment("Should negative Y-level compatibility enhancements be enabled for Depths Update?")
@@ -573,12 +569,24 @@ public class ArcanaQuestTweaksConfig {
             @Config.Comment("Should Recurrent Complex Volts placement rays scan below Y = 0 down to Minimum World Y?")
             public boolean enableRecurrentComplexNegativeY = true;
         }
+    }
 
-        public static class Structures {
-            @Config.Name("Enable RTG Village Terrain Smoothing")
-            @Config.Comment("Should RTG terrain around villages be smoothed and leveled out to prevent steep cliffs and floating/buried buildings?")
-            public boolean enableRTGVillageSmoothing = true;
-        }
+    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_rtg", category = "")
+    public static class RtgModuleConfig {
+        @Config.Name("Surface")
+        @Config.Comment("RTG surface height and structure placement tweaks")
+        public static final Surface surface = new Surface();
+    }
+
+    public static class Surface {
+        @Config.Name("Enable RTG Village Terrain Smoothing")
+        @Config.Comment("Should RTG terrain around villages be flattened to the village bounding box, then blended into surrounding hills?")
+        public boolean enableVillageSmoothing = true;
+
+        @Config.Name("Village Edge Falloff")
+        @Config.Comment("Blocks outside the village bounding box to blend from flattened height back to raw RTG terrain. 0 = hard village box only.")
+        @Config.RangeInt(min = 0, max = 256)
+        public int villageEdgeFalloff = 48;
     }
 
     @Mod.EventBusSubscriber(modid = ArcanaQuestTweaks.MODID)

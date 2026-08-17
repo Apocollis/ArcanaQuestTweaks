@@ -181,6 +181,12 @@ public class Reflect {
     private static Field arrowShootingEntityField;
     private static Field fireballShootingEntityField;
     private static Field netHandlerPlayerField;
+    private static Field mapGenStructureMapField;
+    private static Method structureStartGetBoundingBoxMethod;
+    private static Field structureBoxMinXField;
+    private static Field structureBoxMaxXField;
+    private static Field structureBoxMinZField;
+    private static Field structureBoxMaxZField;
 
     // Open Glider reflection
     private static boolean isGliderLoaded = false;
@@ -930,6 +936,33 @@ public class Reflect {
                 try {
                     playSoundMethod = wClass.getMethod("playSound", EntityPlayer.class, double.class, double.class, double.class, SoundEvent.class, SoundCategory.class, float.class, float.class);
                 } catch (Throwable ignored) {}
+            }
+        } catch (Throwable ignored) {}
+
+        try {
+            Class<?> mapGenClass = Class.forName("net.minecraft.world.gen.structure.MapGenStructure");
+            try { mapGenStructureMapField = mapGenClass.getDeclaredField("field_75053_d"); } catch (Throwable t) {
+                try { mapGenStructureMapField = mapGenClass.getDeclaredField("structureMap"); } catch (Throwable ignored) {}
+            }
+            if (mapGenStructureMapField != null) {
+                mapGenStructureMapField.setAccessible(true);
+            }
+            Class<?> startClass = Class.forName("net.minecraft.world.gen.structure.StructureStart");
+            try { structureStartGetBoundingBoxMethod = startClass.getMethod("func_75071_a"); } catch (Throwable t) {
+                try { structureStartGetBoundingBoxMethod = startClass.getMethod("getBoundingBox"); } catch (Throwable ignored) {}
+            }
+            Class<?> boxClass = Class.forName("net.minecraft.world.gen.structure.StructureBoundingBox");
+            try { structureBoxMinXField = boxClass.getField("field_78897_a"); } catch (Throwable t) {
+                try { structureBoxMinXField = boxClass.getField("minX"); } catch (Throwable ignored) {}
+            }
+            try { structureBoxMaxXField = boxClass.getField("field_78893_d"); } catch (Throwable t) {
+                try { structureBoxMaxXField = boxClass.getField("maxX"); } catch (Throwable ignored) {}
+            }
+            try { structureBoxMinZField = boxClass.getField("field_78896_c"); } catch (Throwable t) {
+                try { structureBoxMinZField = boxClass.getField("minZ"); } catch (Throwable ignored) {}
+            }
+            try { structureBoxMaxZField = boxClass.getField("field_78892_f"); } catch (Throwable t) {
+                try { structureBoxMaxZField = boxClass.getField("maxZ"); } catch (Throwable ignored) {}
             }
         } catch (Throwable ignored) {}
 
@@ -3017,5 +3050,38 @@ public class Reflect {
                 ((net.minecraft.client.renderer.texture.TextureManager) textureManager).bindTexture(location);
             } catch (Throwable t) {}
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    public static Iterable<Object> getMapGenStructureStarts(Object mapGen) {
+        if (mapGen == null || mapGenStructureMapField == null) return Collections.emptyList();
+        try {
+            Object map = mapGenStructureMapField.get(mapGen);
+            if (map instanceof java.util.Map) {
+                return ((java.util.Map<?, Object>) map).values();
+            }
+        } catch (Exception ignored) {}
+        return Collections.emptyList();
+    }
+
+    /**
+     * @return {@code {minX, maxX, minZ, maxZ}} or null
+     */
+    public static int[] getStructureStartBoxXZ(Object start) {
+        if (start == null || structureStartGetBoundingBoxMethod == null) return null;
+        try {
+            Object box = structureStartGetBoundingBoxMethod.invoke(start);
+            if (box == null || structureBoxMinXField == null || structureBoxMaxXField == null
+                    || structureBoxMinZField == null || structureBoxMaxZField == null) {
+                return null;
+            }
+            return new int[] {
+                structureBoxMinXField.getInt(box),
+                structureBoxMaxXField.getInt(box),
+                structureBoxMinZField.getInt(box),
+                structureBoxMaxZField.getInt(box)
+            };
+        } catch (Exception ignored) {}
+        return null;
     }
 }
