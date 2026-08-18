@@ -33,6 +33,7 @@ import net.minecraft.util.SoundCategory;
 import net.minecraft.util.SoundEvent;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
@@ -180,6 +181,8 @@ public class Reflect {
     private static Field isDeadField;
     private static Field arrowShootingEntityField;
     private static Field fireballShootingEntityField;
+    private static Field rayTraceEntityHitField;
+    private static Field hurtResistantTimeField;
     private static Field netHandlerPlayerField;
     private static Field mapGenStructureMapField;
     private static Method structureStartGetBoundingBoxMethod;
@@ -452,6 +455,16 @@ public class Reflect {
             Class<?> fireballClass = Class.forName("net.minecraft.entity.projectile.EntityFireball");
             try { fireballShootingEntityField = fireballClass.getField("field_70235_a"); } catch (Throwable t) { try { fireballShootingEntityField = fireballClass.getField("shootingEntity"); } catch (Throwable ignored) {} }
         } catch (Throwable ignored) {}
+
+        // RayTraceResult.entityHit
+        try { rayTraceEntityHitField = RayTraceResult.class.getField("field_72308_g"); } catch (Throwable t) {
+            try { rayTraceEntityHitField = RayTraceResult.class.getField("entityHit"); } catch (Throwable ignored) {}
+        }
+
+        // EntityLivingBase.hurtResistantTime
+        try { hurtResistantTimeField = EntityLivingBase.class.getField("field_70172_ad"); } catch (Throwable t) {
+            try { hurtResistantTimeField = EntityLivingBase.class.getField("hurtResistantTime"); } catch (Throwable ignored) {}
+        }
 
         // NetHandlerPlayServer.player
         try {
@@ -1720,6 +1733,29 @@ public class Reflect {
             } catch (Exception e) {}
         }
         return null;
+    }
+
+    public static Entity getEntityHit(RayTraceResult result) {
+        if (result == null || rayTraceEntityHitField == null) return null;
+        try {
+            return (Entity) rayTraceEntityHitField.get(result);
+        } catch (Exception e) {}
+        return null;
+    }
+
+    public static int getHurtResistantTime(EntityLivingBase entity) {
+        if (entity == null || hurtResistantTimeField == null) return 0;
+        try {
+            return (Integer) hurtResistantTimeField.get(entity);
+        } catch (Exception e) {}
+        return 0;
+    }
+
+    public static void setHurtResistantTime(EntityLivingBase entity, int time) {
+        if (entity == null || hurtResistantTimeField == null) return;
+        try {
+            hurtResistantTimeField.set(entity, time);
+        } catch (Exception e) {}
     }
 
     public static EntityPlayerMP getServerPlayer(net.minecraftforge.fml.common.network.simpleimpl.MessageContext ctx) {

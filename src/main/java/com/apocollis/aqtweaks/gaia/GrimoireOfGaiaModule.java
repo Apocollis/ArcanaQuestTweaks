@@ -53,9 +53,10 @@ public class GrimoireOfGaiaModule {
     @SubscribeEvent(priority = EventPriority.HIGH)
     public void onProjectileImpact(ProjectileImpactEvent event) {
         if (!ArcanaQuestTweaksConfig.GrimoireOfGaiaConfig.disablePiercingDamage) return;
-        if (event.getRayTraceResult() == null || !(event.getRayTraceResult().entityHit instanceof EntityPlayer)) return;
+        Entity hit = Reflect.getEntityHit(event.getRayTraceResult());
+        if (!(hit instanceof EntityPlayer)) return;
 
-        EntityPlayer player = (EntityPlayer) event.getRayTraceResult().entityHit;
+        EntityPlayer player = (EntityPlayer) hit;
         net.minecraft.entity.Entity projectile = event.getEntity();
         if (projectile != null && projectile.getClass().getName().startsWith("gaia.")) {
             net.minecraft.entity.Entity shooter = Reflect.getShootingEntity(projectile);
@@ -101,12 +102,12 @@ public class GrimoireOfGaiaModule {
                 }
 
                 // Temporarily bypass invulnerability frames (i-frames) so damage is not blocked by the physical hit
-                int tempHurtResistant = player.hurtResistantTime;
-                player.hurtResistantTime = 0;
+                int tempHurtResistant = Reflect.getHurtResistantTime(player);
+                Reflect.setHurtResistantTime(player, 0);
 
                 Reflect.attackEntityFrom(player, customSource, event.getAmount());
 
-                player.hurtResistantTime = tempHurtResistant;
+                Reflect.setHurtResistantTime(player, tempHurtResistant);
             }
         }
     }
