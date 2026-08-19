@@ -42,21 +42,19 @@ public abstract class MixinStructureVillagePieces {
         if (Boolean.TRUE.equals(AQTWEAKS$RETRYING_HOUSE.get())) return;
         if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.skipWaterVillagePieces) return;
         if (!VillageLandHelper.isWaterAt(start, x, z)) return;
+        cir.setReturnValue(aqtweaks$placeHouseOnLand(start, structureComponents, rand, x, y, z, facing, type));
+    }
 
-        AQTWEAKS$RETRYING_HOUSE.set(Boolean.TRUE);
-        try {
-            int maxStep = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageWaterRetryDistance);
-            for (int[] slot : VillageLandHelper.landCandidates(start, x, z, facing, maxStep)) {
-                StructureComponent placed = func_176066_d(start, structureComponents, rand, slot[0], y, slot[1], facing, type);
-                if (placed != null) {
-                    cir.setReturnValue(placed);
-                    return;
-                }
-            }
-            cir.setReturnValue(null);
-        } finally {
-            AQTWEAKS$RETRYING_HOUSE.set(Boolean.FALSE);
-        }
+    @Inject(method = "func_176066_d", at = @At("RETURN"), cancellable = true)
+    private static void aqtweaks$rejectHouseAabbOnWater(StructureVillagePieces.Start start, List<StructureComponent> structureComponents,
+                                                        Random rand, int x, int y, int z, EnumFacing facing, int type,
+                                                        CallbackInfoReturnable<StructureComponent> cir) {
+        if (Boolean.TRUE.equals(AQTWEAKS$RETRYING_HOUSE.get())) return;
+        if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.skipWaterVillagePieces) return;
+        StructureComponent placed = cir.getReturnValue();
+        if (placed == null || !VillageLandHelper.isAabbWet(start, placed)) return;
+        structureComponents.remove(placed);
+        cir.setReturnValue(aqtweaks$placeHouseOnLand(start, structureComponents, rand, x, y, z, facing, type));
     }
 
     @Inject(method = "func_176069_e", at = @At("HEAD"), cancellable = true)
@@ -66,18 +64,52 @@ public abstract class MixinStructureVillagePieces {
         if (Boolean.TRUE.equals(AQTWEAKS$RETRYING_ROAD.get())) return;
         if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.skipWaterVillagePieces) return;
         if (!VillageLandHelper.isWaterAt(start, x, z)) return;
+        cir.setReturnValue(aqtweaks$placeRoadOnLand(start, structureComponents, rand, x, y, z, facing, type));
+    }
 
+    @Inject(method = "func_176069_e", at = @At("RETURN"), cancellable = true)
+    private static void aqtweaks$rejectRoadAabbOnWater(StructureVillagePieces.Start start, List<StructureComponent> structureComponents,
+                                                       Random rand, int x, int y, int z, EnumFacing facing, int type,
+                                                       CallbackInfoReturnable<StructureComponent> cir) {
+        if (Boolean.TRUE.equals(AQTWEAKS$RETRYING_ROAD.get())) return;
+        if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.skipWaterVillagePieces) return;
+        StructureComponent placed = cir.getReturnValue();
+        if (placed == null || !VillageLandHelper.isAabbWet(start, placed)) return;
+        structureComponents.remove(placed);
+        cir.setReturnValue(aqtweaks$placeRoadOnLand(start, structureComponents, rand, x, y, z, facing, type));
+    }
+
+    @Unique
+    private static StructureComponent aqtweaks$placeHouseOnLand(StructureVillagePieces.Start start, List<StructureComponent> structureComponents,
+                                                               Random rand, int x, int y, int z, EnumFacing facing, int type) {
+        AQTWEAKS$RETRYING_HOUSE.set(Boolean.TRUE);
+        try {
+            int maxStep = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageWaterRetryDistance);
+            for (int[] slot : VillageLandHelper.landCandidates(start, x, z, facing, maxStep)) {
+                StructureComponent placed = func_176066_d(start, structureComponents, rand, slot[0], y, slot[1], facing, type);
+                if (placed != null && !VillageLandHelper.isAabbWet(start, placed)) {
+                    return placed;
+                }
+            }
+            return null;
+        } finally {
+            AQTWEAKS$RETRYING_HOUSE.set(Boolean.FALSE);
+        }
+    }
+
+    @Unique
+    private static StructureComponent aqtweaks$placeRoadOnLand(StructureVillagePieces.Start start, List<StructureComponent> structureComponents,
+                                                              Random rand, int x, int y, int z, EnumFacing facing, int type) {
         AQTWEAKS$RETRYING_ROAD.set(Boolean.TRUE);
         try {
             int maxStep = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageWaterRetryDistance);
             for (int[] slot : VillageLandHelper.landCandidates(start, x, z, facing, maxStep)) {
                 StructureComponent placed = func_176069_e(start, structureComponents, rand, slot[0], y, slot[1], facing, type);
-                if (placed != null) {
-                    cir.setReturnValue(placed);
-                    return;
+                if (placed != null && !VillageLandHelper.isAabbWet(start, placed)) {
+                    return placed;
                 }
             }
-            cir.setReturnValue(null);
+            return null;
         } finally {
             AQTWEAKS$RETRYING_ROAD.set(Boolean.FALSE);
         }

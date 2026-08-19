@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'com.apocollis.aqtweaks'
-version = '1.6'
+version = '1.8'
 base {
     archivesName.set('ArcanaQuestTweaks')
 }

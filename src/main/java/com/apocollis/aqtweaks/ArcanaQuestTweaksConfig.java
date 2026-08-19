@@ -631,13 +631,27 @@ public class ArcanaQuestTweaksConfig {
         public int villagePlateSlopeBlocks = 0;
 
         @Config.Name("Skip Water Village Pieces")
-        @Config.Comment("If a village house or road would spawn on ocean, river, or beach, skip that slot and retry nearby land along the same street.")
+        @Config.Comment("If a village house or road would spawn on a wet column (water biome, RTG river, or below min well height), skip that slot and retry nearby land along the same street.")
         public boolean skipWaterVillagePieces = true;
 
         @Config.Name("Village Water Retry Distance")
         @Config.Comment("How far (blocks) to step back or sideways along the street when retrying a water village piece. 0 = skip only, no retry.")
         @Config.RangeInt(min = 0, max = 48)
         public int villageWaterRetryDistance = 20;
+
+        @Config.Name("Reject Coastal Village Starts")
+        @Config.Comment("Veto a vanilla village candidate if the well is in a water/beach biome, below min well height, or within the coast buffer of deep ocean. Does not move the village; that grid cell is empty.")
+        public boolean rejectCoastalVillageStarts = true;
+
+        @Config.Name("Village Min Well Height")
+        @Config.Comment("Village wells and wet-column checks treat RTG terrain below this Y as water. Vanilla sea level is 63.")
+        @Config.RangeInt(min = 1, max = 255)
+        public int villageMinWellHeight = 65;
+
+        @Config.Name("Village Coast Buffer")
+        @Config.Comment("Blocks around the well to scan for deep ocean. 0 = well column only.")
+        @Config.RangeInt(min = 0, max = 128)
+        public int villageCoastBuffer = 32;
 
         @Config.Name("Enable Village Bounding Box Detection")
         @Config.Comment("Treat the village start bounding box (yards, roads, gaps) as Village for isInsideStructure / InControl, not only child pieces.")
@@ -652,6 +666,10 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Blocks above the pad surface that still count as Village. Floor is the pad; below the pad is not Village.")
         @Config.RangeInt(min = 0, max = 256)
         public int villageBoxHeight = 32;
+
+        @Config.Name("Village Flatten Debug")
+        @Config.Comment("Log once per village when RTG flatten applies (box size and plate Y). Off by default.")
+        public boolean villageFlattenDebug = false;
     }
 
     @Mod.EventBusSubscriber(modid = ArcanaQuestTweaks.MODID)

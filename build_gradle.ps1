@@ -21,7 +21,8 @@ $deps = @(
     "CoFHWorld-1.12.2-1.4.0.1-universal.jar",
     "bettercaves-1.12.2-2.0.4.jar",
     "RecurrentComplexVolts-1.12.2-2.0.0.7.jar",
-    "IvToolkit-1.3.3-1.12.jar"
+    "IvToolkit-1.3.3-1.12.jar",
+    "RTG-1.12.2-7.3.3.6.jar"
 )
 foreach ($dep in $deps) {
     $src = "$localModsDir/$dep"

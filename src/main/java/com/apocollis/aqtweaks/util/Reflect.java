@@ -6,8 +6,10 @@ import com.apocollis.aqtweaks.stamina.StaminaModule;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import net.minecraft.block.Block;
 import net.minecraft.block.SoundType;
@@ -193,10 +195,14 @@ public class Reflect {
     private static Field structureBoxMinXField;
     private static Field structureBoxMaxXField;
     private static Field structureBoxMinYField;
+    private static Field structureBoxMaxYField;
     private static Field structureBoxMinZField;
     private static Field structureBoxMaxZField;
     private static Method structureStartIsSizeableMethod;
     private static Field villageStartBiomeProviderField;
+    private static Field villageStartWorldField;
+    private static Field chunkProviderChunkGeneratorField;
+    private static Method worldGetChunkProviderMethod;
     private static Method structureComponentGetBoundingBoxMethod;
     private static Method biomeProviderGetBiomeMethod;
     private static Method biomeProviderGetBiomeFallbackMethod;
@@ -972,8 +978,18 @@ public class Reflect {
 
         try {
             Class<?> mapGenClass = Class.forName("net.minecraft.world.gen.structure.MapGenStructure");
-            try { mapGenStructureMapField = mapGenClass.getDeclaredField("field_75053_d"); } catch (Throwable t) {
-                try { mapGenStructureMapField = mapGenClass.getDeclaredField("structureMap"); } catch (Throwable ignored) {}
+            mapGenStructureMapField = findDeclaredField(mapGenClass, "field_75053_d", "structureMap");
+            if (mapGenStructureMapField == null) {
+                for (Class<?> c = mapGenClass; c != null && c != Object.class; c = c.getSuperclass()) {
+                    for (Field f : c.getDeclaredFields()) {
+                        if (Map.class.isAssignableFrom(f.getType())) {
+                            f.setAccessible(true);
+                            mapGenStructureMapField = f;
+                            break;
+                        }
+                    }
+                    if (mapGenStructureMapField != null) break;
+                }
             }
             if (mapGenStructureMapField != null) {
                 mapGenStructureMapField.setAccessible(true);
@@ -1008,6 +1024,9 @@ public class Reflect {
             try { structureBoxMinYField = boxClass.getField("field_78895_b"); } catch (Throwable t) {
                 try { structureBoxMinYField = boxClass.getField("minY"); } catch (Throwable ignored) {}
             }
+            try { structureBoxMaxYField = boxClass.getField("field_78894_e"); } catch (Throwable t) {
+                try { structureBoxMaxYField = boxClass.getField("maxY"); } catch (Throwable ignored) {}
+            }
             try { structureBoxMinZField = boxClass.getField("field_78896_c"); } catch (Throwable t) {
                 try { structureBoxMinZField = boxClass.getField("minZ"); } catch (Throwable ignored) {}
             }
@@ -1020,12 +1039,40 @@ public class Reflect {
             }
             Class<?> villageStartClass = Class.forName("net.minecraft.world.gen.structure.StructureVillagePieces$Start");
             for (Field f : villageStartClass.getDeclaredFields()) {
-                if (BiomeProvider.class.isAssignableFrom(f.getType())) {
+                if (villageStartBiomeProviderField == null && BiomeProvider.class.isAssignableFrom(f.getType())) {
                     f.setAccessible(true);
                     villageStartBiomeProviderField = f;
-                    break;
+                }
+                if (villageStartWorldField == null && World.class.isAssignableFrom(f.getType())) {
+                    f.setAccessible(true);
+                    villageStartWorldField = f;
                 }
             }
+            if (villageStartWorldField == null) {
+                for (Class<?> c = villageStartClass.getSuperclass(); c != null && c != Object.class; c = c.getSuperclass()) {
+                    for (Field f : c.getDeclaredFields()) {
+                        if (World.class.isAssignableFrom(f.getType())) {
+                            f.setAccessible(true);
+                            villageStartWorldField = f;
+                            break;
+                        }
+                    }
+                    if (villageStartWorldField != null) break;
+                }
+            }
+            try {
+                Class<?> providerClass = Class.forName("net.minecraft.world.gen.ChunkProviderServer");
+                chunkProviderChunkGeneratorField = findDeclaredField(providerClass, "field_186058_b", "chunkGenerator");
+                if (chunkProviderChunkGeneratorField != null) {
+                    chunkProviderChunkGeneratorField.setAccessible(true);
+                }
+            } catch (Throwable ignored) {}
+            try {
+                Class<?> worldClass = Class.forName("net.minecraft.world.World");
+                try { worldGetChunkProviderMethod = worldClass.getMethod("func_72863_F"); } catch (Throwable t) {
+                    try { worldGetChunkProviderMethod = worldClass.getMethod("getChunkProvider"); } catch (Throwable ignored) {}
+                }
+            } catch (Throwable ignored) {}
             Class<?> biomeProviderClass = BiomeProvider.class;
             try { biomeProviderGetBiomeMethod = biomeProviderClass.getMethod("func_180631_a", BlockPos.class); } catch (Throwable t) {
                 try { biomeProviderGetBiomeMethod = biomeProviderClass.getMethod("getBiome", BlockPos.class); } catch (Throwable ignored) {}
@@ -3159,14 +3206,77 @@ public class Reflect {
 
     @SuppressWarnings("unchecked")
     public static Iterable<Object> getMapGenStructureStarts(Object mapGen) {
-        if (mapGen == null || mapGenStructureMapField == null) return Collections.emptyList();
+        if (mapGen == null) return Collections.emptyList();
+        Field field = mapGenStructureMapField;
+        if (field == null) return Collections.emptyList();
         try {
-            Object map = mapGenStructureMapField.get(mapGen);
-            if (map instanceof java.util.Map) {
-                return ((java.util.Map<?, Object>) map).values();
+            Object map = field.get(mapGen);
+            if (map == null) return Collections.emptyList();
+            if (map instanceof Map) {
+                return ((Map<?, Object>) map).values();
             }
+            try {
+                Object values = map.getClass().getMethod("values").invoke(map);
+                if (values instanceof Collection) {
+                    return (Collection<Object>) values;
+                }
+                if (values instanceof Iterable) {
+                    return (Iterable<Object>) values;
+                }
+            } catch (Throwable ignored) {}
         } catch (Exception ignored) {}
         return Collections.emptyList();
+    }
+
+    public static World getVillageStartWorld(Object start) {
+        if (start == null || villageStartWorldField == null) return null;
+        try {
+            return (World) villageStartWorldField.get(start);
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    public static Object getChunkGenerator(World world) {
+        if (world == null) return null;
+        Object provider = null;
+        if (worldGetChunkProviderMethod != null) {
+            try {
+                provider = worldGetChunkProviderMethod.invoke(world);
+            } catch (Exception ignored) {}
+        }
+        if (provider == null) {
+            try {
+                provider = world.getChunkProvider();
+            } catch (Throwable ignored) {}
+        }
+        if (provider == null) return null;
+        if (chunkProviderChunkGeneratorField != null) {
+            try {
+                return chunkProviderChunkGeneratorField.get(provider);
+            } catch (Exception ignored) {}
+        }
+        try {
+            Field f = findDeclaredField(provider.getClass(), "field_186058_b", "chunkGenerator");
+            if (f != null) {
+                f.setAccessible(true);
+                return f.get(provider);
+            }
+        } catch (Throwable ignored) {}
+        return null;
+    }
+
+    private static Field findDeclaredField(Class<?> type, String... names) {
+        if (type == null || names == null) return null;
+        for (Class<?> c = type; c != null && c != Object.class; c = c.getSuperclass()) {
+            for (String name : names) {
+                try {
+                    Field f = c.getDeclaredField(name);
+                    f.setAccessible(true);
+                    return f;
+                } catch (Throwable ignored) {}
+            }
+        }
+        return null;
     }
 
     public static World getMapGenWorld(Object mapGen) {
@@ -3213,6 +3323,18 @@ public class Reflect {
             Object box = structureStartGetBoundingBoxMethod.invoke(start);
             if (box == null) return Integer.MIN_VALUE;
             return structureBoxMinYField.getInt(box);
+        } catch (Exception ignored) {}
+        return Integer.MIN_VALUE;
+    }
+
+    public static int getStructureStartMaxY(Object start) {
+        if (start == null || structureStartGetBoundingBoxMethod == null || structureBoxMaxYField == null) {
+            return Integer.MIN_VALUE;
+        }
+        try {
+            Object box = structureStartGetBoundingBoxMethod.invoke(start);
+            if (box == null) return Integer.MIN_VALUE;
+            return structureBoxMaxYField.getInt(box);
         } catch (Exception ignored) {}
         return Integer.MIN_VALUE;
     }

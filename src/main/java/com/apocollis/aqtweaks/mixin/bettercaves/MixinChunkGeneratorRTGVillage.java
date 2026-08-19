@@ -1,35 +1,45 @@
 package com.apocollis.aqtweaks.mixin.bettercaves;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
-import com.apocollis.aqtweaks.depths.DepthsBiomeUtil;
+import com.apocollis.aqtweaks.rtg.VillageLandHelper;
 import com.apocollis.aqtweaks.rtg.VillagePlate;
 import com.apocollis.aqtweaks.util.Reflect;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
-import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.BiomeProvider;
 import net.minecraft.world.chunk.ChunkPrimer;
 import net.minecraft.world.gen.structure.MapGenVillage;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import rtg.world.gen.ChunkGeneratorRTG;
 import rtg.world.gen.ChunkLandscape;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Mixin(value = ChunkGeneratorRTG.class, remap = false)
 public abstract class MixinChunkGeneratorRTGVillage {
 
     @Unique
-    private static final ChunkPrimer AQTWEAKS$DUMMY_PRIMER = new ChunkPrimer();
+    private static final Logger AQTWEAKS$LOG = LogManager.getLogger("AQTweaks-Village");
     @Unique
-    private static final float AQTWEAKS$STRONG_RIVER = 0.7F;
+    private static final Set<String> AQTWEAKS$LOGGED_PLATES = ConcurrentHashMap.newKeySet();
+    @Unique
+    private static final ChunkPrimer AQTWEAKS$DUMMY_PRIMER = new ChunkPrimer();
+
+    @Unique
+    private int aqtweaks$flattenCx;
+    @Unique
+    private int aqtweaks$flattenCz;
 
     @Shadow
     private MapGenVillage villageGenerator;
@@ -40,27 +50,70 @@ public abstract class MixinChunkGeneratorRTGVillage {
     @Shadow
     public abstract ChunkLandscape getLandscape(BiomeProvider biomeProvider, ChunkPos chunkPos);
 
+    @Inject(method = "generateChunk", at = @At("HEAD"))
+    private void aqtweaks$registerVillagesBeforeTerrain(int cx, int cz, CallbackInfo ci) {
+        aqtweaks$flattenCx = cx;
+        aqtweaks$flattenCz = cz;
+        aqtweaks$registerVillages(cx, cz);
+    }
+
     @Inject(method = "getNewerNoise", at = @At("HEAD"))
     private void aqtweaks$registerVillagesBeforeNoise(BiomeProvider biomeProvider, int worldX, int worldZ, ChunkLandscape landscape, CallbackInfo ci) {
+        if (VillageLandHelper.isSamplingLandscape()) {
+            return;
+        }
+        aqtweaks$registerVillages(worldX >> 4, worldZ >> 4);
+    }
+
+    @Inject(method = "generateChunk", at = @At(value = "INVOKE",
+            target = "Lrtg/world/gen/ChunkGeneratorRTG;generateTerrain(Lnet/minecraft/world/chunk/ChunkPrimer;[F)V"))
+    private void aqtweaks$flattenLandscapeBeforeTerrain(int cx, int cz, CallbackInfo ci) {
+        BiomeProvider biomeProvider;
+        try {
+            biomeProvider = world.getBiomeProvider();
+        } catch (Throwable t) {
+            return;
+        }
+        if (biomeProvider == null) return;
+        ChunkLandscape landscape;
+        try {
+            landscape = getLandscape(biomeProvider, new ChunkPos(cx, cz));
+        } catch (Throwable t) {
+            return;
+        }
+        if (landscape != null && landscape.noise != null) {
+            aqtweaks$flattenNoise(cx, cz, landscape.noise, landscape);
+        }
+    }
+
+    @ModifyArg(method = "generateChunk", at = @At(value = "INVOKE",
+            target = "Lrtg/world/gen/ChunkGeneratorRTG;generateTerrain(Lnet/minecraft/world/chunk/ChunkPrimer;[F)V"),
+            index = 1)
+    private float[] aqtweaks$flattenVillagePlate(float[] noise) {
+        aqtweaks$flattenNoise(aqtweaks$flattenCx, aqtweaks$flattenCz, noise, null);
+        return noise;
+    }
+
+    @Unique
+    private void aqtweaks$registerVillages(int cx, int cz) {
         if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.enableVillageSmoothing
                 || villageGenerator == null || world == null) {
             return;
         }
         try {
             if (world.getWorldInfo() != null && !world.getWorldInfo().isMapFeaturesEnabled()) return;
-            villageGenerator.generate(world, worldX >> 4, worldZ >> 4, AQTWEAKS$DUMMY_PRIMER);
+            villageGenerator.generate(world, cx, cz, AQTWEAKS$DUMMY_PRIMER);
         } catch (Throwable ignored) {}
     }
 
     /**
-     * Level each village AABB to one plate height, then blend the rim into raw RTG.
-     * Runs before generateTerrain so houses snap to the finished plate.
+     * Level dry columns in each village AABB to one plate height, then blend the rim into raw RTG.
+     * Wet columns are left alone.
      */
-    @Inject(method = "generateChunk", at = @At(value = "INVOKE",
-            target = "Lrtg/world/gen/ChunkGeneratorRTG;generateTerrain(Lnet/minecraft/world/chunk/ChunkPrimer;[F)V"))
-    private void aqtweaks$flattenVillagePlate(int cx, int cz, CallbackInfo ci) {
+    @Unique
+    private void aqtweaks$flattenNoise(int cx, int cz, float[] noise, ChunkLandscape landscape) {
         if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.enableVillageSmoothing
-                || villageGenerator == null || world == null) {
+                || villageGenerator == null || world == null || noise == null) {
             return;
         }
         BiomeProvider biomeProvider;
@@ -71,13 +124,13 @@ public abstract class MixinChunkGeneratorRTGVillage {
         }
         if (biomeProvider == null) return;
 
-        ChunkLandscape landscape;
-        try {
-            landscape = getLandscape(biomeProvider, new ChunkPos(cx, cz));
-        } catch (Throwable t) {
-            return;
+        if (landscape == null) {
+            try {
+                landscape = getLandscape(biomeProvider, new ChunkPos(cx, cz));
+            } catch (Throwable t) {
+                landscape = null;
+            }
         }
-        if (landscape == null || landscape.noise == null) return;
 
         int falloff = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageEdgeFalloff);
         int slope = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villagePlateSlopeBlocks);
@@ -86,34 +139,42 @@ public abstract class MixinChunkGeneratorRTGVillage {
         int startZ = cz * 16;
         int chunkMaxX = startX + 15;
         int chunkMaxZ = startZ + 15;
+        long seed = Reflect.getSeed(world);
 
-        List<int[]> boxes = new ArrayList<>();
-        List<int[]> paddedBoxes = new ArrayList<>();
-        for (Object start : Reflect.getMapGenStructureStarts(villageGenerator)) {
-            int[] box = Reflect.getStructureStartBoxXZ(start);
-            if (box == null) continue;
-            int[] padded = VillagePlate.padded(box, xzPad);
-            if (padded[1] + falloff < startX || padded[0] - falloff > chunkMaxX) continue;
-            if (padded[3] + falloff < startZ || padded[2] - falloff > chunkMaxZ) continue;
-            boxes.add(box);
-            paddedBoxes.add(padded);
+        List<int[]> boxes = VillagePlate.overlappingXZ(seed, startX, chunkMaxX, startZ, chunkMaxZ, falloff + xzPad);
+        if (boxes.isEmpty()) {
+            VillagePlate.rememberAll(world, villageGenerator);
+            boxes = VillagePlate.overlappingXZ(seed, startX, chunkMaxX, startZ, chunkMaxZ, falloff + xzPad);
         }
         if (boxes.isEmpty()) return;
 
-        boolean[] waterColumn = new boolean[landscape.noise.length];
+        List<int[]> paddedBoxes = new ArrayList<>();
+        for (int[] box : boxes) {
+            paddedBoxes.add(VillagePlate.padded(box, xzPad));
+        }
+
+        boolean[] waterColumn = new boolean[noise.length];
         for (int localX = 0; localX < 16; ++localX) {
             int colX = startX + localX;
             for (int localZ = 0; localZ < 16; ++localZ) {
                 int colZ = startZ + localZ;
                 int index = localX * 16 + localZ;
-                if (index < 0 || index >= landscape.noise.length) continue;
-                waterColumn[index] = isWaterColumn(biomeProvider, landscape, index, colX, colZ);
+                if (index < 0 || index >= noise.length) continue;
+                waterColumn[index] = VillageLandHelper.isWetColumn(biomeProvider, landscape, index, colX, colZ);
             }
         }
 
         float[] targets = new float[boxes.size()];
         for (int i = 0; i < boxes.size(); i++) {
             targets[i] = getOrComputePlateHeight(biomeProvider, boxes.get(i));
+            if (ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageFlattenDebug) {
+                int[] box = boxes.get(i);
+                String id = VillagePlate.key(seed, box);
+                if (AQTWEAKS$LOGGED_PLATES.add(id)) {
+                    AQTWEAKS$LOG.info("Village plate Y={} box=[{},{}]x[{},{}] pad={} falloff={}",
+                            targets[i], box[0], box[1], box[2], box[3], xzPad, falloff);
+                }
+            }
         }
 
         for (int localX = 0; localX < 16; ++localX) {
@@ -121,10 +182,10 @@ public abstract class MixinChunkGeneratorRTGVillage {
             for (int localZ = 0; localZ < 16; ++localZ) {
                 int colZ = startZ + localZ;
                 int index = localX * 16 + localZ;
-                if (index < 0 || index >= landscape.noise.length) continue;
+                if (index < 0 || index >= noise.length) continue;
                 if (waterColumn[index]) continue;
 
-                float originalHeight = landscape.noise[index];
+                float originalHeight = noise[index];
                 float bestBlend = 0.0F;
                 float bestTarget = originalHeight;
                 int[] bestBox = null;
@@ -145,8 +206,11 @@ public abstract class MixinChunkGeneratorRTGVillage {
                 if (dist <= 0.0) {
                     desired = plateHeightAt(originalHeight, bestTarget, colX, colZ, bestBox, slope);
                 }
-                landscape.noise[index] = originalHeight * (1.0F - bestBlend) + desired * bestBlend;
+                noise[index] = originalHeight * (1.0F - bestBlend) + desired * bestBlend;
             }
+        }
+        if (landscape != null && landscape.noise != null && landscape.noise != noise) {
+            System.arraycopy(noise, 0, landscape.noise, 0, Math.min(noise.length, landscape.noise.length));
         }
     }
 
@@ -181,7 +245,7 @@ public abstract class MixinChunkGeneratorRTGVillage {
                         if (colZ < box[2] || colZ > box[3]) continue;
                         int index = localX * 16 + localZ;
                         if (index < 0 || index >= sample.noise.length) continue;
-                        if (isWaterColumn(biomeProvider, sample, index, colX, colZ)) continue;
+                        if (VillageLandHelper.isWetColumn(biomeProvider, sample, index, colX, colZ)) continue;
                         sum += sample.noise[index];
                         count++;
                     }
@@ -212,21 +276,6 @@ public abstract class MixinChunkGeneratorRTGVillage {
         if (dist >= falloff) return 0.0F;
         float factor = (float) (dist / falloff);
         return 1.0F - (factor * factor * (3.0F - 2.0F * factor));
-    }
-
-    @Unique
-    private static boolean isWaterColumn(BiomeProvider biomeProvider, ChunkLandscape landscape, int index, int worldX, int worldZ) {
-        if (landscape.river != null && index < landscape.river.length
-                && Math.abs(landscape.river[index]) > AQTWEAKS$STRONG_RIVER) {
-            return true;
-        }
-        if (biomeProvider == null) return false;
-        try {
-            Biome biome = biomeProvider.getBiome(new BlockPos(worldX, 64, worldZ));
-            return DepthsBiomeUtil.isWaterBiome(biome);
-        } catch (Throwable t) {
-            return false;
-        }
     }
 
     @Unique

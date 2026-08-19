@@ -25,26 +25,27 @@ public abstract class MixinMapGenVillageInside {
         World world = Reflect.getMapGenWorld(this);
         if (world == null) return;
 
-        Reflect.initializeStructureData(this, world);
+        long seed = Reflect.getSeed(world);
+        if (VillagePlate.starts(seed).isEmpty()) {
+            VillagePlate.rememberAll(world, this);
+        }
 
         int xzPad = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageBoxXZPad);
         int heightAbove = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageBoxHeight);
 
-        for (Object startObj : Reflect.getMapGenStructureStarts(this)) {
-            if (!Reflect.isSizeableStructure(startObj)) continue;
-            int[] box = Reflect.getStructureStartBoxXZ(startObj);
-            if (box == null) continue;
-            int[] padded = VillagePlate.padded(box, xzPad);
+        for (VillagePlate.Record rec : VillagePlate.starts(seed)) {
+            if (rec.start == null || rec.xz == null) continue;
+            int[] padded = VillagePlate.padded(rec.xz, xzPad);
             if (!VillagePlate.containsXZ(pos.getX(), pos.getZ(), padded)) continue;
 
-            float plate = VillagePlate.resolve(world, startObj, box);
-            if (!VillagePlate.yInSlab(pos.getY(), plate, heightAbove)) continue;
+            float plate = VillagePlate.resolvePlate(world, rec.xz);
+            if (!VillagePlate.yInStartVolume(pos.getY(), rec, plate, heightAbove)) continue;
 
-            if (startObj instanceof StructureStart) {
-                cir.setReturnValue((StructureStart) startObj);
+            if (rec.start instanceof StructureStart) {
+                cir.setReturnValue((StructureStart) rec.start);
                 return;
             }
         }
-        cir.setReturnValue(null);
+        // Miss: let vanilla test child pieces (houses, well, paths).
     }
 }
