@@ -38,6 +38,7 @@ import net.minecraft.util.text.ITextComponent;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
+import net.minecraft.world.biome.BiomeProvider;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.ChunkPrimer;
 import net.minecraft.world.storage.MapStorage;
@@ -53,6 +54,7 @@ public class Reflect {
     private static Method swingArmMethod;
     private static Method getMinecraftMethod;
     private static Method isSpectatorMethod;
+    private static Method addExhaustionMethod;
     private static Method isSneakingMethod;
     private static Method isInWaterMethod;
     private static Method getEntityBoundingBoxMethod;
@@ -185,11 +187,19 @@ public class Reflect {
     private static Field hurtResistantTimeField;
     private static Field netHandlerPlayerField;
     private static Field mapGenStructureMapField;
+    private static Field mapGenWorldField;
+    private static Method mapGenInitializeStructureDataMethod;
     private static Method structureStartGetBoundingBoxMethod;
     private static Field structureBoxMinXField;
     private static Field structureBoxMaxXField;
+    private static Field structureBoxMinYField;
     private static Field structureBoxMinZField;
     private static Field structureBoxMaxZField;
+    private static Method structureStartIsSizeableMethod;
+    private static Field villageStartBiomeProviderField;
+    private static Method structureComponentGetBoundingBoxMethod;
+    private static Method biomeProviderGetBiomeMethod;
+    private static Method biomeProviderGetBiomeFallbackMethod;
 
     // Open Glider reflection
     private static boolean isGliderLoaded = false;
@@ -345,6 +355,14 @@ public class Reflect {
             } catch (Throwable ex) {
                 // ignore
             }
+        }
+
+        try {
+            addExhaustionMethod = EntityPlayer.class.getMethod("func_71020_j", float.class);
+        } catch (Throwable e) {
+            try {
+                addExhaustionMethod = EntityPlayer.class.getMethod("addExhaustion", float.class);
+            } catch (Throwable ignored) {}
         }
 
         // isSneaking
@@ -960,9 +978,25 @@ public class Reflect {
             if (mapGenStructureMapField != null) {
                 mapGenStructureMapField.setAccessible(true);
             }
+            try { mapGenInitializeStructureDataMethod = mapGenClass.getDeclaredMethod("func_143027_a", World.class); } catch (Throwable t) {
+                try { mapGenInitializeStructureDataMethod = mapGenClass.getDeclaredMethod("initializeStructureData", World.class); } catch (Throwable ignored) {}
+            }
+            if (mapGenInitializeStructureDataMethod != null) {
+                mapGenInitializeStructureDataMethod.setAccessible(true);
+            }
+            Class<?> mapGenBaseClass = Class.forName("net.minecraft.world.gen.MapGenBase");
+            try { mapGenWorldField = mapGenBaseClass.getDeclaredField("field_75039_c"); } catch (Throwable t) {
+                try { mapGenWorldField = mapGenBaseClass.getDeclaredField("world"); } catch (Throwable ignored) {}
+            }
+            if (mapGenWorldField != null) {
+                mapGenWorldField.setAccessible(true);
+            }
             Class<?> startClass = Class.forName("net.minecraft.world.gen.structure.StructureStart");
             try { structureStartGetBoundingBoxMethod = startClass.getMethod("func_75071_a"); } catch (Throwable t) {
                 try { structureStartGetBoundingBoxMethod = startClass.getMethod("getBoundingBox"); } catch (Throwable ignored) {}
+            }
+            try { structureStartIsSizeableMethod = startClass.getMethod("func_75059_a"); } catch (Throwable t) {
+                try { structureStartIsSizeableMethod = startClass.getMethod("isSizeableStructure"); } catch (Throwable ignored) {}
             }
             Class<?> boxClass = Class.forName("net.minecraft.world.gen.structure.StructureBoundingBox");
             try { structureBoxMinXField = boxClass.getField("field_78897_a"); } catch (Throwable t) {
@@ -971,11 +1005,33 @@ public class Reflect {
             try { structureBoxMaxXField = boxClass.getField("field_78893_d"); } catch (Throwable t) {
                 try { structureBoxMaxXField = boxClass.getField("maxX"); } catch (Throwable ignored) {}
             }
+            try { structureBoxMinYField = boxClass.getField("field_78895_b"); } catch (Throwable t) {
+                try { structureBoxMinYField = boxClass.getField("minY"); } catch (Throwable ignored) {}
+            }
             try { structureBoxMinZField = boxClass.getField("field_78896_c"); } catch (Throwable t) {
                 try { structureBoxMinZField = boxClass.getField("minZ"); } catch (Throwable ignored) {}
             }
             try { structureBoxMaxZField = boxClass.getField("field_78892_f"); } catch (Throwable t) {
                 try { structureBoxMaxZField = boxClass.getField("maxZ"); } catch (Throwable ignored) {}
+            }
+            Class<?> componentClass = Class.forName("net.minecraft.world.gen.structure.StructureComponent");
+            try { structureComponentGetBoundingBoxMethod = componentClass.getMethod("func_74874_b"); } catch (Throwable t) {
+                try { structureComponentGetBoundingBoxMethod = componentClass.getMethod("getBoundingBox"); } catch (Throwable ignored) {}
+            }
+            Class<?> villageStartClass = Class.forName("net.minecraft.world.gen.structure.StructureVillagePieces$Start");
+            for (Field f : villageStartClass.getDeclaredFields()) {
+                if (BiomeProvider.class.isAssignableFrom(f.getType())) {
+                    f.setAccessible(true);
+                    villageStartBiomeProviderField = f;
+                    break;
+                }
+            }
+            Class<?> biomeProviderClass = BiomeProvider.class;
+            try { biomeProviderGetBiomeMethod = biomeProviderClass.getMethod("func_180631_a", BlockPos.class); } catch (Throwable t) {
+                try { biomeProviderGetBiomeMethod = biomeProviderClass.getMethod("getBiome", BlockPos.class); } catch (Throwable ignored) {}
+            }
+            try { biomeProviderGetBiomeFallbackMethod = biomeProviderClass.getMethod("func_180300_a", BlockPos.class, Biome.class); } catch (Throwable t) {
+                try { biomeProviderGetBiomeFallbackMethod = biomeProviderClass.getMethod("getBiome", BlockPos.class, Biome.class); } catch (Throwable ignored) {}
             }
         } catch (Throwable ignored) {}
 
@@ -1617,6 +1673,19 @@ public class Reflect {
             }
         }
         return false;
+    }
+
+    public static void addExhaustion(EntityPlayer player, float exhaustion) {
+        if (player == null) return;
+        if (addExhaustionMethod != null) {
+            try {
+                addExhaustionMethod.invoke(player, exhaustion);
+                return;
+            } catch (Exception ignored) {}
+        }
+        try {
+            player.addExhaustion(exhaustion);
+        } catch (Throwable ignored) {}
     }
 
     public static boolean isSneaking(Entity player) {
@@ -3100,6 +3169,21 @@ public class Reflect {
         return Collections.emptyList();
     }
 
+    public static World getMapGenWorld(Object mapGen) {
+        if (mapGen == null || mapGenWorldField == null) return null;
+        try {
+            return (World) mapGenWorldField.get(mapGen);
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    public static void initializeStructureData(Object mapGen, World world) {
+        if (mapGen == null || world == null || mapGenInitializeStructureDataMethod == null) return;
+        try {
+            mapGenInitializeStructureDataMethod.invoke(mapGen, world);
+        } catch (Exception ignored) {}
+    }
+
     /**
      * @return {@code {minX, maxX, minZ, maxZ}} or null
      */
@@ -3118,6 +3202,77 @@ public class Reflect {
                 structureBoxMaxZField.getInt(box)
             };
         } catch (Exception ignored) {}
+        return null;
+    }
+
+    public static int getStructureStartMinY(Object start) {
+        if (start == null || structureStartGetBoundingBoxMethod == null || structureBoxMinYField == null) {
+            return Integer.MIN_VALUE;
+        }
+        try {
+            Object box = structureStartGetBoundingBoxMethod.invoke(start);
+            if (box == null) return Integer.MIN_VALUE;
+            return structureBoxMinYField.getInt(box);
+        } catch (Exception ignored) {}
+        return Integer.MIN_VALUE;
+    }
+
+    public static boolean isSizeableStructure(Object start) {
+        if (start == null || structureStartIsSizeableMethod == null) return false;
+        try {
+            Object result = structureStartIsSizeableMethod.invoke(start);
+            return result instanceof Boolean && (Boolean) result;
+        } catch (Exception ignored) {}
+        return false;
+    }
+
+    public static BiomeProvider getVillageStartBiomeProvider(Object start) {
+        if (start == null || villageStartBiomeProviderField == null) return null;
+        try {
+            return (BiomeProvider) villageStartBiomeProviderField.get(start);
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    public static int[] getStructureComponentBoxXZ(Object component) {
+        if (component == null || structureComponentGetBoundingBoxMethod == null) return null;
+        try {
+            Object box = structureComponentGetBoundingBoxMethod.invoke(component);
+            if (box == null || structureBoxMinXField == null || structureBoxMaxXField == null
+                    || structureBoxMinZField == null || structureBoxMaxZField == null) {
+                return null;
+            }
+            return new int[] {
+                structureBoxMinXField.getInt(box),
+                structureBoxMaxXField.getInt(box),
+                structureBoxMinZField.getInt(box),
+                structureBoxMaxZField.getInt(box)
+            };
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    public static Biome getBiome(BiomeProvider provider, int x, int z) {
+        if (provider == null) return null;
+        BlockPos pos = new BlockPos(x, 64, z);
+        Biome fallback = getPlainsBiome();
+        if (biomeProviderGetBiomeFallbackMethod != null) {
+            try {
+                return (Biome) biomeProviderGetBiomeFallbackMethod.invoke(provider, pos, fallback);
+            } catch (Exception ignored) {}
+        }
+        if (biomeProviderGetBiomeMethod != null) {
+            try {
+                return (Biome) biomeProviderGetBiomeMethod.invoke(provider, pos);
+            } catch (Exception ignored) {}
+        }
+        try {
+            return provider.getBiome(pos, fallback);
+        } catch (Throwable t) {
+            try {
+                return provider.getBiome(pos);
+            } catch (Throwable ignored) {}
+        }
         return null;
     }
 }

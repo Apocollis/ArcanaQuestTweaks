@@ -21,15 +21,21 @@ public final class DepthsBiomeUtil {
             if (world.getBiomeProvider() != null) {
                 biome = world.getBiomeProvider().getBiome(new BlockPos(x, 64, z), fallback);
             }
-            if (biome == null) return false;
+            return isWaterBiome(biome);
+        } catch (Throwable ignored) {
+        }
+        return false;
+    }
 
+    public static boolean isWaterBiome(Biome biome) {
+        if (biome == null) return false;
+        try {
             if (BiomeDictionary.hasType(biome, BiomeDictionary.Type.WATER)
                     || BiomeDictionary.hasType(biome, BiomeDictionary.Type.OCEAN)
                     || BiomeDictionary.hasType(biome, BiomeDictionary.Type.RIVER)
                     || BiomeDictionary.hasType(biome, BiomeDictionary.Type.BEACH)) {
                 return true;
             }
-
             if (biome.getRegistryName() != null) {
                 String name = biome.getRegistryName().toString().toLowerCase();
                 return name.contains("ocean") || name.contains("deep_ocean")

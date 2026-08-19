@@ -1,8 +1,7 @@
 package com.apocollis.aqtweaks;
 
+import com.apocollis.aqtweaks.stamina.DssSkillCosts;
 import com.apocollis.aqtweaks.thaumcraft.ThaumcraftModule;
-
-import com.apocollis.aqtweaks.stamina.StaminaModule;
 
 import net.minecraftforge.common.config.Config;
 import net.minecraftforge.common.config.ConfigManager;
@@ -61,6 +60,10 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Throwing Weapons")
         @Config.Comment("Configure throwing weapon (javelins, throwing knives, etc.) stamina consumption")
         public static final ThrowingWeapons throwingWeapons = new ThrowingWeapons();
+
+        @Config.Name("Dynamic Sword Skills")
+        @Config.Comment("Stamina cost when Dynamic Sword Skills activate. All stock skills default to 0 for in-game tuning.")
+        public static final DynamicSwordSkills dynamicSwordSkills = new DynamicSwordSkills();
     }
 
     public static class Jumping {
@@ -114,6 +117,40 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Stamina cost (in half-feathers) charged when releasing a throw (same as light weapon attack)")
         @Config.RangeInt(min = 0)
         public int throwingReleaseCost = 1;
+    }
+
+    public static class DynamicSwordSkills {
+        @Config.Name("Enable DSS Skill Stamina Cost")
+        @Config.Comment("Should Dynamic Sword Skills spend Elenai feathers when a skill triggers?")
+        public boolean enableSkillCost = true;
+
+        @Config.Name("Replace Hunger Exhaustion")
+        @Config.Comment("If true, DSS hunger exhaustion is skipped and feathers are the cost instead.")
+        public boolean replaceHungerExhaustion = true;
+
+        @Config.Name("Default Skill Cost")
+        @Config.Comment("Half-feathers spent if a skill is missing from Skill Costs. 0 = free.")
+        @Config.RangeInt(min = 0)
+        public int defaultSkillCost = 0;
+
+        @Config.Name("Skill Costs")
+        @Config.Comment("Per-skill costs as registry_name=cost. 0 = free. Tune in this cfg without rebuilding.")
+        public String[] skillCosts = new String[] {
+                "dynamicswordskills:basic_technique=0",
+                "dynamicswordskills:armor_break=0",
+                "dynamicswordskills:dodge=0",
+                "dynamicswordskills:leaping_blow=0",
+                "dynamicswordskills:parry=0",
+                "dynamicswordskills:dash=0",
+                "dynamicswordskills:spin_attack=0",
+                "dynamicswordskills:super_spin_attack=0",
+                "dynamicswordskills:mortal_draw=0",
+                "dynamicswordskills:sword_break=0",
+                "dynamicswordskills:rising_cut=0",
+                "dynamicswordskills:ending_blow=0",
+                "dynamicswordskills:back_slice=0",
+                "dynamicswordskills:sword_beam=0"
+        };
     }
 
     public static class Climbing {
@@ -267,9 +304,9 @@ public class ArcanaQuestTweaksConfig {
         public int motorEmberInterval = 20;
 
         @Config.Name("Motor Ember Cost")
-        @Config.Comment("Ember consumed per motor interval")
+        @Config.Comment("Ember consumed per motor interval (40 = one standard Ember pulse)")
         @Config.RangeDouble(min = 0.0)
-        public double motorEmberCost = 20.0;
+        public double motorEmberCost = 40.0;
     }
 
     public static class Glider {
@@ -587,6 +624,34 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Blocks outside the village bounding box to blend from flattened height back to raw RTG terrain. 0 = hard village box only.")
         @Config.RangeInt(min = 0, max = 256)
         public int villageEdgeFalloff = 48;
+
+        @Config.Name("Village Plate Slope")
+        @Config.Comment("Inside the village box: 0 = fully flat plate at the box-average height. 30 = allow at most 1 block of height change per 30 blocks from the plate center.")
+        @Config.RangeInt(min = 0, max = 256)
+        public int villagePlateSlopeBlocks = 0;
+
+        @Config.Name("Skip Water Village Pieces")
+        @Config.Comment("If a village house or road would spawn on ocean, river, or beach, skip that slot and retry nearby land along the same street.")
+        public boolean skipWaterVillagePieces = true;
+
+        @Config.Name("Village Water Retry Distance")
+        @Config.Comment("How far (blocks) to step back or sideways along the street when retrying a water village piece. 0 = skip only, no retry.")
+        @Config.RangeInt(min = 0, max = 48)
+        public int villageWaterRetryDistance = 20;
+
+        @Config.Name("Enable Village Bounding Box Detection")
+        @Config.Comment("Treat the village start bounding box (yards, roads, gaps) as Village for isInsideStructure / InControl, not only child pieces.")
+        public boolean enableVillageBoxDetection = true;
+
+        @Config.Name("Village Box XZ Pad")
+        @Config.Comment("Extra blocks outside the village hull that still count as Village and are fully flattened. 0 = exact hull.")
+        @Config.RangeInt(min = 0, max = 64)
+        public int villageBoxXZPad = 8;
+
+        @Config.Name("Village Box Height")
+        @Config.Comment("Blocks above the pad surface that still count as Village. Floor is the pad; below the pad is not Village.")
+        @Config.RangeInt(min = 0, max = 256)
+        public int villageBoxHeight = 32;
     }
 
     @Mod.EventBusSubscriber(modid = ArcanaQuestTweaks.MODID)
@@ -595,6 +660,7 @@ public class ArcanaQuestTweaksConfig {
         public static void onConfigChanged(ConfigChangedEvent.OnConfigChangedEvent event) {
             if (event.getModID().equals(ArcanaQuestTweaks.MODID)) {
                 ConfigManager.sync(ArcanaQuestTweaks.MODID, Config.Type.INSTANCE);
+                DssSkillCosts.invalidate();
             }
         }
     }

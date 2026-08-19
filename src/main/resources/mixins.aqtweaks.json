@@ -18,6 +18,9 @@
     "bettercaves.MixinCarverUtils",
     "bettercaves.MixinBetterCavesUtils",
     "bettercaves.MixinChunkGeneratorRTG",
-    "bettercaves.MixinChunkGeneratorRTGVillage"
+    "bettercaves.MixinChunkGeneratorRTGVillage",
+    "MixinStructureVillagePieces",
+    "MixinMapGenVillageInside",
+    "MixinCraftingHelperFindFiles"
   ]
 }

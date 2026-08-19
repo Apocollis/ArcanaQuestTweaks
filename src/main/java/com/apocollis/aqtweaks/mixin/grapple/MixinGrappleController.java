@@ -11,6 +11,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Coerce;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 @Mixin(targets = "com.yyon.grapplinghook.controllers.grappleController", remap = false)
@@ -24,7 +25,7 @@ public abstract class MixinGrappleController {
                     opcode = Opcodes.GETFIELD
             )
     )
-    private boolean aqtweaks$motorRequiresEmber(Object custom) {
+    private boolean aqtweaks$motorRequiresEmber(@Coerce Object custom) {
         boolean motor = false;
         try {
             motor = custom.getClass().getField("motor").getBoolean(custom);
