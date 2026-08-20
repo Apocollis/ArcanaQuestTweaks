@@ -14,8 +14,11 @@ if (!(Test-Path $libsDir)) { New-Item -ItemType Directory $libsDir | Out-Null }
 $localModsDir = "c:/Users/hughe/curseforge/minecraft/Instances/Arcana Quest DEVBOX/mods"
 
 Write-Output "Checking dependencies in libs..."
+$oldElenai = Join-Path $libsDir "ElenaiDodge2-1.12.2-1.1.0.jar"
+if (Test-Path $oldElenai) { Remove-Item $oldElenai -Force }
+
 $deps = @(
-    "ElenaiDodge2-1.12.2-1.1.0.jar",
+    "ElenaiDodge2Extended-1.12.2-1.1.3.jar",
     "bewitchment-1.12.2-0.0.22.65.jar",
     "RoguelikeDungeons-Arcana-1.12.2-2.5.0.jar",
     "CoFHWorld-1.12.2-1.4.0.1-universal.jar",

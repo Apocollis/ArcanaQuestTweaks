@@ -44,8 +44,8 @@ public class StaminaModuleClient {
         boolean compatHud = ModConfig.client.hud.compatHud;
         ElementType type = event.getType();
 
-        // Match RenderGameOverlayEvent conditions
-        if ((type == ElementType.ALL && !compatHud) || (type == ElementType.FOOD && compatHud)) {
+        // Match Extended DodgeGui overlay events so locked-dodge HUD sits on the same pass
+        if ((type == ElementType.ALL && compatHud) || (type == ElementType.FOOD && !compatHud)) {
             // Render
             Reflect.bindTexture(mc, DodgeGui.DODGE_ICONS);
             GlStateManager.enableBlend();

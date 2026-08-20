@@ -668,8 +668,8 @@ public class ArcanaQuestTweaksConfig {
         public int villageBoxHeight = 32;
 
         @Config.Name("Village Flatten Debug")
-        @Config.Comment("Log once per village when RTG flatten applies (box size and plate Y). Off by default.")
-        public boolean villageFlattenDebug = false;
+        @Config.Comment("Write village terrain traces to logs/villagepatch.log (not latest.log). On for diagnostic capture.")
+        public boolean villageFlattenDebug = true;
     }
 
     @Mod.EventBusSubscriber(modid = ArcanaQuestTweaks.MODID)

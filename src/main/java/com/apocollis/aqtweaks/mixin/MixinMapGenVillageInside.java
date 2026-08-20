@@ -1,6 +1,7 @@
 package com.apocollis.aqtweaks.mixin;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
+import com.apocollis.aqtweaks.rtg.VillageDebug;
 import com.apocollis.aqtweaks.rtg.VillagePlate;
 import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.util.math.BlockPos;
@@ -39,9 +40,26 @@ public abstract class MixinMapGenVillageInside {
             if (!VillagePlate.containsXZ(pos.getX(), pos.getZ(), padded)) continue;
 
             float plate = VillagePlate.resolvePlate(world, rec.xz);
-            if (!VillagePlate.yInStartVolume(pos.getY(), rec, plate, heightAbove)) continue;
+            String boxId = VillagePlate.key(seed, rec.xz);
+            if (!VillagePlate.yInStartVolume(pos.getY(), rec, plate, heightAbove)) {
+                if (VillageDebug.once("ymiss:" + boxId)) {
+                    VillageDebug.log("detect ymiss pos=%d,%d,%d plate=%s startY=%d..%d heightAbove=%d aabb=[%d,%d]x[%d,%d]",
+                            pos.getX(), pos.getY(), pos.getZ(),
+                            Float.isNaN(plate) ? "none" : String.format("%.1f", plate),
+                            rec.minY, rec.maxY, heightAbove,
+                            rec.xz[0], rec.xz[1], rec.xz[2], rec.xz[3]);
+                }
+                continue;
+            }
 
             if (rec.start instanceof StructureStart) {
+                if (VillageDebug.once("yhit:" + boxId)) {
+                    VillageDebug.log("detect hit pos=%d,%d,%d plate=%s startY=%d..%d aabb=[%d,%d]x[%d,%d]",
+                            pos.getX(), pos.getY(), pos.getZ(),
+                            Float.isNaN(plate) ? "none" : String.format("%.1f", plate),
+                            rec.minY, rec.maxY,
+                            rec.xz[0], rec.xz[1], rec.xz[2], rec.xz[3]);
+                }
                 cir.setReturnValue((StructureStart) rec.start);
                 return;
             }

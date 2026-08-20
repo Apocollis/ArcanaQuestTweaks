@@ -1,6 +1,7 @@
 package com.apocollis.aqtweaks.mixin;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
+import com.apocollis.aqtweaks.rtg.VillageDebug;
 import com.apocollis.aqtweaks.rtg.VillageLandHelper;
 import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.world.World;
@@ -21,7 +22,10 @@ public abstract class MixinMapGenVillageSpawn {
 
         World world = Reflect.getMapGenWorld(this);
         if (world == null) return;
-        if (!VillageLandHelper.villageStartAllowed(world, chunkX, chunkZ)) {
+        String reason = VillageLandHelper.startRejectReason(world, chunkX, chunkZ);
+        if (reason != null) {
+            VillageDebug.log("veto chunk=%d,%d well=%d,%d %s",
+                    chunkX, chunkZ, chunkX * 16 + 2, chunkZ * 16 + 2, reason);
             cir.setReturnValue(Boolean.FALSE);
         }
     }

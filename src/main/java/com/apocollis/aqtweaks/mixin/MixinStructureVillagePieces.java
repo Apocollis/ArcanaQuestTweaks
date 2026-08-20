@@ -1,6 +1,7 @@
 package com.apocollis.aqtweaks.mixin;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
+import com.apocollis.aqtweaks.rtg.VillageDebug;
 import com.apocollis.aqtweaks.rtg.VillageLandHelper;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.world.gen.structure.StructureComponent;
@@ -42,6 +43,7 @@ public abstract class MixinStructureVillagePieces {
         if (Boolean.TRUE.equals(AQTWEAKS$RETRYING_HOUSE.get())) return;
         if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.skipWaterVillagePieces) return;
         if (!VillageLandHelper.isWaterAt(start, x, z)) return;
+        VillageDebug.log("house origin wet x=%d z=%d, retrying", x, z);
         cir.setReturnValue(aqtweaks$placeHouseOnLand(start, structureComponents, rand, x, y, z, facing, type));
     }
 
@@ -53,6 +55,7 @@ public abstract class MixinStructureVillagePieces {
         if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.skipWaterVillagePieces) return;
         StructureComponent placed = cir.getReturnValue();
         if (placed == null || !VillageLandHelper.isAabbWet(start, placed)) return;
+        VillageDebug.log("house aabb wet origin=%d,%d, removed retrying", x, z);
         structureComponents.remove(placed);
         cir.setReturnValue(aqtweaks$placeHouseOnLand(start, structureComponents, rand, x, y, z, facing, type));
     }
@@ -64,6 +67,7 @@ public abstract class MixinStructureVillagePieces {
         if (Boolean.TRUE.equals(AQTWEAKS$RETRYING_ROAD.get())) return;
         if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.skipWaterVillagePieces) return;
         if (!VillageLandHelper.isWaterAt(start, x, z)) return;
+        VillageDebug.log("road origin wet x=%d z=%d, retrying", x, z);
         cir.setReturnValue(aqtweaks$placeRoadOnLand(start, structureComponents, rand, x, y, z, facing, type));
     }
 
@@ -75,6 +79,7 @@ public abstract class MixinStructureVillagePieces {
         if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.skipWaterVillagePieces) return;
         StructureComponent placed = cir.getReturnValue();
         if (placed == null || !VillageLandHelper.isAabbWet(start, placed)) return;
+        VillageDebug.log("road aabb wet origin=%d,%d, removed retrying", x, z);
         structureComponents.remove(placed);
         cir.setReturnValue(aqtweaks$placeRoadOnLand(start, structureComponents, rand, x, y, z, facing, type));
     }
@@ -88,9 +93,11 @@ public abstract class MixinStructureVillagePieces {
             for (int[] slot : VillageLandHelper.landCandidates(start, x, z, facing, maxStep)) {
                 StructureComponent placed = func_176066_d(start, structureComponents, rand, slot[0], y, slot[1], facing, type);
                 if (placed != null && !VillageLandHelper.isAabbWet(start, placed)) {
+                    VillageDebug.log("house retry hit origin=%d,%d slot=%d,%d", x, z, slot[0], slot[1]);
                     return placed;
                 }
             }
+            VillageDebug.log("house retry miss origin=%d,%d", x, z);
             return null;
         } finally {
             AQTWEAKS$RETRYING_HOUSE.set(Boolean.FALSE);
@@ -106,9 +113,11 @@ public abstract class MixinStructureVillagePieces {
             for (int[] slot : VillageLandHelper.landCandidates(start, x, z, facing, maxStep)) {
                 StructureComponent placed = func_176069_e(start, structureComponents, rand, slot[0], y, slot[1], facing, type);
                 if (placed != null && !VillageLandHelper.isAabbWet(start, placed)) {
+                    VillageDebug.log("road retry hit origin=%d,%d slot=%d,%d", x, z, slot[0], slot[1]);
                     return placed;
                 }
             }
+            VillageDebug.log("road retry miss origin=%d,%d", x, z);
             return null;
         } finally {
             AQTWEAKS$RETRYING_ROAD.set(Boolean.FALSE);

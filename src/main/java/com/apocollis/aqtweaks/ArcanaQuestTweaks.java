@@ -12,7 +12,7 @@ import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 public class ArcanaQuestTweaks {
     public static final String MODID = "aqtweaks";
     public static final String NAME = "Arcana Quest Tweaks";
-    public static final String VERSION = "1.8";
+    public static final String VERSION = "1.6";
 
     public static final SimpleNetworkWrapper NETWORK = NetworkRegistry.INSTANCE.newSimpleChannel(MODID);
 

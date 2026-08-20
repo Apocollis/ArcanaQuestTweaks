@@ -14,7 +14,7 @@ $scriptDir = (Split-Path -Parent $MyInvocation.MyCommand.Path).Replace("\", "/")
 $legacyModsFolder = [System.IO.Path]::GetFullPath((Join-Path $scriptDir "../../mods")).Replace("\", "/")
 $curseForgeModsFolder = "C:/Users/hughe/curseforge/minecraft/Instances/Arcana Quest DEVBOX/mods"
 $workspaceModsFolder = (Join-Path $scriptDir "mods").Replace("\", "/")
-$elenaiName = "ElenaiDodge2-1.12.2-1.1.0.jar"
+$elenaiName = "ElenaiDodge2Extended-1.12.2-1.1.3.jar"
 
 function Test-ModsFolder([string]$folder) {
     return (Test-Path $folder) -and (Test-Path (Join-Path $folder $elenaiName))

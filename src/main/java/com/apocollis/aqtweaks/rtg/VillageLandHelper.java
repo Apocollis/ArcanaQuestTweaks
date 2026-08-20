@@ -65,26 +65,39 @@ public final class VillageLandHelper {
     }
 
     public static boolean villageStartAllowed(World world, int chunkX, int chunkZ) {
-        if (world == null) return true;
+        return startRejectReason(world, chunkX, chunkZ) == null;
+    }
+
+    /**
+     * @return null if the well chunk may spawn a village; otherwise a short reject reason
+     */
+    public static String startRejectReason(World world, int chunkX, int chunkZ) {
+        if (world == null) return null;
         int wellX = chunkX * 16 + 2;
         int wellZ = chunkZ * 16 + 2;
         BiomeProvider provider = world.getBiomeProvider();
         if (isWaterAt(provider, wellX, wellZ)) {
-            return false;
+            Biome biome = Reflect.getBiome(provider, wellX, wellZ);
+            String name = biome != null && biome.getRegistryName() != null
+                    ? biome.getRegistryName().toString() : "unknown";
+            return "water_biome " + name;
         }
         int buffer = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageCoastBuffer);
         for (int dx = -buffer; dx <= buffer; dx += 8) {
             for (int dz = -buffer; dz <= buffer; dz += 8) {
-                if (isDeepOcean(Reflect.getBiome(provider, wellX + dx, wellZ + dz))) {
-                    return false;
+                Biome biome = Reflect.getBiome(provider, wellX + dx, wellZ + dz);
+                if (isDeepOcean(biome)) {
+                    String name = biome != null && biome.getRegistryName() != null
+                            ? biome.getRegistryName().toString() : "unknown";
+                    return "deep_ocean " + name + " at " + (wellX + dx) + "," + (wellZ + dz);
                 }
             }
         }
         Float height = sampleRtgHeight(world, wellX, wellZ);
         if (height != null && height < minWellHeight()) {
-            return false;
+            return String.format("height %.1f < %d", height, minWellHeight());
         }
-        return true;
+        return null;
     }
 
     public static boolean isWetColumn(BiomeProvider provider, ChunkLandscape landscape, int index, int worldX, int worldZ) {

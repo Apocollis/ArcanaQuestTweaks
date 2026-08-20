@@ -1,6 +1,7 @@
 package com.apocollis.aqtweaks.mixin.bettercaves;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
+import com.apocollis.aqtweaks.rtg.VillageDebug;
 import com.apocollis.aqtweaks.rtg.VillageLandHelper;
 import com.apocollis.aqtweaks.rtg.VillagePlate;
 import com.apocollis.aqtweaks.util.Reflect;
@@ -9,8 +10,6 @@ import net.minecraft.world.World;
 import net.minecraft.world.biome.BiomeProvider;
 import net.minecraft.world.chunk.ChunkPrimer;
 import net.minecraft.world.gen.structure.MapGenVillage;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -23,16 +22,10 @@ import rtg.world.gen.ChunkLandscape;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Mixin(value = ChunkGeneratorRTG.class, remap = false)
 public abstract class MixinChunkGeneratorRTGVillage {
 
-    @Unique
-    private static final Logger AQTWEAKS$LOG = LogManager.getLogger("AQTweaks-Village");
-    @Unique
-    private static final Set<String> AQTWEAKS$LOGGED_PLATES = ConcurrentHashMap.newKeySet();
     @Unique
     private static final ChunkPrimer AQTWEAKS$DUMMY_PRIMER = new ChunkPrimer();
 
@@ -142,9 +135,11 @@ public abstract class MixinChunkGeneratorRTGVillage {
         long seed = Reflect.getSeed(world);
 
         List<int[]> boxes = VillagePlate.overlappingXZ(seed, startX, chunkMaxX, startZ, chunkMaxZ, falloff + xzPad);
+        boolean recovered = false;
         if (boxes.isEmpty()) {
             VillagePlate.rememberAll(world, villageGenerator);
             boxes = VillagePlate.overlappingXZ(seed, startX, chunkMaxX, startZ, chunkMaxZ, falloff + xzPad);
+            recovered = !boxes.isEmpty();
         }
         if (boxes.isEmpty()) return;
 
@@ -167,23 +162,27 @@ public abstract class MixinChunkGeneratorRTGVillage {
         float[] targets = new float[boxes.size()];
         for (int i = 0; i < boxes.size(); i++) {
             targets[i] = getOrComputePlateHeight(biomeProvider, boxes.get(i));
-            if (ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageFlattenDebug) {
-                int[] box = boxes.get(i);
-                String id = VillagePlate.key(seed, box);
-                if (AQTWEAKS$LOGGED_PLATES.add(id)) {
-                    AQTWEAKS$LOG.info("Village plate Y={} box=[{},{}]x[{},{}] pad={} falloff={}",
-                            targets[i], box[0], box[1], box[2], box[3], xzPad, falloff);
-                }
+            int[] box = boxes.get(i);
+            if (VillageDebug.once("plate:" + VillagePlate.key(seed, box))) {
+                VillageDebug.log("plate Y=%.1f box=[%d,%d]x[%d,%d] pad=%d falloff=%d",
+                        targets[i], box[0], box[1], box[2], box[3], xzPad, falloff);
             }
         }
 
+        int wet = 0;
+        int dry = 0;
+        int written = 0;
         for (int localX = 0; localX < 16; ++localX) {
             int colX = startX + localX;
             for (int localZ = 0; localZ < 16; ++localZ) {
                 int colZ = startZ + localZ;
                 int index = localX * 16 + localZ;
                 if (index < 0 || index >= noise.length) continue;
-                if (waterColumn[index]) continue;
+                if (waterColumn[index]) {
+                    wet++;
+                    continue;
+                }
+                dry++;
 
                 float originalHeight = noise[index];
                 float bestBlend = 0.0F;
@@ -207,7 +206,12 @@ public abstract class MixinChunkGeneratorRTGVillage {
                     desired = plateHeightAt(originalHeight, bestTarget, colX, colZ, bestBox, slope);
                 }
                 noise[index] = originalHeight * (1.0F - bestBlend) + desired * bestBlend;
+                written++;
             }
+        }
+        if (VillageDebug.once("flatten:" + seed + ":" + cx + "," + cz)) {
+            VillageDebug.log("flatten chunk=%d,%d boxes=%d dry=%d wet=%d written=%d recovered=%s",
+                    cx, cz, boxes.size(), dry, wet, written, recovered);
         }
         if (landscape != null && landscape.noise != null && landscape.noise != noise) {
             System.arraycopy(noise, 0, landscape.noise, 0, Math.min(noise.length, landscape.noise.length));
@@ -254,6 +258,10 @@ public abstract class MixinChunkGeneratorRTGVillage {
         }
         float target = count > 0 ? sum / count : 68.0F;
         VillagePlate.put(seed, box, target);
+        if (VillageDebug.once("plateSample:" + VillagePlate.key(seed, box))) {
+            VillageDebug.log("plateSample box=[%d,%d]x[%d,%d] dry=%d target=%.1f fallback=%s",
+                    box[0], box[1], box[2], box[3], count, target, count > 0 ? "no" : "yes");
+        }
         return target;
     }
 

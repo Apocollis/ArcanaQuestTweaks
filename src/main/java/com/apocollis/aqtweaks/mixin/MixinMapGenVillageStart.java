@@ -1,5 +1,6 @@
 package com.apocollis.aqtweaks.mixin;
 
+import com.apocollis.aqtweaks.rtg.VillageDebug;
 import com.apocollis.aqtweaks.rtg.VillagePlate;
 import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.world.World;
@@ -19,5 +20,12 @@ public abstract class MixinMapGenVillageStart {
         if (start == null) return;
         World world = Reflect.getMapGenWorld(this);
         VillagePlate.remember(world, start);
+        int[] xz = Reflect.getStructureStartBoxXZ(start);
+        VillageDebug.log("register chunk=%d,%d aabb=[%d,%d]x[%d,%d] minY=%d maxY=%d",
+                chunkX, chunkZ,
+                xz != null ? xz[0] : 0, xz != null ? xz[1] : 0,
+                xz != null ? xz[2] : 0, xz != null ? xz[3] : 0,
+                Reflect.getStructureStartMinY(start),
+                Reflect.getStructureStartMaxY(start));
     }
 }
