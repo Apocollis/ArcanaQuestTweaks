@@ -2,11 +2,11 @@
 
 This directory is the design and engineering spec for `aqtweaks` **1.6**. Read the index, then the module file for the system you are changing. Worldgen applies to **new chunks only**.
 
+**Ops (reproduce / ship):** [compatibility-matrix.md](compatibility-matrix.md) · [build-and-release.md](build-and-release.md) · [verification.md](verification.md)
+
 Mod: `aqtweaks`. Minecraft 1.12.2 / CleanroomMC / Forge. Stay on **1.6** unless asked to bump.
 
-`aqtweaks` is a **tweak layer**. Parent mods still own their systems. Tweaks listens to Forge events, calls public APIs (`FeathersHelper`, Thaumcraft warp caps, Bewitchment `Ritual`), or mixins parent methods when events are not enough.
-
-Almost all player/world/block access goes through `util/Reflect.java` (Cleanroom / modern Java). Do not replace that with raw MCP getters in new code unless the call site is already a mixin targeting a known class.
+`aqtweaks` is a **tweak layer**. Parent mods still own their systems. Tweaks listens to Forge events, calls public APIs (`FeathersHelper`, Thaumcraft warp caps, Bewitchment `Ritual`), or mixins parent methods when events are not enough. Vanilla calls inside `remap = false` mixins go through `Reflect` — see below.
 
 ## Module docs
 
@@ -22,6 +22,9 @@ Each file covers: what Tweaks changes, how the **parent mod** implements the fea
 | Depths | Depths Update, YUNG's Better Caves, RTG, CoFH World, Recurrent Complex | [depths.md](depths.md) |
 | RTG | Realistic Terrain Generation + vanilla `MapGenVillage` + Recurrent Complex + Astral / Bewitchment Cambion / Mystical World huts | [rtg.md](rtg.md) |
 | Recipes | Forge `CraftingHelper` (Metallurgy / Spartan JSON) | [recipes.md](recipes.md) |
+| Compatibility / jars | Compile vs mixin vs runtime vs copy script | [compatibility-matrix.md](compatibility-matrix.md) |
+| Build / deploy | `gradlew build` vs `build_gradle.ps1` | [build-and-release.md](build-and-release.md) |
+| Release smoke | Boot, optional absences, worldgen, stamina | [verification.md](verification.md) |
 
 Astral surface shrines, Bewitchment Cambion houses, and Mystical World thatch huts are **not** separate modules. They are post-terrain structure settle/skip under [rtg.md](rtg.md). Ritual warp is [bewitchment.md](bewitchment.md). Cambion **worldgen** is RTG.
 
@@ -106,13 +109,31 @@ Forge `@Config` on nested classes in `ArcanaQuestTweaksConfig`. Comfort is JSON,
 
 ### `util/Reflect.java`
 
-Large cached reflection layer for entity/world/block/NBT/sound/primer access. Worldgen mixins and event handlers should keep using it so Cleanroom / Java 25 field/method differences stay in one place. Depths Deepslate/lava/air/bedrock block states are resolved here (`getDeepslateState`, etc.).
+Cached reflection for entity/world/block/NBT/sound/primer and soft-mod APIs (Elenai weight, Grapple, glider, thirst, Reskillable).
+
+**Use Reflect** for vanilla member access inside **`remap = false` mixin bodies** (those strings are not remapped). Also use it for parent mods loaded only by reflection.
+
+**Direct vanilla in Tweaks’ own classes is allowed.** Event handlers are remapped (`defaultRemapJar = true`). `DepthsFogHandler.entity.world` and `ThaumcraftModule` `getChunkProvider()` are not defects.
+
+Do not add raw MCP names inside `remap = false` mixins.
+
+## Adding an integration
+
+When hooking a new parent (or a new mixin on an existing one):
+
+1. **Classpath:** add the exact jar to `libs/` (and to `build_gradle.ps1` `$deps` if this machine should copy it). Update [compatibility-matrix.md](compatibility-matrix.md).
+2. **`@Mod`:** `required-after` only if Tweaks must not load without it. Otherwise `after:` or omit.
+3. **Mixin:** new json `required: false` unless the pack always ships the parent **and** missing it should crash. Register the json in `AQTweaksLateMixinLoader`. Mixin targets: SRG in vanilla, parent members as in that jar.
+4. **Side:** client-only in the json `client` array or `@SideOnly`. Packets: `SimpleNetworkWrapper` side as today (stamina 0–2 are SERVER).
+5. **Absent parent:** `Loader.isModLoaded` or `required: false`. Do not `import` parent types from always-loaded classes if the mod is optional (Bewitchment `Ritual` is compile-hard because the handler only registers when loaded — still keep that class off the bus).
+6. **Config:** new `@Config` defaults; instance files **keep old keys**. Document live vs dead knobs in the module doc.
+7. **Verify:** add a row to [verification.md](verification.md). Worldgen → new chunks. Mixin vanilla calls → Reflect or remap.
 
 ## Workflow (always)
 
 1. Investigate read-only.
 2. Write `implementation_plan.md`, also put the plan in chat.
 3. Wait for explicit `proceed`.
-4. Implement, then `.\build_gradle.ps1` (Java 25; copies the remapped jar to workspace `mods` and CurseForge Arcana Quest DEVBOX). Skip rebuild only if told not to.
+4. Implement, then `.\build_gradle.ps1` unless told not to rebuild. Portable compile: `.\gradlew.bat build`. Details: [build-and-release.md](build-and-release.md).
 
 Worldgen changes apply to **new chunks only**.
