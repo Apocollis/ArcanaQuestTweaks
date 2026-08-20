@@ -1,7 +1,5 @@
 package com.apocollis.aqtweaks.rtg;
 
-import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
-import com.apocollis.aqtweaks.depths.DepthsBiomeUtil;
 import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.ChunkPos;
@@ -18,11 +16,13 @@ import java.util.Deque;
 import java.util.List;
 
 /**
- * Village placement: wet-column tests, coastal start veto, and land retry slots.
+ * Village placement: wet-column tests, ocean-well veto, and land retry slots for buildings.
  */
 public final class VillageLandHelper {
 
     public static final float STRONG_RIVER = 0.7F;
+    public static final int SEA_LEVEL = 63;
+    public static final int VILLAGE_LAYOUT_RADIUS = 8;
 
     private static final ThreadLocal<Deque<World>> WORLDS = ThreadLocal.withInitial(ArrayDeque::new);
     private static final ThreadLocal<Integer> SAMPLING = ThreadLocal.withInitial(() -> 0);
@@ -49,19 +49,16 @@ public final class VillageLandHelper {
         return SAMPLING.get() > 0;
     }
 
-    public static boolean isWaterAt(BiomeProvider provider, int x, int z) {
-        return DepthsBiomeUtil.isWaterBiome(Reflect.getBiome(provider, x, z));
-    }
-
     public static boolean isWaterAt(Object villageStart, int x, int z) {
-        if (isWaterAt(Reflect.getVillageStartBiomeProvider(villageStart), x, z)) {
+        BiomeProvider provider = Reflect.getVillageStartBiomeProvider(villageStart);
+        if (isOceanOrRiverBiome(Reflect.getBiome(provider, x, z))) {
             return true;
         }
         World world = currentWorld();
         if (world == null) {
             world = Reflect.getVillageStartWorld(villageStart);
         }
-        return isRtgWetColumn(world, x, z);
+        return isRtgLandscapeWet(world, x, z);
     }
 
     public static boolean villageStartAllowed(World world, int chunkX, int chunkZ) {
@@ -69,63 +66,65 @@ public final class VillageLandHelper {
     }
 
     /**
-     * @return null if the well chunk may spawn a village; otherwise a short reject reason
+     * Only reject a well that sits in ocean. Near-ocean, beach, and river wells are allowed.
      */
     public static String startRejectReason(World world, int chunkX, int chunkZ) {
         if (world == null) return null;
         int wellX = chunkX * 16 + 2;
         int wellZ = chunkZ * 16 + 2;
-        BiomeProvider provider = world.getBiomeProvider();
-        if (isWaterAt(provider, wellX, wellZ)) {
-            Biome biome = Reflect.getBiome(provider, wellX, wellZ);
+        Biome biome = Reflect.getBiome(world.getBiomeProvider(), wellX, wellZ);
+        if (isOceanBiome(biome)) {
             String name = biome != null && biome.getRegistryName() != null
                     ? biome.getRegistryName().toString() : "unknown";
-            return "water_biome " + name;
-        }
-        int buffer = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageCoastBuffer);
-        for (int dx = -buffer; dx <= buffer; dx += 8) {
-            for (int dz = -buffer; dz <= buffer; dz += 8) {
-                Biome biome = Reflect.getBiome(provider, wellX + dx, wellZ + dz);
-                if (isDeepOcean(biome)) {
-                    String name = biome != null && biome.getRegistryName() != null
-                            ? biome.getRegistryName().toString() : "unknown";
-                    return "deep_ocean " + name + " at " + (wellX + dx) + "," + (wellZ + dz);
-                }
-            }
-        }
-        Float height = sampleRtgHeight(world, wellX, wellZ);
-        if (height != null && height < minWellHeight()) {
-            return String.format("height %.1f < %d", height, minWellHeight());
+            return "ocean_well " + name;
         }
         return null;
     }
 
     public static boolean isWetColumn(BiomeProvider provider, ChunkLandscape landscape, int index, int worldX, int worldZ) {
-        if (isWaterAt(provider, worldX, worldZ)) {
+        if (isOceanOrRiverBiome(Reflect.getBiome(provider, worldX, worldZ))) {
             return true;
         }
-        if (landscape == null) return false;
-        if (landscape.river != null && index >= 0 && index < landscape.river.length
-                && Math.abs(landscape.river[index]) > STRONG_RIVER) {
-            return true;
-        }
-        if (landscape.noise != null && index >= 0 && index < landscape.noise.length
-                && landscape.noise[index] < minWellHeight()) {
-            return true;
-        }
-        return false;
+        return isLandscapeWet(landscape, index);
     }
 
-    public static boolean isDeepOcean(Biome biome) {
-        if (biome == null) return false;
+    public static boolean isOceanBiome(Biome biome) {
+        if (biome == null || isBeachBiome(biome)) return false;
         try {
-            String name = biome.getRegistryName() != null ? biome.getRegistryName().toString().toLowerCase() : "";
-            if (name.contains("deep_ocean") || name.contains("deepocean")) {
+            if (BiomeDictionary.hasType(biome, BiomeDictionary.Type.OCEAN)) {
                 return true;
             }
-            boolean ocean = BiomeDictionary.hasType(biome, BiomeDictionary.Type.OCEAN)
-                    || name.contains("ocean");
-            return ocean && name.contains("deep");
+            if (biome.getRegistryName() == null) return false;
+            String name = biome.getRegistryName().toString().toLowerCase();
+            return name.contains("ocean") || name.contains("kelp") || name.contains("coral");
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    public static boolean isOceanOrRiverBiome(Biome biome) {
+        if (isOceanBiome(biome)) return true;
+        if (biome == null || isBeachBiome(biome)) return false;
+        try {
+            if (BiomeDictionary.hasType(biome, BiomeDictionary.Type.RIVER)) {
+                return true;
+            }
+            if (biome.getRegistryName() == null) return false;
+            String name = biome.getRegistryName().toString().toLowerCase();
+            return name.contains("river") && !name.contains("dried");
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    public static boolean isBeachBiome(Biome biome) {
+        if (biome == null) return false;
+        try {
+            if (BiomeDictionary.hasType(biome, BiomeDictionary.Type.BEACH)) {
+                return true;
+            }
+            if (biome.getRegistryName() == null) return false;
+            return biome.getRegistryName().toString().toLowerCase().contains("beach");
         } catch (Throwable ignored) {
             return false;
         }
@@ -140,8 +139,7 @@ public final class VillageLandHelper {
                 if (isWaterAt(villageStart, x, z)) return true;
             }
         }
-        if (isWaterAt(villageStart, box[1], box[3])) return true;
-        return false;
+        return isWaterAt(villageStart, box[1], box[3]);
     }
 
     public static boolean withinVillageCap(Object villageStart, int x, int z) {
@@ -155,8 +153,7 @@ public final class VillageLandHelper {
      */
     public static List<int[]> landCandidates(Object villageStart, int x, int z, EnumFacing facing, int maxStep) {
         List<int[]> out = new ArrayList<>();
-        BiomeProvider provider = Reflect.getVillageStartBiomeProvider(villageStart);
-        if (provider == null || maxStep <= 0) return out;
+        if (maxStep <= 0) return out;
 
         int backX = 0;
         int backZ = 0;
@@ -194,22 +191,21 @@ public final class VillageLandHelper {
         }
     }
 
-    private static boolean isRtgWetColumn(World world, int x, int z) {
-        ChunkLandscape landscape = sampleLandscape(world, x, z);
-        if (landscape == null || landscape.noise == null) return false;
-        int localX = x & 15;
-        int localZ = z & 15;
-        int index = localX * 16 + localZ;
-        BiomeProvider provider = world.getBiomeProvider();
-        return isWetColumn(provider, landscape, index, x, z);
+    private static boolean isLandscapeWet(ChunkLandscape landscape, int index) {
+        if (landscape == null) return false;
+        if (landscape.river != null && index >= 0 && index < landscape.river.length
+                && Math.abs(landscape.river[index]) > STRONG_RIVER) {
+            return true;
+        }
+        return landscape.noise != null && index >= 0 && index < landscape.noise.length
+                && landscape.noise[index] < SEA_LEVEL;
     }
 
-    private static Float sampleRtgHeight(World world, int x, int z) {
+    private static boolean isRtgLandscapeWet(World world, int x, int z) {
         ChunkLandscape landscape = sampleLandscape(world, x, z);
-        if (landscape == null || landscape.noise == null) return null;
+        if (landscape == null) return false;
         int index = (x & 15) * 16 + (z & 15);
-        if (index < 0 || index >= landscape.noise.length) return null;
-        return landscape.noise[index];
+        return isLandscapeWet(landscape, index);
     }
 
     private static ChunkLandscape sampleLandscape(World world, int x, int z) {
@@ -224,9 +220,5 @@ public final class VillageLandHelper {
         } finally {
             SAMPLING.set(Math.max(0, SAMPLING.get() - 1));
         }
-    }
-
-    private static int minWellHeight() {
-        return Math.max(1, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageMinWellHeight);
     }
 }

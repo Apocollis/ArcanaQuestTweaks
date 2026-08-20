@@ -11,6 +11,7 @@
     "depthsupdate.MixinDepthsCaveNoiseGenerator",
     "cofh.MixinDistributionUniform",
     "reccomplex.MixinRayMatcher",
+    "reccomplex.MixinGenericVillageCreationHandler",
     "bettercaves.MixinCaveNoiseGenerator",
     "bettercaves.MixinBetterCavesDepthsPass",
     "bettercaves.MixinDepthsMapGenCaves",

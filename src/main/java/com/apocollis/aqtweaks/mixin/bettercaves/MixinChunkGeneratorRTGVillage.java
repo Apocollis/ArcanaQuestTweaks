@@ -8,6 +8,7 @@ import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.BiomeProvider;
+import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.ChunkPrimer;
 import net.minecraft.world.gen.structure.MapGenVillage;
 import org.spongepowered.asm.mixin.Mixin;
@@ -17,6 +18,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import rtg.world.gen.ChunkGeneratorRTG;
 import rtg.world.gen.ChunkLandscape;
 
@@ -43,8 +45,8 @@ public abstract class MixinChunkGeneratorRTGVillage {
     @Shadow
     public abstract ChunkLandscape getLandscape(BiomeProvider biomeProvider, ChunkPos chunkPos);
 
-    @Inject(method = "generateChunk", at = @At("HEAD"))
-    private void aqtweaks$registerVillagesBeforeTerrain(int cx, int cz, CallbackInfo ci) {
+    @Inject(method = "func_185932_a", at = @At("HEAD"))
+    private void aqtweaks$registerVillagesBeforeTerrain(int cx, int cz, CallbackInfoReturnable<Chunk> cir) {
         aqtweaks$flattenCx = cx;
         aqtweaks$flattenCz = cz;
         aqtweaks$registerVillages(cx, cz);
@@ -58,9 +60,9 @@ public abstract class MixinChunkGeneratorRTGVillage {
         aqtweaks$registerVillages(worldX >> 4, worldZ >> 4);
     }
 
-    @Inject(method = "generateChunk", at = @At(value = "INVOKE",
+    @Inject(method = "func_185932_a", at = @At(value = "INVOKE",
             target = "Lrtg/world/gen/ChunkGeneratorRTG;generateTerrain(Lnet/minecraft/world/chunk/ChunkPrimer;[F)V"))
-    private void aqtweaks$flattenLandscapeBeforeTerrain(int cx, int cz, CallbackInfo ci) {
+    private void aqtweaks$flattenLandscapeBeforeTerrain(int cx, int cz, CallbackInfoReturnable<Chunk> cir) {
         BiomeProvider biomeProvider;
         try {
             biomeProvider = world.getBiomeProvider();
@@ -79,7 +81,7 @@ public abstract class MixinChunkGeneratorRTGVillage {
         }
     }
 
-    @ModifyArg(method = "generateChunk", at = @At(value = "INVOKE",
+    @ModifyArg(method = "func_185932_a", at = @At(value = "INVOKE",
             target = "Lrtg/world/gen/ChunkGeneratorRTG;generateTerrain(Lnet/minecraft/world/chunk/ChunkPrimer;[F)V"),
             index = 1)
     private float[] aqtweaks$flattenVillagePlate(float[] noise) {
@@ -95,7 +97,12 @@ public abstract class MixinChunkGeneratorRTGVillage {
         }
         try {
             if (world.getWorldInfo() != null && !world.getWorldInfo().isMapFeaturesEnabled()) return;
-            villageGenerator.generate(world, cx, cz, AQTWEAKS$DUMMY_PRIMER);
+            int radius = VillageLandHelper.VILLAGE_LAYOUT_RADIUS;
+            for (int dx = -radius; dx <= radius; dx++) {
+                for (int dz = -radius; dz <= radius; dz++) {
+                    villageGenerator.generate(world, cx + dx, cz + dz, AQTWEAKS$DUMMY_PRIMER);
+                }
+            }
         } catch (Throwable ignored) {}
     }
 

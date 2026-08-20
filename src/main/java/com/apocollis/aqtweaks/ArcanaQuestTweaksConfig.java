@@ -631,7 +631,7 @@ public class ArcanaQuestTweaksConfig {
         public int villagePlateSlopeBlocks = 0;
 
         @Config.Name("Skip Water Village Pieces")
-        @Config.Comment("If a village house or road would spawn on a wet column (water biome, RTG river, or below min well height), skip that slot and retry nearby land along the same street.")
+        @Config.Comment("If a village house or Recurrent Complex building would touch water, skip it and retry nearby land. Roads/docks are not skipped.")
         public boolean skipWaterVillagePieces = true;
 
         @Config.Name("Village Water Retry Distance")
@@ -640,7 +640,7 @@ public class ArcanaQuestTweaksConfig {
         public int villageWaterRetryDistance = 20;
 
         @Config.Name("Reject Coastal Village Starts")
-        @Config.Comment("Veto a vanilla village candidate if the well is in a water/beach biome, below min well height, or within the coast buffer of deep ocean. Does not move the village; that grid cell is empty.")
+        @Config.Comment("Veto a village only if the well column is ocean. Near-ocean, beach, and river wells are allowed.")
         public boolean rejectCoastalVillageStarts = true;
 
         @Config.Name("Village Min Well Height")

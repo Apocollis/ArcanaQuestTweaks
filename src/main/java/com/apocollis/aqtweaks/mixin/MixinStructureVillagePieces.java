@@ -21,17 +21,9 @@ public abstract class MixinStructureVillagePieces {
 
     @Unique
     private static final ThreadLocal<Boolean> AQTWEAKS$RETRYING_HOUSE = ThreadLocal.withInitial(() -> Boolean.FALSE);
-    @Unique
-    private static final ThreadLocal<Boolean> AQTWEAKS$RETRYING_ROAD = ThreadLocal.withInitial(() -> Boolean.FALSE);
 
     @Shadow(remap = false)
     private static StructureComponent func_176066_d(StructureVillagePieces.Start start, List<StructureComponent> structureComponents,
-                                                    Random rand, int x, int y, int z, EnumFacing facing, int type) {
-        throw new IllegalStateException("Mixin shadow");
-    }
-
-    @Shadow(remap = false)
-    private static StructureComponent func_176069_e(StructureVillagePieces.Start start, List<StructureComponent> structureComponents,
                                                     Random rand, int x, int y, int z, EnumFacing facing, int type) {
         throw new IllegalStateException("Mixin shadow");
     }
@@ -60,30 +52,6 @@ public abstract class MixinStructureVillagePieces {
         cir.setReturnValue(aqtweaks$placeHouseOnLand(start, structureComponents, rand, x, y, z, facing, type));
     }
 
-    @Inject(method = "func_176069_e", at = @At("HEAD"), cancellable = true)
-    private static void aqtweaks$retryRoadOnLand(StructureVillagePieces.Start start, List<StructureComponent> structureComponents,
-                                                 Random rand, int x, int y, int z, EnumFacing facing, int type,
-                                                 CallbackInfoReturnable<StructureComponent> cir) {
-        if (Boolean.TRUE.equals(AQTWEAKS$RETRYING_ROAD.get())) return;
-        if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.skipWaterVillagePieces) return;
-        if (!VillageLandHelper.isWaterAt(start, x, z)) return;
-        VillageDebug.log("road origin wet x=%d z=%d, retrying", x, z);
-        cir.setReturnValue(aqtweaks$placeRoadOnLand(start, structureComponents, rand, x, y, z, facing, type));
-    }
-
-    @Inject(method = "func_176069_e", at = @At("RETURN"), cancellable = true)
-    private static void aqtweaks$rejectRoadAabbOnWater(StructureVillagePieces.Start start, List<StructureComponent> structureComponents,
-                                                       Random rand, int x, int y, int z, EnumFacing facing, int type,
-                                                       CallbackInfoReturnable<StructureComponent> cir) {
-        if (Boolean.TRUE.equals(AQTWEAKS$RETRYING_ROAD.get())) return;
-        if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.skipWaterVillagePieces) return;
-        StructureComponent placed = cir.getReturnValue();
-        if (placed == null || !VillageLandHelper.isAabbWet(start, placed)) return;
-        VillageDebug.log("road aabb wet origin=%d,%d, removed retrying", x, z);
-        structureComponents.remove(placed);
-        cir.setReturnValue(aqtweaks$placeRoadOnLand(start, structureComponents, rand, x, y, z, facing, type));
-    }
-
     @Unique
     private static StructureComponent aqtweaks$placeHouseOnLand(StructureVillagePieces.Start start, List<StructureComponent> structureComponents,
                                                                Random rand, int x, int y, int z, EnumFacing facing, int type) {
@@ -96,31 +64,14 @@ public abstract class MixinStructureVillagePieces {
                     VillageDebug.log("house retry hit origin=%d,%d slot=%d,%d", x, z, slot[0], slot[1]);
                     return placed;
                 }
+                if (placed != null) {
+                    structureComponents.remove(placed);
+                }
             }
             VillageDebug.log("house retry miss origin=%d,%d", x, z);
             return null;
         } finally {
             AQTWEAKS$RETRYING_HOUSE.set(Boolean.FALSE);
-        }
-    }
-
-    @Unique
-    private static StructureComponent aqtweaks$placeRoadOnLand(StructureVillagePieces.Start start, List<StructureComponent> structureComponents,
-                                                              Random rand, int x, int y, int z, EnumFacing facing, int type) {
-        AQTWEAKS$RETRYING_ROAD.set(Boolean.TRUE);
-        try {
-            int maxStep = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageWaterRetryDistance);
-            for (int[] slot : VillageLandHelper.landCandidates(start, x, z, facing, maxStep)) {
-                StructureComponent placed = func_176069_e(start, structureComponents, rand, slot[0], y, slot[1], facing, type);
-                if (placed != null && !VillageLandHelper.isAabbWet(start, placed)) {
-                    VillageDebug.log("road retry hit origin=%d,%d slot=%d,%d", x, z, slot[0], slot[1]);
-                    return placed;
-                }
-            }
-            VillageDebug.log("road retry miss origin=%d,%d", x, z);
-            return null;
-        } finally {
-            AQTWEAKS$RETRYING_ROAD.set(Boolean.FALSE);
         }
     }
 }

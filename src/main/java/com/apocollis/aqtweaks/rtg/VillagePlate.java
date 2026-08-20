@@ -112,12 +112,15 @@ public final class VillagePlate {
     }
 
     public static boolean yInStartVolume(int y, Record rec, float plateOrNaN, int heightAbove) {
+        int extra = Math.max(0, heightAbove);
+        int startMin = rec.minY > Integer.MIN_VALUE ? rec.minY : 0;
+        int startMax = rec.maxY > Integer.MIN_VALUE ? rec.maxY : startMin;
+        int floor = Math.min(startMin, 63);
         if (!Float.isNaN(plateOrNaN)) {
-            return yInSlab(y, plateOrNaN, heightAbove);
+            floor = Math.min(floor, Math.round(plateOrNaN));
+            startMax = Math.max(startMax, Math.round(plateOrNaN));
         }
-        int minY = rec.minY > Integer.MIN_VALUE ? rec.minY : 0;
-        int maxY = rec.maxY > Integer.MIN_VALUE ? rec.maxY : minY;
-        return y >= minY && y <= maxY + Math.max(0, heightAbove);
+        return y >= floor && y <= startMax + extra;
     }
 
     /**

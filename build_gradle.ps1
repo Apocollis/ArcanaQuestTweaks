@@ -16,6 +16,8 @@ $localModsDir = "c:/Users/hughe/curseforge/minecraft/Instances/Arcana Quest DEVB
 Write-Output "Checking dependencies in libs..."
 $oldElenai = Join-Path $libsDir "ElenaiDodge2-1.12.2-1.1.0.jar"
 if (Test-Path $oldElenai) { Remove-Item $oldElenai -Force }
+$oldRc = Join-Path $libsDir "RecurrentComplexVolts-1.12.2-2.0.0.7.jar"
+if (Test-Path $oldRc) { Remove-Item $oldRc -Force }
 
 $deps = @(
     "ElenaiDodge2Extended-1.12.2-1.1.3.jar",
@@ -23,7 +25,7 @@ $deps = @(
     "RoguelikeDungeons-Arcana-1.12.2-2.5.0.jar",
     "CoFHWorld-1.12.2-1.4.0.1-universal.jar",
     "bettercaves-1.12.2-2.0.4.jar",
-    "RecurrentComplexVolts-1.12.2-2.0.0.7.jar",
+    "RecurrentComplexVolts-1.12.2-2.0.0.9.jar",
     "IvToolkit-1.3.3-1.12.jar",
     "RTG-1.12.2-7.3.3.6.jar"
 )
