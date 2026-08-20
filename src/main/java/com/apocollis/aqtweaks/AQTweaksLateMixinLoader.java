@@ -8,6 +8,12 @@ import java.util.List;
 public class AQTweaksLateMixinLoader implements ILateMixinLoader {
     @Override
     public List<String> getMixinConfigs() {
-        return Arrays.asList("mixins.aqtweaks.json", "mixins.aqtweaks.grapple.json", "mixins.aqtweaks.dss.json");
+        return Arrays.asList(
+                "mixins.aqtweaks.json",
+                "mixins.aqtweaks.grapple.json",
+                "mixins.aqtweaks.dss.json",
+                "mixins.aqtweaks.astral.json",
+                "mixins.aqtweaks.bewitchment.json",
+                "mixins.aqtweaks.mysticalworld.json");
     }
 }

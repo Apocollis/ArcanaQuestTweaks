@@ -675,6 +675,40 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Village Flatten Debug")
         @Config.Comment("Write village terrain traces to logs/villagepatch.log (not latest.log). On for diagnostic capture.")
         public boolean villageFlattenDebug = true;
+
+        @Config.Name("Skip Structures On Village")
+        @Config.Comment("Cancel Astral shrines, Bewitchment Cambion houses, and Mystical World huts if they would overlap a village.")
+        public boolean skipStructuresOnVillage = true;
+
+        @Config.Name("Enable Structure Land Settle")
+        @Config.Comment("Fill under and ramp around those structures after they place. Does not rewrite the structure blocks.")
+        public boolean enableStructureLandSettle = true;
+
+        @Config.Name("Enable Astral Shrine Settle")
+        @Config.Comment("Apply village-skip and land settle to Astral Sorcery surface shrines.")
+        public boolean enableAstralShrineSettle = true;
+
+        @Config.Name("Enable Cambion House Settle")
+        @Config.Comment("Skip Bewitchment Cambion houses that overlap a village. No land plate; paste is Y+1 only.")
+        public boolean enableCambionHouseSettle = true;
+
+        @Config.Name("Enable Astral Small Shrine Village Piece")
+        @Config.Comment("Allow Astral small shrines as a village building, at most once per village.")
+        public boolean enableAstralSmallShrineVillagePiece = true;
+
+        @Config.Name("Enable Mystical Hut Settle")
+        @Config.Comment("Apply village-skip and land settle to Mystical World thatch huts (not barrows).")
+        public boolean enableMysticalHutSettle = true;
+
+        @Config.Name("Structure Fill Depth")
+        @Config.Comment("Max blocks to fill downward under a structure pad. 0 = no fill.")
+        @Config.RangeInt(min = 0, max = 64)
+        public int structureFillDepth = 16;
+
+        @Config.Name("Structure Rim Bank")
+        @Config.Comment("Blocks of slope from the structure pad down to surrounding terrain. 0 = no rim.")
+        @Config.RangeInt(min = 0, max = 64)
+        public int structureRimBank = 16;
     }
 
     @Mod.EventBusSubscriber(modid = ArcanaQuestTweaks.MODID)

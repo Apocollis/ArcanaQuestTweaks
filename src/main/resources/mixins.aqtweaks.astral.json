@@ -1,0 +1,10 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.apocollis.aqtweaks.mixin.astral",
+  "compatibilityLevel": "JAVA_8",
+  "mixins": [
+    "MixinWorldGenAttributeCommon",
+    "MixinWorldGenAttributeStructure"
+  ]
+}

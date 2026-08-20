@@ -45,6 +45,10 @@ public class CommonProxy {
         }
 
         MinecraftForge.EVENT_BUS.register(new ComfortSystemHandler());
+
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("astralsorcery")) {
+            com.apocollis.aqtweaks.rtg.VillageAstralSmallShrineHandler.register();
+        }
     }
 
     public void postInit(FMLPostInitializationEvent event) {}
