@@ -1,5 +1,6 @@
 package com.apocollis.aqtweaks.rtg;
 
+import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.ChunkPos;
@@ -15,10 +16,12 @@ import rtg.world.gen.ChunkLandscape;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
- * Village placement: wet-column tests, ocean-well veto, and land retry slots for buildings.
+ * Village placement: wet-column tests, ocean-like well veto, coast buffer, and land retry slots for buildings.
  */
 public final class VillageLandHelper {
 
@@ -29,6 +32,7 @@ public final class VillageLandHelper {
     public static final int BANK_BLEND = 8;
 
     private static final ThreadLocal<Deque<World>> WORLDS = ThreadLocal.withInitial(ArrayDeque::new);
+    private static final ThreadLocal<Deque<ChunkGeneratorRTG>> GENERATORS = ThreadLocal.withInitial(ArrayDeque::new);
     private static final ThreadLocal<Integer> SAMPLING = ThreadLocal.withInitial(() -> 0);
 
     private VillageLandHelper() {}
@@ -46,6 +50,22 @@ public final class VillageLandHelper {
 
     public static World currentWorld() {
         Deque<World> stack = WORLDS.get();
+        return stack.isEmpty() ? null : stack.peek();
+    }
+
+    public static void pushGenerator(ChunkGeneratorRTG gen) {
+        if (gen != null) GENERATORS.get().push(gen);
+    }
+
+    public static void popGenerator() {
+        Deque<ChunkGeneratorRTG> stack = GENERATORS.get();
+        if (!stack.isEmpty()) {
+            stack.pop();
+        }
+    }
+
+    public static ChunkGeneratorRTG currentGenerator() {
+        Deque<ChunkGeneratorRTG> stack = GENERATORS.get();
         return stack.isEmpty() ? null : stack.peek();
     }
 
@@ -85,22 +105,49 @@ public final class VillageLandHelper {
     }
 
     /**
-     * Veto ocean, river biome, or a flooded watercourse. Swamp wells are allowed and padded.
+     * Veto ocean-like, river, or a flooded watercourse. Swamp wells are allowed.
+     * Beach wells are allowed unless ocean-like or river is closer than {@code villageCoastBuffer}.
      */
     public static String startRejectReason(World world, int chunkX, int chunkZ) {
         if (world == null) return null;
         int wellX = chunkX * 16 + 2;
         int wellZ = chunkZ * 16 + 2;
-        Biome biome = Reflect.getBiome(world.getBiomeProvider(), wellX, wellZ);
+        BiomeProvider provider = world.getBiomeProvider();
+        Biome biome = Reflect.getBiome(provider, wellX, wellZ);
         if (isOceanBiome(biome)) {
             return "ocean_well " + biomeId(biome);
         }
         if (isOceanOrRiverBiome(biome)) {
             return "river_well " + biomeId(biome);
         }
+        String coast = coastRejectReason(provider, wellX, wellZ);
+        if (coast != null) return coast;
         if (isSwampLikeForRaise(biome)) return null;
         if (isRtgLandscapeWet(world, wellX, wellZ)) {
             return "flooded_well " + biomeId(biome);
+        }
+        return null;
+    }
+
+    /**
+     * Reject a land/beach well if ocean-like or river is closer than the coast buffer. 0 = well column only.
+     */
+    private static String coastRejectReason(BiomeProvider provider, int wellX, int wellZ) {
+        int buffer = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageCoastBuffer);
+        if (buffer <= 0 || provider == null) return null;
+        int limit = buffer - 1;
+        for (int dx = -limit; dx <= limit; dx += 2) {
+            for (int dz = -limit; dz <= limit; dz += 2) {
+                if (dx == 0 && dz == 0) continue;
+                if (Math.max(Math.abs(dx), Math.abs(dz)) >= buffer) continue;
+                Biome nearby = Reflect.getBiome(provider, wellX + dx, wellZ + dz);
+                if (isOceanBiome(nearby)) {
+                    return "coast_ocean " + biomeId(nearby);
+                }
+                if (isOceanOrRiverBiome(nearby)) {
+                    return "coast_river " + biomeId(nearby);
+                }
+            }
         }
         return null;
     }
@@ -135,15 +182,19 @@ public final class VillageLandHelper {
         return isFlattenSkipColumn(provider, landscape, index, worldX, worldZ);
     }
 
+    /**
+     * Ocean, kelp forest, coral reef, and similar water biomes. Pure beach is not ocean.
+     */
     public static boolean isOceanBiome(Biome biome) {
-        if (biome == null || isBeachBiome(biome)) return false;
+        if (biome == null) return false;
+        if (oceanLikeName(biome)) return true;
+        if (isBeachBiome(biome)) return false;
         try {
             if (BiomeDictionary.hasType(biome, BiomeDictionary.Type.OCEAN)) {
                 return true;
             }
-            if (biome.getRegistryName() == null) return false;
-            String name = biome.getRegistryName().toString().toLowerCase();
-            return name.contains("ocean") || name.contains("kelp") || name.contains("coral");
+            if (swampTagged(biome)) return false;
+            return BiomeDictionary.hasType(biome, BiomeDictionary.Type.WATER);
         } catch (Throwable ignored) {
             return false;
         }
@@ -179,6 +230,11 @@ public final class VillageLandHelper {
 
     public static boolean isSwampBiome(Biome biome) {
         if (biome == null || isBeachBiome(biome) || isNeverRaiseBiome(biome)) return false;
+        return swampTagged(biome);
+    }
+
+    private static boolean swampTagged(Biome biome) {
+        if (biome == null) return false;
         try {
             if (BiomeDictionary.hasType(biome, BiomeDictionary.Type.SWAMP)) {
                 return true;
@@ -189,6 +245,17 @@ public final class VillageLandHelper {
                     || name.contains("wetland") || name.contains("bayou")
                     || name.contains("mangrove") || name.contains("fen")
                     || name.contains("moor") || name.contains("peat") || name.contains("muskeg");
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    private static boolean oceanLikeName(Biome biome) {
+        try {
+            if (biome == null || biome.getRegistryName() == null) return false;
+            String name = biome.getRegistryName().toString().toLowerCase();
+            return name.contains("ocean") || name.contains("kelp") || name.contains("coral")
+                    || name.contains("reef") || name.contains("atoll") || name.contains("lagoon");
         } catch (Throwable ignored) {
             return false;
         }
@@ -239,6 +306,24 @@ public final class VillageLandHelper {
         return isAabbWet(villageStart, component, true);
     }
 
+    /**
+     * True only if every sampled column is flooded. Mixed road + puddle still plates with houses.
+     * Fully flooded roads (docks) stay off the plate hull.
+     */
+    public static boolean isAabbFullyFlooded(Object villageStart, Object component) {
+        int[] box = Reflect.getStructureComponentBoxXZ(component);
+        if (box == null) return false;
+        int stride = 2;
+        for (int x = box[0]; x <= box[1]; x += stride) {
+            for (int z = box[2]; z <= box[3]; z += stride) {
+                if (!isFloodedAt(villageStart, x, z)) {
+                    return false;
+                }
+            }
+        }
+        return isFloodedAt(villageStart, box[1], box[3]);
+    }
+
     private static boolean isAabbWet(Object villageStart, Object component, boolean flooded) {
         int[] box = Reflect.getStructureComponentBoxXZ(component);
         if (box == null) return false;
@@ -259,6 +344,11 @@ public final class VillageLandHelper {
         int[] box = Reflect.getStructureComponentBoxXZ(villageStart);
         if (box == null) return true;
         return Math.abs(x - box[0]) <= 112 && Math.abs(z - box[2]) <= 112;
+    }
+
+    public static boolean isWaystonePiece(Object component) {
+        if (component == null) return false;
+        return component.getClass().getName().contains("ComponentVillageWaystone");
     }
 
     /**
@@ -302,6 +392,55 @@ public final class VillageLandHelper {
             if (isWaterAt(villageStart, nx, nz)) continue;
             out.add(new int[] {nx, nz});
         }
+    }
+
+    /**
+     * Street slots, then toward the well, then a spiral around the well. Dry columns only, inside the village cap.
+     */
+    public static List<int[]> inlandCandidates(Object villageStart, int x, int z, EnumFacing facing, int streetMax) {
+        List<int[]> out = new ArrayList<>();
+        LinkedHashSet<Long> seen = new LinkedHashSet<>();
+        for (int[] slot : landCandidates(villageStart, x, z, facing, streetMax)) {
+            addLandSlot(out, seen, villageStart, slot[0], slot[1]);
+        }
+        int wellX = x;
+        int wellZ = z;
+        int[] startBox = Reflect.getStructureComponentBoxXZ(villageStart);
+        if (startBox != null) {
+            wellX = (startBox[0] + startBox[1]) >> 1;
+            wellZ = (startBox[2] + startBox[3]) >> 1;
+        }
+        addLandSlot(out, seen, villageStart, wellX, wellZ);
+        int sx = Integer.signum(wellX - x);
+        int sz = Integer.signum(wellZ - z);
+        int dist = Math.max(Math.abs(wellX - x), Math.abs(wellZ - z));
+        for (int step = 4; step <= Math.max(dist, 4); step += 4) {
+            int nx = sx == 0 ? x : x + sx * step;
+            int nz = sz == 0 ? z : z + sz * step;
+            if (sx != 0 && Math.abs(nx - x) >= Math.abs(wellX - x)) nx = wellX;
+            if (sz != 0 && Math.abs(nz - z) >= Math.abs(wellZ - z)) nz = wellZ;
+            addLandSlot(out, seen, villageStart, nx, nz);
+            if (nx == wellX && nz == wellZ) break;
+        }
+        for (int r = 4; r <= 80; r += 4) {
+            for (int ox = -r; ox <= r; ox += 4) {
+                addLandSlot(out, seen, villageStart, wellX + ox, wellZ - r);
+                addLandSlot(out, seen, villageStart, wellX + ox, wellZ + r);
+            }
+            for (int oz = -r + 4; oz <= r - 4; oz += 4) {
+                addLandSlot(out, seen, villageStart, wellX - r, wellZ + oz);
+                addLandSlot(out, seen, villageStart, wellX + r, wellZ + oz);
+            }
+        }
+        return out;
+    }
+
+    private static void addLandSlot(List<int[]> out, Set<Long> seen, Object villageStart, int x, int z) {
+        if (!withinVillageCap(villageStart, x, z)) return;
+        if (isWaterAt(villageStart, x, z)) return;
+        long key = ((long) x << 32) | (z & 0xFFFFFFFFL);
+        if (!seen.add(key)) return;
+        out.add(new int[] {x, z});
     }
 
     public static boolean isLandscapeWet(ChunkLandscape landscape, int index) {
@@ -354,12 +493,19 @@ public final class VillageLandHelper {
     }
 
     private static ChunkLandscape sampleLandscape(World world, int x, int z) {
-        if (world == null) return null;
-        Object gen = Reflect.getChunkGenerator(world);
-        if (!(gen instanceof ChunkGeneratorRTG)) return null;
+        ChunkGeneratorRTG gen = currentGenerator();
+        if (gen == null) {
+            Object found = Reflect.getChunkGenerator(world);
+            if (found instanceof ChunkGeneratorRTG) {
+                gen = (ChunkGeneratorRTG) found;
+            }
+        }
+        if (gen == null) return null;
         SAMPLING.set(SAMPLING.get() + 1);
         try {
-            return ((ChunkGeneratorRTG) gen).getLandscape(world.getBiomeProvider(), new ChunkPos(x >> 4, z >> 4));
+            BiomeProvider provider = world != null ? world.getBiomeProvider() : null;
+            if (provider == null) return null;
+            return gen.getLandscape(provider, new ChunkPos(x >> 4, z >> 4));
         } catch (Throwable ignored) {
             return null;
         } finally {

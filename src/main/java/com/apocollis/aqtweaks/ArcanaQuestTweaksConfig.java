@@ -645,7 +645,7 @@ public class ArcanaQuestTweaksConfig {
         public int villageWaterRetryDistance = 20;
 
         @Config.Name("Reject Coastal Village Starts")
-        @Config.Comment("Veto a village if the well is in ocean, a river biome, or a flooded watercourse. Swamp and beach wells are allowed.")
+        @Config.Comment("Veto a village if the well is ocean-like (ocean, kelp forest, coral reef, WATER), a river, or a flooded watercourse. Pure beach is allowed if ocean/river is not inside the coast buffer. Swamp wells are allowed.")
         public boolean rejectCoastalVillageStarts = true;
 
         @Config.Name("Village Min Well Height")
@@ -654,9 +654,9 @@ public class ArcanaQuestTweaksConfig {
         public int villageMinWellHeight = 65;
 
         @Config.Name("Village Coast Buffer")
-        @Config.Comment("Blocks around the well to scan for deep ocean. 0 = well column only.")
+        @Config.Comment("Chebyshev blocks around the well. Veto if ocean-like or river is closer than this. Distance at or beyond this is allowed. 0 = well column only.")
         @Config.RangeInt(min = 0, max = 128)
-        public int villageCoastBuffer = 32;
+        public int villageCoastBuffer = 16;
 
         @Config.Name("Enable Village Bounding Box Detection")
         @Config.Comment("Treat the village start bounding box (yards, roads, gaps) as Village for isInsideStructure / InControl, not only child pieces.")

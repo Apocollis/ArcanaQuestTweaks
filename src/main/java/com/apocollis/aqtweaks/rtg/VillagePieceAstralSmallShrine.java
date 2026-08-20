@@ -3,6 +3,7 @@ package com.apocollis.aqtweaks.rtg;
 import hellfirepvp.astralsorcery.common.lib.MultiBlockArrays;
 import hellfirepvp.astralsorcery.common.structure.array.BlockArray;
 import hellfirepvp.astralsorcery.common.structure.array.StructureBlockArray;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
@@ -59,16 +60,25 @@ public class VillagePieceAstralSmallShrine extends StructureVillagePieces.Villag
         }
 
         if (world.isRemote) return true;
+        if (isOceanOrRiverFloor(world, structurebb)) {
+            VillageDebug.log("astral shrine skip ocean floor at=%d,%d y=%d",
+                    this.boundingBox.minX, this.boundingBox.minZ, this.averageGroundLvl);
+            return true;
+        }
         BlockPos origin = new BlockPos(
                 this.boundingBox.minX - min.getX(),
                 this.boundingBox.minY - min.getY(),
                 this.boundingBox.minZ - min.getZ());
         Map<BlockPos, BlockArray.TileEntityCallback> callbacks = template.getTileCallbacks();
         boolean any = false;
+        List<BlockPos> fluids = new java.util.ArrayList<>();
         for (Map.Entry<BlockPos, BlockArray.BlockInformation> entry : template.getPattern().entrySet()) {
             BlockPos at = origin.add(entry.getKey());
             if (!structurebb.isVecInside(at)) continue;
-            world.setBlockState(at, entry.getValue().state, 2);
+            IBlockState place = entry.getValue().state;
+            boolean liquid = place != null && place.getMaterial().isLiquid();
+            world.setBlockState(at, place, liquid ? 3 : 2);
+            if (liquid) fluids.add(at);
             any = true;
             if (callbacks != null && callbacks.containsKey(entry.getKey())) {
                 TileEntity te = world.getTileEntity(at);
@@ -78,10 +88,44 @@ public class VillagePieceAstralSmallShrine extends StructureVillagePieces.Villag
                 }
             }
         }
+        for (BlockPos at : fluids) {
+            IBlockState state = world.getBlockState(at);
+            if (state != null && state.getMaterial().isLiquid()) {
+                world.neighborChanged(at, state.getBlock(), at);
+            }
+        }
         if (any && VillageDebug.once("shrine-piece-" + origin.getX() + "," + origin.getZ())) {
             VillageDebug.log("astral small shrine village piece at=%d,%d,%d", origin.getX(), origin.getY(), origin.getZ());
         }
         return true;
+    }
+
+    /**
+     * Last-resort: do not paste onto ocean/river water in this chunk. Swamp stays.
+     */
+    private boolean isOceanOrRiverFloor(World world, StructureBoundingBox clip) {
+        int y = Math.max(1, this.averageGroundLvl - 1);
+        int minX = this.boundingBox.minX;
+        int maxX = this.boundingBox.maxX;
+        int minZ = this.boundingBox.minZ;
+        int maxZ = this.boundingBox.maxZ;
+        if (clip != null) {
+            minX = Math.max(minX, clip.minX);
+            maxX = Math.min(maxX, clip.maxX);
+            minZ = Math.max(minZ, clip.minZ);
+            maxZ = Math.min(maxZ, clip.maxZ);
+        }
+        for (int x = minX; x <= maxX; x += 2) {
+            for (int z = minZ; z <= maxZ; z += 2) {
+                BlockPos pos = new BlockPos(x, y, z);
+                net.minecraft.world.biome.Biome biome = world.getBiome(pos);
+                if (VillageLandHelper.isNeverRaiseBiome(biome)) return true;
+                if (VillageLandHelper.isSwampLikeForRaise(biome)) continue;
+                IBlockState state = world.getBlockState(pos);
+                if (state != null && state.getMaterial().isLiquid()) return true;
+            }
+        }
+        return false;
     }
 
     static StructureBlockArray template() {

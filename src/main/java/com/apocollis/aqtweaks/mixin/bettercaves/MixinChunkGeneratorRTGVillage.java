@@ -98,7 +98,12 @@ public abstract class MixinChunkGeneratorRTGVillage {
         }
         try {
             if (world.getWorldInfo() != null && !world.getWorldInfo().isMapFeaturesEnabled()) return;
-            VillageLandHelper.layoutVillageGrid(villageGenerator, world, cx, cz, AQTWEAKS$DUMMY_PRIMER);
+            VillageLandHelper.pushGenerator((ChunkGeneratorRTG) (Object) this);
+            try {
+                VillageLandHelper.layoutVillageGrid(villageGenerator, world, cx, cz, AQTWEAKS$DUMMY_PRIMER);
+            } finally {
+                VillageLandHelper.popGenerator();
+            }
         } catch (Throwable ignored) {}
     }
 

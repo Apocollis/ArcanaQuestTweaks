@@ -3,6 +3,10 @@ package com.apocollis.aqtweaks.rtg;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.block.Block;
+import net.minecraft.block.BlockBush;
+import net.minecraft.block.BlockReed;
+import net.minecraft.block.BlockVine;
+import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
 import net.minecraft.util.math.BlockPos;
@@ -138,6 +142,7 @@ public final class StructureLandSettle {
                 world.setBlockState(topPos, top, 2);
             }
         }
+        clearPlantsAbove(world, x, z, floorY);
     }
 
     private static int surfaceY(World world, int x, int z) {
@@ -156,12 +161,32 @@ public final class StructureLandSettle {
         return state != null && state.getMaterial().isLiquid();
     }
 
+    private static void clearPlantsAbove(World world, int x, int z, int floorY) {
+        for (int y = floorY; y <= floorY + 3 && y < 256; y++) {
+            BlockPos pos = new BlockPos(x, y, z);
+            IBlockState state = world.getBlockState(pos);
+            if (state == null || world.isAirBlock(pos) || state.getBlock() == Blocks.AIR) continue;
+            if (isLiquid(state) || !isFillable(world, pos, state)) break;
+            world.setBlockState(pos, Blocks.AIR.getDefaultState(), 2);
+        }
+    }
+
     private static boolean isFillable(World world, BlockPos pos, IBlockState state) {
         if (state == null) return true;
         Block block = state.getBlock();
         if (block == Blocks.AIR || world.isAirBlock(pos)) return true;
         if (block == Blocks.SNOW_LAYER || block == Blocks.TALLGRASS || block == Blocks.YELLOW_FLOWER
                 || block == Blocks.RED_FLOWER || block == Blocks.DOUBLE_PLANT || block == Blocks.WATERLILY) {
+            return true;
+        }
+        Material mat = state.getMaterial();
+        if (mat == Material.LEAVES || mat == Material.WOOD || mat == Material.ROCK) {
+            return false;
+        }
+        if (mat == Material.PLANTS || mat == Material.VINE || mat == Material.CACTUS) {
+            return true;
+        }
+        if (block instanceof BlockBush || block instanceof BlockReed || block instanceof BlockVine) {
             return true;
         }
         try {

@@ -219,7 +219,7 @@ public final class VillagePlate {
         for (Object piece : Reflect.getStructureStartComponents(start)) {
             int[] box = Reflect.getStructureComponentBoxXZ(piece);
             if (box == null) continue;
-            if (VillageLandHelper.isVillageRoad(piece) && VillageLandHelper.isAabbFlooded(start, piece)) {
+            if (VillageLandHelper.isVillageRoad(piece) && VillageLandHelper.isAabbFullyFlooded(start, piece)) {
                 continue;
             }
             out.add(box);
