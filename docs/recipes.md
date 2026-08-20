@@ -1,22 +1,49 @@
-# Recipes (Forge CraftingHelper)
+# Recipes (Forge CraftingHelper) (1.6)
 
-No dedicated cfg. Small loader fix, not a gameplay module.
+Last updated: 2026-08-20.
 
-## What Tweaks does
+No dedicated cfg. Small loader fix, not a gameplay module. Mixin lives in **required** `mixins.aqtweaks.json` (`MixinCraftingHelperFindFiles`). Forge is always present; this is not optional.
 
-Skip broken recipe JSON under paths containing `generated/item/spartanweaponry` so Forge does not fail recipe load (Metallurgy-generated Spartan files).
+## Locked intent
+
+Skip broken recipe JSON under paths containing `generated/item/spartanweaponry` so Forge does not fail or spam while loading Metallurgy-generated Spartan Weaponry files. Do not parse those files. Do not mixin extra Forge internals unless a new dead tree appears.
 
 ## How the parent works
 
-Forge `CraftingHelper.findFiles(ModContainer, base, preprocessor, processor, ...)` walks a mod jar/dir (e.g. `assets/.../recipes`) and runs `processor` on each file. A single invalid JSON can spam errors or break load order.
+Forge `CraftingHelper.findFiles(ModContainer, base, preprocessor, processor, defaultUnfoundRoot, visitAllFiles)` walks a mod jar/dir (e.g. `assets/.../recipes`) and runs `processor` on each file. Signature (remap false):
 
-## How Tweaks hooks in
+`findFiles(Lnet/minecraftforge/fml/common/ModContainer;Ljava/lang/String;Ljava/util/function/Function;Ljava/util/function/BiFunction;ZZ)Z`
 
-`MixinCraftingHelperFindFiles` `@ModifyVariable` on the `BiFunction` processor (HEAD, argsOnly). If `base` contains `/recipes`, wrap the processor: `RecipeJsonSkip.shouldSkip(Path)` → return `Boolean.TRUE` (treated as handled) without parsing.
+A single invalid JSON can spam errors or break load order.
 
-Add more path needles in `RecipeJsonSkip.SKIP_CONTAINS` later; do not mixin extra Forge internals unless needed.
+## Design plan
+
+`MixinCraftingHelperFindFiles` `@ModifyVariable` on the `BiFunction` processor (`HEAD`, `argsOnly`, ordinal 0).
+
+If `processor` is null, or `base` is null, or `base` does **not** contain `/recipes`, return the original processor.
+
+Otherwise wrap: if `file` is a `Path` and `RecipeJsonSkip.shouldSkip(path)` → return `Boolean.TRUE` (Forge treats that as handled) **without** calling the real processor. Else `processor.apply(root, file)`.
+
+`RecipeJsonSkip.SKIP_CONTAINS` currently:
+
+- `generated/item/spartanweaponry`
+
+Path matching uses `Path.toString()` with `\` → `/`. First skip logs once per JVM (`AtomicBoolean`) at INFO: `Skipping Metallurgy recipe JSON under {needle}`.
+
+Add more needles in that array later. Keep the `/recipes` gate so unrelated `findFiles` walks are untouched.
 
 ## Files
 
 - `mixin/MixinCraftingHelperFindFiles.java`
 - `recipe/RecipeJsonSkip.java`
+
+## Do not regress
+
+- Return `Boolean.TRUE` for skips (handled), not `false` (which can look like failure).
+- Do not drop the `/recipes` `base` check.
+- Do not make this mixin `required: false`; it targets Forge.
+
+## Out of scope unless asked
+
+- Fixing the Metallurgy generator itself
+- Skipping by recipe serializer / JSON parse errors instead of path

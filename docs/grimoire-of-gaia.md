@@ -1,56 +1,65 @@
-# Grimoire of Gaia module
+# Grimoire of Gaia module (1.6)
 
-Config: `config/arcanaquesttweaks/aqtweaks_grimoireofgaia.cfg`. Soft dependency (`after:grimoireofgaia`). Handler always registers; it no-ops unless the Gaia classes fire.
+Last updated: 2026-08-20.
 
-## Background & Design Intent
+Config: `config/arcanaquesttweaks/aqtweaks_grimoireofgaia.cfg`. Soft dependency (`after:grimoireofgaia`). `GrimoireOfGaiaModule` **always** registers; it no-ops unless `gaia.*` classes fire. No Gaia mixin.
 
-In Grimoire of Gaia 1.12.2, mob attacks are notorious for completely ignoring player defenses. On every melee hit, Gaia mobs apply an instant-damage potion effect (`Potion.getPotionById(6)`) on the same tick, and Gaia projectiles apply unblockable indirect magic. Because instant-damage potion effects and absolute magic bypass standard armor calculations, endgame players wearing top-tier modded gear (Thaumcraft Void Robes/Fortress armor, Draconic, etc.) with full Protection IV enchantments were regularly 1- or 2-shot as if completely naked.
+## Background and locked intent
 
-The goal of this module is **not** to nerf Gaia mobs' base attributes or remove their secondary damage entirely, but to **re-route** the piercing damage through armor-respecting damage sources while preserving full compatibility with magic mitigation defenses.
+In Grimoire of Gaia 1.12.2, mob attacks often ignore player defenses. On the same tick as a physical hit, Gaia melee applies instant-damage potion (`Potion` id 6 / `INSTANT_DAMAGE`). Gaia projectiles apply MAGIC with no reliable attacker. Instant-damage and absolute/unblockable magic skip armor and Protection, so endgame Void / Fortress / Draconic gear still got 1–2 shot.
 
-## What Tweaks does
-
-Gaia mobs apply a second **magic / absolute / unblockable** hit on the same tick as a physical hit (melee potion `INSTANT_DAMAGE`, or projectile MAGIC with no entity). Armor and Protection do not reduce that second hit.
-
-Tweaks intercepts and cancels that piercing packet and re-applies the exact same damage amount through custom `DamageSource`s:
-- `GaiaDamageSources.Melee` (`"mob"`)
-- `GaiaDamageSources.Projectile` (`"indirectMagic"`)
-
-Both custom sources override `isMagicDamage()` to return `true`, but omit the vanilla `isUnblockable()` and `isDamageAbsolute()` bypass flags:
-1. **Physical Armor & Protection Apply**: Physical armor defense points, toughness, and vanilla Protection / Projectile Protection enchantments reduce the incoming damage.
-2. **Magic Mitigation Remains Active**: Because `isMagicDamage()` remains `true`, Bewitchment Magic Protection enchantments, Potion of Resistance, Magic Resistance, and other modded magic defenses continue to detect and mitigate the attack.
+**Do not** nerf Gaia base attributes or delete the second hit. **Re-route** that piercing packet through armor-respecting `DamageSource`s that still report `isMagicDamage()` so Bewitchment Magic Protection, Resistance, and similar mods still see magic.
 
 ## How the parent mod works
 
-Grimoire of Gaia (`gaia.*` entity classes):
+1. **Melee:** Same world tick as the physical attack, instant-damage potion → vanilla fires a second `LivingHurtEvent` with MAGIC (often no `trueSource`).
+2. **Projectiles:** `ProjectileImpactEvent`, then MAGIC hurt with a weak attacker reference.
 
-1. **Melee:** On the same world tick as the mob’s physical attack, it applies instant damage as a potion. Vanilla then fires a second `LivingHurtEvent` with MAGIC (often no `trueSource`).
-2. **Projectiles:** On `ProjectileImpactEvent`, a Gaia projectile damages the player with MAGIC and no reliable attacker reference.
+Vanilla grants `hurtResistantTime = 20` after the physical hit. The second packet on the same tick would usually die on i-frames.
 
-### I-Frame (Invulnerability) Handling
+## Design plan (same-tick correlation)
 
-When the primary physical attack lands, vanilla Minecraft grants the player 20 ticks of invulnerability (`player.hurtResistantTime = 20`). Under vanilla rules, any secondary hit on the same tick would normally be completely discarded by the i-frame damage threshold check.
+Forge events only, **`EventPriority.HIGH`**, **players only** (`EntityPlayer`). Other living entities are ignored.
 
-To ensure the re-routed second hit lands without removing the player's overall protection against external mobs:
-1. Tweaks captures the player's active `hurtResistantTime` (`tempHurtResistant`).
-2. Temporarily zeroes `hurtResistantTime = 0` exclusively for the `attackEntityFrom` call.
-3. **Immediately restores** `hurtResistantTime` back to `tempHurtResistant`.
-This allows the re-routed hit to register cleanly while preserving the player's post-hit invulnerability window against other attackers.
+Class test: `getClass().getName().startsWith("gaia.")` on the mob or the projectile entity.
+
+Map: `UUID → GaiaDamageInfo(tick, attacker, projectile)` (`ConcurrentHashMap`). One slot per player; a new hit overwrites. Stale ticks are ignored by comparing `world.getTotalWorldTime()`, not by expiry.
+
+1. Physical hurt whose `trueSource` is `gaia.*` → record `(uuid, tick, attacker, projectile=null)` and **return** (do not modify the physical hit).
+2. `ProjectileImpactEvent` whose projectile is `gaia.*` and whose hit entity is a player → record `(uuid, tick, shooter, projectile)`.
+3. Later on that tick, if hurt is MAGIC **or** unblockable **or** absolute, and the map entry’s tick matches:
+   - Cancel the event.
+   - Build `GaiaDamageSources.Melee` (`EntityDamageSource` `"mob"`) or `Projectile` (`EntityDamageSourceIndirect` `"indirectMagic"`, projectile + shooter).
+   - Both override `isMagicDamage()` → true. They do **not** set unblockable/absolute.
+   - Save `hurtResistantTime`, set it to 0, `attackEntityFrom(custom, event.getAmount())`, **restore** the saved i-frame immediately.
+
+Guard: if `source instanceof GaiaDamageSources.Melee || Projectile`, return. Prevents recursion when the re-routed hit fires `LivingHurtEvent` again.
+
+Config `Disable Piercing Damage` (default **true**) is the master switch. Despite the name, it **converts** piercing to armored magic; it does not delete the second hit. When false, Tweaks does nothing.
+
+### Ordering assumption (maintenance)
+
+The MAGIC `LivingHurtEvent` must run **after** the physical record or the projectile impact record on that same tick. HIGH priority makes Tweaks see the physical hit early; the MAGIC event is a later call. If a Gaia version applies MAGIC **before** the physical event on the same tick, correlation misses and the pierce stays vanilla (armor bypass). Do not widen the tracker across ticks — that would rewrite unrelated magic (witches, Thaumcraft, etc.).
 
 ## How Tweaks hooks in
 
-No Gaia mixin. Forge events only (`GrimoireOfGaiaModule`).
+No Gaia mixin. `GrimoireOfGaiaModule` as above.
 
-1. Physical hurt from `trueSource` class name `gaia.*` → record `(playerUUID → tick, attacker)`.
-2. Gaia projectile impact on a player → record `(playerUUID → tick, shooter, projectile)`.
-3. Same tick, MAGIC / absolute / unblockable hurt → cancel, temporarily zero `hurtResistantTime`, re-apply damage via `attackEntityFrom` using:
-   - `GaiaDamageSources.Melee` (`EntityDamageSource` `"mob"`, `isMagicDamage() == true`)
-   - `GaiaDamageSources.Projectile` (`EntityDamageSourceIndirect` `"indirectMagic"`, `isMagicDamage() == true`)
-4. Restore `hurtResistantTime`.
+Custom sources:
 
-Guard: if the source is already one of those custom classes, return immediately to prevent recursion.
+- `GaiaDamageSources.Melee` — `"mob"`, `isMagicDamage() == true`
+- `GaiaDamageSources.Projectile` — `"indirectMagic"`, `isMagicDamage() == true`
 
-Config `Disable Piercing Damage` (default true) is the master switch.
+Effects of that pair:
+
+1. Physical armor, toughness, Protection, Projectile Protection apply.
+2. Magic mitigation still applies because `isMagicDamage()` is true.
+
+## Config (`aqtweaks_grimoireofgaia.cfg`)
+
+| Name | Default | Live? | Meaning |
+| --- | --- | --- | --- |
+| Disable Piercing Damage | true | yes | Convert Gaia same-tick MAGIC/absolute/unblockable into custom magic-but-armored sources |
 
 ## Files
 
@@ -59,7 +68,15 @@ Config `Disable Piercing Damage` (default true) is the master switch.
 
 ## Do not regress
 
-- Correlation is **same tick only**. Do not keep the tracker across ticks or unrelated magic (witches, Thaumcraft) gets rewritten.
-- Keep `isMagicDamage()` true so magic-protection mods (e.g. Bewitchment) still see it as magic.
-- Always restore `hurtResistantTime` immediately after the re-routed attack.
+- Correlation is **same tick only**.
+- Keep `isMagicDamage()` true.
+- Always restore `hurtResistantTime` immediately after `attackEntityFrom`.
+- Recursion guard must stay on the custom source classes.
+- Player-only; `gaia.` prefix (not a Gaia API interface).
+- Do not keep tracker entries across ticks to “catch” out-of-order MAGIC.
 
+## Out of scope unless asked
+
+- Rewriting Gaia AI or potion application inside Gaia classes
+- Applying the conversion to non-player victims
+- Mixing in Gaia projectile classes
