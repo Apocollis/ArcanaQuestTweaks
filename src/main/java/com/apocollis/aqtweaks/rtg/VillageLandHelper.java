@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 
 /**
@@ -276,26 +277,84 @@ public final class VillageLandHelper {
     }
 
     /**
-     * Layout the current chunk plus village-grid cell origins in range.
-     * Does not call generate() on all 289 neighbors.
+     * Layout the current chunk plus nearby village wells.
+     * Wells sit at a seeded offset inside each spacing cell, not at the cell origin.
      */
     public static void layoutVillageGrid(MapGenVillage gen, World world, int cx, int cz, ChunkPrimer primer) {
         if (gen == null || world == null) return;
         gen.generate(world, cx, cz, primer);
         int spacing = Reflect.getVillageDistance(gen);
         if (spacing < 9) spacing = 32;
-        int minCellX = Math.floorDiv(cx - VILLAGE_LAYOUT_RADIUS, spacing);
-        int maxCellX = Math.floorDiv(cx + VILLAGE_LAYOUT_RADIUS, spacing);
-        int minCellZ = Math.floorDiv(cz - VILLAGE_LAYOUT_RADIUS, spacing);
-        int maxCellZ = Math.floorDiv(cz + VILLAGE_LAYOUT_RADIUS, spacing);
+        int minTown = Reflect.getVillageMinDistance(gen);
+        if (minTown < 1 || minTown >= spacing) minTown = 8;
+        int minCellX = villageCell(cx - VILLAGE_LAYOUT_RADIUS, spacing);
+        int maxCellX = villageCell(cx + VILLAGE_LAYOUT_RADIUS, spacing);
+        int minCellZ = villageCell(cz - VILLAGE_LAYOUT_RADIUS, spacing);
+        int maxCellZ = villageCell(cz + VILLAGE_LAYOUT_RADIUS, spacing);
+        if (minCellX > maxCellX) {
+            int tmp = minCellX;
+            minCellX = maxCellX;
+            maxCellX = tmp;
+        }
+        if (minCellZ > maxCellZ) {
+            int tmp = minCellZ;
+            minCellZ = maxCellZ;
+            maxCellZ = tmp;
+        }
+        long seed = Reflect.getSeed(world);
         for (int cellX = minCellX; cellX <= maxCellX; cellX++) {
             for (int cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
-                int gx = cellX * spacing;
-                int gz = cellZ * spacing;
+                int[] well = villageWellChunk(seed, cellX, cellZ, spacing, minTown);
+                int gx = well[0];
+                int gz = well[1];
                 if (gx == cx && gz == cz) continue;
                 gen.generate(world, gx, gz, primer);
+                if (VillageDebug.once("layout:" + seed + ":" + cellX + "," + cellZ)) {
+                    VillageDebug.log("layout cell=%d,%d origin=%d,%d wellChunk=%d,%d hit=%s",
+                            cellX, cellZ, cellX * spacing, cellZ * spacing, gx, gz,
+                            villageStartAt(world, gx, gz) ? "yes" : "no");
+                }
             }
         }
+    }
+
+    /**
+     * Vanilla {@code MapGenVillage} cell index. Matches toward-zero division after the
+     * negative-chunk subtract, not {@code floorDiv}.
+     */
+    public static int villageCell(int chunk, int spacing) {
+        int c = chunk;
+        if (c < 0) {
+            c -= spacing - 1;
+        }
+        return c / spacing;
+    }
+
+    /**
+     * Well chunk inside a village cell. Same RNG as vanilla {@code canSpawnStructureAtCoords}
+     * ({@code World.setRandomSeed(cellX, cellZ, 10387312)}) without mutating {@code world.rand}.
+     */
+    public static int[] villageWellChunk(long worldSeed, int cellX, int cellZ, int spacing, int minTown) {
+        int span = Math.max(1, spacing - minTown);
+        long rngSeed = (long) cellX * 341873128712L
+                + (long) cellZ * 132897987541L
+                + worldSeed
+                + 10387312L;
+        Random random = new Random(rngSeed);
+        return new int[] {
+                cellX * spacing + random.nextInt(span),
+                cellZ * spacing + random.nextInt(span)
+        };
+    }
+
+    private static boolean villageStartAt(World world, int chunkX, int chunkZ) {
+        if (world == null) return false;
+        int wellX = chunkX * 16 + 2;
+        int wellZ = chunkZ * 16 + 2;
+        for (VillagePlate.Record rec : VillagePlate.starts(Reflect.getSeed(world))) {
+            if (rec.wellX == wellX && rec.wellZ == wellZ) return true;
+        }
+        return false;
     }
 
     public static boolean isAabbWet(Object villageStart, Object component) {

@@ -1,6 +1,6 @@
 # RTG module (1.6)
 
-Last updated: 2026-08-20, architecture pass (mixin map, settle fill rules).
+Last updated: 2026-08-20, 12-block component plate (yards between roads/houses).
 
 This is the RTG module: village flatten/placement, then post-terrain structure skip/settle. Locked intent, current pipeline, and why earlier approaches were dropped. Read this before changing village flatten, spawn veto, piece retry, or shrine/house/hut land settle.
 
@@ -38,9 +38,10 @@ Keep **what** villages create (vanilla pieces + Recurrent Complex, plus at most 
 - Houses and RC buildings must not sit in ocean-like or river water. Skip and retry onto land. Do not cancel the whole village because a building would have been wet.
 - **Ocean-like** (never raise, never well start): `Type.OCEAN` or `Type.WATER` (not swamp), plus names `ocean`, `kelp` (BOP Kelp Forest `kelp_forest`), `coral`, `reef`, `atoll`, `lagoon`. Pure **BEACH** is not ocean.
 - Wells may sit **16 blocks from the coast** (Chebyshev). Do not veto a land/beach well just because ocean is nearby beyond that. Veto if ocean-like or river is **closer than** `villageCoastBuffer` (default 16). `0` = well column only.
-- In **swamp-like** biomes, pieces may stay. Raise a land pad under buildings and the well. Roads on water stay docks.
+- In **swamp-like** biomes, pieces may stay. Plate buildings, mixed roads, **and the yards between them** (12-block component pad). Roads on open water stay docks.
 - **Never raise or plate ocean-like or river columns**, even inside a house or road AABB.
 - Keep a **flat plate under dry-land roads**, including stretches with no buildings. Omit a road from the plate hull only if **every** sampled column is flooded (true dock). A puddle on a forest path must not drop that path off the plate.
+- The plate is the **walkable village footprint**: pieces **and** the land between them, plus a 12-block full pad around each land component (including roads). It is **not** a village-wide rectangle. Empty AABB corners with no nearby piece stay hills.
 - Inland plains/forest (playtest “village 2”) is the target look for non-water biomes.
 - Structure detection reaching a bit past the village is acceptable; do not chase that unless asked.
 
@@ -83,7 +84,7 @@ If we wait until populate, the land is already carved. So we:
 4. Let RTG `generateTerrain` build blocks from that noise.
 5. Populate still places the same pieces.
 
-Layout must be cheap. `layoutVillageGrid` generates the **current chunk** plus village-grid **cell origins** in range (spacing from the map gen, default 32, radius 8 cells). It does **not** call `generate()` on all 289 neighbors.
+Layout must be cheap. `layoutVillageGrid` generates the **current chunk** plus the **vanilla well chunk** of each nearby village cell (spacing from the map gen, UT default 25, radius 8 chunks). The well is `cellOrigin + random(0, spacing - minTown)` with seed `setRandomSeed(cellX, cellZ, 10387312)`, not the cell origin. Generating only origins almost never created the `Start`, so hill-side chunks flattened as raw RTG and buildings stepped. It does **not** call `generate()` on all 289 neighbors.
 
 ## File map
 
@@ -121,26 +122,27 @@ Also runs from `@ModifyArg` on the `float[]` passed to `generateTerrain`, in cas
 
 ### Footprints
 
-- **Land boxes:** houses, RC, well, and roads that are **not fully flooded**. A road is omitted only if **every** sampled column is flooded (`isAabbFullyFlooded`). Any-column flood used to drop mixed sea-level paths, so lamps/houses plated and dirt sat one block lower. Fully flooded roads (docks) stay off the hull so a dock AABB does not expand the plate. Flatten still skips wet/ocean **columns**.
-- **Building boxes:** same minus all roads. Used for swamp raise so docks do not get a land mesa.
-- **100% plate:** **unpadded** land boxes only. The extra XZ pad is **not** extra flat mesa anymore (that caused sand/grass shelves into water).
+- **Land boxes:** houses, RC, well, and roads that are **not fully flooded**. A road is omitted only if **every** sampled column is flooded (`isAabbFullyFlooded`). Fully flooded roads (docks) are not pad sources. Flatten still never writes ocean/river **columns**.
+- **No village-wide rectangle.** Each column uses Euclidean distance to the **nearest land component AABB** (including paths). Empty corners of the start AABB stay hills.
+- **12-block component pad:** `dist ≤ villageComponentPad` (12) is **100% plate** at well Y. Overlapping pads fill grass between roads and houses when pieces are ≤24 blocks apart (the swamp-yard basin). Same rule for **swamp-like flooded** columns.
+- **Outer Hermite:** `12 < dist ≤ 12 + villageEdgeFalloff`. Smoothstep (`3t²−2t³`) plate → raw RTG. Default falloff **12**. Live cfg may still have **48** until edited.
+- **Village shrine:** not a land-component pad source. 100% plate inside AABB; extra full-plate radius `smallShrinePad` (3). In town, nearby road/house 12-zones already cover the yard.
+- **Building boxes:** land boxes minus roads. Used only for swamp **dock approach** ramps **outside** the 12-zone. Shrine raise radius 3; others `max(xzPad, waterBank)` (16).
 
-`distanceToBoxXZ` is 0 inside the AABB and Euclidean outside. That gives **rounded corners** on the swamp skirt.
+`distanceToBoxXZ` is 0 inside the AABB and Euclidean outside (rounded pad corners).
 
 ### Column rules (in order)
 
 1. **Ocean-like or river biome** → never write. Pure beach is **not** ocean. Ocean-like names (`kelp`, `coral`, `reef`, …) win even if the biome is also tagged BEACH.
-2. **Flooded** (RTG river strength > 0.4, or noise `< 64`) **and swamp-like** and inside raise radius → swamp raise (below).
-3. **Flooded** otherwise → skip (leave water). Includes flooded beach/plains so we do not build sand piers.
-4. **Dry**, inside unpadded land box → 100% plate Y.
-5. **Dry**, outside box, within `villageEdgeFalloff` (48) → blend plate → raw height.
-6. **Dry**, in that falloff band, near skipped water → **water bank**: further lerp toward raw/shore over `villageWaterBank` (16). `0` restores the old vertical waterline cutoff.
+2. **Flooded swamp-like**, `dist ≤ 12` from a land component (or shrine pad 3) → 100% plate, at least Y 64. This is the in-between grass in swamp villages.
+3. **Flooded swamp-like**, in the outer Hermite band → blend plate → original water. Water bank can ease that toward skipped ocean/river.
+4. **Flooded swamp-like**, outside that, inside building raise radius → dock-approach ramp (not in-village yards).
+5. **Flooded** otherwise → skip. Includes flooded beach/plains so we do not build sand piers.
+6. **Dry**, `dist ≤ 12` from a land component → 100% plate Y.
+7. **Dry**, in the outer Hermite band → blend plate → raw height.
+8. **Dry**, in that band, near skipped water → **water bank** over `villageWaterBank` (16).
 
-Swamp raise:
-
-- Inside the **building/well AABB**: full plate, at least Y 64.
-- Between the AABB and `max(xzPad, waterBank)`: smoothstep from plate down to **original** water height (a ramp, not a cylinder).
-- Roads on swamp water are not in building boxes → stay docks.
+Dock water (fully flooded roads omitted from land boxes) stays water. Land within 12 of a house or mixed road still plates.
 
 ### Plate Y
 
@@ -202,15 +204,16 @@ Flooded = ocean-like/river biome **or** RTG landscape wet. `FLOOD_LEVEL` is hard
 
 `MixinMapGenVillageInside` treats the **start AABB + xzPad (8)** as village for `isInsideStructure`. Height uses start min/max Y plus plate and `villageBoxHeight` (32).
 
-This is why detection extends past the built village. User accepted that. Flatten no longer uses that pad as extra 100% plate.
+This is why detection extends past the built village. User accepted that. Flatten does **not** use that pad as extra 100% plate; flatten uses per-component distance.
 
 ## Config (`aqtweaks_rtg.cfg` → Surface)
 
 | Name | Default | Live? | Meaning |
 | --- | --- | --- | --- |
 | Enable RTG Village Terrain Smoothing | true | yes | Master flatten + layout-first |
-| Village Edge Falloff | 48 | yes | Dry blend from unpadded boxes to hills |
-| Village Water Bank | 16 | yes | Shore ramp length; 0 = old waterline cliffs |
+| Village Component Pad | 12 | yes | Full plate around each land component, including roads. Overlap fills yards |
+| Village Edge Falloff | 12 | yes | Hermite **beyond** the component pad. Live cfg may still be **48** |
+| Village Water Bank | 16 | yes | Outer-rim ease toward skipped ocean/river; 0 = old waterline cliffs |
 | Village Plate Slope | 0 | yes | Extra dome from box center; 0 = flat |
 | Skip Water Village Pieces | true | yes | House/RC/village shrine retry |
 | Village Water Retry Distance | 20 | yes | Retry walk |
@@ -218,7 +221,7 @@ This is why detection extends past the built village. User accepted that. Flatte
 | Village Min Well Height | 65 | **no** | Not referenced; flood tests use 64 |
 | Village Coast Buffer | 16 | yes | Chebyshev; veto if ocean-like/river closer than this. `0` = well column only |
 | Enable Village Bounding Box Detection | true | yes | Padded start as Village |
-| Village Box XZ Pad | 8 | yes | Detection pad + swamp slope radius (with bank) |
+| Village Box XZ Pad | 8 | yes | Detection pad + swamp dock-approach radius. Not flatten mesa |
 | Village Box Height | 32 | yes | Detection Y above plate |
 | Village Flatten Debug | true | yes | `logs/villagepatch.log` |
 | Skip Structures On Village | true | yes | Cancel AS surface shrines, Cambion houses, MW huts on village AABB |
@@ -228,7 +231,8 @@ This is why detection extends past the built village. User accepted that. Flatte
 | Enable Astral Small Shrine Village Piece | true | yes | At most one small shrine as a village building |
 | Enable Mystical Hut Settle | true | yes | Village-skip + land settle for thatch huts |
 | Structure Fill Depth | 16 | yes | Max blocks filled down under a pad |
-| Structure Rim Bank | 16 | yes | Slope from pad to surrounding land |
+| Structure Rim Bank | 16 | yes | Slope from large shrine / hut pad to land |
+| Small Shrine Pad | 3 | yes | Buffer around small shrine/ruin settle and village shrine AABB |
 
 ## Post-terrain structures (not village flatten)
 
@@ -236,9 +240,9 @@ Astral surface shrines, Bewitchment Cambion houses, and Mystical World thatch hu
 
 - Overlap a village (real AABB / Y, not chunk origin at Y=0) → **do not place**.
 - Ancient / desert shrines and Mystical huts: if placed → fill under the footprint (min foundation Y), biome top/filler, max depth 16, rim slope 16, never fill ocean/river/liquids, do not rewrite structure blocks.
-- **Small shrine and small ruin:** plate Y is the generate **center / walkway**, not min foundation Y. In **swamp-like** biomes, water is filled up to that plate. Ocean/river still never filled. Plant-like blocks (BOP / Rustic / Farmer’s Delight, `BlockBush`, `Material.PLANTS`) are overwritten; leftover tops above the plate are cleared. Logs and leaves are not.
+- **Small shrine and small ruin:** plate Y is the generate **center / walkway**, not min foundation Y. Rim is `smallShrinePad` (3), not the 16-block large-shrine bank. In **swamp-like** biomes, water is filled up to that plate. Ocean/river still never filled. Plant-like blocks (BOP / Rustic / Farmer’s Delight, `BlockBush`, `Material.PLANTS`) are overwritten; leftover tops above the plate are cleared. Logs and leaves are not.
 - **Cambion houses:** **Y+1** paste only (same as Bewitchment’s unburned wickerman). `canSpawnHere` stays on ground Y or houses never spawn. **No land plate** — settle was a 1-block pit around the house. Village overlap still cancels placement.
-- **Village piece:** at most one Astral **small shrine** (not the ruin) via Forge `IVillageCreationHandler` (`AQTSmallShrine`). Flatten plates its AABB. Liquid blocks get flag 3 + `neighborChanged` so lantern water flows. If the floor is still ocean/river liquid at paste time, skip that chunk. Wild shrines still spawn; overlap skip prevents a second shrine on the same village.
+- **Village piece:** at most one Astral **small shrine** (not the ruin) via Forge `IVillageCreationHandler` (`AQTSmallShrine`). Flatten plates its AABB with at most 3 blocks of extra full plate; nearby road/house 12-zones still own the yard. Liquid blocks get flag 3 + `neighborChanged` so lantern water flows. If the floor is still ocean/river liquid at paste time, skip that chunk. Wild shrines still spawn; overlap skip prevents a second shrine on the same village.
 - Treasure caves, village Hedge Witch/Alchemist pieces, MW barrows, wickerman/menhir/circles are out of this pass.
 
 Mixins: `mixins.aqtweaks.astral.json`, `mixins.aqtweaks.bewitchment.json`, `mixins.aqtweaks.mysticalworld.json` (`required: false`). Village flatten/retry mixins are in required `mixins.aqtweaks.json`.
@@ -251,7 +255,7 @@ Used after Astral ancient/desert shrines and Mystical huts place (not Cambion). 
 - **Never write** `isNeverRaiseBiome` (ocean-like / river). Swamp-like liquid may be replaced when `fillSwampLiquid` is true (small shrine/ruin walkway Y).
 - **Fillable:** air, snow layer, tallgrass, flowers, double plant, lily, `Material.PLANTS` / `VINE` / `CACTUS`, `BlockBush` / `BlockReed` / `BlockVine`, `isReplaceable`. **Not fillable:** leaves, wood, rock.
 - After fill, plant-like blocks from plate Y through plate+3 are cleared to air. Logs/leaves stop the clear.
-- Rim: Euclidean distance to the AABB, smoothstep over `structureRimBank` (16). Only raises toward plate (will not dig). `settleTemplate` uses origin Y as floor after rotation AABB.
+- Rim: Euclidean distance to the AABB, smoothstep over `structureRimBank` (16) for huts and large shrines, or `smallShrinePad` (3) for small shrine/ruin. Only raises toward plate (will not dig). `settleTemplate` uses origin Y as floor after rotation AABB.
 
 `StructureVillageOverlap` tests real AABB/Y against remembered village starts (not chunk origin at Y=0). Treasure shrines are excluded from the Astral skip mixin.
 
@@ -262,8 +266,9 @@ Used after Astral ancient/desert shrines and Mystical huts place (not Cambion). 
 Useful lines:
 
 - `register chunk=... biome=... landBoxes=... buildings=...` — start remembered
+- `layout cell=... origin=... wellChunk=... hit=yes|no` — well chunk laid out for flatten
 - `veto chunk=... ocean_well|river_well|coast_ocean|coast_river|flooded_well ...` — well rejected
-- `plateSample well=... biome=... raw=... target=... source=...` — height source
+- `plate Y=... landBoxes=... componentPad=... falloff=...` — per-village flatten shape
 - `flatten chunk=... boxes=... dry=... wet=... written=... pad=... raised=...` — writes this chunk
 - `house` / `rc` / `astral shrine` retry hit/miss
 - `waystone aabb wet` / `waystone relocate hit|miss` — same gazebo moved inland
@@ -323,17 +328,38 @@ Well veto used `Type.OCEAN` and a short name list. BOP **Coral Reef** is often `
 
 **Fix:** ocean-like includes `Type.WATER` (not swamp) and names `kelp` / `coral` / `reef` / `atoll` / `lagoon`. Pure beach is still allowed. Coast buffer 16 vetoes a well only if ocean-like or river is closer than 16; a well 16+ from water may start. Wet buildings retry inland.
 
+### 9. Layout generated cell origins, not wells
+
+`layoutVillageGrid` called `generate()` on `cell * spacing`. Vanilla wells use `setRandomSeed(cellX, cellZ, 10387312)` then offset by `nextInt(distance - minTown)`. Outlying chunks generated before the well chunk had no `Start`, so flatten no-oped. Plains villages on hills stepped (`-4031` plaza vs `-3962` tower, ~7 blocks) and RC buildings kept dirt cliffs at their far face.
+
+**Fix:** generate the seeded well chunk per nearby cell. Keep radius 8; do not scan 289 neighbors.
+
+### 10. Per-piece plate and swamp flooded skip
+
+100% plate was each land AABB; yards followed 48-block falloff toward raw RTG. Flooded swamp columns ignored land boxes and only raised around buildings, so mixed swamp roads pitted.
+
+**Attempted fix:** dry 100% plate as an unpadded land **hull** (union rectangle). Flooded swamp inside a piece AABB plated. Yards that were wet but between a road and a house (inside no AABB) stayed a basin.
+
+### 11. Union hull vs component pad
+
+The hull flattened empty wilderness corners of the start AABB, and still left swamp grass between path and house (shot: path/farm plated, 2–3 block drop in the yard). A Hermite-only 12 from the AABB would not flatten that yard (mid-gap blend ~0.5).
+
+**Fix:** 100% plate for `dist ≤ 12` from the nearest land component **including roads**, dry and swamp-like. Hermite only beyond that pad. No village-wide rectangle. Docks omitted from land boxes stay water. Shrine extra full plate is 3.
+
 ## Playtest reference (this line)
 
 - **Wanted:** inland plains village (example `-2897, 97, -2119`) — flat plate, houses on it, blend to hills.
 - **Wanted:** sea-level forest (`-524, 64, 5893`) — dirt path, lamps, and houses on the same Y.
 - **Wanted:** beach/land well ~16 from water — village starts; buildings retry inland, not on the water.
-- **Unwanted (fixed in flatten, verify on new chunks):** beach sand piers into ocean; ocean ledges; swamp/beach vertical plate walls into water; 1-block grass pads under houses with path one lower; village well in coral reef / kelp forest / open ocean / river.
+- **Wanted:** small Astral shrine/ruin — land buffer at most 3 around the marble, not a 16-block mesa.
+- **Wanted:** grass between a dirt path and a house at the same Y as the path (swamp/forest yards). L-shaped villages hug pieces; unused AABB corners stay hills.
+- **Unwanted (fixed in flatten, verify on new chunks):** beach sand piers into ocean; ocean ledges; swamp/beach vertical plate walls into water; 1-block grass pads under houses with path one lower; village well in coral reef / kelp forest / open ocean / river; plains hill villages stepping instead of one pad; dirt cliff at the far end of a tall RC village piece; in-village grass basins between roads and houses.
 - Docks against swamp water are OK; the land behind them should ramp, not a 90° dirt wall.
 
 ## Likely next levers
 
 - `Village Water Bank` if ramps are too short/long.
+- `Village Edge Falloff`: new default is 12. Existing `aqtweaks_rtg.cfg` with 48 stays 48 until you set 12.
 - Wire `villageMinWellHeight` or drop it, so config matches `FLOOD_LEVEL`.
 - Detection still uses start AABB + pad 8; user said that is fine.
 - Houses that sit *on* the waterline still get a flat core (100% plate under the AABB); only the skirt ramps.

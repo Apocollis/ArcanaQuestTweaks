@@ -204,6 +204,7 @@ public class Reflect {
     private static Method structureStartChunkZMethod;
     private static Field structureStartComponentsField;
     private static Field mapGenVillageDistanceField;
+    private static Field mapGenVillageMinDistanceField;
     private static Field villageStartBiomeProviderField;
     private static Field villageStartWorldField;
     private static Field chunkProviderChunkGeneratorField;
@@ -1093,6 +1094,10 @@ public class Reflect {
                 mapGenVillageDistanceField = findDeclaredField(villageGenClass, "field_82665_g", "distance");
                 if (mapGenVillageDistanceField != null) {
                     mapGenVillageDistanceField.setAccessible(true);
+                }
+                mapGenVillageMinDistanceField = findDeclaredField(villageGenClass, "field_82666_h", "minTownSeparation", "minDistance");
+                if (mapGenVillageMinDistanceField != null) {
+                    mapGenVillageMinDistanceField.setAccessible(true);
                 }
             } catch (Throwable ignored) {}
             Class<?> biomeProviderClass = BiomeProvider.class;
@@ -3389,6 +3394,15 @@ public class Reflect {
             return distance > 0 ? distance : 32;
         } catch (Exception ignored) {}
         return 32;
+    }
+
+    public static int getVillageMinDistance(Object mapGen) {
+        if (mapGen == null || mapGenVillageMinDistanceField == null) return 8;
+        try {
+            int min = mapGenVillageMinDistanceField.getInt(mapGen);
+            return min > 0 ? min : 8;
+        } catch (Exception ignored) {}
+        return 8;
     }
 
     public static int getStructureStartChunkX(Object start) {

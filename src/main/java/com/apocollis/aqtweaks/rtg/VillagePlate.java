@@ -22,17 +22,19 @@ public final class VillagePlate {
         public final int[] xz;
         public final List<int[]> landBoxes;
         public final List<int[]> buildingBoxes;
+        public final List<int[]> shrineBoxes;
         public final int wellX;
         public final int wellZ;
         public final int minY;
         public final int maxY;
 
         private Record(Object start, int[] xz, List<int[]> landBoxes, List<int[]> buildingBoxes,
-                       int wellX, int wellZ, int minY, int maxY) {
+                       List<int[]> shrineBoxes, int wellX, int wellZ, int minY, int maxY) {
             this.start = start;
             this.xz = xz;
             this.landBoxes = landBoxes;
             this.buildingBoxes = buildingBoxes;
+            this.shrineBoxes = shrineBoxes;
             this.wellX = wellX;
             this.wellZ = wellZ;
             this.minY = minY;
@@ -46,6 +48,10 @@ public final class VillagePlate {
 
         public List<int[]> buildingBoxesOrEmpty() {
             return buildingBoxes != null ? buildingBoxes : Collections.emptyList();
+        }
+
+        public List<int[]> shrineBoxesOrEmpty() {
+            return shrineBoxes != null ? shrineBoxes : Collections.emptyList();
         }
     }
 
@@ -82,10 +88,11 @@ public final class VillagePlate {
         int wellZ = chunkZ > Integer.MIN_VALUE ? chunkZ * 16 + 2 : (xz[2] + xz[3]) >> 1;
         List<int[]> landBoxes = landBoxesOf(start);
         List<int[]> buildingBoxes = buildingBoxesOf(start);
+        List<int[]> shrineBoxes = shrineBoxesOf(start);
         List<Record> list = STARTS.computeIfAbsent(seed, k -> Collections.synchronizedList(new ArrayList<>()));
         synchronized (list) {
             String id = key(seed, xz);
-            Record rec = new Record(start, xz, landBoxes, buildingBoxes, wellX, wellZ, minY, maxY);
+            Record rec = new Record(start, xz, landBoxes, buildingBoxes, shrineBoxes, wellX, wellZ, minY, maxY);
             for (int i = 0; i < list.size(); i++) {
                 Record existing = list.get(i);
                 if (id.equals(key(seed, existing.xz))) {
@@ -130,13 +137,20 @@ public final class VillagePlate {
         int e = Math.max(0, extra);
         for (Record rec : starts(seed)) {
             for (int[] box : rec.landBoxesOrStart()) {
-                if (box[1] + e < chunkMinX || box[0] - e > chunkMaxX) continue;
-                if (box[3] + e < chunkMinZ || box[2] - e > chunkMaxZ) continue;
-                out.add(rec);
-                break;
+                if (overlapsXZ(box, chunkMinX, chunkMaxX, chunkMinZ, chunkMaxZ, e)) {
+                    out.add(rec);
+                    break;
+                }
             }
         }
         return out;
+    }
+
+    private static boolean overlapsXZ(int[] box, int chunkMinX, int chunkMaxX, int chunkMinZ, int chunkMaxZ, int extra) {
+        if (box == null) return false;
+        if (box[1] + extra < chunkMinX || box[0] - extra > chunkMaxX) return false;
+        if (box[3] + extra < chunkMinZ || box[2] - extra > chunkMaxZ) return false;
+        return true;
     }
 
     public static List<int[]> overlappingXZ(long seed, int chunkMinX, int chunkMaxX, int chunkMinZ, int chunkMaxZ, int extra) {
@@ -238,6 +252,29 @@ public final class VillagePlate {
             out.add(box);
         }
         return out;
+    }
+
+    public static List<int[]> shrineBoxesOf(Object start) {
+        List<int[]> out = new ArrayList<>();
+        for (Object piece : Reflect.getStructureStartComponents(start)) {
+            if (!(piece instanceof VillagePieceAstralSmallShrine)) continue;
+            int[] box = Reflect.getStructureComponentBoxXZ(piece);
+            if (box != null) out.add(box);
+        }
+        return out;
+    }
+
+    public static boolean sameXZ(int[] a, int[] b) {
+        return a != null && b != null
+                && a[0] == b[0] && a[1] == b[1] && a[2] == b[2] && a[3] == b[3];
+    }
+
+    public static boolean containsXZBox(List<int[]> boxes, int[] box) {
+        if (boxes == null || box == null) return false;
+        for (int[] candidate : boxes) {
+            if (sameXZ(candidate, box)) return true;
+        }
+        return false;
     }
 
     private static float sampleWorldSurface(World world, int[] box) {

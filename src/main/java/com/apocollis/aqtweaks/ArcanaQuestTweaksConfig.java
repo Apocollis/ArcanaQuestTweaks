@@ -617,13 +617,18 @@ public class ArcanaQuestTweaksConfig {
 
     public static class Surface {
         @Config.Name("Enable RTG Village Terrain Smoothing")
-        @Config.Comment("Should RTG terrain around villages be flattened to the village bounding box, then blended into surrounding hills?")
+        @Config.Comment("Flatten RTG land under village components (houses, farms, well, roads) and the 12-block yards between them, then blend into surrounding hills.")
         public boolean enableVillageSmoothing = true;
 
+        @Config.Name("Village Component Pad")
+        @Config.Comment("Full-plate blocks around each land component (including roads). Overlapping pads fill yards between houses and paths. 0 = piece AABB only.")
+        @Config.RangeInt(min = 0, max = 64)
+        public int villageComponentPad = 12;
+
         @Config.Name("Village Edge Falloff")
-        @Config.Comment("Blocks outside the village bounding box to blend from flattened height back to raw RTG terrain. 0 = hard village box only.")
+        @Config.Comment("Blocks of Hermite slope beyond the component pad, back to raw RTG. 0 = hard pad edge. Existing cfg with 48 stays 48 until changed.")
         @Config.RangeInt(min = 0, max = 256)
-        public int villageEdgeFalloff = 48;
+        public int villageEdgeFalloff = 12;
 
         @Config.Name("Village Water Bank")
         @Config.Comment("Blocks of slope from the plate down to water or shore. 0 = old vertical cutoff at the waterline.")
@@ -663,7 +668,7 @@ public class ArcanaQuestTweaksConfig {
         public boolean enableVillageBoxDetection = true;
 
         @Config.Name("Village Box XZ Pad")
-        @Config.Comment("Extra blocks outside the village hull that still count as Village for detection, and the swamp raise slope radius. Flattening uses the unpadded land boxes.")
+        @Config.Comment("Extra blocks outside the village start AABB that still count as Village for detection, and the swamp dock-approach slope radius. Flattening uses per-component pads, not this value.")
         @Config.RangeInt(min = 0, max = 64)
         public int villageBoxXZPad = 8;
 
@@ -706,9 +711,14 @@ public class ArcanaQuestTweaksConfig {
         public int structureFillDepth = 16;
 
         @Config.Name("Structure Rim Bank")
-        @Config.Comment("Blocks of slope from the structure pad down to surrounding terrain. 0 = no rim.")
+        @Config.Comment("Blocks of slope from large shrine and hut pads down to surrounding terrain. Small Astral shrines/ruins use Small Shrine Pad instead. 0 = no rim.")
         @Config.RangeInt(min = 0, max = 64)
         public int structureRimBank = 16;
+
+        @Config.Name("Small Shrine Pad")
+        @Config.Comment("Max blocks of land buffer around small Astral shrines/ruins (wild settle rim and village shrine flatten). 0 = footprint only.")
+        @Config.RangeInt(min = 0, max = 16)
+        public int smallShrinePad = 3;
     }
 
     @Mod.EventBusSubscriber(modid = ArcanaQuestTweaks.MODID)

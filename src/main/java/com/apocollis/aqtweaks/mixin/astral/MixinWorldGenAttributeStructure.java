@@ -39,6 +39,9 @@ public abstract class MixinWorldGenAttributeStructure {
                 floors.merge(key, at.getY(), Integer::min);
             }
         }
-        StructureLandSettle.settle(world, floors, small);
+        int bank = small
+                ? Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.smallShrinePad)
+                : Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.structureRimBank);
+        StructureLandSettle.settle(world, floors, small, bank);
     }
 }

@@ -54,11 +54,16 @@ public final class StructureLandSettle {
      *        Ocean and river biomes are still never written.
      */
     public static void settle(World world, Map<Long, Integer> floorByColumn, boolean fillSwampLiquid) {
+        settle(world, floorByColumn, fillSwampLiquid,
+                Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.structureRimBank));
+    }
+
+    public static void settle(World world, Map<Long, Integer> floorByColumn, boolean fillSwampLiquid, int bank) {
         if (!enabled() || world == null || Reflect.isRemote(world) || floorByColumn == null || floorByColumn.isEmpty()) {
             return;
         }
         int fillDepth = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.structureFillDepth);
-        int bank = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.structureRimBank);
+        bank = Math.max(0, bank);
 
         int minX = Integer.MAX_VALUE;
         int maxX = Integer.MIN_VALUE;

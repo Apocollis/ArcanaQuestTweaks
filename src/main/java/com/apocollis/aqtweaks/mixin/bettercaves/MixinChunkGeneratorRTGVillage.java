@@ -108,8 +108,8 @@ public abstract class MixinChunkGeneratorRTGVillage {
     }
 
     /**
-     * Plate dry land under buildings and land roads. Raise swamp-like water under houses with a rounded pad.
-     * Never write ocean or river columns, even inside a piece box.
+     * Plate land within {@code villageComponentPad} of each land component (including roads),
+     * so yards between pieces share well Y. Hermite falloff beyond that pad. Never write ocean or river.
      */
     @Unique
     private void aqtweaks$flattenNoise(int cx, int cz, float[] noise, ChunkLandscape landscape) {
@@ -137,25 +137,28 @@ public abstract class MixinChunkGeneratorRTGVillage {
         int slope = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villagePlateSlopeBlocks);
         int xzPad = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageBoxXZPad);
         int bank = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageWaterBank);
+        int componentPad = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageComponentPad);
+        int shrinePad = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.smallShrinePad);
         int raiseRadius = Math.max(xzPad, bank);
+        int reach = componentPad + falloff;
         int startX = cx * 16;
         int startZ = cz * 16;
         int chunkMaxX = startX + 15;
         int chunkMaxZ = startZ + 15;
         long seed = Reflect.getSeed(world);
 
-        List<VillagePlate.Record> hits = VillagePlate.overlappingRecords(seed, startX, chunkMaxX, startZ, chunkMaxZ, falloff + raiseRadius);
+        List<VillagePlate.Record> hits = VillagePlate.overlappingRecords(seed, startX, chunkMaxX, startZ, chunkMaxZ, reach);
         boolean recovered = false;
         if (hits.isEmpty()) {
             VillagePlate.rememberAll(world, villageGenerator);
-            hits = VillagePlate.overlappingRecords(seed, startX, chunkMaxX, startZ, chunkMaxZ, falloff + raiseRadius);
+            hits = VillagePlate.overlappingRecords(seed, startX, chunkMaxX, startZ, chunkMaxZ, reach);
             recovered = !hits.isEmpty();
         }
         if (hits.isEmpty()) {
             List<VillagePlate.Record> startHits = VillagePlate.overlappingStartAabb(
-                    seed, startX, chunkMaxX, startZ, chunkMaxZ, falloff + raiseRadius);
+                    seed, startX, chunkMaxX, startZ, chunkMaxZ, reach);
             if (!startHits.isEmpty() && VillageDebug.once("flatten:" + seed + ":" + cx + "," + cz)) {
-                VillageDebug.log("flatten skip chunk=%d,%d reason=no-land-hull starts=%d",
+                VillageDebug.log("flatten skip chunk=%d,%d reason=no-land-boxes starts=%d",
                         cx, cz, startHits.size());
             }
             return;
@@ -163,51 +166,81 @@ public abstract class MixinChunkGeneratorRTGVillage {
 
         List<int[]> plateBoxes = new ArrayList<>();
         List<Float> plateTargets = new ArrayList<>();
+        List<int[]> shrineBoxes = new ArrayList<>();
+        List<Float> shrineTargets = new ArrayList<>();
         List<int[]> raiseBoxes = new ArrayList<>();
         List<Float> raiseTargets = new ArrayList<>();
+        int[] raisePads = new int[32];
+        int raiseCount = 0;
         int landBoxCount = 0;
         for (VillagePlate.Record rec : hits) {
             float target = getOrComputePlateHeight(rec);
             if (Float.isNaN(target)) continue;
+            List<int[]> land = rec.landBoxesOrStart();
+            List<int[]> shrines = rec.shrineBoxesOrEmpty();
             if (VillageDebug.once("plate:" + VillagePlate.key(seed, rec.xz))) {
-                int[] land = VillagePlate.union(rec.landBoxesOrStart());
-                VillageDebug.log("plate Y=%.1f start=[%d,%d]x[%d,%d] landBoxes=%d buildings=%d land=[%d,%d]x[%d,%d] pad=%d falloff=%d bank=%d",
+                VillageDebug.log("plate Y=%.1f start=[%d,%d]x[%d,%d] landBoxes=%d buildings=%d shrines=%d componentPad=%d falloff=%d bank=%d shrinePad=%d",
                         target,
                         rec.xz[0], rec.xz[1], rec.xz[2], rec.xz[3],
-                        rec.landBoxesOrStart().size(), rec.buildingBoxesOrEmpty().size(),
-                        land != null ? land[0] : 0, land != null ? land[1] : 0,
-                        land != null ? land[2] : 0, land != null ? land[3] : 0,
-                        xzPad, falloff, bank);
+                        land.size(), rec.buildingBoxesOrEmpty().size(), shrines.size(),
+                        componentPad, falloff, bank, shrinePad);
             }
-            for (int[] box : rec.landBoxesOrStart()) {
+            for (int[] box : land) {
+                if (VillagePlate.containsXZBox(shrines, box)) continue;
                 plateBoxes.add(box);
                 plateTargets.add(target);
                 landBoxCount++;
             }
+            for (int[] box : shrines) {
+                shrineBoxes.add(box);
+                shrineTargets.add(target);
+            }
             for (int[] box : rec.buildingBoxesOrEmpty()) {
+                if (raiseCount >= raisePads.length) {
+                    int[] grown = new int[raisePads.length * 2];
+                    System.arraycopy(raisePads, 0, grown, 0, raisePads.length);
+                    raisePads = grown;
+                }
                 raiseBoxes.add(box);
                 raiseTargets.add(target);
+                raisePads[raiseCount++] = VillagePlate.containsXZBox(shrines, box) ? shrinePad : raiseRadius;
             }
         }
-        if (plateBoxes.isEmpty() && raiseBoxes.isEmpty()) return;
+        if (plateBoxes.isEmpty() && raiseBoxes.isEmpty() && shrineBoxes.isEmpty()) return;
+        if (raiseCount < raisePads.length) {
+            int[] trimmed = new int[raiseCount];
+            System.arraycopy(raisePads, 0, trimmed, 0, raiseCount);
+            raisePads = trimmed;
+        }
 
-        boolean[] skipWater = new boolean[noise.length];
+        int n = Math.min(256, noise.length);
+        Biome[] biomes = new Biome[n];
+        boolean[] skipWater = new boolean[n];
+        double[] distScratch = new double[1];
         for (int localX = 0; localX < 16; ++localX) {
             int colX = startX + localX;
             for (int localZ = 0; localZ < 16; ++localZ) {
                 int colZ = startZ + localZ;
                 int index = localX * 16 + localZ;
-                if (index < 0 || index >= noise.length) continue;
+                if (index < 0 || index >= n) continue;
                 Biome biome = Reflect.getBiome(biomeProvider, colX, colZ);
+                biomes[index] = biome;
                 if (VillageLandHelper.isNeverRaiseBiome(biome)) {
                     skipWater[index] = true;
                     continue;
                 }
                 boolean flooded = VillageLandHelper.isLandscapeWet(landscape, index);
                 if (!flooded) continue;
-                boolean swampRaise = VillageLandHelper.isSwampLikeForRaise(biome)
-                        && aqtweaks$inRoundedPad(colX, colZ, raiseBoxes, raiseRadius);
-                skipWater[index] = !swampRaise;
+                if (!VillageLandHelper.isSwampLikeForRaise(biome)) {
+                    skipWater[index] = true;
+                    continue;
+                }
+                int landIdx = aqtweaks$nearestBox(colX, colZ, plateBoxes, distScratch);
+                boolean inPlate = landIdx >= 0 && distScratch[0] <= reach;
+                boolean inShrine = aqtweaks$nearestBox(colX, colZ, shrineBoxes, distScratch) >= 0
+                        && distScratch[0] <= shrinePad + falloff;
+                boolean inRaise = aqtweaks$nearestPadded(colX, colZ, raiseBoxes, raisePads, distScratch) >= 0;
+                skipWater[index] = !inPlate && !inShrine && !inRaise;
             }
         }
         int[] wetDist = aqtweaks$wetDistance(skipWater);
@@ -222,37 +255,88 @@ public abstract class MixinChunkGeneratorRTGVillage {
             for (int localZ = 0; localZ < 16; ++localZ) {
                 int colZ = startZ + localZ;
                 int index = localX * 16 + localZ;
-                if (index < 0 || index >= noise.length) continue;
+                if (index < 0 || index >= n) continue;
                 if (skipWater[index]) {
                     wet++;
                     continue;
                 }
 
                 float originalHeight = noise[index];
-                Biome biome = Reflect.getBiome(biomeProvider, colX, colZ);
+                Biome biome = biomes[index];
                 boolean flooded = VillageLandHelper.isLandscapeWet(landscape, index);
-                if (flooded && VillageLandHelper.isSwampLikeForRaise(biome)) {
-                    int raiseIdx = aqtweaks$closestBox(colX, colZ, raiseBoxes);
+                boolean swampLike = VillageLandHelper.isSwampLikeForRaise(biome);
+
+                int landIdx = aqtweaks$nearestBox(colX, colZ, plateBoxes, distScratch);
+                double landDist = landIdx >= 0 ? distScratch[0] : Double.MAX_VALUE;
+                float landBlend = landIdx >= 0 ? aqtweaks$componentBlend(landDist, componentPad, falloff) : 0.0F;
+                int[] landBox = landIdx >= 0 ? plateBoxes.get(landIdx) : null;
+                float landTarget = landIdx >= 0 ? plateTargets.get(landIdx) : originalHeight;
+
+                int shrineIdx = aqtweaks$nearestBox(colX, colZ, shrineBoxes, distScratch);
+                double shrineDist = shrineIdx >= 0 ? distScratch[0] : Double.MAX_VALUE;
+                float shrineBlend = shrineIdx >= 0 ? aqtweaks$componentBlend(shrineDist, shrinePad, falloff) : 0.0F;
+                int[] shrineBox = shrineIdx >= 0 ? shrineBoxes.get(shrineIdx) : null;
+                float shrineTarget = shrineIdx >= 0 ? shrineTargets.get(shrineIdx) : originalHeight;
+
+                float bestBlend = landBlend;
+                float bestTarget = landTarget;
+                int[] bestBox = landBox;
+                double bestDist = landDist;
+                int bestPad = componentPad;
+                if (shrineBlend > bestBlend) {
+                    bestBlend = shrineBlend;
+                    bestTarget = shrineTarget;
+                    bestBox = shrineBox;
+                    bestDist = shrineDist;
+                    bestPad = shrinePad;
+                }
+
+                if (flooded && swampLike) {
+                    if (bestBlend >= 1.0F && bestBox != null) {
+                        float core = plateHeightAt(originalHeight, bestTarget, colX, colZ, bestBox, slope);
+                        if (core < VillageLandHelper.FLOOD_LEVEL) {
+                            core = VillageLandHelper.FLOOD_LEVEL;
+                        }
+                        noise[index] = core;
+                        written++;
+                        raised++;
+                        continue;
+                    }
+                    if (bestBlend > 0.0F && bestBox != null) {
+                        float core = plateHeightAt(originalHeight, Math.max(bestTarget, (float) VillageLandHelper.FLOOD_LEVEL),
+                                colX, colZ, bestBox, slope);
+                        if (core < VillageLandHelper.FLOOD_LEVEL) {
+                            core = VillageLandHelper.FLOOD_LEVEL;
+                        }
+                        if (bank > 0) {
+                            bestBlend *= 1.0F - blendForDistance(wetDist[index], bank);
+                        }
+                        if (bestBlend <= 0.0F) {
+                            wet++;
+                            continue;
+                        }
+                        noise[index] = originalHeight * (1.0F - bestBlend) + core * bestBlend;
+                        written++;
+                        raised++;
+                        continue;
+                    }
+                    int raiseIdx = aqtweaks$nearestPadded(colX, colZ, raiseBoxes, raisePads, distScratch);
                     if (raiseIdx < 0) {
                         wet++;
                         continue;
                     }
-                    double raiseDist = distanceToBoxXZ(colX, colZ,
-                            raiseBoxes.get(raiseIdx)[0], raiseBoxes.get(raiseIdx)[1],
-                            raiseBoxes.get(raiseIdx)[2], raiseBoxes.get(raiseIdx)[3]);
-                    if (raiseDist > raiseRadius) {
-                        wet++;
-                        continue;
-                    }
+                    int[] raiseBox = raiseBoxes.get(raiseIdx);
+                    int thisPad = raisePads[raiseIdx];
+                    double raiseDist = distScratch[0];
                     float raiseTarget = Math.max(raiseTargets.get(raiseIdx), (float) VillageLandHelper.FLOOD_LEVEL);
-                    float core = plateHeightAt(originalHeight, raiseTarget, colX, colZ, raiseBoxes.get(raiseIdx), slope);
+                    float core = plateHeightAt(originalHeight, raiseTarget, colX, colZ, raiseBox, slope);
                     if (core < VillageLandHelper.FLOOD_LEVEL) {
                         core = VillageLandHelper.FLOOD_LEVEL;
                     }
                     if (raiseDist <= 0.0) {
                         noise[index] = core;
                     } else {
-                        float blend = blendForDistance(raiseDist, raiseRadius);
+                        float blend = blendForDistance(raiseDist, thisPad);
                         noise[index] = originalHeight * (1.0F - blend) + core * blend;
                     }
                     written++;
@@ -261,31 +345,14 @@ public abstract class MixinChunkGeneratorRTGVillage {
                 }
 
                 dry++;
-                float bestBlend = 0.0F;
-                float bestTarget = originalHeight;
-                int[] bestBox = null;
-                for (int i = 0; i < plateBoxes.size(); i++) {
-                    int[] box = plateBoxes.get(i);
-                    double dist = distanceToBoxXZ(colX, colZ, box[0], box[1], box[2], box[3]);
-                    float blend = blendForDistance(dist, falloff);
-                    if (blend > bestBlend) {
-                        bestBlend = blend;
-                        bestTarget = plateTargets.get(i);
-                        bestBox = box;
-                    }
-                }
                 if (bestBlend <= 0.0F || bestBox == null) continue;
-
-                double dist = distanceToBoxXZ(colX, colZ, bestBox[0], bestBox[1], bestBox[2], bestBox[3]);
-                float desired = bestTarget;
-                if (dist <= 0.0) {
-                    desired = plateHeightAt(originalHeight, bestTarget, colX, colZ, bestBox, slope);
+                float desired = plateHeightAt(originalHeight, bestTarget, colX, colZ, bestBox, slope);
+                if (bestDist <= bestPad) {
                     noise[index] = desired;
                     written++;
                     padded++;
                     continue;
                 }
-
                 if (bank > 0) {
                     bestBlend *= 1.0F - blendForDistance(wetDist[index], bank);
                 }
@@ -377,19 +444,13 @@ public abstract class MixinChunkGeneratorRTGVillage {
     }
 
     @Unique
-    private static boolean aqtweaks$inRoundedPad(int x, int z, List<int[]> boxes, int pad) {
-        for (int[] box : boxes) {
-            if (distanceToBoxXZ(x, z, box[0], box[1], box[2], box[3]) <= pad) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    @Unique
-    private static int aqtweaks$closestBox(int x, int z, List<int[]> boxes) {
+    private static int aqtweaks$nearestBox(int x, int z, List<int[]> boxes, double[] distOut) {
         int best = -1;
         double bestDist = Double.MAX_VALUE;
+        if (boxes == null) {
+            if (distOut != null && distOut.length > 0) distOut[0] = bestDist;
+            return -1;
+        }
         for (int i = 0; i < boxes.size(); i++) {
             int[] box = boxes.get(i);
             double dist = distanceToBoxXZ(x, z, box[0], box[1], box[2], box[3]);
@@ -398,7 +459,33 @@ public abstract class MixinChunkGeneratorRTGVillage {
                 best = i;
             }
         }
+        if (distOut != null && distOut.length > 0) distOut[0] = bestDist;
         return best;
+    }
+
+    @Unique
+    private static int aqtweaks$nearestPadded(int x, int z, List<int[]> boxes, int[] pads, double[] distOut) {
+        int best = -1;
+        double bestDist = Double.MAX_VALUE;
+        int n = boxes == null || pads == null ? 0 : Math.min(boxes.size(), pads.length);
+        for (int i = 0; i < n; i++) {
+            int[] box = boxes.get(i);
+            int pad = Math.max(0, pads[i]);
+            double dist = distanceToBoxXZ(x, z, box[0], box[1], box[2], box[3]);
+            if (dist > pad) continue;
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = i;
+            }
+        }
+        if (distOut != null && distOut.length > 0) distOut[0] = bestDist;
+        return best;
+    }
+
+    @Unique
+    private static float aqtweaks$componentBlend(double dist, int pad, int falloff) {
+        if (dist <= pad) return 1.0F;
+        return blendForDistance(dist - pad, falloff);
     }
 
     @Unique
