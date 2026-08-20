@@ -6,6 +6,7 @@ import com.apocollis.aqtweaks.stamina.StaminaModule;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -199,6 +200,10 @@ public class Reflect {
     private static Field structureBoxMinZField;
     private static Field structureBoxMaxZField;
     private static Method structureStartIsSizeableMethod;
+    private static Method structureStartChunkXMethod;
+    private static Method structureStartChunkZMethod;
+    private static Field structureStartComponentsField;
+    private static Field mapGenVillageDistanceField;
     private static Field villageStartBiomeProviderField;
     private static Field villageStartWorldField;
     private static Field chunkProviderChunkGeneratorField;
@@ -1014,6 +1019,16 @@ public class Reflect {
             try { structureStartIsSizeableMethod = startClass.getMethod("func_75059_a"); } catch (Throwable t) {
                 try { structureStartIsSizeableMethod = startClass.getMethod("isSizeableStructure"); } catch (Throwable ignored) {}
             }
+            try { structureStartChunkXMethod = startClass.getMethod("func_143019_e"); } catch (Throwable t) {
+                try { structureStartChunkXMethod = startClass.getMethod("getChunkPosX"); } catch (Throwable ignored) {}
+            }
+            try { structureStartChunkZMethod = startClass.getMethod("func_143018_f"); } catch (Throwable t) {
+                try { structureStartChunkZMethod = startClass.getMethod("getChunkPosZ"); } catch (Throwable ignored) {}
+            }
+            structureStartComponentsField = findDeclaredField(startClass, "field_75075_a", "components");
+            if (structureStartComponentsField != null) {
+                structureStartComponentsField.setAccessible(true);
+            }
             Class<?> boxClass = Class.forName("net.minecraft.world.gen.structure.StructureBoundingBox");
             try { structureBoxMinXField = boxClass.getField("field_78897_a"); } catch (Throwable t) {
                 try { structureBoxMinXField = boxClass.getField("minX"); } catch (Throwable ignored) {}
@@ -1071,6 +1086,13 @@ public class Reflect {
                 Class<?> worldClass = Class.forName("net.minecraft.world.World");
                 try { worldGetChunkProviderMethod = worldClass.getMethod("func_72863_F"); } catch (Throwable t) {
                     try { worldGetChunkProviderMethod = worldClass.getMethod("getChunkProvider"); } catch (Throwable ignored) {}
+                }
+            } catch (Throwable ignored) {}
+            try {
+                Class<?> villageGenClass = Class.forName("net.minecraft.world.gen.structure.MapGenVillage");
+                mapGenVillageDistanceField = findDeclaredField(villageGenClass, "field_82665_g", "distance");
+                if (mapGenVillageDistanceField != null) {
+                    mapGenVillageDistanceField.setAccessible(true);
                 }
             } catch (Throwable ignored) {}
             Class<?> biomeProviderClass = BiomeProvider.class;
@@ -3346,6 +3368,45 @@ public class Reflect {
             return result instanceof Boolean && (Boolean) result;
         } catch (Exception ignored) {}
         return false;
+    }
+
+    @SuppressWarnings("unchecked")
+    public static List<Object> getStructureStartComponents(Object start) {
+        if (start == null || structureStartComponentsField == null) return Collections.emptyList();
+        try {
+            Object list = structureStartComponentsField.get(start);
+            if (list instanceof List) {
+                return new ArrayList<>((List<Object>) list);
+            }
+        } catch (Exception ignored) {}
+        return Collections.emptyList();
+    }
+
+    public static int getVillageDistance(Object mapGen) {
+        if (mapGen == null || mapGenVillageDistanceField == null) return 32;
+        try {
+            int distance = mapGenVillageDistanceField.getInt(mapGen);
+            return distance > 0 ? distance : 32;
+        } catch (Exception ignored) {}
+        return 32;
+    }
+
+    public static int getStructureStartChunkX(Object start) {
+        if (start == null || structureStartChunkXMethod == null) return Integer.MIN_VALUE;
+        try {
+            Object result = structureStartChunkXMethod.invoke(start);
+            return result instanceof Integer ? (Integer) result : Integer.MIN_VALUE;
+        } catch (Exception ignored) {}
+        return Integer.MIN_VALUE;
+    }
+
+    public static int getStructureStartChunkZ(Object start) {
+        if (start == null || structureStartChunkZMethod == null) return Integer.MIN_VALUE;
+        try {
+            Object result = structureStartChunkZMethod.invoke(start);
+            return result instanceof Integer ? (Integer) result : Integer.MIN_VALUE;
+        } catch (Exception ignored) {}
+        return Integer.MIN_VALUE;
     }
 
     public static BiomeProvider getVillageStartBiomeProvider(Object start) {

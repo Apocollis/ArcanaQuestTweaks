@@ -7,6 +7,7 @@ import com.apocollis.aqtweaks.rtg.VillagePlate;
 import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
+import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.BiomeProvider;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.ChunkPrimer;
@@ -97,18 +98,13 @@ public abstract class MixinChunkGeneratorRTGVillage {
         }
         try {
             if (world.getWorldInfo() != null && !world.getWorldInfo().isMapFeaturesEnabled()) return;
-            int radius = VillageLandHelper.VILLAGE_LAYOUT_RADIUS;
-            for (int dx = -radius; dx <= radius; dx++) {
-                for (int dz = -radius; dz <= radius; dz++) {
-                    villageGenerator.generate(world, cx + dx, cz + dz, AQTWEAKS$DUMMY_PRIMER);
-                }
-            }
+            VillageLandHelper.layoutVillageGrid(villageGenerator, world, cx, cz, AQTWEAKS$DUMMY_PRIMER);
         } catch (Throwable ignored) {}
     }
 
     /**
-     * Level dry columns in each village AABB to one plate height, then blend the rim into raw RTG.
-     * Wet columns are left alone.
+     * Plate dry land under buildings and land roads. Raise swamp-like water under houses with a rounded pad.
+     * Never write ocean or river columns, even inside a piece box.
      */
     @Unique
     private void aqtweaks$flattenNoise(int cx, int cz, float[] noise, ChunkLandscape landscape) {
@@ -141,68 +137,129 @@ public abstract class MixinChunkGeneratorRTGVillage {
         int chunkMaxZ = startZ + 15;
         long seed = Reflect.getSeed(world);
 
-        List<int[]> boxes = VillagePlate.overlappingXZ(seed, startX, chunkMaxX, startZ, chunkMaxZ, falloff + xzPad);
+        List<VillagePlate.Record> hits = VillagePlate.overlappingRecords(seed, startX, chunkMaxX, startZ, chunkMaxZ, falloff + xzPad);
         boolean recovered = false;
-        if (boxes.isEmpty()) {
+        if (hits.isEmpty()) {
             VillagePlate.rememberAll(world, villageGenerator);
-            boxes = VillagePlate.overlappingXZ(seed, startX, chunkMaxX, startZ, chunkMaxZ, falloff + xzPad);
-            recovered = !boxes.isEmpty();
+            hits = VillagePlate.overlappingRecords(seed, startX, chunkMaxX, startZ, chunkMaxZ, falloff + xzPad);
+            recovered = !hits.isEmpty();
         }
-        if (boxes.isEmpty()) return;
-
-        List<int[]> paddedBoxes = new ArrayList<>();
-        for (int[] box : boxes) {
-            paddedBoxes.add(VillagePlate.padded(box, xzPad));
+        if (hits.isEmpty()) {
+            List<VillagePlate.Record> startHits = VillagePlate.overlappingStartAabb(
+                    seed, startX, chunkMaxX, startZ, chunkMaxZ, falloff + xzPad);
+            if (!startHits.isEmpty() && VillageDebug.once("flatten:" + seed + ":" + cx + "," + cz)) {
+                VillageDebug.log("flatten skip chunk=%d,%d reason=no-land-hull starts=%d",
+                        cx, cz, startHits.size());
+            }
+            return;
         }
 
-        boolean[] waterColumn = new boolean[noise.length];
+        List<int[]> plateBoxes = new ArrayList<>();
+        List<Float> plateTargets = new ArrayList<>();
+        List<int[]> raiseBoxes = new ArrayList<>();
+        List<Float> raiseTargets = new ArrayList<>();
+        int landBoxCount = 0;
+        for (VillagePlate.Record rec : hits) {
+            float target = getOrComputePlateHeight(rec);
+            if (Float.isNaN(target)) continue;
+            if (VillageDebug.once("plate:" + VillagePlate.key(seed, rec.xz))) {
+                int[] land = VillagePlate.union(rec.landBoxesOrStart());
+                VillageDebug.log("plate Y=%.1f start=[%d,%d]x[%d,%d] landBoxes=%d buildings=%d land=[%d,%d]x[%d,%d] pad=%d falloff=%d",
+                        target,
+                        rec.xz[0], rec.xz[1], rec.xz[2], rec.xz[3],
+                        rec.landBoxesOrStart().size(), rec.buildingBoxesOrEmpty().size(),
+                        land != null ? land[0] : 0, land != null ? land[1] : 0,
+                        land != null ? land[2] : 0, land != null ? land[3] : 0,
+                        xzPad, falloff);
+            }
+            for (int[] box : rec.landBoxesOrStart()) {
+                plateBoxes.add(VillagePlate.padded(box, xzPad));
+                plateTargets.add(target);
+                landBoxCount++;
+            }
+            for (int[] box : rec.buildingBoxesOrEmpty()) {
+                raiseBoxes.add(box);
+                raiseTargets.add(target);
+            }
+        }
+        if (plateBoxes.isEmpty() && raiseBoxes.isEmpty()) return;
+
+        boolean[] skipWater = new boolean[noise.length];
         for (int localX = 0; localX < 16; ++localX) {
             int colX = startX + localX;
             for (int localZ = 0; localZ < 16; ++localZ) {
                 int colZ = startZ + localZ;
                 int index = localX * 16 + localZ;
                 if (index < 0 || index >= noise.length) continue;
-                waterColumn[index] = VillageLandHelper.isWetColumn(biomeProvider, landscape, index, colX, colZ);
+                Biome biome = Reflect.getBiome(biomeProvider, colX, colZ);
+                if (VillageLandHelper.isNeverRaiseBiome(biome)) {
+                    skipWater[index] = true;
+                    continue;
+                }
+                boolean flooded = VillageLandHelper.isLandscapeWet(landscape, index);
+                if (!flooded) continue;
+                boolean swampRaise = VillageLandHelper.isSwampLikeForRaise(biome)
+                        && aqtweaks$inRoundedPad(colX, colZ, raiseBoxes, xzPad);
+                skipWater[index] = !swampRaise;
             }
         }
-
-        float[] targets = new float[boxes.size()];
-        for (int i = 0; i < boxes.size(); i++) {
-            targets[i] = getOrComputePlateHeight(biomeProvider, boxes.get(i));
-            int[] box = boxes.get(i);
-            if (VillageDebug.once("plate:" + VillagePlate.key(seed, box))) {
-                VillageDebug.log("plate Y=%.1f box=[%d,%d]x[%d,%d] pad=%d falloff=%d",
-                        targets[i], box[0], box[1], box[2], box[3], xzPad, falloff);
-            }
-        }
+        int[] wetDist = aqtweaks$wetDistance(skipWater);
 
         int wet = 0;
         int dry = 0;
         int written = 0;
+        int padded = 0;
+        int raised = 0;
         for (int localX = 0; localX < 16; ++localX) {
             int colX = startX + localX;
             for (int localZ = 0; localZ < 16; ++localZ) {
                 int colZ = startZ + localZ;
                 int index = localX * 16 + localZ;
                 if (index < 0 || index >= noise.length) continue;
-                if (waterColumn[index]) {
+                if (skipWater[index]) {
                     wet++;
                     continue;
                 }
-                dry++;
 
                 float originalHeight = noise[index];
+                Biome biome = Reflect.getBiome(biomeProvider, colX, colZ);
+                boolean flooded = VillageLandHelper.isLandscapeWet(landscape, index);
+                if (flooded && VillageLandHelper.isSwampLikeForRaise(biome)) {
+                    int raiseIdx = aqtweaks$closestBox(colX, colZ, raiseBoxes);
+                    if (raiseIdx < 0) {
+                        wet++;
+                        continue;
+                    }
+                    double raiseDist = distanceToBoxXZ(colX, colZ,
+                            raiseBoxes.get(raiseIdx)[0], raiseBoxes.get(raiseIdx)[1],
+                            raiseBoxes.get(raiseIdx)[2], raiseBoxes.get(raiseIdx)[3]);
+                    if (raiseDist > xzPad) {
+                        wet++;
+                        continue;
+                    }
+                    float raiseTarget = Math.max(raiseTargets.get(raiseIdx), (float) VillageLandHelper.FLOOD_LEVEL);
+                    float desired = plateHeightAt(originalHeight, raiseTarget, colX, colZ, raiseBoxes.get(raiseIdx), slope);
+                    if (desired < VillageLandHelper.FLOOD_LEVEL) {
+                        desired = VillageLandHelper.FLOOD_LEVEL;
+                    }
+                    noise[index] = desired;
+                    written++;
+                    raised++;
+                    continue;
+                }
+
+                dry++;
                 float bestBlend = 0.0F;
                 float bestTarget = originalHeight;
                 int[] bestBox = null;
-                for (int i = 0; i < boxes.size(); i++) {
-                    int[] padded = paddedBoxes.get(i);
-                    double dist = distanceToBoxXZ(colX, colZ, padded[0], padded[1], padded[2], padded[3]);
+                for (int i = 0; i < plateBoxes.size(); i++) {
+                    int[] box = plateBoxes.get(i);
+                    double dist = distanceToBoxXZ(colX, colZ, box[0], box[1], box[2], box[3]);
                     float blend = blendForDistance(dist, falloff);
                     if (blend > bestBlend) {
                         bestBlend = blend;
-                        bestTarget = targets[i];
-                        bestBox = padded;
+                        bestTarget = plateTargets.get(i);
+                        bestBox = box;
                     }
                 }
                 if (bestBlend <= 0.0F || bestBox == null) continue;
@@ -211,14 +268,28 @@ public abstract class MixinChunkGeneratorRTGVillage {
                 float desired = bestTarget;
                 if (dist <= 0.0) {
                     desired = plateHeightAt(originalHeight, bestTarget, colX, colZ, bestBox, slope);
+                    noise[index] = desired;
+                    written++;
+                    padded++;
+                    continue;
                 }
+
+                int bank = VillageLandHelper.BANK_BLEND;
+                float waterFactor = wetDist[index] >= bank ? 1.0F : wetDist[index] / (float) bank;
+                bestBlend *= waterFactor;
+                if (bestBlend <= 0.0F) continue;
                 noise[index] = originalHeight * (1.0F - bestBlend) + desired * bestBlend;
                 written++;
             }
         }
         if (VillageDebug.once("flatten:" + seed + ":" + cx + "," + cz)) {
-            VillageDebug.log("flatten chunk=%d,%d boxes=%d dry=%d wet=%d written=%d recovered=%s",
-                    cx, cz, boxes.size(), dry, wet, written, recovered);
+            if (written == 0) {
+                VillageDebug.log("flatten skip chunk=%d,%d reason=written=0 landBoxes=%d dry=%d wet=%d pad=%d raised=%d recovered=%s",
+                        cx, cz, landBoxCount, dry, wet, padded, raised, recovered);
+            } else {
+                VillageDebug.log("flatten chunk=%d,%d boxes=%d dry=%d wet=%d written=%d pad=%d raised=%d recovered=%s",
+                        cx, cz, landBoxCount, dry, wet, written, padded, raised, recovered);
+            }
         }
         if (landscape != null && landscape.noise != null && landscape.noise != noise) {
             System.arraycopy(noise, 0, landscape.noise, 0, Math.min(noise.length, landscape.noise.length));
@@ -226,50 +297,123 @@ public abstract class MixinChunkGeneratorRTGVillage {
     }
 
     @Unique
-    private float getOrComputePlateHeight(BiomeProvider biomeProvider, int[] box) {
+    private float getOrComputePlateHeight(VillagePlate.Record rec) {
         long seed = world != null ? Reflect.getSeed(world) : 0L;
-        Float cached = VillagePlate.get(seed, box);
+        Float cached = VillagePlate.get(seed, rec.xz);
         if (cached != null) return cached;
 
-        float sum = 0.0F;
-        int count = 0;
-        int minChunkX = box[0] >> 4;
-        int maxChunkX = box[1] >> 4;
-        int minChunkZ = box[2] >> 4;
-        int maxChunkZ = box[3] >> 4;
-        for (int ccx = minChunkX; ccx <= maxChunkX; ++ccx) {
-            for (int ccz = minChunkZ; ccz <= maxChunkZ; ++ccz) {
-                ChunkLandscape sample;
-                try {
-                    sample = getLandscape(biomeProvider, new ChunkPos(ccx, ccz));
-                } catch (Throwable t) {
-                    continue;
-                }
-                if (sample == null || sample.noise == null) continue;
-                int originX = ccx * 16;
-                int originZ = ccz * 16;
-                for (int localX = 0; localX < 16; ++localX) {
-                    int colX = originX + localX;
-                    if (colX < box[0] || colX > box[1]) continue;
-                    for (int localZ = 0; localZ < 16; ++localZ) {
-                        int colZ = originZ + localZ;
-                        if (colZ < box[2] || colZ > box[3]) continue;
-                        int index = localX * 16 + localZ;
-                        if (index < 0 || index >= sample.noise.length) continue;
-                        if (VillageLandHelper.isWetColumn(biomeProvider, sample, index, colX, colZ)) continue;
-                        sum += sample.noise[index];
-                        count++;
-                    }
-                }
-            }
+        BiomeProvider biomeProvider;
+        try {
+            biomeProvider = world.getBiomeProvider();
+        } catch (Throwable t) {
+            return Float.NaN;
         }
-        float target = count > 0 ? sum / count : 68.0F;
-        VillagePlate.put(seed, box, target);
-        if (VillageDebug.once("plateSample:" + VillagePlate.key(seed, box))) {
-            VillageDebug.log("plateSample box=[%d,%d]x[%d,%d] dry=%d target=%.1f fallback=%s",
-                    box[0], box[1], box[2], box[3], count, target, count > 0 ? "no" : "yes");
+        Biome wellBiome = Reflect.getBiome(biomeProvider, rec.wellX, rec.wellZ);
+        boolean swampWell = VillageLandHelper.isSwampLikeForRaise(wellBiome);
+
+        float wellHeight = VillageLandHelper.sampleNoise((ChunkGeneratorRTG) (Object) this, biomeProvider, rec.wellX, rec.wellZ);
+        String source = "well";
+        if (!VillageLandHelper.isUsableHeight(wellHeight)) {
+            wellHeight = aqtweaks$sampleLandFallback(biomeProvider, rec);
+            source = "land";
+        }
+
+        float target;
+        boolean fallback;
+        if (!VillageLandHelper.isUsableHeight(wellHeight)) {
+            if (swampWell) {
+                target = VillageLandHelper.FLOOD_LEVEL;
+                fallback = true;
+                source = "swamp64";
+            } else {
+                if (VillageDebug.once("plateSample:" + VillagePlate.key(seed, rec.xz))) {
+                    VillageDebug.log("plateSample well=%d,%d biome=%s raw=none target=skip fallback=yes",
+                            rec.wellX, rec.wellZ, VillageLandHelper.biomeId(wellBiome));
+                }
+                return Float.NaN;
+            }
+        } else if (swampWell && wellHeight < VillageLandHelper.FLOOD_LEVEL) {
+            target = VillageLandHelper.FLOOD_LEVEL;
+            fallback = true;
+        } else {
+            target = wellHeight;
+            fallback = !"well".equals(source);
+        }
+        VillagePlate.put(seed, rec.xz, target);
+        if (VillageDebug.once("plateSample:" + VillagePlate.key(seed, rec.xz))) {
+            VillageDebug.log("plateSample well=%d,%d biome=%s raw=%.1f target=%.1f source=%s fallback=%s",
+                    rec.wellX, rec.wellZ, VillageLandHelper.biomeId(wellBiome),
+                    wellHeight, target, source, fallback ? "yes" : "no");
         }
         return target;
+    }
+
+    @Unique
+    private float aqtweaks$sampleLandFallback(BiomeProvider biomeProvider, VillagePlate.Record rec) {
+        ChunkGeneratorRTG gen = (ChunkGeneratorRTG) (Object) this;
+        for (int[] box : rec.landBoxesOrStart()) {
+            int x = (box[0] + box[1]) >> 1;
+            int z = (box[2] + box[3]) >> 1;
+            Biome biome = Reflect.getBiome(biomeProvider, x, z);
+            if (VillageLandHelper.isNeverRaiseBiome(biome)) continue;
+            float height = VillageLandHelper.sampleNoise(gen, biomeProvider, x, z);
+            if (VillageLandHelper.isUsableHeight(height) && height >= VillageLandHelper.FLOOD_LEVEL) {
+                return height;
+            }
+        }
+        return Float.NaN;
+    }
+
+    @Unique
+    private static boolean aqtweaks$inRoundedPad(int x, int z, List<int[]> boxes, int pad) {
+        for (int[] box : boxes) {
+            if (distanceToBoxXZ(x, z, box[0], box[1], box[2], box[3]) <= pad) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Unique
+    private static int aqtweaks$closestBox(int x, int z, List<int[]> boxes) {
+        int best = -1;
+        double bestDist = Double.MAX_VALUE;
+        for (int i = 0; i < boxes.size(); i++) {
+            int[] box = boxes.get(i);
+            double dist = distanceToBoxXZ(x, z, box[0], box[1], box[2], box[3]);
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = i;
+            }
+        }
+        return best;
+    }
+
+    @Unique
+    private static int[] aqtweaks$wetDistance(boolean[] wet) {
+        int[] dist = new int[256];
+        java.util.Arrays.fill(dist, 99);
+        int n = Math.min(256, wet.length);
+        for (int i = 0; i < n; i++) {
+            if (wet[i]) dist[i] = 0;
+        }
+        for (int x = 0; x < 16; x++) {
+            for (int z = 0; z < 16; z++) {
+                int i = x * 16 + z;
+                if (x > 0) dist[i] = Math.min(dist[i], dist[(x - 1) * 16 + z] + 1);
+                if (z > 0) dist[i] = Math.min(dist[i], dist[x * 16 + (z - 1)] + 1);
+                if (x > 0 && z > 0) dist[i] = Math.min(dist[i], dist[(x - 1) * 16 + (z - 1)] + 1);
+            }
+        }
+        for (int x = 15; x >= 0; x--) {
+            for (int z = 15; z >= 0; z--) {
+                int i = x * 16 + z;
+                if (x < 15) dist[i] = Math.min(dist[i], dist[(x + 1) * 16 + z] + 1);
+                if (z < 15) dist[i] = Math.min(dist[i], dist[x * 16 + (z + 1)] + 1);
+                if (x < 15 && z < 15) dist[i] = Math.min(dist[i], dist[(x + 1) * 16 + (z + 1)] + 1);
+            }
+        }
+        return dist;
     }
 
     @Unique

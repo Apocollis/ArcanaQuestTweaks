@@ -20,14 +20,32 @@ public final class VillagePlate {
     public static final class Record {
         public final Object start;
         public final int[] xz;
+        public final List<int[]> landBoxes;
+        public final List<int[]> buildingBoxes;
+        public final int wellX;
+        public final int wellZ;
         public final int minY;
         public final int maxY;
 
-        private Record(Object start, int[] xz, int minY, int maxY) {
+        private Record(Object start, int[] xz, List<int[]> landBoxes, List<int[]> buildingBoxes,
+                       int wellX, int wellZ, int minY, int maxY) {
             this.start = start;
             this.xz = xz;
+            this.landBoxes = landBoxes;
+            this.buildingBoxes = buildingBoxes;
+            this.wellX = wellX;
+            this.wellZ = wellZ;
             this.minY = minY;
             this.maxY = maxY;
+        }
+
+        public List<int[]> landBoxesOrStart() {
+            if (landBoxes != null && !landBoxes.isEmpty()) return landBoxes;
+            return xz == null ? Collections.emptyList() : Collections.singletonList(xz);
+        }
+
+        public List<int[]> buildingBoxesOrEmpty() {
+            return buildingBoxes != null ? buildingBoxes : Collections.emptyList();
         }
     }
 
@@ -48,23 +66,34 @@ public final class VillagePlate {
     }
 
     public static void remember(World world, Object start) {
+        int cx = Reflect.getStructureStartChunkX(start);
+        int cz = Reflect.getStructureStartChunkZ(start);
+        remember(world, start, cx, cz);
+    }
+
+    public static void remember(World world, Object start, int chunkX, int chunkZ) {
         if (start == null) return;
         int[] xz = Reflect.getStructureStartBoxXZ(start);
         if (xz == null) return;
         long seed = world != null ? Reflect.getSeed(world) : 0L;
         int minY = Reflect.getStructureStartMinY(start);
         int maxY = Reflect.getStructureStartMaxY(start);
+        int wellX = chunkX > Integer.MIN_VALUE ? chunkX * 16 + 2 : (xz[0] + xz[1]) >> 1;
+        int wellZ = chunkZ > Integer.MIN_VALUE ? chunkZ * 16 + 2 : (xz[2] + xz[3]) >> 1;
+        List<int[]> landBoxes = landBoxesOf(start);
+        List<int[]> buildingBoxes = buildingBoxesOf(start);
         List<Record> list = STARTS.computeIfAbsent(seed, k -> Collections.synchronizedList(new ArrayList<>()));
         synchronized (list) {
             String id = key(seed, xz);
+            Record rec = new Record(start, xz, landBoxes, buildingBoxes, wellX, wellZ, minY, maxY);
             for (int i = 0; i < list.size(); i++) {
                 Record existing = list.get(i);
                 if (id.equals(key(seed, existing.xz))) {
-                    list.set(i, new Record(start, xz, minY, maxY));
+                    list.set(i, rec);
                     return;
                 }
             }
-            list.add(new Record(start, xz, minY, maxY));
+            list.add(rec);
         }
     }
 
@@ -84,13 +113,36 @@ public final class VillagePlate {
         }
     }
 
-    public static List<int[]> overlappingXZ(long seed, int chunkMinX, int chunkMaxX, int chunkMinZ, int chunkMaxZ, int extra) {
-        List<int[]> out = new ArrayList<>();
+    public static List<Record> overlappingStartAabb(long seed, int chunkMinX, int chunkMaxX, int chunkMinZ, int chunkMaxZ, int extra) {
+        List<Record> out = new ArrayList<>();
         int e = Math.max(0, extra);
         for (Record rec : starts(seed)) {
+            if (rec.xz == null) continue;
             if (rec.xz[1] + e < chunkMinX || rec.xz[0] - e > chunkMaxX) continue;
             if (rec.xz[3] + e < chunkMinZ || rec.xz[2] - e > chunkMaxZ) continue;
-            out.add(rec.xz);
+            out.add(rec);
+        }
+        return out;
+    }
+
+    public static List<Record> overlappingRecords(long seed, int chunkMinX, int chunkMaxX, int chunkMinZ, int chunkMaxZ, int extra) {
+        List<Record> out = new ArrayList<>();
+        int e = Math.max(0, extra);
+        for (Record rec : starts(seed)) {
+            for (int[] box : rec.landBoxesOrStart()) {
+                if (box[1] + e < chunkMinX || box[0] - e > chunkMaxX) continue;
+                if (box[3] + e < chunkMinZ || box[2] - e > chunkMaxZ) continue;
+                out.add(rec);
+                break;
+            }
+        }
+        return out;
+    }
+
+    public static List<int[]> overlappingXZ(long seed, int chunkMinX, int chunkMaxX, int chunkMinZ, int chunkMaxZ, int extra) {
+        List<int[]> out = new ArrayList<>();
+        for (Record rec : overlappingRecords(seed, chunkMinX, chunkMaxX, chunkMinZ, chunkMaxZ, extra)) {
+            out.addAll(rec.landBoxesOrStart());
         }
         return out;
     }
@@ -99,6 +151,23 @@ public final class VillagePlate {
         if (box == null) return null;
         if (pad <= 0) return box;
         return new int[] {box[0] - pad, box[1] + pad, box[2] - pad, box[3] + pad};
+    }
+
+    public static int[] union(List<int[]> boxes) {
+        if (boxes == null || boxes.isEmpty()) return null;
+        int minX = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int minZ = Integer.MAX_VALUE;
+        int maxZ = Integer.MIN_VALUE;
+        for (int[] box : boxes) {
+            if (box == null) continue;
+            minX = Math.min(minX, box[0]);
+            maxX = Math.max(maxX, box[1]);
+            minZ = Math.min(minZ, box[2]);
+            maxZ = Math.max(maxZ, box[3]);
+        }
+        if (minX > maxX) return null;
+        return new int[] {minX, maxX, minZ, maxZ};
     }
 
     public static boolean containsXZ(int x, int z, int[] box) {
@@ -143,6 +212,32 @@ public final class VillagePlate {
         }
         put(world != null ? Reflect.getSeed(world) : 0L, box, height);
         return height;
+    }
+
+    public static List<int[]> landBoxesOf(Object start) {
+        List<int[]> out = new ArrayList<>();
+        for (Object piece : Reflect.getStructureStartComponents(start)) {
+            int[] box = Reflect.getStructureComponentBoxXZ(piece);
+            if (box == null) continue;
+            if (VillageLandHelper.isVillageRoad(piece) && VillageLandHelper.isAabbFlooded(start, piece)) {
+                continue;
+            }
+            out.add(box);
+        }
+        return out;
+    }
+
+    /**
+     * Houses, RC, and the well. Roads and docks are excluded so swamp raise stays rounded around buildings.
+     */
+    public static List<int[]> buildingBoxesOf(Object start) {
+        List<int[]> out = new ArrayList<>();
+        for (Object piece : Reflect.getStructureStartComponents(start)) {
+            int[] box = Reflect.getStructureComponentBoxXZ(piece);
+            if (box == null || VillageLandHelper.isVillageRoad(piece)) continue;
+            out.add(box);
+        }
+        return out;
     }
 
     private static float sampleWorldSurface(World world, int[] box) {
