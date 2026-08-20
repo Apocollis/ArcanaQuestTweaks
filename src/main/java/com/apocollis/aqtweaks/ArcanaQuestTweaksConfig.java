@@ -625,6 +625,11 @@ public class ArcanaQuestTweaksConfig {
         @Config.RangeInt(min = 0, max = 256)
         public int villageEdgeFalloff = 48;
 
+        @Config.Name("Village Water Bank")
+        @Config.Comment("Blocks of slope from the plate down to water or shore. 0 = old vertical cutoff at the waterline.")
+        @Config.RangeInt(min = 0, max = 64)
+        public int villageWaterBank = 16;
+
         @Config.Name("Village Plate Slope")
         @Config.Comment("Inside the village box: 0 = fully flat plate at the box-average height. 30 = allow at most 1 block of height change per 30 blocks from the plate center.")
         @Config.RangeInt(min = 0, max = 256)
@@ -658,7 +663,7 @@ public class ArcanaQuestTweaksConfig {
         public boolean enableVillageBoxDetection = true;
 
         @Config.Name("Village Box XZ Pad")
-        @Config.Comment("Extra blocks outside the village hull that still count as Village and are fully flattened. 0 = exact hull.")
+        @Config.Comment("Extra blocks outside the village hull that still count as Village for detection, and the swamp raise slope radius. Flattening uses the unpadded land boxes.")
         @Config.RangeInt(min = 0, max = 64)
         public int villageBoxXZPad = 8;
 
