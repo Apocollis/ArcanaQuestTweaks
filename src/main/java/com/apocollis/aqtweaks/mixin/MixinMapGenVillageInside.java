@@ -35,35 +35,30 @@ public abstract class MixinMapGenVillageInside {
         int heightAbove = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageBoxHeight);
 
         for (VillagePlate.Record rec : VillagePlate.starts(seed)) {
-            if (rec.start == null || rec.xz == null) continue;
-            int[] padded = VillagePlate.padded(rec.xz, xzPad);
-            if (!VillagePlate.containsXZ(pos.getX(), pos.getZ(), padded)) continue;
-
+            if (rec.start == null) continue;
             float plate = VillagePlate.resolvePlate(world, rec.xz);
-            String boxId = VillagePlate.key(seed, rec.xz);
-            if (!VillagePlate.yInStartVolume(pos.getY(), rec, plate, heightAbove)) {
-                if (VillageDebug.once("ymiss:" + boxId)) {
-                    VillageDebug.log("detect ymiss pos=%d,%d,%d plate=%s startY=%d..%d heightAbove=%d aabb=[%d,%d]x[%d,%d]",
-                            pos.getX(), pos.getY(), pos.getZ(),
-                            Float.isNaN(plate) ? "none" : String.format("%.1f", plate),
-                            rec.minY, rec.maxY, heightAbove,
-                            rec.xz[0], rec.xz[1], rec.xz[2], rec.xz[3]);
+            if (Float.isNaN(plate)) continue;
+            if (!VillagePlate.yInVillageVolume(pos.getY(), plate, heightAbove, rec)) continue;
+
+            boolean xzHit = false;
+            for (int[] box : rec.landBoxesOrEmpty()) {
+                int[] padded = VillagePlate.padded(box, xzPad);
+                if (VillagePlate.containsXZ(pos.getX(), pos.getZ(), padded)) {
+                    xzHit = true;
+                    break;
                 }
-                continue;
             }
+            if (!xzHit) continue;
 
             if (rec.start instanceof StructureStart) {
+                String boxId = VillagePlate.key(seed, rec.xz);
                 if (VillageDebug.once("yhit:" + boxId)) {
-                    VillageDebug.log("detect hit pos=%d,%d,%d plate=%s startY=%d..%d aabb=[%d,%d]x[%d,%d]",
-                            pos.getX(), pos.getY(), pos.getZ(),
-                            Float.isNaN(plate) ? "none" : String.format("%.1f", plate),
-                            rec.minY, rec.maxY,
-                            rec.xz[0], rec.xz[1], rec.xz[2], rec.xz[3]);
+                    VillageDebug.log("detect hit pos=%d,%d,%d plate=%.1f landBoxes=%d",
+                            pos.getX(), pos.getY(), pos.getZ(), plate, rec.landBoxesOrEmpty().size());
                 }
                 cir.setReturnValue((StructureStart) rec.start);
                 return;
             }
         }
-        // Miss: let vanilla test child pieces (houses, well, paths).
     }
 }

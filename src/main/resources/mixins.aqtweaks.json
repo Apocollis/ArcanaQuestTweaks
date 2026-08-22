@@ -21,6 +21,7 @@
     "bettercaves.MixinChunkGeneratorRTG",
     "bettercaves.MixinChunkGeneratorRTGVillage",
     "MixinStructureVillagePieces",
+    "MixinStructureStartVillagePaste",
     "MixinMapGenVillageInside",
     "MixinMapGenVillageSpawn",
     "MixinMapGenVillageStart",

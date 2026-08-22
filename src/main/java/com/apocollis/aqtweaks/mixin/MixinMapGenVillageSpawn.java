@@ -18,7 +18,6 @@ public abstract class MixinMapGenVillageSpawn {
     private void aqtweaks$rejectCoastalVillage(int chunkX, int chunkZ, CallbackInfoReturnable<Boolean> cir) {
         if (!Boolean.TRUE.equals(cir.getReturnValue())) return;
         if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.rejectCoastalVillageStarts) return;
-        if (VillageLandHelper.isSamplingLandscape()) return;
 
         World world = Reflect.getMapGenWorld(this);
         if (world == null) return;

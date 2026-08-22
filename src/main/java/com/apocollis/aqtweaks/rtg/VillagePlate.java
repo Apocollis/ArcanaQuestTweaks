@@ -46,6 +46,10 @@ public final class VillagePlate {
             return xz == null ? Collections.emptyList() : Collections.singletonList(xz);
         }
 
+        public List<int[]> landBoxesOrEmpty() {
+            return landBoxes != null ? landBoxes : Collections.emptyList();
+        }
+
         public List<int[]> buildingBoxesOrEmpty() {
             return buildingBoxes != null ? buildingBoxes : Collections.emptyList();
         }
@@ -81,11 +85,23 @@ public final class VillagePlate {
         if (start == null) return;
         int[] xz = Reflect.getStructureStartBoxXZ(start);
         if (xz == null) return;
+        int wellX = chunkX > Integer.MIN_VALUE ? chunkX * 16 + 2 : (xz[0] + xz[1]) >> 1;
+        int wellZ = chunkZ > Integer.MIN_VALUE ? chunkZ * 16 + 2 : (xz[2] + xz[3]) >> 1;
+        if (world != null && chunkX > Integer.MIN_VALUE) {
+            int[] resolved = VillageLandHelper.resolvedWellXZ(world, wellX, wellZ);
+            wellX = resolved[0];
+            wellZ = resolved[1];
+        }
+        remember(world, start, chunkX, chunkZ, wellX, wellZ);
+    }
+
+    public static void remember(World world, Object start, int chunkX, int chunkZ, int wellX, int wellZ) {
+        if (start == null) return;
+        int[] xz = Reflect.getStructureStartBoxXZ(start);
+        if (xz == null) return;
         long seed = world != null ? Reflect.getSeed(world) : 0L;
         int minY = Reflect.getStructureStartMinY(start);
         int maxY = Reflect.getStructureStartMaxY(start);
-        int wellX = chunkX > Integer.MIN_VALUE ? chunkX * 16 + 2 : (xz[0] + xz[1]) >> 1;
-        int wellZ = chunkZ > Integer.MIN_VALUE ? chunkZ * 16 + 2 : (xz[2] + xz[3]) >> 1;
         List<int[]> landBoxes = landBoxesOf(start);
         List<int[]> buildingBoxes = buildingBoxesOf(start);
         List<int[]> shrineBoxes = shrineBoxesOf(start);
@@ -107,8 +123,33 @@ public final class VillagePlate {
     public static void rememberAll(World world, Object mapGen) {
         if (mapGen == null) return;
         Reflect.initializeStructureData(mapGen, world);
+        if (mapGen instanceof net.minecraft.world.gen.structure.MapGenVillage) {
+            VillageLandHelper.forgetRejectedStarts(
+                    (net.minecraft.world.gen.structure.MapGenVillage) mapGen, world);
+        }
         for (Object start : Reflect.getMapGenStructureStarts(mapGen)) {
             remember(world, start);
+        }
+    }
+
+    public static void forget(World world, Object start, int chunkX, int chunkZ) {
+        long seed = world != null ? Reflect.getSeed(world) : 0L;
+        int[] xz = start != null ? Reflect.getStructureStartBoxXZ(start) : null;
+        int wellX = chunkX > Integer.MIN_VALUE ? chunkX * 16 + 2 : Integer.MIN_VALUE;
+        int wellZ = chunkZ > Integer.MIN_VALUE ? chunkZ * 16 + 2 : Integer.MIN_VALUE;
+        List<Record> list = STARTS.get(seed);
+        if (list != null) {
+            synchronized (list) {
+                list.removeIf(rec -> {
+                    if (xz != null && rec.xz != null && key(seed, rec.xz).equals(key(seed, xz))) {
+                        return true;
+                    }
+                    return rec.wellX == wellX && rec.wellZ == wellZ;
+                });
+            }
+        }
+        if (xz != null) {
+            HEIGHTS.remove(key(seed, xz));
         }
     }
 
@@ -136,7 +177,7 @@ public final class VillagePlate {
         List<Record> out = new ArrayList<>();
         int e = Math.max(0, extra);
         for (Record rec : starts(seed)) {
-            for (int[] box : rec.landBoxesOrStart()) {
+            for (int[] box : rec.landBoxesOrEmpty()) {
                 if (overlapsXZ(box, chunkMinX, chunkMaxX, chunkMinZ, chunkMaxZ, e)) {
                     out.add(rec);
                     break;
@@ -156,7 +197,7 @@ public final class VillagePlate {
     public static List<int[]> overlappingXZ(long seed, int chunkMinX, int chunkMaxX, int chunkMinZ, int chunkMaxZ, int extra) {
         List<int[]> out = new ArrayList<>();
         for (Record rec : overlappingRecords(seed, chunkMinX, chunkMaxX, chunkMinZ, chunkMaxZ, extra)) {
-            out.addAll(rec.landBoxesOrStart());
+            out.addAll(rec.landBoxesOrEmpty());
         }
         return out;
     }
@@ -188,22 +229,39 @@ public final class VillagePlate {
         return box != null && x >= box[0] && x <= box[1] && z >= box[2] && z <= box[3];
     }
 
-    public static boolean yInSlab(int y, float plateHeight, int heightAbove) {
+    public static boolean yInVillageVolume(int y, float plateHeight, int heightAbove, Record rec) {
         int padY = Math.round(plateHeight);
         int maxY = padY + Math.max(0, heightAbove);
-        return y >= padY && y <= maxY;
+        int floor = wellFloorY(rec, padY);
+        return y >= floor && y <= maxY;
     }
 
-    public static boolean yInStartVolume(int y, Record rec, float plateOrNaN, int heightAbove) {
-        int extra = Math.max(0, heightAbove);
-        int startMin = rec.minY > Integer.MIN_VALUE ? rec.minY : 0;
-        int startMax = rec.maxY > Integer.MIN_VALUE ? rec.maxY : startMin;
-        int floor = Math.min(startMin, 63);
-        if (!Float.isNaN(plateOrNaN)) {
-            floor = Math.min(floor, Math.round(plateOrNaN));
-            startMax = Math.max(startMax, Math.round(plateOrNaN));
+    /**
+     * Detection floor: snapped well-piece {@code minY}, or {@code plate - wellHeight} if still the
+     * unsnapped template box (64..78).
+     */
+    public static int wellFloorY(Record rec, int plateY) {
+        int[] wellY = wellPieceMinMaxY(rec != null ? rec.start : null);
+        if (wellY == null) {
+            return plateY - 14;
         }
-        return y >= floor && y <= startMax + extra;
+        int minY = wellY[0];
+        int maxY = wellY[1];
+        if (minY == 64 && maxY == 78) {
+            return plateY - (maxY - minY);
+        }
+        return Math.min(minY, plateY);
+    }
+
+    private static int[] wellPieceMinMaxY(Object start) {
+        if (start == null) return null;
+        for (Object piece : Reflect.getStructureStartComponents(start)) {
+            if (VillageLandHelper.isVillageWellOrStart(piece)) {
+                int[] y = Reflect.getStructureComponentMinMaxY(piece);
+                if (y != null) return y;
+            }
+        }
+        return null;
     }
 
     /**

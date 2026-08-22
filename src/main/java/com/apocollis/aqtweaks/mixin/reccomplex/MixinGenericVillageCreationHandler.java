@@ -33,18 +33,22 @@ public abstract class MixinGenericVillageCreationHandler {
         StructureVillagePieces.Village placed = cir.getReturnValue();
         if (placed == null || !VillageLandHelper.isAabbWet(start, placed)) return;
 
-        VillageDebug.log("rc aabb wet origin=%d,%d, retrying", x, z);
+        VillageLandHelper.removeVillagePiece(start, pieces, placed);
+        VillageDebug.log("rc aabb wet origin=%d,%d, retrying inland", x, z);
         AQTWEAKS$RETRYING_RC.set(Boolean.TRUE);
         try {
             GenericVillageCreationHandler self = (GenericVillageCreationHandler) (Object) this;
             int maxStep = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageWaterRetryDistance);
-            for (int[] slot : VillageLandHelper.landCandidates(start, x, z, facing, maxStep)) {
+            for (int[] slot : VillageLandHelper.inlandCandidates(start, x, z, facing, maxStep)) {
                 StructureVillagePieces.Village retry = self.buildComponent(
                         villagePiece, start, pieces, random, slot[0], y, slot[1], facing, type);
                 if (retry != null && !VillageLandHelper.isAabbWet(start, retry)) {
                     VillageDebug.log("rc retry hit origin=%d,%d slot=%d,%d", x, z, slot[0], slot[1]);
                     cir.setReturnValue(retry);
                     return;
+                }
+                if (retry != null) {
+                    VillageLandHelper.removeVillagePiece(start, pieces, retry);
                 }
             }
             VillageDebug.log("rc retry miss origin=%d,%d", x, z);

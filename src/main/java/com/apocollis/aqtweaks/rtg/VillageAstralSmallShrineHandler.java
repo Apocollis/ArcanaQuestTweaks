@@ -43,14 +43,18 @@ public final class VillageAstralSmallShrineHandler implements VillagerRegistry.I
         if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.skipWaterVillagePieces) return placed;
         if (!VillageLandHelper.isAabbWet(startPiece, placed)) return placed;
 
-        VillageDebug.log("astral shrine aabb wet origin=%d,%d, retrying", x, z);
+        VillageLandHelper.removeVillagePiece(startPiece, pieces, placed);
+        VillageDebug.log("astral shrine aabb wet origin=%d,%d, retrying inland", x, z);
         int maxStep = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageWaterRetryDistance);
-        for (int[] slot : VillageLandHelper.landCandidates(startPiece, x, z, facing, maxStep)) {
+        for (int[] slot : VillageLandHelper.inlandCandidates(startPiece, x, z, facing, maxStep)) {
             VillagePieceAstralSmallShrine retry = VillagePieceAstralSmallShrine.build(
                     startPiece, pieces, random, slot[0], y, slot[1], facing, type);
             if (retry != null && !VillageLandHelper.isAabbWet(startPiece, retry)) {
                 VillageDebug.log("astral shrine retry hit origin=%d,%d slot=%d,%d", x, z, slot[0], slot[1]);
                 return retry;
+            }
+            if (retry != null) {
+                VillageLandHelper.removeVillagePiece(startPiece, pieces, retry);
             }
         }
         VillageDebug.log("astral shrine retry miss origin=%d,%d", x, z);

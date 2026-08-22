@@ -1,5 +1,6 @@
 package com.apocollis.aqtweaks.mixin;
 
+import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.rtg.VillageDebug;
 import com.apocollis.aqtweaks.rtg.VillageLandHelper;
 import com.apocollis.aqtweaks.rtg.VillagePlate;
@@ -23,12 +24,30 @@ public abstract class MixinMapGenVillageStart {
         StructureStart start = cir.getReturnValue();
         if (start == null) return;
         World world = Reflect.getMapGenWorld(this);
-        VillagePlate.remember(world, start, chunkX, chunkZ);
+        if (ArcanaQuestTweaksConfig.RtgModuleConfig.surface.rejectCoastalVillageStarts
+                && world != null) {
+            String reason = VillageLandHelper.startRejectReason(world, chunkX, chunkZ);
+            if (reason != null) {
+                VillageDebug.log("reject-start chunk=%d,%d well=%d,%d %s",
+                        chunkX, chunkZ, chunkX * 16 + 2, chunkZ * 16 + 2, reason);
+                Reflect.removeStructureStart(this, chunkX, chunkZ);
+                return;
+            }
+        }
+        int wellX = chunkX * 16 + 2;
+        int wellZ = chunkZ * 16 + 2;
+        int[] resolved = VillageLandHelper.resolvedWellXZ(world, wellX, wellZ);
+        if (resolved[0] != wellX || resolved[1] != wellZ) {
+            VillageLandHelper.offsetStructureStart(start, resolved[0] - wellX, resolved[1] - wellZ);
+            VillageDebug.log("well-walk chunk=%d,%d from=%d,%d to=%d,%d",
+                    chunkX, chunkZ, wellX, wellZ, resolved[0], resolved[1]);
+            wellX = resolved[0];
+            wellZ = resolved[1];
+        }
+        VillagePlate.remember(world, start, chunkX, chunkZ, wellX, wellZ);
         int[] xz = Reflect.getStructureStartBoxXZ(start);
         List<int[]> landBoxes = VillagePlate.landBoxesOf(start);
         int[] land = VillagePlate.union(landBoxes);
-        int wellX = chunkX * 16 + 2;
-        int wellZ = chunkZ * 16 + 2;
         Biome wellBiome = world != null && world.getBiomeProvider() != null
                 ? Reflect.getBiome(world.getBiomeProvider(), wellX, wellZ) : null;
         VillageDebug.log("register chunk=%d,%d well=%d,%d biome=%s aabb=[%d,%d]x[%d,%d] landBoxes=%d buildings=%d land=[%d,%d]x[%d,%d] minY=%d maxY=%d",

@@ -2,24 +2,37 @@ package com.apocollis.aqtweaks.rtg;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.util.Reflect;
+import net.minecraft.block.Block;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.util.EnumFacing;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.BiomeProvider;
 import net.minecraft.world.chunk.ChunkPrimer;
 import net.minecraft.world.gen.structure.MapGenVillage;
+import net.minecraft.world.gen.structure.StructureBoundingBox;
+import net.minecraft.world.gen.structure.StructureVillagePieces;
 import net.minecraftforge.common.BiomeDictionary;
+import net.minecraftforge.fml.common.Loader;
+import net.minecraftforge.fml.common.registry.ForgeRegistries;
 import rtg.world.gen.ChunkGeneratorRTG;
 import rtg.world.gen.ChunkLandscape;
 
+import java.lang.reflect.Field;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.WeakHashMap;
 
 /**
  * Village placement: wet-column tests, ocean-like well veto, coast buffer, and land retry slots for buildings.
@@ -27,14 +40,17 @@ import java.util.Set;
 public final class VillageLandHelper {
 
     public static final float STRONG_RIVER = 0.4F;
-    public static final int SEA_LEVEL = 63;
-    public static final int FLOOD_LEVEL = 64;
     public static final int VILLAGE_LAYOUT_RADIUS = 8;
     public static final int BANK_BLEND = 8;
+    public static final float PATH_WET_FRACTION = 0.5F;
 
     private static final ThreadLocal<Deque<World>> WORLDS = ThreadLocal.withInitial(ArrayDeque::new);
     private static final ThreadLocal<Deque<ChunkGeneratorRTG>> GENERATORS = ThreadLocal.withInitial(ArrayDeque::new);
     private static final ThreadLocal<Integer> SAMPLING = ThreadLocal.withInitial(() -> 0);
+    private static final Map<World, MapGenVillage> STASHED_VILLAGE = Collections.synchronizedMap(new WeakHashMap<>());
+    private static final Map<World, ChunkGeneratorRTG> STASHED_RTG = Collections.synchronizedMap(new WeakHashMap<>());
+    private static IBlockState loamyGrass;
+    private static boolean loamyGrassLoaded;
 
     private VillageLandHelper() {}
 
@@ -70,8 +86,61 @@ public final class VillageLandHelper {
         return stack.isEmpty() ? null : stack.peek();
     }
 
+    public static void stashGenerators(World world, MapGenVillage village, ChunkGeneratorRTG rtg) {
+        if (world == null) return;
+        if (village != null) STASHED_VILLAGE.put(world, village);
+        if (rtg != null) STASHED_RTG.put(world, rtg);
+    }
+
+    public static MapGenVillage stashedVillage(World world) {
+        return world == null ? null : STASHED_VILLAGE.get(world);
+    }
+
+    public static ChunkGeneratorRTG stashedRtg(World world) {
+        return world == null ? null : STASHED_RTG.get(world);
+    }
+
     public static boolean isSamplingLandscape() {
         return SAMPLING.get() > 0;
+    }
+
+    public static int minWellHeight() {
+        int value = ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageMinWellHeight;
+        return Math.max(1, Math.min(255, value));
+    }
+
+    public static float minWellHeightF() {
+        return minWellHeight();
+    }
+
+    /**
+     * BOP loamy grass ({@code biomesoplenty:grass} meta 2). Null if BOP is missing.
+     * Used only to replace mud on the village plate.
+     */
+    public static IBlockState bopLoamyGrass() {
+        if (!loamyGrassLoaded) {
+            loamyGrassLoaded = true;
+            loamyGrass = null;
+            try {
+                if (Loader.isModLoaded("biomesoplenty")) {
+                    Block grass = ForgeRegistries.BLOCKS.getValue(new ResourceLocation("biomesoplenty", "grass"));
+                    if (grass != null) {
+                        loamyGrass = grass.getStateFromMeta(2);
+                    }
+                }
+            } catch (Throwable ignored) {}
+        }
+        return loamyGrass;
+    }
+
+    public static boolean isBopMud(IBlockState state) {
+        if (state == null || state.getBlock() == null) return false;
+        try {
+            ResourceLocation name = state.getBlock().getRegistryName();
+            return name != null && "biomesoplenty".equals(name.getNamespace()) && "mud".equals(name.getPath());
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     /**
@@ -83,22 +152,20 @@ public final class VillageLandHelper {
     }
 
     public static boolean isBuildingWet(Object villageStart, int x, int z) {
-        BiomeProvider provider = Reflect.getVillageStartBiomeProvider(villageStart);
-        Biome biome = Reflect.getBiome(provider, x, z);
-        if (isNeverRaiseBiome(biome)) return true;
-        if (isSwampLikeForRaise(biome)) return false;
-        return isFloodedAt(villageStart, x, z);
-    }
-
-    public static boolean isFloodedAt(Object villageStart, int x, int z) {
-        BiomeProvider provider = Reflect.getVillageStartBiomeProvider(villageStart);
-        Biome biome = Reflect.getBiome(provider, x, z);
-        if (isOceanOrRiverBiome(biome)) return true;
         World world = currentWorld();
         if (world == null) {
             world = Reflect.getVillageStartWorld(villageStart);
         }
-        return isRtgLandscapeWet(world, x, z);
+        return isNeverRaiseAt(world, villageStart, x, z);
+    }
+
+    public static boolean isFloodedAt(Object villageStart, int x, int z) {
+        World world = currentWorld();
+        if (world == null) {
+            world = Reflect.getVillageStartWorld(villageStart);
+        }
+        if (isNeverRaiseAt(world, villageStart, x, z)) return true;
+        return isRtgLandscapeLake(world, x, z);
     }
 
     public static boolean villageStartAllowed(World world, int chunkX, int chunkZ) {
@@ -106,8 +173,9 @@ public final class VillageLandHelper {
     }
 
     /**
-     * Veto ocean-like, river, or a flooded watercourse. Swamp wells are allowed.
-     * Beach wells are allowed unless ocean-like or river is closer than {@code villageCoastBuffer}.
+     * Veto only when the well column is never-raise (ocean/river biome or RTG river)
+     * and there is no dry land within retry distance. Dry land below min well Y is kept and raised.
+     * Land wells too close to ocean still fail the coast buffer. Nearby river does not cancel a dry well.
      */
     public static String startRejectReason(World world, int chunkX, int chunkZ) {
         if (world == null) return null;
@@ -115,25 +183,96 @@ public final class VillageLandHelper {
         int wellZ = chunkZ * 16 + 2;
         BiomeProvider provider = world.getBiomeProvider();
         Biome biome = Reflect.getBiome(provider, wellX, wellZ);
-        if (isOceanBiome(biome)) {
-            return "ocean_well " + biomeId(biome);
-        }
-        if (isOceanOrRiverBiome(biome)) {
+        if (isNeverRaiseAt(world, wellX, wellZ)) {
+            if (findDryWell(world, wellX, wellZ) != null) {
+                return null;
+            }
+            if (isOceanBiome(biome)) {
+                return "ocean_well " + biomeId(biome);
+            }
             return "river_well " + biomeId(biome);
         }
-        String coast = coastRejectReason(provider, wellX, wellZ);
+        String coast = coastOceanRejectReason(provider, wellX, wellZ);
         if (coast != null) return coast;
-        if (isSwampLikeForRaise(biome)) return null;
-        if (isRtgLandscapeWet(world, wellX, wellZ)) {
-            return "flooded_well " + biomeId(biome);
+        return null;
+    }
+
+    public static int[] resolvedWellXZ(World world, int wellX, int wellZ) {
+        if (world == null || !isNeverRaiseAt(world, wellX, wellZ)) {
+            return new int[] {wellX, wellZ};
+        }
+        int[] dry = findDryWell(world, wellX, wellZ);
+        return dry != null ? dry : new int[] {wellX, wellZ};
+    }
+
+    public static int[] resolvedWellForChunk(World world, int chunkX, int chunkZ) {
+        return resolvedWellXZ(world, chunkX * 16 + 2, chunkZ * 16 + 2);
+    }
+
+    /**
+     * First dry (not never-raise) column within {@code villageWaterRetryDistance}, Chebyshev rings.
+     */
+    public static int[] findDryWell(World world, int wellX, int wellZ) {
+        if (world == null) return null;
+        int max = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageWaterRetryDistance);
+        if (max <= 0) return null;
+        Map<Long, ChunkLandscape> cache = new HashMap<>();
+        for (int r = 1; r <= max; r++) {
+            for (int dx = -r; dx <= r; dx++) {
+                for (int dz = -r; dz <= r; dz++) {
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;
+                    int x = wellX + dx;
+                    int z = wellZ + dz;
+                    if (!isNeverRaiseAt(world, x, z, cache)) {
+                        return new int[] {x, z};
+                    }
+                }
+            }
         }
         return null;
     }
 
+    public static void offsetStructureStart(Object start, int dx, int dz) {
+        if (start == null || (dx == 0 && dz == 0)) return;
+        for (Object piece : Reflect.getStructureStartComponents(start)) {
+            Reflect.offsetStructureComponent(piece, dx, 0, dz);
+        }
+        Reflect.updateStructureStartBoundingBox(start);
+    }
+
     /**
-     * Reject a land/beach well if ocean-like or river is closer than the coast buffer. 0 = well column only.
+     * Drop Starts that fail {@link #startRejectReason} from {@code structureMap} and the plate cache.
+     * {@code /locate Village} reads the map, so a vetoed well must not remain there.
+     * Walked river/ocean wells pass {@code startRejectReason} and are kept.
      */
-    private static String coastRejectReason(BiomeProvider provider, int wellX, int wellZ) {
+    public static void forgetRejectedStarts(MapGenVillage gen, World world) {
+        if (gen == null || world == null) return;
+        if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.rejectCoastalVillageStarts) return;
+        List<Object> snapshot = new ArrayList<>();
+        for (Object start : Reflect.getMapGenStructureStarts(gen)) {
+            snapshot.add(start);
+        }
+        long seed = Reflect.getSeed(world);
+        for (Object start : snapshot) {
+            int cx = Reflect.getStructureStartChunkX(start);
+            int cz = Reflect.getStructureStartChunkZ(start);
+            if (cx == Integer.MIN_VALUE || cz == Integer.MIN_VALUE) continue;
+            String reason = startRejectReason(world, cx, cz);
+            if (reason == null) continue;
+            Reflect.removeStructureStart(gen, cx, cz);
+            VillagePlate.forget(world, start, cx, cz);
+            if (VillageDebug.once("forget:" + seed + ":" + cx + "," + cz)) {
+                VillageDebug.log("forget chunk=%d,%d well=%d,%d %s",
+                        cx, cz, cx * 16 + 2, cz * 16 + 2, reason);
+            }
+        }
+    }
+
+    /**
+     * Reject a land/beach well if ocean-like is closer than the coast buffer. 0 = well column only.
+     * Nearby river does not cancel a dry well.
+     */
+    private static String coastOceanRejectReason(BiomeProvider provider, int wellX, int wellZ) {
         int buffer = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageCoastBuffer);
         if (buffer <= 0 || provider == null) return null;
         int limit = buffer - 1;
@@ -145,9 +284,6 @@ public final class VillageLandHelper {
                 if (isOceanBiome(nearby)) {
                     return "coast_ocean " + biomeId(nearby);
                 }
-                if (isOceanOrRiverBiome(nearby)) {
-                    return "coast_river " + biomeId(nearby);
-                }
             }
         }
         return null;
@@ -155,9 +291,43 @@ public final class VillageLandHelper {
 
     /**
      * Ocean and river columns are never raised or plated, even inside a house or road box.
+     * Also true when RTG river strength is high even if the biome provider says plains.
      */
     public static boolean isNeverRaiseBiome(Biome biome) {
         return isOceanOrRiverBiome(biome);
+    }
+
+    public static boolean isNeverRaiseAt(World world, int x, int z) {
+        return isNeverRaiseAt(world, x, z, null);
+    }
+
+    public static boolean isNeverRaiseAt(World world, Object villageStart, int x, int z) {
+        if (world != null) {
+            return isNeverRaiseAt(world, x, z, null);
+        }
+        BiomeProvider provider = Reflect.getVillageStartBiomeProvider(villageStart);
+        return isNeverRaiseBiome(Reflect.getBiome(provider, x, z));
+    }
+
+    public static boolean isNeverRaiseColumn(Biome biome, ChunkLandscape landscape, int index) {
+        return isNeverRaiseBiome(biome) || isLandscapeNeverRaise(landscape, index);
+    }
+
+    private static boolean isNeverRaiseAt(World world, int x, int z, Map<Long, ChunkLandscape> cache) {
+        if (world == null) return false;
+        Biome biome = Reflect.getBiome(world.getBiomeProvider(), x, z);
+        if (isNeverRaiseBiome(biome)) return true;
+        ChunkLandscape landscape = cache != null ? landscapeCached(world, x, z, cache) : sampleLandscape(world, x, z);
+        int index = (x & 15) * 16 + (z & 15);
+        return isLandscapeNeverRaise(landscape, index);
+    }
+
+    private static ChunkLandscape landscapeCached(World world, int x, int z, Map<Long, ChunkLandscape> cache) {
+        long key = ChunkPos.asLong(x >> 4, z >> 4);
+        if (cache.containsKey(key)) return cache.get(key);
+        ChunkLandscape landscape = sampleLandscape(world, x, z);
+        cache.put(key, landscape);
+        return landscape;
     }
 
     /**
@@ -173,10 +343,7 @@ public final class VillageLandHelper {
      */
     public static boolean isFlattenSkipColumn(BiomeProvider provider, ChunkLandscape landscape, int index, int worldX, int worldZ) {
         Biome biome = Reflect.getBiome(provider, worldX, worldZ);
-        if (isNeverRaiseBiome(biome)) {
-            return true;
-        }
-        return isLandscapeWet(landscape, index);
+        return isNeverRaiseColumn(biome, landscape, index);
     }
 
     public static boolean isWetColumn(BiomeProvider provider, ChunkLandscape landscape, int index, int worldX, int worldZ) {
@@ -276,6 +443,35 @@ public final class VillageLandHelper {
                 || name.contains("StructureVillagePieces.Road");
     }
 
+    public static boolean isVillageWellOrStart(Object component) {
+        return component instanceof StructureVillagePieces.Start
+                || component instanceof StructureVillagePieces.Well;
+    }
+
+    /**
+     * Drop a layout piece from the start lists so it cannot paste or grow more roads/houses.
+     */
+    public static void removeVillagePiece(Object start, List<?> pieces, Object placed) {
+        if (placed == null) return;
+        if (pieces != null) {
+            pieces.remove(placed);
+        }
+        if (start == null) return;
+        for (Class<?> type = start.getClass(); type != null && type != Object.class; type = type.getSuperclass()) {
+            for (Field field : type.getDeclaredFields()) {
+                if (!List.class.isAssignableFrom(field.getType())) continue;
+                try {
+                    field.setAccessible(true);
+                    Object list = field.get(start);
+                    if (list instanceof List) {
+                        ((List<?>) list).remove(placed);
+                    }
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+    }
+
     /**
      * Layout the current chunk plus nearby village wells.
      * Wells sit at a seeded offset inside each spacing cell, not at the cell origin.
@@ -302,6 +498,7 @@ public final class VillageLandHelper {
             maxCellZ = tmp;
         }
         long seed = Reflect.getSeed(world);
+        stashGenerators(world, gen, currentGenerator());
         for (int cellX = minCellX; cellX <= maxCellX; cellX++) {
             for (int cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
                 int[] well = villageWellChunk(seed, cellX, cellZ, spacing, minTown);
@@ -316,6 +513,7 @@ public final class VillageLandHelper {
                 }
             }
         }
+        forgetRejectedStarts(gen, world);
     }
 
     /**
@@ -353,6 +551,9 @@ public final class VillageLandHelper {
         int wellZ = chunkZ * 16 + 2;
         for (VillagePlate.Record rec : VillagePlate.starts(Reflect.getSeed(world))) {
             if (rec.wellX == wellX && rec.wellZ == wellZ) return true;
+            int cx = Reflect.getStructureStartChunkX(rec.start);
+            int cz = Reflect.getStructureStartChunkZ(rec.start);
+            if (cx == chunkX && cz == chunkZ) return true;
         }
         return false;
     }
@@ -366,37 +567,118 @@ public final class VillageLandHelper {
     }
 
     /**
-     * True only if every sampled column is flooded. Mixed road + puddle still plates with houses.
-     * Fully flooded roads (docks) stay off the plate hull.
+     * True only if every column is flooded. Mixed road + puddle still plates with houses.
+     * Fully flooded roads are omitted from layout (no wooden docks).
      */
     public static boolean isAabbFullyFlooded(Object villageStart, Object component) {
-        int[] box = Reflect.getStructureComponentBoxXZ(component);
-        if (box == null) return false;
-        int stride = 2;
-        for (int x = box[0]; x <= box[1]; x += stride) {
-            for (int z = box[2]; z <= box[3]; z += stride) {
-                if (!isFloodedAt(villageStart, x, z)) {
-                    return false;
-                }
-            }
-        }
-        return isFloodedAt(villageStart, box[1], box[3]);
+        return wetFraction(villageStart, component, true) >= 1.0F;
     }
 
-    private static boolean isAabbWet(Object villageStart, Object component, boolean flooded) {
+    /**
+     * True if at least half the path columns are wet. Keeps a forest path with a puddle;
+     * drops a plank bridge over a lake.
+     */
+    public static boolean isAabbMostlyWet(Object villageStart, Object component) {
+        return isAabbFullyFlooded(villageStart, component)
+                || wetFraction(villageStart, component, false) >= PATH_WET_FRACTION;
+    }
+
+    /**
+     * True if any column is ocean-like, river biome, or RTG river. Those columns never get village pieces or a plate.
+     */
+    public static boolean isAabbTouchesOceanOrRiver(Object villageStart, Object component) {
         int[] box = Reflect.getStructureComponentBoxXZ(component);
         if (box == null) return false;
-        int stride = 2;
-        for (int x = box[0]; x <= box[1]; x += stride) {
-            for (int z = box[2]; z <= box[3]; z += stride) {
-                if (flooded ? isFloodedAt(villageStart, x, z) : isBuildingWet(villageStart, x, z)) {
+        World world = currentWorld();
+        if (world == null) {
+            world = Reflect.getVillageStartWorld(villageStart);
+        }
+        BiomeProvider provider = Reflect.getVillageStartBiomeProvider(villageStart);
+        for (int x = box[0]; x <= box[1]; x++) {
+            for (int z = box[2]; z <= box[3]; z++) {
+                if (isNeverRaiseAt(world, villageStart, x, z)) {
+                    return true;
+                }
+                if (world == null && isNeverRaiseBiome(Reflect.getBiome(provider, x, z))) {
                     return true;
                 }
             }
         }
-        return flooded
-                ? isFloodedAt(villageStart, box[1], box[3])
-                : isBuildingWet(villageStart, box[1], box[3]);
+        return false;
+    }
+
+    /**
+     * Drop a path that crosses ocean/river, or that is mostly lake. Swamp paths stay.
+     */
+    public static boolean shouldOmitPath(Object villageStart, Object component) {
+        return isAabbTouchesOceanOrRiver(villageStart, component)
+                || isAabbMostlyWet(villageStart, component);
+    }
+
+    public static String pathOmitReason(Object villageStart, Object component) {
+        if (isAabbTouchesOceanOrRiver(villageStart, component)) {
+            int[] box = Reflect.getStructureComponentBoxXZ(component);
+            BiomeProvider provider = Reflect.getVillageStartBiomeProvider(villageStart);
+            Biome biome = box == null ? null : Reflect.getBiome(provider, box[0], box[2]);
+            return "ocean_or_river " + biomeId(biome);
+        }
+        return String.format("mostly_wet %.2f", wetFraction(villageStart, component, false));
+    }
+
+    private static boolean isAabbWet(Object villageStart, Object component, boolean flooded) {
+        return wetFraction(villageStart, component, flooded) > 0.0F;
+    }
+
+    private static float wetFraction(Object villageStart, Object component, boolean flooded) {
+        int[] box = Reflect.getStructureComponentBoxXZ(component);
+        if (box == null) return 0.0F;
+        int wet = 0;
+        int total = 0;
+        for (int x = box[0]; x <= box[1]; x++) {
+            for (int z = box[2]; z <= box[3]; z++) {
+                total++;
+                if (flooded ? isFloodedAt(villageStart, x, z) : isBuildingWet(villageStart, x, z)) {
+                    wet++;
+                }
+            }
+        }
+        return total == 0 ? 0.0F : (float) wet / (float) total;
+    }
+
+    /**
+     * Last-resort populate check: do not paste a village building onto ocean/river or open liquid.
+     * Roads, the well, and swamp-like liquids stay. Uses surface height, not {@code getTopSolidOrLiquidBlock}
+     * (1.12 that method skips water and hits the seafloor).
+     */
+    public static boolean isOceanOrRiverFloor(World world, Object component, StructureBoundingBox clip) {
+        if (world == null || world.isRemote || component == null) return false;
+        if (!(component instanceof StructureVillagePieces.Village)) return false;
+        if (isVillageRoad(component) || isVillageWellOrStart(component)) return false;
+        int[] box = Reflect.getStructureComponentBoxXZ(component);
+        if (box == null) return false;
+        int minX = box[0];
+        int maxX = box[1];
+        int minZ = box[2];
+        int maxZ = box[3];
+        if (clip != null) {
+            minX = Math.max(minX, clip.minX);
+            maxX = Math.min(maxX, clip.maxX);
+            minZ = Math.max(minZ, clip.minZ);
+            maxZ = Math.min(maxZ, clip.maxZ);
+        }
+        if (minX > maxX || minZ > maxZ) return false;
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                int y = Math.max(1, world.getHeight(x, z) - 1);
+                BlockPos pos = new BlockPos(x, y, z);
+                Biome biome = world.getBiome(pos);
+                if (isNeverRaiseBiome(biome)) return true;
+                if (isSwampLikeForRaise(biome)) continue;
+                IBlockState state = world.getBlockState(pos);
+                if (state != null && state.getMaterial().isLiquid()) return true;
+            }
+        }
+        return false;
     }
 
     public static boolean withinVillageCap(Object villageStart, int x, int z) {
@@ -502,14 +784,19 @@ public final class VillageLandHelper {
         out.add(new int[] {x, z});
     }
 
+    public static boolean isLandscapeNeverRaise(ChunkLandscape landscape, int index) {
+        return landscape != null && landscape.river != null && index >= 0 && index < landscape.river.length
+                && Math.abs(landscape.river[index]) > STRONG_RIVER;
+    }
+
+    public static boolean isLandscapeLake(ChunkLandscape landscape, int index) {
+        if (isLandscapeNeverRaise(landscape, index)) return false;
+        return landscape != null && landscape.noise != null && index >= 0 && index < landscape.noise.length
+                && landscape.noise[index] < minWellHeightF();
+    }
+
     public static boolean isLandscapeWet(ChunkLandscape landscape, int index) {
-        if (landscape == null) return false;
-        if (landscape.river != null && index >= 0 && index < landscape.river.length
-                && Math.abs(landscape.river[index]) > STRONG_RIVER) {
-            return true;
-        }
-        return landscape.noise != null && index >= 0 && index < landscape.noise.length
-                && landscape.noise[index] < FLOOD_LEVEL;
+        return isLandscapeNeverRaise(landscape, index) || isLandscapeLake(landscape, index);
     }
 
     public static float sampleNoise(World world, int x, int z) {
@@ -544,20 +831,22 @@ public final class VillageLandHelper {
         return landscape.noise[index];
     }
 
-    private static boolean isRtgLandscapeWet(World world, int x, int z) {
+    private static boolean isRtgLandscapeLake(World world, int x, int z) {
+        if (isSamplingLandscape()) {
+            return false;
+        }
         ChunkLandscape landscape = sampleLandscape(world, x, z);
-        if (landscape == null) return false;
+        if (landscape == null) {
+            return false;
+        }
         int index = (x & 15) * 16 + (z & 15);
-        return isLandscapeWet(landscape, index);
+        return isLandscapeLake(landscape, index);
     }
 
     private static ChunkLandscape sampleLandscape(World world, int x, int z) {
         ChunkGeneratorRTG gen = currentGenerator();
         if (gen == null) {
-            Object found = Reflect.getChunkGenerator(world);
-            if (found instanceof ChunkGeneratorRTG) {
-                gen = (ChunkGeneratorRTG) found;
-            }
+            gen = StructureVillageOverlap.findRtgGenerator(world);
         }
         if (gen == null) return null;
         SAMPLING.set(SAMPLING.get() + 1);

@@ -24,10 +24,19 @@ public abstract class MixinStructureVillagePieces {
     private static final ThreadLocal<Boolean> AQTWEAKS$RETRYING_HOUSE = ThreadLocal.withInitial(() -> Boolean.FALSE);
 
     @Unique
+    private static final ThreadLocal<Boolean> AQTWEAKS$RETRYING_PATH = ThreadLocal.withInitial(() -> Boolean.FALSE);
+
+    @Unique
     private static Method AQTWEAKS$WAYSTONE_BUILD;
 
     @Shadow(remap = false)
     private static StructureComponent func_176066_d(StructureVillagePieces.Start start, List<StructureComponent> structureComponents,
+                                                    Random rand, int x, int y, int z, EnumFacing facing, int type) {
+        throw new IllegalStateException("Mixin shadow");
+    }
+
+    @Shadow(remap = false)
+    private static StructureComponent func_176069_e(StructureVillagePieces.Start start, List<StructureComponent> structureComponents,
                                                     Random rand, int x, int y, int z, EnumFacing facing, int type) {
         throw new IllegalStateException("Mixin shadow");
     }
@@ -40,13 +49,13 @@ public abstract class MixinStructureVillagePieces {
         if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.skipWaterVillagePieces) return;
         StructureComponent placed = cir.getReturnValue();
         if (placed == null || !VillageLandHelper.isAabbWet(start, placed)) return;
-        structureComponents.remove(placed);
+        VillageLandHelper.removeVillagePiece(start, structureComponents, placed);
         if (VillageLandHelper.isWaystonePiece(placed)) {
             VillageDebug.log("waystone aabb wet origin=%d,%d, relocating inland", x, z);
             cir.setReturnValue(aqtweaks$relocateWaystone(start, structureComponents, rand, x, y, z, facing, type));
             return;
         }
-        VillageDebug.log("house aabb wet origin=%d,%d, removed retrying", x, z);
+        VillageDebug.log("house aabb wet origin=%d,%d, retrying inland", x, z);
         cir.setReturnValue(aqtweaks$placeHouseOnLand(start, structureComponents, rand, x, y, z, facing, type));
     }
 
@@ -56,14 +65,14 @@ public abstract class MixinStructureVillagePieces {
         AQTWEAKS$RETRYING_HOUSE.set(Boolean.TRUE);
         try {
             int maxStep = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageWaterRetryDistance);
-            for (int[] slot : VillageLandHelper.landCandidates(start, x, z, facing, maxStep)) {
+            for (int[] slot : VillageLandHelper.inlandCandidates(start, x, z, facing, maxStep)) {
                 StructureComponent placed = func_176066_d(start, structureComponents, rand, slot[0], y, slot[1], facing, type);
                 if (placed != null && !VillageLandHelper.isAabbWet(start, placed)) {
                     VillageDebug.log("house retry hit origin=%d,%d slot=%d,%d", x, z, slot[0], slot[1]);
                     return placed;
                 }
                 if (placed != null) {
-                    structureComponents.remove(placed);
+                    VillageLandHelper.removeVillagePiece(start, structureComponents, placed);
                 }
             }
             VillageDebug.log("house retry miss origin=%d,%d", x, z);
@@ -84,6 +93,9 @@ public abstract class MixinStructureVillagePieces {
                 if (retry != null && !VillageLandHelper.isAabbWet(start, retry)) {
                     VillageDebug.log("waystone relocate hit origin=%d,%d slot=%d,%d", x, z, slot[0], slot[1]);
                     return retry;
+                }
+                if (retry != null) {
+                    VillageLandHelper.removeVillagePiece(start, pieces, retry);
                 }
             }
         }
@@ -121,6 +133,47 @@ public abstract class MixinStructureVillagePieces {
             return built instanceof StructureComponent ? (StructureComponent) built : null;
         } catch (Throwable ignored) {
             return null;
+        }
+    }
+
+    @Inject(method = "func_176069_e", at = @At("RETURN"), cancellable = true)
+    private static void aqtweaks$omitWetRoad(StructureVillagePieces.Start start, List<StructureComponent> structureComponents,
+                                            Random rand, int x, int y, int z, EnumFacing facing, int type,
+                                            CallbackInfoReturnable<StructureComponent> cir) {
+        if (Boolean.TRUE.equals(AQTWEAKS$RETRYING_PATH.get())) return;
+        if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.skipWaterVillagePieces) return;
+        StructureComponent placed = cir.getReturnValue();
+        if (placed == null || !VillageLandHelper.isVillageRoad(placed)) return;
+        if (!VillageLandHelper.shouldOmitPath(start, placed)) return;
+        VillageLandHelper.removeVillagePiece(start, structureComponents, placed);
+        VillageDebug.log("path aabb wet origin=%d,%d %s, retrying inland",
+                x, z, VillageLandHelper.pathOmitReason(start, placed));
+        cir.setReturnValue(aqtweaks$placePathOnLand(start, structureComponents, rand, x, y, z, facing, type));
+    }
+
+    @Unique
+    private static StructureComponent aqtweaks$placePathOnLand(StructureVillagePieces.Start start, List<StructureComponent> structureComponents,
+                                                              Random rand, int x, int y, int z, EnumFacing facing, int type) {
+        AQTWEAKS$RETRYING_PATH.set(Boolean.TRUE);
+        try {
+            int maxStep = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageWaterRetryDistance);
+            EnumFacing[] faces = aqtweaks$facingOrder(facing);
+            for (int[] slot : VillageLandHelper.inlandCandidates(start, x, z, facing, maxStep)) {
+                for (EnumFacing face : faces) {
+                    StructureComponent retry = func_176069_e(start, structureComponents, rand, slot[0], y, slot[1], face, type);
+                    if (retry != null && !VillageLandHelper.shouldOmitPath(start, retry)) {
+                        VillageDebug.log("path retry hit origin=%d,%d slot=%d,%d", x, z, slot[0], slot[1]);
+                        return retry;
+                    }
+                    if (retry != null) {
+                        VillageLandHelper.removeVillagePiece(start, structureComponents, retry);
+                    }
+                }
+            }
+            VillageDebug.log("path retry miss origin=%d,%d, omitted", x, z);
+            return null;
+        } finally {
+            AQTWEAKS$RETRYING_PATH.set(Boolean.FALSE);
         }
     }
 }

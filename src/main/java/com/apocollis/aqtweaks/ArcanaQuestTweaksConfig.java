@@ -617,11 +617,11 @@ public class ArcanaQuestTweaksConfig {
 
     public static class Surface {
         @Config.Name("Enable RTG Village Terrain Smoothing")
-        @Config.Comment("Flatten RTG land under village components (houses, farms, well, roads) and the 12-block yards between them, then blend into surrounding hills.")
+        @Config.Comment("Flatten RTG land under village components (well, roads, houses) with a 12-block hard pad around each. Overlapping pads are the village plate. Never fill ocean or river biomes.")
         public boolean enableVillageSmoothing = true;
 
         @Config.Name("Village Component Pad")
-        @Config.Comment("Full-plate blocks around each land component (including roads). Overlapping pads fill yards between houses and paths. 0 = piece AABB only.")
+        @Config.Comment("Full-plate radius around each land component (well, roads, houses, RC). Overlapping pads form the village footprint. Default 12.")
         @Config.RangeInt(min = 0, max = 64)
         public int villageComponentPad = 12;
 
@@ -641,39 +641,39 @@ public class ArcanaQuestTweaksConfig {
         public int villagePlateSlopeBlocks = 0;
 
         @Config.Name("Skip Water Village Pieces")
-        @Config.Comment("If a village house or Recurrent Complex building would touch a river or ocean, skip it and retry nearby land. Swamp pieces stay and get a land pad. Roads/docks are not skipped.")
+        @Config.Comment("If a village house, Recurrent Complex building, waystone, shrine, or path would touch river, ocean, or flooded water, skip it and retry inland. Paths that still touch ocean/river or are mostly lake after retry are omitted. Swamp and other non-ocean water under the pad is filled up to plate Y.")
         public boolean skipWaterVillagePieces = true;
 
         @Config.Name("Village Water Retry Distance")
-        @Config.Comment("How far (blocks) to step back or sideways along the street when retrying a water village piece. 0 = skip only, no retry.")
+        @Config.Comment("How far (blocks) to walk inland when retrying a water village piece (street, then toward the well). 0 = skip only, no retry.")
         @Config.RangeInt(min = 0, max = 48)
         public int villageWaterRetryDistance = 20;
 
         @Config.Name("Reject Coastal Village Starts")
-        @Config.Comment("Veto a village if the well is ocean-like (ocean, kelp forest, coral reef, WATER), a river, or a flooded watercourse. Pure beach is allowed if ocean/river is not inside the coast buffer. Swamp wells are allowed.")
+        @Config.Comment("Veto a village only if the well is ocean/river (or RTG river) and there is no dry land within Village Water Retry Distance. Land wells too close to ocean still fail Village Coast Buffer. Dry land below Village Min Well Height is kept and raised. Nearby river does not cancel a dry well.")
         public boolean rejectCoastalVillageStarts = true;
 
         @Config.Name("Village Min Well Height")
-        @Config.Comment("Village wells and wet-column checks treat RTG terrain below this Y as water. Vanilla sea level is 63.")
+        @Config.Comment("Dry village wells and lake/flood plate floors use at least this Y. River/ocean columns are never filled. Vanilla sea level is 63.")
         @Config.RangeInt(min = 1, max = 255)
-        public int villageMinWellHeight = 65;
+        public int villageMinWellHeight = 64;
 
         @Config.Name("Village Coast Buffer")
-        @Config.Comment("Chebyshev blocks around the well. Veto if ocean-like or river is closer than this. Distance at or beyond this is allowed. 0 = well column only.")
+        @Config.Comment("Chebyshev blocks around a dry land well. Veto if ocean-like is closer than this. Nearby river does not cancel. Distance at or beyond this is allowed. 0 = well column only.")
         @Config.RangeInt(min = 0, max = 128)
         public int villageCoastBuffer = 16;
 
         @Config.Name("Enable Village Bounding Box Detection")
-        @Config.Comment("Treat the village start bounding box (yards, roads, gaps) as Village for isInsideStructure / InControl, not only child pieces.")
+        @Config.Comment("Treat plated land boxes (houses, RC, well, kept roads) as Village for isInsideStructure / InControl. Y is well-shaft floor through plate plus Village Box Height. Not the unsnapped start AABB.")
         public boolean enableVillageBoxDetection = true;
 
         @Config.Name("Village Box XZ Pad")
-        @Config.Comment("Extra blocks outside the village start AABB that still count as Village for detection, and the swamp dock-approach slope radius. Flattening uses per-component pads, not this value.")
+        @Config.Comment("Extra blocks outside each land component AABB that still count as Village for detection, and the swamp dock-approach slope radius. Flattening uses Village Component Pad, not this value.")
         @Config.RangeInt(min = 0, max = 64)
         public int villageBoxXZPad = 8;
 
         @Config.Name("Village Box Height")
-        @Config.Comment("Blocks above the pad surface that still count as Village. Floor is the pad; below the pad is not Village.")
+        @Config.Comment("Blocks above the pad surface that still count as Village. Floor is the well shaft (about 11-14 below the plate), not the pad.")
         @Config.RangeInt(min = 0, max = 256)
         public int villageBoxHeight = 32;
 

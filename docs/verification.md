@@ -46,13 +46,23 @@ Flatten debug on → instance `logs/villagepatch.log` (not `latest.log`).
 | --- | --- | --- |
 | Inland plains (example `-2897, 97, -2119`) | Flat plate, houses on it, blend to hills | [rtg.md](rtg.md) |
 | Sea-level forest (`-524, 64, 5893`) | Path, lamps, houses **same Y** | rtg |
-| Beach ~16 from water | Village may start; buildings inland; **no** sand piers | rtg |
-| Coral reef / kelp / ocean / river well (`-3452, 63, -2191`) | No village start (`veto` … `ocean_well` / `coast_ocean` / …) | rtg |
-| Docks | Wood OK; no land mesa under dock AABB | rtg |
+| Beach ~16 from water | Village may start; buildings inland; **no** sand piers or plank bridges | rtg |
+| Coral reef / kelp / ocean well (`-3452, 63, -2191`) | No village start unless a dry slot exists in retry range (`veto` `ocean_well` / `coast_ocean`) | rtg |
+| River well | Walks inland (`well-walk`); no plank dock; plate at land Y not riverbed | rtg |
+| Dry plains well below Y 64 | Kept; `plateSample … target=64`; not `flooded_well` | rtg |
+| Flooded plains well | Raised to min well height if not never-raise; `/locate Village` can find it | [villagegen_info.md](villagegen_info.md) |
+| Dry plains village | RC paste Y ≈ plate Y; well chunk `pad>0` | villagegen_info |
+| House/RC on a plains lake edge | Omitted, **or** dirt pad for the **12-block** footprint (lake beyond the pad stays water) | rtg |
+| `/aqvillage` (OP) | On the plate, ~6 off the well (not in the shaft, not Y=100). Chat `unexplored` or `known`. Non-OP denied. | rtg |
+| Pad top | Native RTG surface (sand/grass). `biomesoplenty:mud` → loamy `grass:2` | rtg |
+| New inland `/locate Village` | Houses and roads present; `villagepatch.log` `landBoxes` ≫ 1. Already-visited ghost wells stay empty | rtg |
+| Water pieces | No waystone/house in a lake; wet path retries inland; no oak plank path over leftover open water; **no** roads/houses in F3 River or ocean | rtg |
+| Swamp village plate | Well on grass, not over a ravine; roads level with houses; overlapping pads; `seal chunk=` in debug | rtg |
+| Under a house at plate-4 | `isInsideStructure("Village")` true; below well floor false | rtg |
 | Below Y0 Overworld | Deepslate fill, AQ caves, Y0 mouths on land, **no** ocean drain | [depths.md](depths.md) |
 | Fog / sky below Y0 | Dark fog ~32–52; no skybox | depths |
 
-Log snippets if debug on: `veto chunk=`, `flatten chunk=`, `waystone relocate`, `astral shrine skip ocean floor`.
+Log snippets if debug on: `veto chunk=`, `forget chunk=`, `flatten chunk=`, `seal chunk=`, `waystone relocate`, `village piece skip water floor charm`, `astral shrine skip ocean floor`.
 
 ## Stamina
 

@@ -13,6 +13,7 @@ public class AQTweaksLateMixinLoader implements ILateMixinLoader {
                 "mixins.aqtweaks.grapple.json",
                 "mixins.aqtweaks.dss.json",
                 "mixins.aqtweaks.astral.json",
+                "mixins.aqtweaks.charm.json",
                 "mixins.aqtweaks.bewitchment.json",
                 "mixins.aqtweaks.mysticalworld.json");
     }

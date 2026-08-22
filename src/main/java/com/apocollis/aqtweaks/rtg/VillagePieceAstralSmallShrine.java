@@ -60,7 +60,7 @@ public class VillagePieceAstralSmallShrine extends StructureVillagePieces.Villag
         }
 
         if (world.isRemote) return true;
-        if (isOceanOrRiverFloor(world, structurebb)) {
+        if (VillageLandHelper.isOceanOrRiverFloor(world, this, structurebb)) {
             VillageDebug.log("astral shrine skip ocean floor at=%d,%d y=%d",
                     this.boundingBox.minX, this.boundingBox.minZ, this.averageGroundLvl);
             return true;
@@ -98,34 +98,6 @@ public class VillagePieceAstralSmallShrine extends StructureVillagePieces.Villag
             VillageDebug.log("astral small shrine village piece at=%d,%d,%d", origin.getX(), origin.getY(), origin.getZ());
         }
         return true;
-    }
-
-    /**
-     * Last-resort: do not paste onto ocean/river water in this chunk. Swamp stays.
-     */
-    private boolean isOceanOrRiverFloor(World world, StructureBoundingBox clip) {
-        int y = Math.max(1, this.averageGroundLvl - 1);
-        int minX = this.boundingBox.minX;
-        int maxX = this.boundingBox.maxX;
-        int minZ = this.boundingBox.minZ;
-        int maxZ = this.boundingBox.maxZ;
-        if (clip != null) {
-            minX = Math.max(minX, clip.minX);
-            maxX = Math.min(maxX, clip.maxX);
-            minZ = Math.max(minZ, clip.minZ);
-            maxZ = Math.min(maxZ, clip.maxZ);
-        }
-        for (int x = minX; x <= maxX; x += 2) {
-            for (int z = minZ; z <= maxZ; z += 2) {
-                BlockPos pos = new BlockPos(x, y, z);
-                net.minecraft.world.biome.Biome biome = world.getBiome(pos);
-                if (VillageLandHelper.isNeverRaiseBiome(biome)) return true;
-                if (VillageLandHelper.isSwampLikeForRaise(biome)) continue;
-                IBlockState state = world.getBlockState(pos);
-                if (state != null && state.getMaterial().isLiquid()) return true;
-            }
-        }
-        return false;
     }
 
     static StructureBlockArray template() {

@@ -6,11 +6,16 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.chunk.IChunkProvider;
 import net.minecraft.world.gen.ChunkProviderServer;
+import net.minecraft.world.gen.IChunkGenerator;
 import net.minecraft.world.gen.structure.MapGenVillage;
 import net.minecraft.world.gen.structure.template.PlacementSettings;
 import net.minecraft.world.gen.structure.template.Template;
+import rtg.world.gen.ChunkGeneratorRTG;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.IdentityHashMap;
+import java.util.List;
 
 /**
  * Village overlap for post-terrain schematic structures (Astral, Cambion, Mystical huts).
@@ -60,27 +65,23 @@ public final class StructureVillageOverlap {
         int heightAbove = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageBoxHeight);
 
         for (VillagePlate.Record rec : VillagePlate.starts(seed)) {
-            boolean xzHit = false;
-            if (rec.xz != null) {
-                int[] padded = VillagePlate.padded(rec.xz, pad);
-                xzHit = xzIntersects(padded, minX, maxX, minZ, maxZ);
+            float plate = VillagePlate.resolvePlate(world, rec.xz);
+            if (Float.isNaN(plate)) continue;
+            int midY = minY + (maxY - minY) / 2;
+            if (!VillagePlate.yInVillageVolume(minY, plate, heightAbove, rec)
+                    && !VillagePlate.yInVillageVolume(maxY, plate, heightAbove, rec)
+                    && !VillagePlate.yInVillageVolume(midY, plate, heightAbove, rec)) {
+                continue;
             }
-            if (!xzHit) {
-                for (int[] box : rec.landBoxesOrStart()) {
-                    if (xzIntersects(box, minX, maxX, minZ, maxZ)) {
-                        xzHit = true;
-                        break;
-                    }
+            boolean xzHit = false;
+            for (int[] box : rec.landBoxesOrEmpty()) {
+                int[] padded = VillagePlate.padded(box, pad);
+                if (xzIntersects(padded, minX, maxX, minZ, maxZ)) {
+                    xzHit = true;
+                    break;
                 }
             }
-            if (!xzHit) continue;
-            float plate = VillagePlate.resolvePlate(world, rec.xz);
-            int midY = minY + (maxY - minY) / 2;
-            if (VillagePlate.yInStartVolume(minY, rec, plate, heightAbove)
-                    || VillagePlate.yInStartVolume(maxY, rec, plate, heightAbove)
-                    || VillagePlate.yInStartVolume(midY, rec, plate, heightAbove)) {
-                return true;
-            }
+            if (xzHit) return true;
         }
 
         IChunkProvider provider;
@@ -139,13 +140,45 @@ public final class StructureVillageOverlap {
         }
     }
 
-    private static Object findVillageGenerator(World world) {
-        Object chunkGen = Reflect.getChunkGenerator(world);
-        if (chunkGen == null) return null;
+    public static Object findVillageGenerator(World world) {
+        MapGenVillage stashed = VillageLandHelper.stashedVillage(world);
+        if (stashed != null) return stashed;
+        return findVillageGenerator(Reflect.getChunkGenerator(world), new IdentityHashMap<>());
+    }
+
+    public static ChunkGeneratorRTG findRtgGenerator(World world) {
+        ChunkGeneratorRTG stashed = VillageLandHelper.stashedRtg(world);
+        if (stashed != null) return stashed;
+        return findRtgGenerator(Reflect.getChunkGenerator(world), new IdentityHashMap<>());
+    }
+
+    private static Object findVillageGenerator(Object chunkGen, IdentityHashMap<Object, Boolean> seen) {
+        if (chunkGen == null || seen.containsKey(chunkGen)) return null;
+        seen.put(chunkGen, Boolean.TRUE);
         if (chunkGen instanceof MapGenVillage) return chunkGen;
+        Object direct = villageField(chunkGen);
+        if (direct != null) return direct;
+        for (Object nested : nestedChunkGenerators(chunkGen)) {
+            Object found = findVillageGenerator(nested, seen);
+            if (found != null) return found;
+        }
+        return null;
+    }
+
+    private static ChunkGeneratorRTG findRtgGenerator(Object chunkGen, IdentityHashMap<Object, Boolean> seen) {
+        if (chunkGen == null || seen.containsKey(chunkGen)) return null;
+        seen.put(chunkGen, Boolean.TRUE);
+        if (chunkGen instanceof ChunkGeneratorRTG) return (ChunkGeneratorRTG) chunkGen;
+        for (Object nested : nestedChunkGenerators(chunkGen)) {
+            ChunkGeneratorRTG found = findRtgGenerator(nested, seen);
+            if (found != null) return found;
+        }
+        return null;
+    }
+
+    private static Object villageField(Object chunkGen) {
         for (Class<?> type = chunkGen.getClass(); type != null && type != Object.class; type = type.getSuperclass()) {
             for (Field field : type.getDeclaredFields()) {
-                if (!MapGenVillage.class.isAssignableFrom(field.getType())) continue;
                 try {
                     field.setAccessible(true);
                     Object value = field.get(chunkGen);
@@ -154,5 +187,22 @@ public final class StructureVillageOverlap {
             }
         }
         return null;
+    }
+
+    private static List<Object> nestedChunkGenerators(Object chunkGen) {
+        List<Object> out = new ArrayList<>();
+        for (Class<?> type = chunkGen.getClass(); type != null && type != Object.class; type = type.getSuperclass()) {
+            for (Field field : type.getDeclaredFields()) {
+                try {
+                    field.setAccessible(true);
+                    Object value = field.get(chunkGen);
+                    if (value == null || value == chunkGen) continue;
+                    if (value instanceof IChunkGenerator || value instanceof ChunkGeneratorRTG) {
+                        out.add(value);
+                    }
+                } catch (Throwable ignored) {}
+            }
+        }
+        return out;
     }
 }

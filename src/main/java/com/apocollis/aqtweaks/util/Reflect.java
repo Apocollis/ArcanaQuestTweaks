@@ -190,8 +190,10 @@ public class Reflect {
     private static Field hurtResistantTimeField;
     private static Field netHandlerPlayerField;
     private static Field mapGenStructureMapField;
+    private static Field mapGenStructureDataField;
     private static Field mapGenWorldField;
     private static Method mapGenInitializeStructureDataMethod;
+    private static Method mapGenStructureDataGetTagMethod;
     private static Method structureStartGetBoundingBoxMethod;
     private static Field structureBoxMinXField;
     private static Field structureBoxMaxXField;
@@ -205,11 +207,14 @@ public class Reflect {
     private static Field structureStartComponentsField;
     private static Field mapGenVillageDistanceField;
     private static Field mapGenVillageMinDistanceField;
+    private static Method mapGenCanSpawnMethod;
     private static Field villageStartBiomeProviderField;
     private static Field villageStartWorldField;
     private static Field chunkProviderChunkGeneratorField;
     private static Method worldGetChunkProviderMethod;
     private static Method structureComponentGetBoundingBoxMethod;
+    private static Method structureComponentOffsetMethod;
+    private static Method structureStartUpdateBoundingBoxMethod;
     private static Method biomeProviderGetBiomeMethod;
     private static Method biomeProviderGetBiomeFallbackMethod;
 
@@ -1000,6 +1005,16 @@ public class Reflect {
             if (mapGenStructureMapField != null) {
                 mapGenStructureMapField.setAccessible(true);
             }
+            mapGenStructureDataField = findDeclaredField(mapGenClass, "field_143029_e", "structureData");
+            if (mapGenStructureDataField != null) {
+                mapGenStructureDataField.setAccessible(true);
+            }
+            try {
+                Class<?> dataClass = Class.forName("net.minecraft.world.gen.structure.MapGenStructureData");
+                try { mapGenStructureDataGetTagMethod = dataClass.getMethod("func_143041_a"); } catch (Throwable t) {
+                    try { mapGenStructureDataGetTagMethod = dataClass.getMethod("getTagCompound"); } catch (Throwable ignored) {}
+                }
+            } catch (Throwable ignored) {}
             try { mapGenInitializeStructureDataMethod = mapGenClass.getDeclaredMethod("func_143027_a", World.class); } catch (Throwable t) {
                 try { mapGenInitializeStructureDataMethod = mapGenClass.getDeclaredMethod("initializeStructureData", World.class); } catch (Throwable ignored) {}
             }
@@ -1053,6 +1068,12 @@ public class Reflect {
             try { structureComponentGetBoundingBoxMethod = componentClass.getMethod("func_74874_b"); } catch (Throwable t) {
                 try { structureComponentGetBoundingBoxMethod = componentClass.getMethod("getBoundingBox"); } catch (Throwable ignored) {}
             }
+            try { structureComponentOffsetMethod = componentClass.getMethod("func_181138_a", int.class, int.class, int.class); } catch (Throwable t) {
+                try { structureComponentOffsetMethod = componentClass.getMethod("offset", int.class, int.class, int.class); } catch (Throwable ignored) {}
+            }
+            try { structureStartUpdateBoundingBoxMethod = startClass.getMethod("func_75072_c"); } catch (Throwable t) {
+                try { structureStartUpdateBoundingBoxMethod = startClass.getMethod("updateBoundingBox"); } catch (Throwable ignored) {}
+            }
             Class<?> villageStartClass = Class.forName("net.minecraft.world.gen.structure.StructureVillagePieces$Start");
             for (Field f : villageStartClass.getDeclaredFields()) {
                 if (villageStartBiomeProviderField == null && BiomeProvider.class.isAssignableFrom(f.getType())) {
@@ -1098,6 +1119,20 @@ public class Reflect {
                 mapGenVillageMinDistanceField = findDeclaredField(villageGenClass, "field_82666_h", "minTownSeparation", "minDistance");
                 if (mapGenVillageMinDistanceField != null) {
                     mapGenVillageMinDistanceField.setAccessible(true);
+                }
+                try { mapGenCanSpawnMethod = villageGenClass.getDeclaredMethod("func_75047_a", int.class, int.class); } catch (Throwable t) {
+                    try { mapGenCanSpawnMethod = villageGenClass.getDeclaredMethod("canSpawnStructureAtCoords", int.class, int.class); } catch (Throwable ignored) {}
+                }
+                if (mapGenCanSpawnMethod == null) {
+                    try {
+                        Class<?> structureClass = Class.forName("net.minecraft.world.gen.structure.MapGenStructure");
+                        try { mapGenCanSpawnMethod = structureClass.getDeclaredMethod("func_75047_a", int.class, int.class); } catch (Throwable t) {
+                            try { mapGenCanSpawnMethod = structureClass.getDeclaredMethod("canSpawnStructureAtCoords", int.class, int.class); } catch (Throwable ignored) {}
+                        }
+                    } catch (Throwable ignored) {}
+                }
+                if (mapGenCanSpawnMethod != null) {
+                    mapGenCanSpawnMethod.setAccessible(true);
                 }
             } catch (Throwable ignored) {}
             Class<?> biomeProviderClass = BiomeProvider.class;
@@ -3314,11 +3349,72 @@ public class Reflect {
         return null;
     }
 
+    public static void setMapGenWorld(Object mapGen, World world) {
+        if (mapGen == null || mapGenWorldField == null) return;
+        try {
+            mapGenWorldField.set(mapGen, world);
+        } catch (Exception ignored) {}
+    }
+
+    public static boolean canSpawnVillage(Object mapGen, int chunkX, int chunkZ) {
+        if (mapGen == null || mapGenCanSpawnMethod == null) return false;
+        try {
+            Object result = mapGenCanSpawnMethod.invoke(mapGen, chunkX, chunkZ);
+            return Boolean.TRUE.equals(result);
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public static boolean hasStructureStart(Object mapGen, int chunkX, int chunkZ) {
+        if (mapGen == null || mapGenStructureMapField == null) return false;
+        long key = net.minecraft.util.math.ChunkPos.asLong(chunkX, chunkZ);
+        try {
+            Object map = mapGenStructureMapField.get(mapGen);
+            if (map instanceof Map) {
+                return ((Map<?, ?>) map).containsKey(key);
+            }
+        } catch (Exception ignored) {}
+        return false;
+    }
+
     public static void initializeStructureData(Object mapGen, World world) {
         if (mapGen == null || world == null || mapGenInitializeStructureDataMethod == null) return;
         try {
             mapGenInitializeStructureDataMethod.invoke(mapGen, world);
         } catch (Exception ignored) {}
+    }
+
+    /**
+     * Drop a village Start so {@code /locate} and paste cannot keep a rejected well.
+     */
+    @SuppressWarnings("unchecked")
+    public static boolean removeStructureStart(Object mapGen, int chunkX, int chunkZ) {
+        if (mapGen == null || mapGenStructureMapField == null) return false;
+        boolean removed = false;
+        long key = net.minecraft.util.math.ChunkPos.asLong(chunkX, chunkZ);
+        try {
+            Object map = mapGenStructureMapField.get(mapGen);
+            if (map instanceof Map) {
+                removed = ((Map<?, ?>) map).remove(key) != null;
+            }
+        } catch (Exception ignored) {}
+        try {
+            if (mapGenStructureDataField != null && mapGenStructureDataGetTagMethod != null) {
+                Object data = mapGenStructureDataField.get(mapGen);
+                if (data != null) {
+                    Object tag = mapGenStructureDataGetTagMethod.invoke(data);
+                    if (tag instanceof NBTTagCompound) {
+                        ((NBTTagCompound) tag).removeTag("[" + chunkX + "," + chunkZ + "]");
+                        if (data instanceof net.minecraft.world.storage.WorldSavedData) {
+                            ((net.minecraft.world.storage.WorldSavedData) data).markDirty();
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+        return removed;
     }
 
     /**
@@ -3447,6 +3543,35 @@ public class Reflect {
             };
         } catch (Exception ignored) {}
         return null;
+    }
+
+    /** @return {@code {minY, maxY}} or null */
+    public static int[] getStructureComponentMinMaxY(Object component) {
+        if (component == null || structureComponentGetBoundingBoxMethod == null
+                || structureBoxMinYField == null || structureBoxMaxYField == null) {
+            return null;
+        }
+        try {
+            Object box = structureComponentGetBoundingBoxMethod.invoke(component);
+            if (box == null) return null;
+            return new int[] {structureBoxMinYField.getInt(box), structureBoxMaxYField.getInt(box)};
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    public static void offsetStructureComponent(Object component, int dx, int dy, int dz) {
+        if (component == null || structureComponentOffsetMethod == null) return;
+        if (dx == 0 && dy == 0 && dz == 0) return;
+        try {
+            structureComponentOffsetMethod.invoke(component, dx, dy, dz);
+        } catch (Exception ignored) {}
+    }
+
+    public static void updateStructureStartBoundingBox(Object start) {
+        if (start == null || structureStartUpdateBoundingBoxMethod == null) return;
+        try {
+            structureStartUpdateBoundingBoxMethod.invoke(start);
+        } catch (Exception ignored) {}
     }
 
     public static Biome getBiome(BiomeProvider provider, int x, int z) {
