@@ -15,6 +15,10 @@ java {
     }
 }
 
+tasks.withType(JavaCompile).configureEach {
+    options.release = 21
+}
+
 configurations {
     modCompileOnly
     compileOnly.extendsFrom(modCompileOnly)

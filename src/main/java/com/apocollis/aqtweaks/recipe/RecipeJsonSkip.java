@@ -5,6 +5,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiFunction;
 
 /**
  * Recipe paths Forge should not parse. Add more Metallurgy dead JSON here later.
@@ -31,5 +32,22 @@ public final class RecipeJsonSkip {
             }
         }
         return false;
+    }
+
+    /**
+     * Wrap a CraftingHelper {@code findFiles} processor. Skip lives here so the mixin
+     * does not inject a lambda into Forge.
+     */
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public static BiFunction wrapProcessor(BiFunction processor, String base) {
+        if (processor == null || base == null || !base.contains("/recipes")) {
+            return processor;
+        }
+        return (root, file) -> {
+            if (file instanceof Path && shouldSkip((Path) file)) {
+                return Boolean.TRUE;
+            }
+            return processor.apply(root, file);
+        };
     }
 }

@@ -1,6 +1,6 @@
 # Build and release (1.6)
 
-Last updated: 2026-08-20.
+Last updated: 2026-08-22.
 
 How to compile and deploy `aqtweaks`. Parent jar contract: [compatibility-matrix.md](compatibility-matrix.md). In-game smoke: [verification.md](verification.md).
 
@@ -8,7 +8,7 @@ There is **no CI**. The practical harness is the CurseForge **Arcana Quest DEVBO
 
 ## Prerequisites
 
-- **JDK 25** (Gradle toolchain `JavaLanguageVersion.of(25)`). The deploy script assumes `C:\Program Files\Zulu\zulu-25`.
+- **JDK 25** (Gradle toolchain `JavaLanguageVersion.of(25)`). Compile emits **Java 21** class files (`options.release = 21`). The deploy script assumes `C:\Program Files\Zulu\zulu-25`. The game still **runs** on Zulu 25.
 - Repo root `C:\dev\ArcanaQuestTweaks` (or a clone with `gradlew.bat`).
 - `libs/` containing the compile parents. Gradle is `modCompileOnly files(each jar in libs/)`. Missing Depths / RTG / BC / Bewitchment / … will fail compile or produce a jar that crashes on mixin apply.
 - Pack mods folder for deploy (script only): `c:\Users\hughe\curseforge\minecraft\Instances\Arcana Quest DEVBOX\mods`
@@ -56,6 +56,16 @@ What it does:
 This **will overwrite** the instance Tweaks jar. Close the game first.
 
 Copy-list holes and the Roguelike 2.5.0 vs 2.5.3 filename mismatch: [compatibility-matrix.md](compatibility-matrix.md).
+
+## DEVBOX JVM (Cleanroom relauncher)
+
+Instance file: `config/relauncher.json` (not shipped in the Tweaks jar). Boot crash on TC6 Aspects / Thaumcraft recipe-tag scan needs:
+
+```text
+-XX:-UseCompactObjectHeaders -XX:CompileCommand=exclude,thaumcraft.common.lib.crafting.ThaumcraftCraftingManager::generateTagsFromCraftingRecipes
+```
+
+Keep Zulu 25. Do **not** use `-XX:+UseCompactObjectHeaders`. `build_gradle.ps1` does not patch this file.
 
 ## Config on update
 

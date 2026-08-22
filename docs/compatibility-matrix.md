@@ -25,7 +25,7 @@ Gradle compiles **every jar in `libs/`** (`fileTree`). There is **no hash pin** 
 | Loader | Cleanroom **0.5.7-alpha** (`build.gradle` `cleanroom.loader`) |
 | MixinBooter / Fugue | Pack: `mixinbooter-11.13.jar`, `Fugue-0.23.7.jar` (not in Tweaks `libs/` copy list) |
 | Unimined | Gradle plugin **1.4.17-kappa** |
-| Java | Toolchain **25**; deploy script sets `JAVA_HOME` to Zulu 25 |
+| Java | Toolchain **25**; `--release 21` class files; deploy script sets `JAVA_HOME` to Zulu 25 |
 | Remap | `defaultRemapJar = true` → ship `ArcanaQuestTweaks-1.6.jar`, not `-dev` |
 
 ## Parents

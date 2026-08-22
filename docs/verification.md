@@ -1,6 +1,6 @@
 # Verification (1.6)
 
-Last updated: 2026-08-20.
+Last updated: 2026-08-22.
 
 Manual release / smoke checklist. **No automated tests.** Harness: CurseForge **Arcana Quest DEVBOX**, remapped `ArcanaQuestTweaks-1.6.jar` in `mods/`. Algorithms and full checklists stay in module docs; this is the pack-level pass/fail.
 
@@ -15,6 +15,8 @@ Worldgen applies to **new chunks only**.
 ## Boot
 
 - [ ] Client starts the full pack; no mixin apply crash from `mixins.aqtweaks.json`.
+- [ ] Mixin log does **not** say Tweaks mixins require class version 69 (Java 21 class files).
+- [ ] Wait through full JEI / ThaumicJEI / **TC6 Aspects 4 JEI** load. Title screen stays up. No `hs_err_pid*.log`.
 - [ ] Dedicated server: **not routinely tested** in this repo. If you ship a server, start one with the same mods and confirm it reaches “Done”.
 
 ### Optional-mod absences (safe)

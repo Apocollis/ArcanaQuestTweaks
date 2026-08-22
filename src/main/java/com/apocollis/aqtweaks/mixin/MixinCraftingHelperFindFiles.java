@@ -7,7 +7,6 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
-import java.nio.file.Path;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -29,14 +28,6 @@ public class MixinCraftingHelperFindFiles {
             BiFunction processorAgain,
             boolean defaultUnfoundRoot,
             boolean visitAllFiles) {
-        if (processor == null || base == null || !base.contains("/recipes")) {
-            return processor;
-        }
-        return (root, file) -> {
-            if (file instanceof Path && RecipeJsonSkip.shouldSkip((Path) file)) {
-                return Boolean.TRUE;
-            }
-            return processor.apply(root, file);
-        };
+        return RecipeJsonSkip.wrapProcessor(processor, base);
     }
 }

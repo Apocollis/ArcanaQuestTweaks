@@ -2,7 +2,7 @@
   "required": false,
   "minVersion": "0.8",
   "package": "com.apocollis.aqtweaks.mixin.bewitchment",
-  "compatibilityLevel": "JAVA_8",
+  "compatibilityLevel": "JAVA_21",
   "mixins": [
     "MixinWorldGenCambionHome",
     "MixinWorldGenCambionHomeMedium"
