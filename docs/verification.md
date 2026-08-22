@@ -42,11 +42,16 @@ Missing **RTG, Depths Update, Better Caves, CoFH World, Recurrent Complex, or Iv
 
 ## Worldgen (new chunks)
 
-Flatten debug on → instance `logs/villagepatch.log` (not `latest.log`).
+`Village Flatten Debug` is **off** by default. Turn it on only while diagnosing; it appends every line to instance `logs/villagepatch.log` (not `latest.log`) and stalls chunk gen.
 
 | Check | Expect | Doc |
 | --- | --- | --- |
-| Inland plains (example `-2897, 97, -2119`) | Flat plate, houses on it, blend to hills | [rtg.md](rtg.md) |
+| Flying new chunks (near and far from villages) | Away from villages, chat TPS stays near 20 (no growing hitch as more towns exist). A village still plates. With debug off, `villagepatch.log` stays empty | [rtg.md](rtg.md) |
+| River through forest/shrubland (new chunks) | No well in the channel; no house/RC/plank dock on F3 River; land plate inland | rtg |
+| Large Astral temple (new chunks) | Raw marble under the pad, not dirt; no floating logs/leaves in or above the AABB | rtg |
+| Cambion house on a slope (new chunks) | Y+1 paste; cobble/stairs on a 6-pad; Hermite into RTG; village overlap still cancels | rtg |
+| Mystical barrow or hut next to a village | Relocates (step 8, up to 32) or skips; barrow not plated | rtg |
+| Inland plains (example `-2897, 97, -2119`) | Flat plate, houses on it, blend to hills | rtg |
 | Sea-level forest (`-524, 64, 5893`) | Path, lamps, houses **same Y** | rtg |
 | Beach ~16 from water | Village may start; buildings inland; **no** sand piers or plank bridges | rtg |
 | Coral reef / kelp / ocean well (`-3452, 63, -2191`) | No village start unless a dry slot exists in retry range (`veto` `ocean_well` / `coast_ocean`) | rtg |
@@ -60,6 +65,8 @@ Flatten debug on → instance `logs/villagepatch.log` (not `latest.log`).
 | New inland `/locate Village` | Houses and roads present; `villagepatch.log` `landBoxes` ≫ 1. Already-visited ghost wells stay empty | rtg |
 | Water pieces | No waystone/house in a lake; wet path retries inland; no oak plank path over leftover open water; **no** roads/houses in F3 River or ocean | rtg |
 | Swamp village plate | Well on grass, not over a ravine; roads level with houses; overlapping pads; `seal chunk=` in debug | rtg |
+| Hill village (new chunks) | All pieces on **one** well Y; no chunk-border stone wall; unused AABB corners stay hills | rtg |
+| Village small shrine / waystone | On the plate, not floating over open water (F3 River still skipped) | rtg |
 | Under a house at plate-4 | `isInsideStructure("Village")` true; below well floor false | rtg |
 | Below Y0 Overworld | Deepslate fill, AQ caves, Y0 mouths on land, **no** ocean drain | [depths.md](depths.md) |
 | Fog / sky below Y0 | Dark fog ~32–52; no skybox | depths |

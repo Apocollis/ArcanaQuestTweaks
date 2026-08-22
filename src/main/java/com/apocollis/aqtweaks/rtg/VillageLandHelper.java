@@ -47,6 +47,8 @@ public final class VillageLandHelper {
     private static final ThreadLocal<Deque<World>> WORLDS = ThreadLocal.withInitial(ArrayDeque::new);
     private static final ThreadLocal<Deque<ChunkGeneratorRTG>> GENERATORS = ThreadLocal.withInitial(ArrayDeque::new);
     private static final ThreadLocal<Integer> SAMPLING = ThreadLocal.withInitial(() -> 0);
+    private static final ThreadLocal<Deque<Map<Long, ChunkLandscape>>> COLUMN_LANDSCAPE =
+            ThreadLocal.withInitial(ArrayDeque::new);
     private static final Map<World, MapGenVillage> STASHED_VILLAGE = Collections.synchronizedMap(new WeakHashMap<>());
     private static final Map<World, ChunkGeneratorRTG> STASHED_RTG = Collections.synchronizedMap(new WeakHashMap<>());
     private static IBlockState loamyGrass;
@@ -104,6 +106,34 @@ public final class VillageLandHelper {
         return SAMPLING.get() > 0;
     }
 
+    public static void pushSampling() {
+        SAMPLING.set(SAMPLING.get() + 1);
+    }
+
+    public static void popSampling() {
+        SAMPLING.set(Math.max(0, SAMPLING.get() - 1));
+    }
+
+    /**
+     * Reuse {@code getLandscape} results while scanning one Start's road AABBs.
+     * Nested pushes keep an inner scan from clearing an outer cache.
+     */
+    public static void pushColumnLandscapeCache() {
+        COLUMN_LANDSCAPE.get().push(new HashMap<>());
+    }
+
+    public static void popColumnLandscapeCache() {
+        Deque<Map<Long, ChunkLandscape>> stack = COLUMN_LANDSCAPE.get();
+        if (!stack.isEmpty()) {
+            stack.pop();
+        }
+    }
+
+    private static Map<Long, ChunkLandscape> columnLandscapeCache() {
+        Deque<Map<Long, ChunkLandscape>> stack = COLUMN_LANDSCAPE.get();
+        return stack.isEmpty() ? null : stack.peek();
+    }
+
     public static int minWellHeight() {
         int value = ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageMinWellHeight;
         return Math.max(1, Math.min(255, value));
@@ -156,6 +186,9 @@ public final class VillageLandHelper {
         if (world == null) {
             world = Reflect.getVillageStartWorld(villageStart);
         }
+        if (world != null) {
+            return isNeverRaiseAt(world, x, z, columnLandscapeCache());
+        }
         return isNeverRaiseAt(world, villageStart, x, z);
     }
 
@@ -163,6 +196,10 @@ public final class VillageLandHelper {
         World world = currentWorld();
         if (world == null) {
             world = Reflect.getVillageStartWorld(villageStart);
+        }
+        if (world != null) {
+            if (isNeverRaiseAt(world, x, z, columnLandscapeCache())) return true;
+            return isRtgLandscapeLake(world, x, z);
         }
         if (isNeverRaiseAt(world, villageStart, x, z)) return true;
         return isRtgLandscapeLake(world, x, z);
@@ -672,7 +709,7 @@ public final class VillageLandHelper {
                 int y = Math.max(1, world.getHeight(x, z) - 1);
                 BlockPos pos = new BlockPos(x, y, z);
                 Biome biome = world.getBiome(pos);
-                if (isNeverRaiseBiome(biome)) return true;
+                if (VillageLandHelper.isNeverRaiseAt(world, x, z)) return true;
                 if (isSwampLikeForRaise(biome)) continue;
                 IBlockState state = world.getBlockState(pos);
                 if (state != null && state.getMaterial().isLiquid()) return true;
@@ -835,7 +872,10 @@ public final class VillageLandHelper {
         if (isSamplingLandscape()) {
             return false;
         }
-        ChunkLandscape landscape = sampleLandscape(world, x, z);
+        Map<Long, ChunkLandscape> cache = columnLandscapeCache();
+        ChunkLandscape landscape = cache != null
+                ? landscapeCached(world, x, z, cache)
+                : sampleLandscape(world, x, z);
         if (landscape == null) {
             return false;
         }

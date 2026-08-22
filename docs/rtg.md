@@ -1,6 +1,6 @@
 # RTG module (1.6)
 
-Last updated: 2026-08-22, village plate: native RTG surface (mud → loamy grass:2 only), `/aqvillage` on plate ~6 off well. Unknown landscape is not wet.
+Last updated: 2026-08-22, one well-Y compound plate (well-chunk Record key; flatten AABB-miss refresh; no land-box-center Y). Large Astral marble + tree clear. Cambion 6-pad plate. Mystical barrow skip/retry.
 
 This is the RTG module: village flatten/placement, then post-terrain structure skip/settle. Locked intent, current pipeline, and why earlier approaches were dropped. Read this before changing village flatten, spawn veto, piece retry, or shrine/house/hut land settle.
 
@@ -89,18 +89,21 @@ If we wait until populate, the land is already carved. So we:
 5. After caves/ravines, refill village-pad columns up to plate Y.
 6. Populate still places the same pieces.
 
-Layout must be cheap. `layoutVillageGrid` runs at **RETURN** of RTG `getNewerNoise` (noise already filled) for the current chunk plus the **vanilla well chunk** of each nearby village cell (spacing from the map gen, UT default 25, radius 8 chunks). The well is `cellOrigin + random(0, spacing - minTown)` with seed `setRandomSeed(cellX, cellZ, 10387312)`, not the cell origin. Generating only origins almost never created the `Start`, so hill-side chunks flattened as raw RTG and buildings stepped. It does **not** call `generate()` on all 289 neighbors. Do not layout at `func_185932_a` HEAD — noise is empty there and unknown-as-wet omitted every road.
+Layout must be cheap. `layoutVillageGrid` runs **once per chunk** at **RETURN** of RTG `getNewerNoise` (noise already filled), or at flatten if noise never ran, for the current chunk plus the **vanilla well chunk** of each nearby village cell (spacing from the map gen, UT default 25, radius 8 chunks). Nested `getLandscape` during flatten/plate samples increments `SAMPLING` so `getNewerNoise` does not layout again. Flatten writes `landscape.noise` **once** before `generateTerrain` (no second `ModifyArg` pass). The well is `cellOrigin + random(0, spacing - minTown)` with seed `setRandomSeed(cellX, cellZ, 10387312)`, not the cell origin. Generating only origins almost never created the `Start`, so hill-side chunks flattened as raw RTG and buildings stepped. It does **not** call `generate()` on all 289 neighbors. Do not layout at `func_185932_a` HEAD — noise is empty there and unknown-as-wet omitted every road.
+
+Flatten and seal look up `VillagePlate` records by **land-box overlap**, then merge start-AABB villages whose live boxes now overlap this chunk (`mergeStartAabbHits`). They do **not** walk every Start in `structureMap`. Empty Tweaks list → `ensureStarts` once (world load). After that, `rememberNearby` only checks the same well-chunk grid as layout (radius 8) and `rememberIfAbsent`. Mixin well-walk **replaces** the Record for that **well chunk** (structureMap key), not the start AABB. `rememberAll` never overwrites a walked well. A chunk inside the start AABB with no land-box hit is an empty corner or omitted dock — not a hull flatten. Public `isNeverRaiseAt` does **not** read the land-box landscape ThreadLocal (that cache is only for `landBoxesOf` / `wetFraction`). RTG already caches `getLandscape`. `landBoxesOf` still omits a road only when its full AABB is flooded (`isAabbFullyFlooded`).
 
 ## File map
 
 | File | Role |
 | --- | --- |
-| `rtg/VillageLandHelper.java` | Wet tests, swamp/ocean-like/river/beach, well veto, forget rejected Starts, coast buffer, per-column AABB wet/mostly-wet, paste floor skip, grid layout, live RTG noise sample, waystone inland slots |
-| `rtg/VillagePlate.java` | In-memory starts, land vs building boxes, plate height cache |
+| `rtg/VillageLandHelper.java` | Wet tests, swamp/ocean-like/river/beach, well veto, forget rejected Starts, coast buffer, per-column AABB wet/mostly-wet, paste floor skip, grid layout, live RTG noise sample, waystone inland slots, column landscape cache for land-box scans |
+| `rtg/VillagePlate.java` | In-memory starts keyed by well chunk, land vs building boxes, plate height cache. Mixin `remember` replaces; `ensureStarts` / `rememberAll` / `rememberNearby` are `rememberIfAbsent` only |
+| `rtg/StructureLandSettle.java` | Post-terrain fill + rim. Large Astral under-fill is raw marble; Cambion uses pad 6 + falloff 12 |
 | `rtg/VillageDebug.java` | `logs/villagepatch.log` in the instance folder (not `latest.log`) |
 | `rtg/StructureVillageOverlap.java` | Village AABB/Y test for post-terrain schematics (not Y=0). Unwraps wrapped `IChunkGenerator` to find `MapGenVillage` / RTG |
 | `rtg/StructureLandSettle.java` | Fill under a placed schematic + rim slope; swamp-liquid fill; overwrite plant-like blocks |
-| `mixin/bettercaves/MixinChunkGeneratorRTGVillage.java` | Layout after `getNewerNoise` RETURN + flatten noise + seal pad after caves/ravines |
+| `mixin/bettercaves/MixinChunkGeneratorRTGVillage.java` | Layout once per chunk after `getNewerNoise` RETURN + flatten noise once + seal pad after caves/ravines |
 | `mixin/MixinMapGenVillageSpawn.java` | Well veto (`func_75047_a`) |
 | `mixin/MixinMapGenVillageStart.java` | Remember start after create (`func_75049_b`) |
 | `mixin/MixinMapGenVillageWorld.java` | Push/pop `World` around village `generate`; unwrap RTG from wrapped chunk gens |
@@ -112,9 +115,9 @@ Layout must be cheap. `layoutVillageGrid` runs at **RETURN** of RTG `getNewerNoi
 | `rtg/VillagePieceAstralSmallShrine.java` | Village component that pastes Astral `smallShrine`; fluid notify; skip ocean/river floor |
 | `rtg/VillageAstralSmallShrineHandler.java` | Forge village handler, weight 5, limit 1. `CommonProxy` registers only if `astralsorcery` is loaded. Piece id `AQTSmallShrine` |
 | `rtg/CommandAqVillage.java` | OP `/aqvillage` (level 2): TP onto the plate ~6 off the well; prefers unexplored |
-| `mixin/bewitchment/MixinWorldGenCambionHome.java` | Y+1 paste + village skip (no plate). Optional `mixins.aqtweaks.bewitchment.json` |
+| `mixin/bewitchment/MixinWorldGenCambionHome.java` | Y+1 paste + village skip + 6-pad plate. Optional `mixins.aqtweaks.bewitchment.json` |
 | `mixin/bewitchment/MixinWorldGenCambionHomeMedium.java` | Same for medium Cambion house |
-| `mixin/mysticalworld/MixinStructureGenerator.java` | Skip/settle Mystical World huts (not barrows). Optional `mixins.aqtweaks.mysticalworld.json` |
+| `mixin/mysticalworld/MixinStructureGenerator.java` | Hut village-skip/retry + land settle; barrow skip/retry (no plate). Optional `mixins.aqtweaks.mysticalworld.json` |
 | `mixin/astral/MixinWorldGenAttributeCommon.java` | Skip Astral surface shrines on village overlap. Optional `mixins.aqtweaks.astral.json` |
 | `mixin/astral/MixinWorldGenAttributeStructure.java` | Settle land after `generateAsSubmergedStructure`; small shrine/ruin use walkway Y + swamp fill |
 | `ArcanaQuestTweaksConfig.RtgModuleConfig.surface` | `config/arcanaquesttweaks/aqtweaks_rtg.cfg` |
@@ -125,9 +128,7 @@ Related but separate: `MixinChunkGeneratorRTG.java` fills Deepslate below Y=0 fo
 
 ## Current flatten algorithm
 
-Entry: `MixinChunkGeneratorRTGVillage.aqtweaks$flattenNoise`.
-
-Also runs from `@ModifyArg` on the `float[]` passed to `generateTerrain`, in case the landscape object and the terrain array are not the same instance.
+Entry: `MixinChunkGeneratorRTGVillage.aqtweaks$flattenNoise`, once, immediately before `generateTerrain`. RTG passes `landscape.noise` into that call; mutating the cached landscape is the array terrain uses. There is no second `@ModifyArg` pass.
 
 ### Footprints
 
@@ -163,14 +164,15 @@ Sampled from the live `ChunkGeneratorRTG.getLandscape` (the mixin `this`), **not
 - Usable height: not NaN and `> 1`.
 - Dry land: `max(sampled well height, villageMinWellHeight)` (default 64). Failed dry samples are still **not** floored to 64 (that made hills into sea-level mesas).
 - Never-raise well that walked inland: sample the **dry** well column, not the riverbed.
-- Failed sample: try land-box centers that are not never-raise. Still fail: skip flatten for that village this chunk (do not cache 64), except swamp wells fall back to min well height.
+- Never-raise well (ocean/river) that did not walk: skip (do not cache), except swamp → min well Y.
+- Failed well sample: swamp → min well Y (and cache). Otherwise skip that village this chunk and **do not cache**. Do not sample land-box centers (that locked hill houses to a different Y than the well).
 - Swamp well below min height: plate at min well height.
 
-Cached per world seed + start AABB in `VillagePlate.HEIGHTS`.
+Cached per world seed + **well chunk** `(startChunkX, startChunkZ)` in `VillagePlate.HEIGHTS`.
 
 ### Recursion guard
 
-`VillageLandHelper.SAMPLING` counts `getLandscape` samples. `getNewerNoise` HEAD must not layout villages while sampling, or flatten ↔ noise recurses.
+`VillageLandHelper.SAMPLING` counts `getLandscape` samples (`pushSampling` / `popSampling`). `getNewerNoise` must not layout villages while sampling, or flatten ↔ noise recurses. Flatten’s own `getLandscape` is sampled so it cannot re-layout. `pushColumnLandscapeCache` / `popColumnLandscapeCache` reuse landscape per chunk during `landBoxesOf` / `wetFraction` only. Piece skip, flatten columns, and populate abort use live `isNeverRaiseAt` (no ThreadLocal cache).
 
 ## Placement rules
 
@@ -245,45 +247,49 @@ Teleport is **on the plate** (`round(plate)+1`), about 6 blocks east of the well
 | Enable Village Bounding Box Detection | true | yes | Plated land boxes as Village |
 | Village Box XZ Pad | 8 | yes | Detection pad around **land boxes** + swamp dock-approach radius. Not flatten mesa |
 | Village Box Height | 32 | yes | Detection Y above plate. Floor is the well shaft (~11–14 below plate) |
-| Village Flatten Debug | true | yes | `logs/villagepatch.log` |
-| Skip Structures On Village | true | yes | Cancel AS surface shrines, Cambion houses, MW huts on village AABB |
+| Village Flatten Debug | false | yes | `logs/villagepatch.log`. Live DEVBOX must be edited off; old true is kept until changed |
+| Skip Structures On Village | true | yes | Cancel AS surface shrines and Cambion houses on village AABB. MW hut/barrow skip that spot and retry nearby |
 | Enable Structure Land Settle | true | yes | Fill under those structures and ramp the rim |
 | Enable Astral Shrine Settle | true | yes | Village-skip + land settle for surface shrines |
-| Enable Cambion House Settle | true | yes | Village-skip for Cambion houses (no land plate; Y+1 only) |
+| Enable Cambion House Settle | true | yes | Village-skip; Y+1 paste; 6-pad plate + Hermite 12 |
 | Enable Astral Small Shrine Village Piece | true | yes | At most one small shrine as a village building |
-| Enable Mystical Hut Settle | true | yes | Village-skip + land settle for thatch huts |
+| Enable Mystical Hut Settle | true | yes | Hut village-skip/retry + land settle. Barrows skip/retry when Skip Structures is on; no barrow plate |
 | Structure Fill Depth | 16 | yes | Max blocks filled down under a pad |
 | Structure Rim Bank | 16 | yes | Slope from large shrine / hut pad to land |
 | Small Shrine Pad | 3 | yes | Buffer around small shrine/ruin settle and village shrine AABB |
+| Cambion House Pad | 6 | yes | Full plate around Cambion house AABB |
+| Cambion House Falloff | 12 | yes | Hermite beyond Cambion pad, raise-only |
 
 ## Post-terrain structures (not village flatten)
 
-Astral surface shrines, Bewitchment Cambion houses, and Mystical World thatch huts paste **after** RTG terrain. They cannot reuse village noise flatten.
+Astral surface shrines, Bewitchment Cambion houses, and Mystical World huts/barrows paste **after** RTG terrain. They cannot reuse village noise flatten.
 
-- Overlap a village (real AABB / Y, not chunk origin at Y=0) → **do not place**.
-- Ancient / desert shrines and Mystical huts: if placed → fill under the footprint (min foundation Y), biome top/filler, max depth 16, rim slope 16, never fill ocean/river/liquids, do not rewrite structure blocks.
-- **Small shrine and small ruin:** plate Y is the generate **center / walkway**, not min foundation Y. Rim is `smallShrinePad` (3), not the 16-block large-shrine bank. In **swamp-like** biomes, water is filled up to that plate. Ocean/river still never filled. Plant-like blocks (BOP / Rustic / Farmer’s Delight, `BlockBush`, `Material.PLANTS`) are overwritten; leftover tops above the plate are cleared. Logs and leaves are not.
-- **Cambion houses:** **Y+1** paste only (same as Bewitchment’s unburned wickerman). `canSpawnHere` stays on ground Y or houses never spawn. **No land plate** — settle was a 1-block pit around the house. Village overlap still cancels placement.
+- Overlap a village (real AABB / Y, not chunk origin at Y=0) → Astral/Cambion **do not place**. Huts and barrows **retry nearby** (Chebyshev step 8, up to 32); miss → skip and do not mark.
+- **Large ancient/desert shrines:** fill under the footprint with raw `astralsorcery:blockmarble` (`MarbleBlockType.RAW`), rim still biome top/filler, max depth 16, rim 16, never ocean/river. After settle, clear wood/leaves/vines in the template AABB through `maxY + 16`. Treasure caves are not settled.
+- Mystical **huts:** biome fill under the footprint (min foundation Y), rim 16, never ocean/river. **Barrows:** skip/retry only, **no plate**.
+- **Small shrine and small ruin:** plate Y is the generate **center / walkway**, not min foundation Y. Rim is `smallShrinePad` (3), not the 16-block large-shrine bank. In **swamp-like** biomes, water is filled up to that plate. Ocean/river still never filled. Plant-like blocks (BOP / Rustic / Farmer’s Delight, `BlockBush`, `Material.PLANTS`) are overwritten; leftover tops above the plate are cleared. Logs and leaves are not (small only).
+- **Cambion houses:** **Y+1** paste (`canSpawnHere` stays on ground Y). Village overlap still cancels. After a successful paste: hard pad `cambionHousePad` (6) at paste Y, Hermite `cambionHouseFalloff` (12), raise-only, never ocean/river, swamp water in the pad may fill.
 - **Village piece:** at most one Astral **small shrine** (not the ruin) via Forge `IVillageCreationHandler` (`AQTSmallShrine`). Flatten plates its AABB with at most 3 blocks of extra full plate; nearby road/house 12-zones still own the yard. Liquid blocks get flag 3 + `neighborChanged` so lantern water flows. If the floor is still ocean/river liquid at paste time, skip that chunk. Wild shrines still spawn; overlap skip prevents a second shrine on the same village.
-- Treasure caves, village Hedge Witch/Alchemist pieces, MW barrows, wickerman/menhir/circles are out of this pass.
+- Village Hedge Witch/Alchemist pieces, wickerman/menhir/circles are out of this pass.
 
 Mixins: `mixins.aqtweaks.astral.json`, `mixins.aqtweaks.bewitchment.json`, `mixins.aqtweaks.mysticalworld.json` (`required: false`). Village flatten/retry mixins are in required `mixins.aqtweaks.json`.
 
 ### Structure land settle (`StructureLandSettle`)
 
-Used after Astral ancient/desert shrines and Mystical huts place (not Cambion). Server-only.
+Used after Astral surface shrines, Mystical huts, and Cambion houses place. Server-only.
 
-- Under the footprint: biome `fillerBlock` (else dirt) down to `structureFillDepth` (16). Top of the rim (not under-structure) uses `topBlock` (else grass). Stop on non-fillable solid or on liquid unless swamp-fill is on.
-- **Never write** `isNeverRaiseBiome` (ocean-like / river). Swamp-like liquid may be replaced when `fillSwampLiquid` is true (small shrine/ruin walkway Y).
-- **Fillable:** air, snow layer, tallgrass, flowers, double plant, lily, `Material.PLANTS` / `VINE` / `CACTUS`, `BlockBush` / `BlockReed` / `BlockVine`, `isReplaceable`. **Not fillable:** leaves, wood, rock.
-- After fill, plant-like blocks from plate Y through plate+3 are cleared to air. Logs/leaves stop the clear.
-- Rim: Euclidean distance to the AABB, smoothstep over `structureRimBank` (16) for huts and large shrines, or `smallShrinePad` (3) for small shrine/ruin. Only raises toward plate (will not dig). `settleTemplate` uses origin Y as floor after rotation AABB.
+- Under the footprint: biome `fillerBlock` (else dirt), except **large Astral** uses raw marble. Top of the rim (not under-structure) uses `topBlock` (else grass). Stop on non-fillable solid or on liquid unless swamp-fill is on.
+- **Never write** `isNeverRaiseAt` (ocean-like / river biome **or** RTG river). Swamp-like liquid may be replaced when `fillSwampLiquid` is true (small shrine/ruin walkway Y, Cambion pad).
+- **Fillable:** air, snow layer, tallgrass, flowers, double plant, lily, `Material.PLANTS` / `VINE` / `CACTUS`, `BlockBush` / `BlockReed` / `BlockVine`, `isReplaceable`. **Not fillable:** leaves, wood, rock (except large-temple foliage clear, which is a separate pass).
+- After fill, plant-like blocks from plate Y through plate+3 are cleared to air. Logs/leaves stop that plant clear.
+- Large temples: `clearFoliage` removes wood/leaves/vines in the template AABB through `maxY + 16`.
+- Rim: Euclidean distance to the AABB, smoothstep over `structureRimBank` (16) for huts and large shrines, `smallShrinePad` (3) for small shrine/ruin, or `cambionHouseFalloff` (12) beyond the Cambion hard pad. Only raises toward plate (will not dig). `settleTemplate` uses origin Y as floor after rotation AABB.
 
-`StructureVillageOverlap` tests real AABB/Y against remembered village starts (not chunk origin at Y=0). Treasure shrines are excluded from the Astral skip mixin.
+`StructureVillageOverlap` tests real AABB/Y against remembered village starts (not chunk origin at Y=0). Treasure shrines are excluded from the Astral skip **and** settle mixins.
 
 ## Debug log
 
-`Village Flatten Debug` writes `logs/villagepatch.log` (instance cwd), truncated each launch.
+`Village Flatten Debug` writes `logs/villagepatch.log` (instance cwd), truncated each launch. Default **off** — appending every line stalls chunk gen.
 
 Useful lines:
 
@@ -298,7 +304,8 @@ Useful lines:
 - `waystone aabb wet` / `waystone relocate hit|miss` — same gazebo moved inland
 - `path aabb wet ... retrying inland` / `path retry hit` / `path retry miss ... omitted` — wet path moves inland; leftover ocean/river or lake-bridge is dropped
 - `village piece skip water floor` / `astral shrine skip ocean floor` — paste refused water
-- `astral` / `cambion` / `mystical hut skip village overlap` — post-terrain skip
+- `astral` / `cambion skip village overlap` / `mystical hut|barrow skip|relocate` — post-terrain skip or retry
+- `cambion plate at=...` — Cambion pad written
 - `astral small shrine village piece at=...` — shrine pasted as a village building
 
 `once(key)` logs a given village/chunk at most once per session.
@@ -395,14 +402,37 @@ Biome provider at the well said plains while F3 was River (`landscape.river`). `
 
 **Fix:** never-raise = ocean/river biome **or** RTG river. Dry land below `villageMinWellHeight` (64) is kept and raised. River/ocean wells walk inland or veto only if no dry slot. Pad top is native RTG surface; `biomesoplenty:mud` becomes loamy grass (`grass` meta 2). Stash `MapGenVillage` + RTG per World for `/aqvillage`. Detection Y includes the well shaft under the plate. `/aqvillage` stands on the plate, ~6 off the well.
 
+### 16. `rememberAll` on every non-village chunk
+
+Flatten and seal called `VillagePlate.rememberAll` whenever `overlappingRecords` was empty. That is most chunks. Each miss walked every `structureMap` Start, then `landBoxesOf` scanned every road column and sampled RTG landscape. Cost grew with how many villages the player had already generated. TPS collapsed while flying new terrain.
+
+**Fix:** `ensureStarts` only when Tweaks’ list is empty. Mixin well-walk **replaces** that Record. `rememberAll` / `rememberNearby` are `rememberIfAbsent`. Landscape ThreadLocal is only for `landBoxesOf`. Public `isNeverRaiseAt` is live. Populate abort uses `isNeverRaiseAt`, not biome-only.
+
+### 17. Cambion float, barrow-in-village, dirt temple pads
+
+Cambion Y+1 on steep RTG left air under the cobble. Barrows were not village-skipped. Large Astral settle used biome dirt; trees clipped the dome.
+
+**Fix:** Cambion 6-pad + Hermite 12 after Y+1 paste. Hut/barrow Chebyshev retry. Large temples: raw marble under-fill + foliage clear through `maxY+16`.
+
+### 18. Stepped hill plates / dropped chunk
+
+Flatten returned when `overlappingRecords` was empty even if the chunk sat in the start AABB (`no-land-boxes`). A well-only or pre-walk snapshot (AABB-keyed duplicate Records after well-walk) left house chunks as raw RTG while neighbors plated to well Y — chunk-aligned stone cliffs, a forgotten 16×16 rectangle, pieces at different heights. Plate Y also fell back to a **land-box center**, so the first hillside house could cache a different village Y than the well.
+
+**Fix:** one Record per well chunk; HEIGHTS on that key; well column only (swamp → min well Y); flatten/seal merge AABB-miss villages and rebuild unlocked boxes from the live Start once; still no hull flatten of empty AABB corners.
+
 ## Playtest reference (this line)
 
 - **Wanted:** inland plains village (example `-2897, 97, -2119`) — flat plate, houses on it, blend to hills.
 - **Wanted:** sea-level forest (`-524, 64, 5893`) — dirt path, lamps, and houses on the same Y.
 - **Wanted:** beach/land well ~16 from water — village starts; buildings retry inland, not on the water.
 - **Wanted:** small Astral shrine/ruin — land buffer at most 3 around the marble, not a 16-block mesa.
+- **Wanted:** large Astral ancient/desert temple — raw marble under the pad, not dirt; no floating logs/leaves in or above the AABB.
+- **Wanted:** new Cambion house on a slope — cobble/stairs on a 6-pad, Hermite into RTG, still Y+1 paste.
+- **Wanted:** Mystical barrow or hut next to a village — relocates or skips; barrow is not plated.
 - **Wanted:** grass between a dirt path and a house at the same Y as the path (swamp/forest yards). L-shaped villages hug pieces; unused AABB corners stay hills.
-- **Unwanted (fixed in flatten, verify on new chunks):** beach sand piers into ocean; ocean ledges; swamp/beach vertical plate walls into water; 1-block grass pads under houses with path one lower; village well in coral reef / kelp forest / open ocean; **river well in the water** (walk inland); plains hill villages stepping instead of one pad; dirt cliff at the far end of a tall RC village piece; in-village grass basins between roads and houses; oak plank path sitting in a lake; houses/roads in F3 River; well over a ravine; floating lamps after cave carve; whole pad forced to loamy grass; leftover BOP mud on the pad.
+- **Wanted:** hill village — well, houses, RC, and path pads at **one** well Y; Hermite only outside the 12-pad; no chunk-aligned stone wall through town.
+- **Wanted:** village Astral small shrine on the plate, not floating on open water (true river still skips paste).
+- **Unwanted (fixed in flatten, verify on new chunks):** beach sand piers into ocean; ocean ledges; swamp/beach vertical plate walls into water; 1-block grass pads under houses with path one lower; village well in coral reef / kelp forest / open ocean; **river well in the water** (walk inland); plains hill villages stepping instead of one pad; **chunk-aligned stone cliff / forgotten 16×16 in town**; dirt cliff at the far end of a tall RC village piece; in-village grass basins between roads and houses; oak plank path sitting in a lake; houses/roads in F3 River; well over a ravine; floating lamps after cave carve; whole pad forced to loamy grass; leftover BOP mud on the pad; marble shrine sitting on village water.
 - Swamp villages still keep pieces in swamp water; that water **inside the 12-pad** is filled to plate Y. Open swamp **outside** the pads stays water. Ocean/river columns are never filled.
 
 ## Likely next levers
@@ -420,5 +450,4 @@ Biome provider at the well said plains while F3 was River (`landscape.river`). `
 - Changing vanilla/RC piece sets beyond the small shrine
 - Filling ocean/river to make more village land
 - Small ruin as a village piece
-- Marble fill under Astral temple pads (`astralsorcery:blockmarble`)
 - Forcing Waystones `villageChance` so every village has a waystone

@@ -4,6 +4,7 @@ import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.rtg.StructureLandSettle;
 import com.apocollis.aqtweaks.rtg.StructureVillageOverlap;
 import com.apocollis.aqtweaks.rtg.VillageDebug;
+import com.apocollis.aqtweaks.rtg.VillageLandHelper;
 import epicsquid.mysticalworld.world.StructureGenerator;
 import epicsquid.mysticalworld.world.data.DataHelper;
 import net.minecraft.util.ResourceLocation;
@@ -26,17 +27,24 @@ import java.util.Random;
 @Mixin(value = StructureGenerator.class, remap = false)
 public abstract class MixinStructureGenerator {
 
+    private static final int RETRY_STEP = 8;
+    private static final int RETRY_MAX = 32;
+
     @Shadow
     private ResourceLocation structure;
 
     @Unique
-    private boolean aqtweaks$skipHut;
+    private boolean aqtweaks$skipStructure;
+
+    @Unique
+    private BlockPos aqtweaks$pastePos;
 
     @Inject(method = "generate", at = @At("HEAD"))
     private void aqtweaks$resetHutSkip(Random random, int chunkX, int chunkZ, World world,
                                       IChunkGenerator chunkGenerator, IChunkProvider chunkProvider,
                                       CallbackInfo ci) {
-        aqtweaks$skipHut = false;
+        aqtweaks$skipStructure = false;
+        aqtweaks$pastePos = null;
     }
 
     @Redirect(
@@ -48,14 +56,24 @@ public abstract class MixinStructureGenerator {
     )
     private void aqtweaks$placeHutUnlessVillage(Template template, World world, BlockPos pos,
                                                PlacementSettings settings, int flags) {
-        aqtweaks$skipHut = false;
-        if (aqtweaks$isHut()
-                && ArcanaQuestTweaksConfig.RtgModuleConfig.surface.enableMysticalHutSettle
+        aqtweaks$skipStructure = false;
+        aqtweaks$pastePos = pos;
+        if (aqtweaks$isMwSurface()
                 && StructureVillageOverlap.enabled()
+                && aqtweaks$surfaceSkipEnabled()
                 && StructureVillageOverlap.overlapsVillage(world, pos, template.getSize(), settings)) {
-            aqtweaks$skipHut = true;
-            VillageDebug.log("mystical hut skip village overlap at=%d,%d,%d", pos.getX(), pos.getY(), pos.getZ());
-            return;
+            BlockPos retry = aqtweaks$findNearbyLand(world, template, pos, settings);
+            if (retry == null) {
+                aqtweaks$skipStructure = true;
+                VillageDebug.log("mystical %s skip village overlap at=%d,%d,%d",
+                        aqtweaks$structureName(), pos.getX(), pos.getY(), pos.getZ());
+                return;
+            }
+            VillageDebug.log("mystical %s relocate from=%d,%d,%d to=%d,%d,%d",
+                    aqtweaks$structureName(), pos.getX(), pos.getY(), pos.getZ(),
+                    retry.getX(), retry.getY(), retry.getZ());
+            pos = retry;
+            aqtweaks$pastePos = retry;
         }
         template.addBlocksToWorld(world, pos, settings, flags);
         if (aqtweaks$isHut() && ArcanaQuestTweaksConfig.RtgModuleConfig.surface.enableMysticalHutSettle) {
@@ -71,10 +89,11 @@ public abstract class MixinStructureGenerator {
             )
     )
     private java.util.Map aqtweaks$skipHutData(Template template, BlockPos pos, PlacementSettings settings) {
-        if (aqtweaks$skipHut) {
+        if (aqtweaks$skipStructure) {
             return java.util.Collections.emptyMap();
         }
-        return template.getDataBlocks(pos, settings);
+        BlockPos at = aqtweaks$pastePos != null ? aqtweaks$pastePos : pos;
+        return template.getDataBlocks(at, settings);
     }
 
     @Redirect(
@@ -85,14 +104,60 @@ public abstract class MixinStructureGenerator {
             )
     )
     private void aqtweaks$skipHutMark(ResourceLocation id, BlockPos pos, World world) {
-        if (aqtweaks$skipHut) return;
-        DataHelper.putBlockPos(id, pos, world);
+        if (aqtweaks$skipStructure) return;
+        DataHelper.putBlockPos(id, aqtweaks$pastePos != null ? aqtweaks$pastePos : pos, world);
+    }
+
+    @Unique
+    private boolean aqtweaks$surfaceSkipEnabled() {
+        if (aqtweaks$isHut()) {
+            return ArcanaQuestTweaksConfig.RtgModuleConfig.surface.enableMysticalHutSettle;
+        }
+        return aqtweaks$isBarrow();
+    }
+
+    @Unique
+    private boolean aqtweaks$isMwSurface() {
+        return aqtweaks$isHut() || aqtweaks$isBarrow();
     }
 
     @Unique
     private boolean aqtweaks$isHut() {
-        if (structure == null) return false;
+        return "hut".equals(aqtweaks$structureName());
+    }
+
+    @Unique
+    private boolean aqtweaks$isBarrow() {
+        return "barrow".equals(aqtweaks$structureName());
+    }
+
+    @Unique
+    private String aqtweaks$structureName() {
+        if (structure == null) return "";
         String path = structure.getPath();
-        return path != null && path.toLowerCase().contains("hut");
+        return path == null ? "" : path.toLowerCase();
+    }
+
+    @Unique
+    private BlockPos aqtweaks$findNearbyLand(World world, Template template, BlockPos origin,
+                                            PlacementSettings settings) {
+        if (world == null || origin == null || template == null) return null;
+        for (int r = RETRY_STEP; r <= RETRY_MAX; r += RETRY_STEP) {
+            for (int dx = -r; dx <= r; dx += RETRY_STEP) {
+                for (int dz = -r; dz <= r; dz += RETRY_STEP) {
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;
+                    int x = origin.getX() + dx;
+                    int z = origin.getZ() + dz;
+                    if (VillageLandHelper.isNeverRaiseAt(world, x, z)) continue;
+                    int y = Math.max(1, world.getHeight(x, z));
+                    BlockPos candidate = new BlockPos(x, y, z);
+                    if (StructureVillageOverlap.overlapsVillage(world, candidate, template.getSize(), settings)) {
+                        continue;
+                    }
+                    return candidate;
+                }
+            }
+        }
+        return null;
     }
 }

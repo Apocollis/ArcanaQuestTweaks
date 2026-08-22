@@ -27,16 +27,14 @@ public abstract class MixinMapGenVillageInside {
         if (world == null) return;
 
         long seed = Reflect.getSeed(world);
-        if (VillagePlate.starts(seed).isEmpty()) {
-            VillagePlate.rememberAll(world, this);
-        }
+        VillagePlate.ensureStarts(world, this);
 
         int xzPad = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageBoxXZPad);
         int heightAbove = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageBoxHeight);
 
         for (VillagePlate.Record rec : VillagePlate.starts(seed)) {
             if (rec.start == null) continue;
-            float plate = VillagePlate.resolvePlate(world, rec.xz);
+            float plate = VillagePlate.resolvePlate(world, rec);
             if (Float.isNaN(plate)) continue;
             if (!VillagePlate.yInVillageVolume(pos.getY(), plate, heightAbove, rec)) continue;
 
@@ -51,7 +49,7 @@ public abstract class MixinMapGenVillageInside {
             if (!xzHit) continue;
 
             if (rec.start instanceof StructureStart) {
-                String boxId = VillagePlate.key(seed, rec.xz);
+                String boxId = VillagePlate.wellKey(seed, rec);
                 if (VillageDebug.once("yhit:" + boxId)) {
                     VillageDebug.log("detect hit pos=%d,%d,%d plate=%.1f landBoxes=%d",
                             pos.getX(), pos.getY(), pos.getZ(), plate, rec.landBoxesOrEmpty().size());

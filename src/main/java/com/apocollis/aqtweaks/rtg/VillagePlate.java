@@ -5,6 +5,7 @@ import net.minecraft.world.World;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,9 +28,14 @@ public final class VillagePlate {
         public final int wellZ;
         public final int minY;
         public final int maxY;
+        public final int startChunkX;
+        public final int startChunkZ;
+        /** Mixin well-walk or an AABB-miss refresh already rebuilt boxes from the live Start. */
+        public final boolean landBoxesLocked;
 
         private Record(Object start, int[] xz, List<int[]> landBoxes, List<int[]> buildingBoxes,
-                       List<int[]> shrineBoxes, int wellX, int wellZ, int minY, int maxY) {
+                       List<int[]> shrineBoxes, int wellX, int wellZ, int minY, int maxY,
+                       int startChunkX, int startChunkZ, boolean landBoxesLocked) {
             this.start = start;
             this.xz = xz;
             this.landBoxes = landBoxes;
@@ -39,6 +45,9 @@ public final class VillagePlate {
             this.wellZ = wellZ;
             this.minY = minY;
             this.maxY = maxY;
+            this.startChunkX = startChunkX;
+            this.startChunkZ = startChunkZ;
+            this.landBoxesLocked = landBoxesLocked;
         }
 
         public List<int[]> landBoxesOrStart() {
@@ -65,23 +74,51 @@ public final class VillagePlate {
         return seed + ":" + box[0] + "," + box[1] + "," + box[2] + "," + box[3];
     }
 
-    public static void put(long seed, int[] box, float height) {
-        if (box == null) return;
-        HEIGHTS.put(key(seed, box), height);
+    public static String wellKey(long seed, int chunkX, int chunkZ) {
+        return seed + ":c:" + chunkX + "," + chunkZ;
     }
 
-    public static Float get(long seed, int[] box) {
-        if (box == null) return null;
-        return HEIGHTS.get(key(seed, box));
+    public static String wellKey(long seed, Record rec) {
+        if (rec == null) return seed + ":c:?,?";
+        return wellKey(seed, rec.startChunkX, rec.startChunkZ);
+    }
+
+    public static void put(long seed, Record rec, float height) {
+        if (rec == null) return;
+        HEIGHTS.put(wellKey(seed, rec), height);
+    }
+
+    public static Float get(long seed, Record rec) {
+        if (rec == null) return null;
+        return HEIGHTS.get(wellKey(seed, rec));
     }
 
     public static void remember(World world, Object start) {
-        int cx = Reflect.getStructureStartChunkX(start);
-        int cz = Reflect.getStructureStartChunkZ(start);
-        remember(world, start, cx, cz);
+        remember(world, start, false);
     }
 
     public static void remember(World world, Object start, int chunkX, int chunkZ) {
+        rememberResolved(world, start, chunkX, chunkZ, true);
+    }
+
+    /**
+     * Mixin well-walk path: replace any Record for this well chunk so walked well XZ wins.
+     */
+    public static void remember(World world, Object start, int chunkX, int chunkZ, int wellX, int wellZ) {
+        putRecord(world, start, chunkX, chunkZ, wellX, wellZ, true);
+    }
+
+    public static void rememberIfAbsent(World world, Object start) {
+        remember(world, start, false);
+    }
+
+    private static void remember(World world, Object start, boolean replace) {
+        int cx = Reflect.getStructureStartChunkX(start);
+        int cz = Reflect.getStructureStartChunkZ(start);
+        rememberResolved(world, start, cx, cz, replace);
+    }
+
+    private static void rememberResolved(World world, Object start, int chunkX, int chunkZ, boolean replace) {
         if (start == null) return;
         int[] xz = Reflect.getStructureStartBoxXZ(start);
         if (xz == null) return;
@@ -92,31 +129,84 @@ public final class VillagePlate {
             wellX = resolved[0];
             wellZ = resolved[1];
         }
-        remember(world, start, chunkX, chunkZ, wellX, wellZ);
+        putRecord(world, start, chunkX, chunkZ, wellX, wellZ, replace);
     }
 
-    public static void remember(World world, Object start, int chunkX, int chunkZ, int wellX, int wellZ) {
+    private static void putRecord(World world, Object start, int chunkX, int chunkZ,
+                                  int wellX, int wellZ, boolean replace) {
         if (start == null) return;
         int[] xz = Reflect.getStructureStartBoxXZ(start);
         if (xz == null) return;
+        int startChunkX = chunkX > Integer.MIN_VALUE ? chunkX : Reflect.getStructureStartChunkX(start);
+        int startChunkZ = chunkZ > Integer.MIN_VALUE ? chunkZ : Reflect.getStructureStartChunkZ(start);
+        if (startChunkX == Integer.MIN_VALUE) startChunkX = wellX >> 4;
+        if (startChunkZ == Integer.MIN_VALUE) startChunkZ = wellZ >> 4;
         long seed = world != null ? Reflect.getSeed(world) : 0L;
-        int minY = Reflect.getStructureStartMinY(start);
-        int maxY = Reflect.getStructureStartMaxY(start);
-        List<int[]> landBoxes = landBoxesOf(start);
-        List<int[]> buildingBoxes = buildingBoxesOf(start);
-        List<int[]> shrineBoxes = shrineBoxesOf(start);
         List<Record> list = STARTS.computeIfAbsent(seed, k -> Collections.synchronizedList(new ArrayList<>()));
         synchronized (list) {
-            String id = key(seed, xz);
-            Record rec = new Record(start, xz, landBoxes, buildingBoxes, shrineBoxes, wellX, wellZ, minY, maxY);
             for (int i = 0; i < list.size(); i++) {
                 Record existing = list.get(i);
-                if (id.equals(key(seed, existing.xz))) {
-                    list.set(i, rec);
+                if (existing.startChunkX == startChunkX && existing.startChunkZ == startChunkZ) {
+                    if (!replace) return;
+                    int minY = Reflect.getStructureStartMinY(start);
+                    int maxY = Reflect.getStructureStartMaxY(start);
+                    list.set(i, new Record(start, xz, landBoxesOf(start), buildingBoxesOf(start),
+                            shrineBoxesOf(start), wellX, wellZ, minY, maxY,
+                            startChunkX, startChunkZ, true));
                     return;
                 }
             }
-            list.add(rec);
+            int minY = Reflect.getStructureStartMinY(start);
+            int maxY = Reflect.getStructureStartMaxY(start);
+            list.add(new Record(start, xz, landBoxesOf(start), buildingBoxesOf(start),
+                    shrineBoxesOf(start), wellX, wellZ, minY, maxY,
+                    startChunkX, startChunkZ, replace));
+        }
+    }
+
+    /**
+     * Backfill from vanilla {@code structureMap} when Tweaks' list is empty (world load).
+     * Do not call on every chunk that is simply not a village.
+     */
+    public static void ensureStarts(World world, Object mapGen) {
+        if (world == null || mapGen == null) return;
+        if (!starts(Reflect.getSeed(world)).isEmpty()) return;
+        rememberAll(world, mapGen);
+    }
+
+    /**
+     * Recover Starts for nearby vanilla well chunks only. Does not walk every village in the world.
+     */
+    public static void rememberNearby(World world, Object mapGen, int cx, int cz) {
+        if (world == null || mapGen == null) return;
+        Reflect.initializeStructureData(mapGen, world);
+        int spacing = Reflect.getVillageDistance(mapGen);
+        if (spacing < 9) spacing = 32;
+        int minTown = Reflect.getVillageMinDistance(mapGen);
+        if (minTown < 1 || minTown >= spacing) minTown = 8;
+        long seed = Reflect.getSeed(world);
+        int minCellX = VillageLandHelper.villageCell(cx - VillageLandHelper.VILLAGE_LAYOUT_RADIUS, spacing);
+        int maxCellX = VillageLandHelper.villageCell(cx + VillageLandHelper.VILLAGE_LAYOUT_RADIUS, spacing);
+        int minCellZ = VillageLandHelper.villageCell(cz - VillageLandHelper.VILLAGE_LAYOUT_RADIUS, spacing);
+        int maxCellZ = VillageLandHelper.villageCell(cz + VillageLandHelper.VILLAGE_LAYOUT_RADIUS, spacing);
+        if (minCellX > maxCellX) {
+            int tmp = minCellX;
+            minCellX = maxCellX;
+            maxCellX = tmp;
+        }
+        if (minCellZ > maxCellZ) {
+            int tmp = minCellZ;
+            minCellZ = maxCellZ;
+            maxCellZ = tmp;
+        }
+        for (int cellX = minCellX; cellX <= maxCellX; cellX++) {
+            for (int cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
+                int[] well = VillageLandHelper.villageWellChunk(seed, cellX, cellZ, spacing, minTown);
+                Object start = Reflect.getStructureStart(mapGen, well[0], well[1]);
+                if (start != null) {
+                    rememberIfAbsent(world, start);
+                }
+            }
         }
     }
 
@@ -128,12 +218,14 @@ public final class VillagePlate {
                     (net.minecraft.world.gen.structure.MapGenVillage) mapGen, world);
         }
         for (Object start : Reflect.getMapGenStructureStarts(mapGen)) {
-            remember(world, start);
+            rememberIfAbsent(world, start);
         }
     }
 
     public static void forget(World world, Object start, int chunkX, int chunkZ) {
         long seed = world != null ? Reflect.getSeed(world) : 0L;
+        int startChunkX = chunkX > Integer.MIN_VALUE ? chunkX : Reflect.getStructureStartChunkX(start);
+        int startChunkZ = chunkZ > Integer.MIN_VALUE ? chunkZ : Reflect.getStructureStartChunkZ(start);
         int[] xz = start != null ? Reflect.getStructureStartBoxXZ(start) : null;
         int wellX = chunkX > Integer.MIN_VALUE ? chunkX * 16 + 2 : Integer.MIN_VALUE;
         int wellZ = chunkZ > Integer.MIN_VALUE ? chunkZ * 16 + 2 : Integer.MIN_VALUE;
@@ -141,12 +233,19 @@ public final class VillagePlate {
         if (list != null) {
             synchronized (list) {
                 list.removeIf(rec -> {
-                    if (xz != null && rec.xz != null && key(seed, rec.xz).equals(key(seed, xz))) {
-                        return true;
+                    boolean match = (startChunkX > Integer.MIN_VALUE && rec.startChunkX == startChunkX
+                            && rec.startChunkZ == startChunkZ)
+                            || (xz != null && rec.xz != null && key(seed, rec.xz).equals(key(seed, xz)))
+                            || (rec.wellX == wellX && rec.wellZ == wellZ);
+                    if (match) {
+                        HEIGHTS.remove(wellKey(seed, rec));
                     }
-                    return rec.wellX == wellX && rec.wellZ == wellZ;
+                    return match;
                 });
             }
+        }
+        if (startChunkX > Integer.MIN_VALUE) {
+            HEIGHTS.remove(wellKey(seed, startChunkX, startChunkZ));
         }
         if (xz != null) {
             HEIGHTS.remove(key(seed, xz));
@@ -185,6 +284,83 @@ public final class VillagePlate {
             }
         }
         return out;
+    }
+
+    /**
+     * Land-box hits plus start-AABB villages whose live boxes now overlap this chunk.
+     * Does not flatten the start AABB as a hull. Rebuilds boxes at most once per village
+     * when the snapshot looks thin (world-load rememberIfAbsent) or unlocked.
+     */
+    public static List<Record> mergeStartAabbHits(World world, List<Record> landHits,
+                                                 int chunkMinX, int chunkMaxX, int chunkMinZ, int chunkMaxZ, int extra) {
+        long seed = world != null ? Reflect.getSeed(world) : 0L;
+        List<Record> aabbHits = overlappingStartAabb(seed, chunkMinX, chunkMaxX, chunkMinZ, chunkMaxZ, extra);
+        if ((landHits == null || landHits.isEmpty()) && aabbHits.isEmpty()) {
+            return Collections.emptyList();
+        }
+        LinkedHashMap<String, Record> byWell = new LinkedHashMap<>();
+        if (landHits != null) {
+            for (Record rec : landHits) {
+                byWell.put(wellKey(seed, rec), rec);
+            }
+        }
+        for (Record rec : aabbHits) {
+            String id = wellKey(seed, rec);
+            if (byWell.containsKey(id)) continue;
+            Record refreshed = maybeRefreshLandBoxes(seed, rec);
+            if (landOverlapsChunk(refreshed, chunkMinX, chunkMaxX, chunkMinZ, chunkMaxZ, extra)) {
+                byWell.put(id, refreshed);
+            }
+        }
+        return new ArrayList<>(byWell.values());
+    }
+
+    private static Record maybeRefreshLandBoxes(long seed, Record rec) {
+        if (rec == null || rec.start == null) return rec;
+        if (rec.landBoxesLocked) return rec;
+        Record next = replaceBoxes(seed, rec);
+        if (next != rec && VillageDebug.once("refreshBoxes:" + wellKey(seed, next))) {
+            VillageDebug.log("refreshBoxes wellChunk=%d,%d landBoxes=%d buildings=%d",
+                    next.startChunkX, next.startChunkZ,
+                    next.landBoxesOrEmpty().size(), next.buildingBoxesOrEmpty().size());
+        }
+        return next;
+    }
+
+    private static Record replaceBoxes(long seed, Record rec) {
+        if (rec == null || rec.start == null) return rec;
+        int[] xz = Reflect.getStructureStartBoxXZ(rec.start);
+        if (xz == null) xz = rec.xz;
+        int minY = Reflect.getStructureStartMinY(rec.start);
+        int maxY = Reflect.getStructureStartMaxY(rec.start);
+        if (minY == Integer.MIN_VALUE) minY = rec.minY;
+        if (maxY == Integer.MIN_VALUE) maxY = rec.maxY;
+        Record next = new Record(rec.start, xz, landBoxesOf(rec.start), buildingBoxesOf(rec.start),
+                shrineBoxesOf(rec.start), rec.wellX, rec.wellZ, minY, maxY,
+                rec.startChunkX, rec.startChunkZ, true);
+        List<Record> list = STARTS.get(seed);
+        if (list != null) {
+            synchronized (list) {
+                for (int i = 0; i < list.size(); i++) {
+                    Record existing = list.get(i);
+                    if (existing.startChunkX == rec.startChunkX && existing.startChunkZ == rec.startChunkZ) {
+                        list.set(i, next);
+                        return next;
+                    }
+                }
+            }
+        }
+        return next;
+    }
+
+    private static boolean landOverlapsChunk(Record rec, int chunkMinX, int chunkMaxX,
+                                            int chunkMinZ, int chunkMaxZ, int extra) {
+        if (rec == null) return false;
+        int e = Math.max(0, extra);
+        for (int[] box : rec.landBoxesOrEmpty()) {
+            if (overlapsXZ(box, chunkMinX, chunkMaxX, chunkMinZ, chunkMaxZ, e)) return true;
+        }
+        return false;
     }
 
     private static boolean overlapsXZ(int[] box, int chunkMinX, int chunkMaxX, int chunkMinZ, int chunkMaxZ, int extra) {
@@ -267,9 +443,21 @@ public final class VillagePlate {
     /**
      * Cached plate height, or NaN if this village was never flattened this session.
      */
-    public static float resolvePlate(World world, int[] box) {
+    public static float resolvePlate(World world, Record rec) {
         long seed = world != null ? Reflect.getSeed(world) : 0L;
-        Float cached = get(seed, box);
+        Float cached = get(seed, rec);
+        return cached != null ? cached : Float.NaN;
+    }
+
+    public static float resolvePlate(World world, int[] box) {
+        if (box == null) return Float.NaN;
+        long seed = world != null ? Reflect.getSeed(world) : 0L;
+        for (Record rec : starts(seed)) {
+            if (rec.xz != null && key(seed, rec.xz).equals(key(seed, box))) {
+                return resolvePlate(world, rec);
+            }
+        }
+        Float cached = HEIGHTS.get(key(seed, box));
         return cached != null ? cached : Float.NaN;
     }
 
@@ -282,21 +470,34 @@ public final class VillagePlate {
             int minY = Reflect.getStructureStartMinY(start);
             height = minY > Integer.MIN_VALUE ? minY : 64.0F;
         }
-        put(world != null ? Reflect.getSeed(world) : 0L, box, height);
+        long seed = world != null ? Reflect.getSeed(world) : 0L;
+        if (box != null) {
+            for (Record rec : starts(seed)) {
+                if (rec.xz != null && key(seed, rec.xz).equals(key(seed, box))) {
+                    put(seed, rec, height);
+                    break;
+                }
+            }
+        }
         return height;
     }
 
     public static List<int[]> landBoxesOf(Object start) {
-        List<int[]> out = new ArrayList<>();
-        for (Object piece : Reflect.getStructureStartComponents(start)) {
-            int[] box = Reflect.getStructureComponentBoxXZ(piece);
-            if (box == null) continue;
-            if (VillageLandHelper.isVillageRoad(piece) && VillageLandHelper.isAabbFullyFlooded(start, piece)) {
-                continue;
+        VillageLandHelper.pushColumnLandscapeCache();
+        try {
+            List<int[]> out = new ArrayList<>();
+            for (Object piece : Reflect.getStructureStartComponents(start)) {
+                int[] box = Reflect.getStructureComponentBoxXZ(piece);
+                if (box == null) continue;
+                if (VillageLandHelper.isVillageRoad(piece) && VillageLandHelper.isAabbFullyFlooded(start, piece)) {
+                    continue;
+                }
+                out.add(box);
             }
-            out.add(box);
+            return out;
+        } finally {
+            VillageLandHelper.popColumnLandscapeCache();
         }
-        return out;
     }
 
     /**

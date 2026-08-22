@@ -45,6 +45,24 @@ public final class StructureLandSettle {
         settleAabb(world, box[0], box[1], box[2], box[3], origin.getY());
     }
 
+    /**
+     * Hard pad around an AABB at {@code floorY}, then Hermite falloff. Raise-only. Never ocean/river.
+     */
+    public static void settlePadded(World world, int minX, int maxX, int minZ, int maxZ, int floorY,
+                                    int pad, int falloff, boolean fillSwampLiquid) {
+        if (!enabled() || world == null || Reflect.isRemote(world)) return;
+        int p = Math.max(0, pad);
+        Map<Long, Integer> floors = new HashMap<>();
+        for (int x = minX - p; x <= maxX + p; x++) {
+            for (int z = minZ - p; z <= maxZ + p; z++) {
+                if (distanceToBoxXZ(x, z, minX, maxX, minZ, maxZ) <= p) {
+                    floors.put(pack(x, z), floorY);
+                }
+            }
+        }
+        settle(world, floors, fillSwampLiquid, falloff, null);
+    }
+
     public static void settle(World world, Map<Long, Integer> floorByColumn) {
         settle(world, floorByColumn, false);
     }
@@ -59,6 +77,11 @@ public final class StructureLandSettle {
     }
 
     public static void settle(World world, Map<Long, Integer> floorByColumn, boolean fillSwampLiquid, int bank) {
+        settle(world, floorByColumn, fillSwampLiquid, bank, null);
+    }
+
+    public static void settle(World world, Map<Long, Integer> floorByColumn, boolean fillSwampLiquid, int bank,
+                              IBlockState underFill) {
         if (!enabled() || world == null || Reflect.isRemote(world) || floorByColumn == null || floorByColumn.isEmpty()) {
             return;
         }
@@ -82,7 +105,8 @@ public final class StructureLandSettle {
         if (plateY == Integer.MAX_VALUE) return;
 
         for (Map.Entry<Long, Integer> e : floorByColumn.entrySet()) {
-            fillColumn(world, unpackX(e.getKey()), unpackZ(e.getKey()), e.getValue(), fillDepth, true, fillSwampLiquid);
+            fillColumn(world, unpackX(e.getKey()), unpackZ(e.getKey()), e.getValue(), fillDepth, true,
+                    fillSwampLiquid, underFill);
         }
 
         if (bank <= 0) return;
@@ -98,7 +122,27 @@ public final class StructureLandSettle {
                 if (ground <= 0) continue;
                 int target = Math.round(ground * (1.0F - blend) + plateY * blend);
                 if (target <= ground) continue;
-                fillColumn(world, x, z, target + 1, fillDepth, false, fillSwampLiquid);
+                fillColumn(world, x, z, target + 1, fillDepth, false, fillSwampLiquid, null);
+            }
+        }
+    }
+
+    /**
+     * Remove clipped and floating trees in a volume. Does not touch marble, stone, or other solids.
+     */
+    public static void clearFoliage(World world, int minX, int maxX, int minZ, int maxZ, int minY, int maxY) {
+        if (world == null || Reflect.isRemote(world) || minX > maxX || minZ > maxZ || minY > maxY) return;
+        int y0 = Math.max(1, minY);
+        int y1 = Math.min(255, maxY);
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                for (int y = y0; y <= y1; y++) {
+                    BlockPos pos = new BlockPos(x, y, z);
+                    IBlockState state = world.getBlockState(pos);
+                    if (isFoliage(state)) {
+                        world.setBlockState(pos, Blocks.AIR.getDefaultState(), 2);
+                    }
+                }
             }
         }
     }
@@ -116,14 +160,18 @@ public final class StructureLandSettle {
     }
 
     private static void fillColumn(World world, int x, int z, int floorY, int fillDepth, boolean underStructure,
-                                  boolean fillSwampLiquid) {
+                                  boolean fillSwampLiquid, IBlockState underFill) {
         if (fillDepth <= 0 || floorY <= 1) return;
         BlockPos surface = new BlockPos(x, Math.max(1, floorY - 1), z);
+        if (VillageLandHelper.isNeverRaiseAt(world, x, z)) return;
         Biome biome = world.getBiome(surface);
         if (VillageLandHelper.isNeverRaiseBiome(biome)) return;
         boolean swampFill = fillSwampLiquid && VillageLandHelper.isSwampLikeForRaise(biome);
 
         IBlockState filler = biome.fillerBlock != null ? biome.fillerBlock : Blocks.DIRT.getDefaultState();
+        if (underStructure && underFill != null) {
+            filler = underFill;
+        }
         IBlockState top = biome.topBlock != null ? biome.topBlock : Blocks.GRASS.getDefaultState();
         int minY = Math.max(1, floorY - 1 - fillDepth);
         int topFillY = -1;
@@ -138,6 +186,7 @@ public final class StructureLandSettle {
             }
             IBlockState place = underStructure || y < floorY - 1 ? filler : top;
             if (!underStructure && y == floorY - 1) place = top;
+            if (underStructure && underFill != null) place = underFill;
             world.setBlockState(pos, place, 2);
             topFillY = Math.max(topFillY, y);
         }
@@ -164,6 +213,12 @@ public final class StructureLandSettle {
 
     private static boolean isLiquid(IBlockState state) {
         return state != null && state.getMaterial().isLiquid();
+    }
+
+    private static boolean isFoliage(IBlockState state) {
+        if (state == null || state.getBlock() == Blocks.AIR) return false;
+        Material mat = state.getMaterial();
+        return mat == Material.LEAVES || mat == Material.WOOD || mat == Material.VINE;
     }
 
     private static void clearPlantsAbove(World world, int x, int z, int floorY) {

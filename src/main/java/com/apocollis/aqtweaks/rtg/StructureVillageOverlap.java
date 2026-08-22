@@ -65,7 +65,7 @@ public final class StructureVillageOverlap {
         int heightAbove = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageBoxHeight);
 
         for (VillagePlate.Record rec : VillagePlate.starts(seed)) {
-            float plate = VillagePlate.resolvePlate(world, rec.xz);
+            float plate = VillagePlate.resolvePlate(world, rec);
             if (Float.isNaN(plate)) continue;
             int midY = minY + (maxY - minY) / 2;
             if (!VillagePlate.yInVillageVolume(minY, plate, heightAbove, rec)
@@ -132,12 +132,7 @@ public final class StructureVillageOverlap {
     }
 
     private static void ensureVillageStarts(World world) {
-        long seed = Reflect.getSeed(world);
-        if (!VillagePlate.starts(seed).isEmpty()) return;
-        Object villageGen = findVillageGenerator(world);
-        if (villageGen != null) {
-            VillagePlate.rememberAll(world, villageGen);
-        }
+        VillagePlate.ensureStarts(world, findVillageGenerator(world));
     }
 
     public static Object findVillageGenerator(World world) {

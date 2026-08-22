@@ -3368,15 +3368,20 @@ public class Reflect {
 
     @SuppressWarnings("unchecked")
     public static boolean hasStructureStart(Object mapGen, int chunkX, int chunkZ) {
-        if (mapGen == null || mapGenStructureMapField == null) return false;
+        return getStructureStart(mapGen, chunkX, chunkZ) != null;
+    }
+
+    @SuppressWarnings("unchecked")
+    public static Object getStructureStart(Object mapGen, int chunkX, int chunkZ) {
+        if (mapGen == null || mapGenStructureMapField == null) return null;
         long key = net.minecraft.util.math.ChunkPos.asLong(chunkX, chunkZ);
         try {
             Object map = mapGenStructureMapField.get(mapGen);
             if (map instanceof Map) {
-                return ((Map<?, ?>) map).containsKey(key);
+                return ((Map<?, ?>) map).get(key);
             }
         } catch (Exception ignored) {}
-        return false;
+        return null;
     }
 
     public static void initializeStructureData(Object mapGen, World world) {

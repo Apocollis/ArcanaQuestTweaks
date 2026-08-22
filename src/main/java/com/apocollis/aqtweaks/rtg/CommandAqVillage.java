@@ -235,7 +235,7 @@ public final class CommandAqVillage extends CommandBase {
                         && Reflect.getStructureStartChunkZ(rec.start) == hit.chunkZ;
             }
             if (!match) continue;
-            float plate = VillagePlate.resolvePlate(world, rec.xz);
+            float plate = VillagePlate.resolvePlate(world, rec);
             if (!Float.isNaN(plate)) {
                 return Math.round(plate) + 1;
             }

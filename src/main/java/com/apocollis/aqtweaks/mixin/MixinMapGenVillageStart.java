@@ -45,6 +45,7 @@ public abstract class MixinMapGenVillageStart {
             wellZ = resolved[1];
         }
         VillagePlate.remember(world, start, chunkX, chunkZ, wellX, wellZ);
+        if (!VillageDebug.enabled()) return;
         int[] xz = Reflect.getStructureStartBoxXZ(start);
         List<int[]> landBoxes = VillagePlate.landBoxesOf(start);
         int[] land = VillagePlate.union(landBoxes);

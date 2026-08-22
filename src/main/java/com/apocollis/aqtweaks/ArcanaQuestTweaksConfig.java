@@ -678,11 +678,11 @@ public class ArcanaQuestTweaksConfig {
         public int villageBoxHeight = 32;
 
         @Config.Name("Village Flatten Debug")
-        @Config.Comment("Write village terrain traces to logs/villagepatch.log (not latest.log). On for diagnostic capture.")
-        public boolean villageFlattenDebug = true;
+        @Config.Comment("Write village terrain traces to logs/villagepatch.log (not latest.log). Off by default: appends stall chunk gen. Turn on only while diagnosing villages.")
+        public boolean villageFlattenDebug = false;
 
         @Config.Name("Skip Structures On Village")
-        @Config.Comment("Cancel Astral shrines, Bewitchment Cambion houses, and Mystical World huts if they would overlap a village.")
+        @Config.Comment("Cancel Astral shrines and Bewitchment Cambion houses on village overlap. Mystical World huts and barrows skip that spot and retry nearby.")
         public boolean skipStructuresOnVillage = true;
 
         @Config.Name("Enable Structure Land Settle")
@@ -694,7 +694,7 @@ public class ArcanaQuestTweaksConfig {
         public boolean enableAstralShrineSettle = true;
 
         @Config.Name("Enable Cambion House Settle")
-        @Config.Comment("Skip Bewitchment Cambion houses that overlap a village. No land plate; paste is Y+1 only.")
+        @Config.Comment("Skip Bewitchment Cambion houses that overlap a village. Paste stays Y+1. After paste, plate land with Cambion House Pad and Falloff.")
         public boolean enableCambionHouseSettle = true;
 
         @Config.Name("Enable Astral Small Shrine Village Piece")
@@ -702,7 +702,7 @@ public class ArcanaQuestTweaksConfig {
         public boolean enableAstralSmallShrineVillagePiece = true;
 
         @Config.Name("Enable Mystical Hut Settle")
-        @Config.Comment("Apply village-skip and land settle to Mystical World thatch huts (not barrows).")
+        @Config.Comment("Apply village-skip, nearby retry, and land settle to Mystical World thatch huts. Barrows skip/retry on village overlap but are not plated.")
         public boolean enableMysticalHutSettle = true;
 
         @Config.Name("Structure Fill Depth")
@@ -719,6 +719,16 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Max blocks of land buffer around small Astral shrines/ruins (wild settle rim and village shrine flatten). 0 = footprint only.")
         @Config.RangeInt(min = 0, max = 16)
         public int smallShrinePad = 3;
+
+        @Config.Name("Cambion House Pad")
+        @Config.Comment("Full-plate radius around a Cambion house AABB after Y+1 paste. Default 6.")
+        @Config.RangeInt(min = 0, max = 32)
+        public int cambionHousePad = 6;
+
+        @Config.Name("Cambion House Falloff")
+        @Config.Comment("Hermite slope beyond Cambion House Pad, raise-only, back to RTG. Default 12.")
+        @Config.RangeInt(min = 0, max = 64)
+        public int cambionHouseFalloff = 12;
     }
 
     @Mod.EventBusSubscriber(modid = ArcanaQuestTweaks.MODID)

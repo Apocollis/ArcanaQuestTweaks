@@ -1,6 +1,6 @@
 # Village generation in this pack
 
-Last updated: 2026-08-21.
+Last updated: 2026-08-22.
 
 How Minecraft 1.12.2 **marks** a village, how it **pastes** buildings, and what RTG, Geographicraft, Recurrent Complex, Charm, and Tweaks each change. Tweaks locked intent and flatten knobs stay in [rtg.md](rtg.md). This file is the pipeline reference.
 
@@ -130,9 +130,11 @@ Tweaks’ `@Redirect` on `StructureComponent.func_74875_a` inside `StructureStar
 | --- | --- |
 | `MixinMapGenVillageSpawn` | After vanilla `canSpawn`, veto never-raise wells with no dry slot; ocean coast buffer. Always runs. |
 | `forgetRejectedStarts` | Drops vetoed Starts from `structureMap` + `VillagePlate` so `/locate` cannot find them. Walked wells stay. |
-| `MixinMapGenVillageStart` | Offset walked wells; `VillagePlate.remember` with actual well XZ. |
-| `layoutVillageGrid` | Dummy-primer `generate()` after `getNewerNoise` so AABBs exist before flatten. Stash generators for `/aqvillage`. |
-| `MixinChunkGeneratorRTGVillage` | Rewrite `landscape.noise` from **land boxes** + pad 12 + Hermite falloff. Never write ocean/river (including RTG river). Raise dry land to min well Y. Reseal pad after caves/ravines. Mud → loamy grass:2 only. |
+| `MixinMapGenVillageStart` | Offset walked wells; `VillagePlate.remember` **replaces** that AABB Record with actual well XZ. |
+| `layoutVillageGrid` | Dummy-primer `generate()` **once per chunk** after `getNewerNoise` so AABBs exist before flatten. Stash generators for `/aqvillage`. Nested landscape samples do not re-layout. |
+| `MixinChunkGeneratorRTGVillage` | Rewrite `landscape.noise` from **land boxes** + pad 12 + Hermite falloff. Never write ocean/river (including RTG river). Raise dry land to min well Y. Reseal pad after caves/ravines. Mud → loamy grass:2 only. `ensureStarts` if Tweaks cache empty; else `rememberNearby` well-grid only. |
+| `VillagePlate.ensureStarts` | Backfill from vanilla `structureMap` once after world load when Tweaks’ list is empty. |
+| `VillagePlate.rememberNearby` | `rememberIfAbsent` for well chunks in layout radius. Does not walk every Start. |
 | `MixinStructureVillagePieces` | House/waystone skip/retry inland on never-raise; wet paths retry inland then omit leftover ocean/river or mostly-wet docks. |
 | `MixinGenericVillageCreationHandler` | Same skip/retry for RC AABBs. |
 | `MixinASMHooksVillagePaste` | Charm populate abort on ocean/river floor (`mixins.aqtweaks.charm.json`). |
