@@ -2,6 +2,7 @@ package com.apocollis.aqtweaks.mixin.bettercaves;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.depths.DepthsBiomeUtil;
+import com.apocollis.aqtweaks.depths.PrimerAccess;
 import com.apocollis.aqtweaks.depths.UpperTunnelNetwork;
 import com.apocollis.aqtweaks.util.Reflect;
 import com.yungnickyoung.minecraft.bettercaves.world.MapGenBetterCaves;
@@ -29,12 +30,12 @@ public abstract class MixinBetterCavesDepthsPass {
                                  IBlockState airState, net.minecraft.block.Block airBlock,
                                  net.minecraft.block.Block bedrockBlock) {
         if (localX < 0 || localX > 15 || localZ < 0 || localZ > 15) return;
-        IBlockState cur = Reflect.getBlockState(primer, localX, y, localZ);
-        net.minecraft.block.Block b = Reflect.getBlock(cur);
+        IBlockState cur = PrimerAccess.getBlockState(primer, localX, y, localZ);
+        net.minecraft.block.Block b = PrimerAccess.getBlock(cur);
         if (cur == null || (airBlock != null && b == airBlock) || (bedrockBlock != null && b == bedrockBlock)) {
             return;
         }
-        Reflect.setBlockState(primer, localX, y, localZ, airState);
+        PrimerAccess.setBlockState(primer, localX, y, localZ, airState);
     }
 
     @Inject(method = "func_186125_a", at = @At("RETURN"))

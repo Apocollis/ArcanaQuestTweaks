@@ -1,6 +1,7 @@
 package com.apocollis.aqtweaks.mixin.bettercaves;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
+import com.apocollis.aqtweaks.depths.PrimerAccess;
 import com.apocollis.aqtweaks.depths.UpperTunnelNetwork;
 import com.apocollis.aqtweaks.util.Reflect;
 import com.yungnickyoung.minecraft.bettercaves.noise.FastNoise;
@@ -144,11 +145,16 @@ public abstract class MixinCaveNoiseGenerator {
         }
     }
 
-    private static float columnStrength(int worldX, int worldZ, float heightFrac) {
+    /**
+     * Distance from this column to the nearest spawning pillar centre, or {@link Float#MAX_VALUE}
+     * when no neighbouring cell spawns one. Depends on XZ alone, so it is resolved once per column
+     * instead of once per Y in the pillar and floater loops.
+     */
+    private static float pillarMinDist(int worldX, int worldZ) {
         int spacing = COLUMN_SPACING;
         int cellX = Math.floorDiv(worldX, spacing);
         int cellZ = Math.floorDiv(worldZ, spacing);
-        float best = 0.0f;
+        float best = Float.MAX_VALUE;
 
         for (int dx = -1; dx <= 1; ++dx) {
             for (int dz = -1; dz <= 1; ++dz) {
@@ -161,16 +167,23 @@ public abstract class MixinCaveNoiseGenerator {
                 float centerX = cx * spacing + spacing * 0.5f + jx * (spacing * 0.22f);
                 float centerZ = cz * spacing + spacing * 0.5f + jz * (spacing * 0.22f);
                 float dist = MathHelper.sqrt((worldX - centerX) * (worldX - centerX) + (worldZ - centerZ) * (worldZ - centerZ));
-                // Wider at top & bottom by ~1–2 blocks radius vs mid-shaft
-                float midFactor = 1.0f - 4.0f * (heightFrac - 0.5f) * (heightFrac - 0.5f); // 1 at mid, 0 at ends
-                float radius = COLUMN_RADIUS + 1.35f * (1.0f - midFactor);
-                if (dist <= radius) {
-                    float strength = 1.0f - (dist / Math.max(0.001f, radius));
-                    if (strength > best) best = strength;
-                }
+                if (dist < best) best = dist;
             }
         }
         return best;
+    }
+
+    /**
+     * Pillar strength at one Y. The flare radius is the same for every cell at a given height and
+     * strength falls off with distance, so the nearest centre is always the strongest one.
+     */
+    private static float columnStrength(float minDist, float heightFrac) {
+        if (minDist == Float.MAX_VALUE) return 0.0f;
+        // Wider at top & bottom by ~1–2 blocks radius vs mid-shaft
+        float midFactor = 1.0f - 4.0f * (heightFrac - 0.5f) * (heightFrac - 0.5f); // 1 at mid, 0 at ends
+        float radius = COLUMN_RADIUS + 1.35f * (1.0f - midFactor);
+        if (minDist > radius) return 0.0f;
+        return 1.0f - (minDist / Math.max(0.001f, radius));
     }
 
     private static boolean isLand(float floorVal) {
@@ -309,7 +322,7 @@ public abstract class MixinCaveNoiseGenerator {
                 int worldZ = startZ + localZ;
 
                 for (int y = minY; y <= bedrockTop; ++y) {
-                    Reflect.setBlockState(primer, localX, y, localZ, bedrockState);
+                    PrimerAccess.setBlockState(primer, localX, y, localZ, bedrockState);
                 }
 
                 float floorVal = floorIslandNoise.GetNoise(worldX, worldZ);
@@ -338,8 +351,8 @@ public abstract class MixinCaveNoiseGenerator {
 
                 // --- Carve ---
                 for (int y = bedrockTop + 1; y <= loopMaxY; ++y) {
-                    IBlockState currentState = Reflect.getBlockState(primer, localX, y, localZ);
-                    net.minecraft.block.Block currentBlock = Reflect.getBlock(currentState);
+                    IBlockState currentState = PrimerAccess.getBlockState(primer, localX, y, localZ);
+                    net.minecraft.block.Block currentBlock = PrimerAccess.getBlock(currentState);
                     if (currentState == null || (airBlock != null && currentBlock == airBlock) || (bedrockBlock != null && currentBlock == bedrockBlock)) {
                         continue;
                     }
@@ -382,13 +395,13 @@ public abstract class MixinCaveNoiseGenerator {
                     // Landmass rooted to bedrock
                     if (land && y >= bedrockTop + 1 && y <= landSurfaceY) {
                         if (deepslateState != null) {
-                            Reflect.setBlockState(primer, localX, y, localZ, deepslateState);
+                            PrimerAccess.setBlockState(primer, localX, y, localZ, deepslateState);
                         }
                     } else if (carve) {
                         if (y <= lavaLevel && !land) {
-                            Reflect.setBlockState(primer, localX, y, localZ, lavaState);
+                            PrimerAccess.setBlockState(primer, localX, y, localZ, lavaState);
                         } else {
-                            Reflect.setBlockState(primer, localX, y, localZ, airState);
+                            PrimerAccess.setBlockState(primer, localX, y, localZ, airState);
                         }
                     }
                 }
@@ -396,16 +409,16 @@ public abstract class MixinCaveNoiseGenerator {
                 // Ensure landmass fill where carve loop skipped air/bedrock cells
                 if (land && deepslateState != null) {
                     for (int y = bedrockTop + 1; y <= landSurfaceY; ++y) {
-                        Reflect.setBlockState(primer, localX, y, localZ, deepslateState);
+                        PrimerAccess.setBlockState(primer, localX, y, localZ, deepslateState);
                     }
                 }
 
                 // Lava lakes/streams in channels (fill open cells at/below lava level)
                 if (!land && lavaChannel) {
                     for (int y = bedrockTop + 1; y <= lavaLevel; ++y) {
-                        net.minecraft.block.Block b = Reflect.getBlock(Reflect.getBlockState(primer, localX, y, localZ));
+                        net.minecraft.block.Block b = PrimerAccess.getBlock(PrimerAccess.getBlockState(primer, localX, y, localZ));
                         if (b != null && airBlock != null && b == airBlock) {
-                            Reflect.setBlockState(primer, localX, y, localZ, lavaState);
+                            PrimerAccess.setBlockState(primer, localX, y, localZ, lavaState);
                         }
                     }
                 }
@@ -414,38 +427,40 @@ public abstract class MixinCaveNoiseGenerator {
                 if (deepslateState != null) {
                     for (int y = ceilY; y <= -23; ++y) {
                         if (dig.isBreachShaft(y, ceilY)) {
-                            Reflect.setBlockState(primer, localX, y, localZ, airState);
+                            PrimerAccess.setBlockState(primer, localX, y, localZ, airState);
                             continue;
                         }
-                        IBlockState st = Reflect.getBlockState(primer, localX, y, localZ);
-                        net.minecraft.block.Block b = Reflect.getBlock(st);
+                        IBlockState st = PrimerAccess.getBlockState(primer, localX, y, localZ);
+                        net.minecraft.block.Block b = PrimerAccess.getBlock(st);
                         if (b != null && airBlock != null && (b == airBlock || (lavaBlock != null && b == lavaBlock))) {
-                            Reflect.setBlockState(primer, localX, y, localZ, deepslateState);
+                            PrimerAccess.setBlockState(primer, localX, y, localZ, deepslateState);
                         }
                     }
                 }
 
                 if (deepslateState == null) continue;
 
+                float pillarDist = pillarMinDist(worldX, worldZ);
+
                 // Columns
                 for (int y = lowerBottom; y <= ceilY; ++y) {
                     if (dig.isBreachShaft(y, ceilY)) continue;
                     float heightFrac = (float) (y - lowerBottom) / (float) Math.max(1, ceilY - lowerBottom);
-                    if (columnStrength(worldX, worldZ, heightFrac) > 0.18f) {
-                        Reflect.setBlockState(primer, localX, y, localZ, deepslateState);
+                    if (columnStrength(pillarDist, heightFrac) > 0.18f) {
+                        PrimerAccess.setBlockState(primer, localX, y, localZ, deepslateState);
                     }
                 }
 
                 // Short floor stalagmites on land (4–5), much rarer than stalactites
                 if (land && spikeVal > FLOOR_SPIKE_THR) {
                     int surface = landSurfaceY;
-                    net.minecraft.block.Block aboveSurf = Reflect.getBlock(Reflect.getBlockState(primer, localX, surface + 1, localZ));
+                    net.minecraft.block.Block aboveSurf = PrimerAccess.getBlock(PrimerAccess.getBlockState(primer, localX, surface + 1, localZ));
                     if (aboveSurf != null && airBlock != null && aboveSurf == airBlock) {
                         int miteH = spikeVal > 0.72f ? 5 : 4;
                         for (int y = surface + 1; y <= surface + miteH && y < ceilY; ++y) {
-                            net.minecraft.block.Block b = Reflect.getBlock(Reflect.getBlockState(primer, localX, y, localZ));
+                            net.minecraft.block.Block b = PrimerAccess.getBlock(PrimerAccess.getBlockState(primer, localX, y, localZ));
                             if (b != null && airBlock != null && b == airBlock) {
-                                Reflect.setBlockState(primer, localX, y, localZ, deepslateState);
+                                PrimerAccess.setBlockState(primer, localX, y, localZ, deepslateState);
                             } else {
                                 break;
                             }
@@ -457,9 +472,9 @@ public abstract class MixinCaveNoiseGenerator {
                 if (spikeVal < -0.15f && !lowerBreach) {
                     int titeH = MathHelper.clamp(5 + (int) ((-spikeVal - 0.15f) * 18.0f), 5, 16);
                     for (int y = ceilY - 1; y >= ceilY - titeH && y > landSurfaceY; --y) {
-                        net.minecraft.block.Block b = Reflect.getBlock(Reflect.getBlockState(primer, localX, y, localZ));
+                        net.minecraft.block.Block b = PrimerAccess.getBlock(PrimerAccess.getBlockState(primer, localX, y, localZ));
                         if (b != null && airBlock != null && b == airBlock) {
-                            Reflect.setBlockState(primer, localX, y, localZ, deepslateState);
+                            PrimerAccess.setBlockState(primer, localX, y, localZ, deepslateState);
                         } else if (b != null && airBlock != null && b != airBlock) {
                             break;
                         }
@@ -472,9 +487,9 @@ public abstract class MixinCaveNoiseGenerator {
                     for (int y = archFillBottom; y <= archDeckY; ++y) {
                         if (y <= lavaLevel || y >= ceilY) continue;
                         if (dig.isBreachShaft(y, ceilY)) continue;
-                        net.minecraft.block.Block b = Reflect.getBlock(Reflect.getBlockState(primer, localX, y, localZ));
+                        net.minecraft.block.Block b = PrimerAccess.getBlock(PrimerAccess.getBlockState(primer, localX, y, localZ));
                         if (b != null && airBlock != null && (b == airBlock || (lavaBlock != null && b == lavaBlock))) {
-                            Reflect.setBlockState(primer, localX, y, localZ, deepslateState);
+                            PrimerAccess.setBlockState(primer, localX, y, localZ, deepslateState);
                         }
                     }
                 }
@@ -486,40 +501,40 @@ public abstract class MixinCaveNoiseGenerator {
                     }
                     if (dig.isBreachShaft(y, ceilY)) continue;
                     float hf = (float) (y - lowerBottom) / (float) Math.max(1, ceilY - lowerBottom);
-                    if (columnStrength(worldX, worldZ, hf) > 0.15f) continue;
+                    if (columnStrength(pillarDist, hf) > 0.15f) continue;
                     if (land && y <= landSurfaceY + 5) continue; // protect short floor spikes
 
-                    net.minecraft.block.Block b = Reflect.getBlock(Reflect.getBlockState(primer, localX, y, localZ));
+                    net.minecraft.block.Block b = PrimerAccess.getBlock(PrimerAccess.getBlockState(primer, localX, y, localZ));
                     if (b == null || airBlock == null || b == airBlock) continue;
                     if (lavaBlock != null && b == lavaBlock) continue;
                     if (bedrockBlock != null && b == bedrockBlock) continue;
 
-                    net.minecraft.block.Block below = Reflect.getBlock(Reflect.getBlockState(primer, localX, y - 1, localZ));
-                    net.minecraft.block.Block below2 = Reflect.getBlock(Reflect.getBlockState(primer, localX, y - 2, localZ));
-                    net.minecraft.block.Block above = Reflect.getBlock(Reflect.getBlockState(primer, localX, y + 1, localZ));
+                    net.minecraft.block.Block below = PrimerAccess.getBlock(PrimerAccess.getBlockState(primer, localX, y - 1, localZ));
+                    net.minecraft.block.Block below2 = PrimerAccess.getBlock(PrimerAccess.getBlockState(primer, localX, y - 2, localZ));
+                    net.minecraft.block.Block above = PrimerAccess.getBlock(PrimerAccess.getBlockState(primer, localX, y + 1, localZ));
                     boolean openBelow = below != null && (below == airBlock || (lavaBlock != null && below == lavaBlock));
                     boolean openBelow2 = below2 != null && (below2 == airBlock || (lavaBlock != null && below2 == lavaBlock));
                     boolean openAbove = above != null && (above == airBlock || (lavaBlock != null && above == lavaBlock));
 
                     if (openBelow && openAbove) {
-                        Reflect.setBlockState(primer, localX, y, localZ, airState);
+                        PrimerAccess.setBlockState(primer, localX, y, localZ, airState);
                         continue;
                     }
                     if (openBelow && openBelow2) {
                         int run = 0;
                         for (int yy = y; yy < ceilY - 1 && run < 10; ++yy) {
-                            net.minecraft.block.Block sb = Reflect.getBlock(Reflect.getBlockState(primer, localX, yy, localZ));
+                            net.minecraft.block.Block sb = PrimerAccess.getBlock(PrimerAccess.getBlockState(primer, localX, yy, localZ));
                             if (sb == null || sb == airBlock || (lavaBlock != null && sb == lavaBlock)) break;
                             if (bedrockBlock != null && sb == bedrockBlock) break;
                             run++;
                         }
                         if (run > 0 && run <= 8) {
-                            net.minecraft.block.Block topAbove = Reflect.getBlock(Reflect.getBlockState(primer, localX, y + run, localZ));
+                            net.minecraft.block.Block topAbove = PrimerAccess.getBlock(PrimerAccess.getBlockState(primer, localX, y + run, localZ));
                             boolean airAboveStack = topAbove != null && (topAbove == airBlock || (lavaBlock != null && topAbove == lavaBlock));
                             boolean touchesCeil = (y + run) >= ceilY - 1;
                             if (airAboveStack && !touchesCeil) {
                                 for (int yy = y; yy < y + run; ++yy) {
-                                    Reflect.setBlockState(primer, localX, yy, localZ, airState);
+                                    PrimerAccess.setBlockState(primer, localX, yy, localZ, airState);
                                 }
                             }
                         }
@@ -531,10 +546,10 @@ public abstract class MixinCaveNoiseGenerator {
                     int floorY = dig.tunnelFloorY();
                     for (int y = ceilY - 2; y <= floorY; ++y) {
                         if (!dig.isBreachShaft(y, ceilY)) continue;
-                        net.minecraft.block.Block b = Reflect.getBlock(Reflect.getBlockState(primer, localX, y, localZ));
+                        net.minecraft.block.Block b = PrimerAccess.getBlock(PrimerAccess.getBlockState(primer, localX, y, localZ));
                         if (b != null && airBlock != null && b != airBlock
                                 && (bedrockBlock == null || b != bedrockBlock)) {
-                            Reflect.setBlockState(primer, localX, y, localZ, airState);
+                            PrimerAccess.setBlockState(primer, localX, y, localZ, airState);
                         }
                     }
                 }

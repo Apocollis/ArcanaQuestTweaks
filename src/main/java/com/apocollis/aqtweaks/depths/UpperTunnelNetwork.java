@@ -3,12 +3,20 @@ package com.apocollis.aqtweaks.depths;
 import com.yungnickyoung.minecraft.bettercaves.noise.FastNoise;
 import net.minecraft.util.math.MathHelper;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 /**
  * Upper deep tunnels mimicking Better Caves 1.12.2 {@code CaveCarver}:
  * dual-noise high-threshold intersection (Type 1 CubicFractal RigidMulti + Type 2 Simplex),
  * F1/F2 upward y-adjustment for headroom, soft close near DIG_TOP.
  * Chambers are discrete widenings on the worm network.
  * Lower-deep breaches are sparse: only when tunnel floor sits within 1 of the lower ceiling.
+ *
+ * <p>Every result here is a pure function of world coordinates and the world seed, so the noise is
+ * memoised per column and per chamber cell. Three separate passes (primer carve, the Better Caves
+ * companion, and the chunk seam) ask for the same 256 columns of the same chunk, and each column
+ * probes its neighbours, so the same samples were previously recomputed many times over.
  */
 public final class UpperTunnelNetwork {
 
@@ -43,6 +51,12 @@ public final class UpperTunnelNetwork {
     public static final int CHAMBER_SPACING = 23;
     public static final float CHAMBER_SPAWN_MIN = 0.08f;
 
+    /** Y values {@code columnHasWorm} samples: DIG_BOTTOM..DIG_TOP stepping 2. */
+    private static final int WORM_SCAN_MASK = wormScanMask();
+
+    private static final int COLUMN_CACHE_MAX = 4096;
+    private static final int CELL_CACHE_MAX = 1024;
+
     private static FastNoise type1A;
     private static FastNoise type1B;
     private static FastNoise type2A;
@@ -52,6 +66,11 @@ public final class UpperTunnelNetwork {
     private static FastNoise chamberShape;
     private static FastNoise chamberSize;
     private static boolean initialized = false;
+
+    /** Bumped when the noise is (re)built so live per-thread caches drop stale entries. */
+    private static volatile int noiseGeneration = 0;
+
+    private static final ThreadLocal<Caches> CACHES = ThreadLocal.withInitial(Caches::new);
 
     private UpperTunnelNetwork() {}
 
@@ -98,7 +117,29 @@ public final class UpperTunnelNetwork {
         chamberSize.SetNoiseType(FastNoise.NoiseType.Simplex);
         chamberSize.SetFrequency(1.0f);
 
+        noiseGeneration++;
         initialized = true;
+    }
+
+    private static int wormScanMask() {
+        int mask = 0;
+        for (int y = DIG_BOTTOM; y <= DIG_TOP; y += 2) {
+            mask |= 1 << (y - DIG_BOTTOM);
+        }
+        return mask;
+    }
+
+    private static long key(int x, int z) {
+        return ((long) x << 32) ^ (z & 0xFFFFFFFFL);
+    }
+
+    private static Caches caches() {
+        Caches caches = CACHES.get();
+        if (caches.generation != noiseGeneration) {
+            caches.clear();
+            caches.generation = noiseGeneration;
+        }
+        return caches;
     }
 
     private static float thresholdAt(int y, float baseThr) {
@@ -109,18 +150,10 @@ public final class UpperTunnelNetwork {
     }
 
     /**
-     * BC CaveCarver dig for one dual-noise system: sample → y-adjust upward → dig if both ≥ thr.
+     * BC CaveCarver dig for one dual-noise system: y-adjust upward → dig if both ≥ thr.
+     * Consumes the raw samples in place, so the caller passes copies it does not need again.
      */
-    private static boolean[] digSystem(FastNoise n1, FastNoise n2, float xzComp, float yComp,
-                                       float baseThr, float f1, float f2, int worldX, int worldZ) {
-        float[] a = new float[DIG_HEIGHT];
-        float[] b = new float[DIG_HEIGHT];
-        for (int y = DIG_BOTTOM; y <= DIG_TOP; ++y) {
-            int i = y - DIG_BOTTOM;
-            a[i] = n1.GetNoise(worldX * xzComp, y * yComp, worldZ * xzComp);
-            b[i] = n2.GetNoise(worldX * xzComp, y * yComp, worldZ * xzComp);
-        }
-
+    private static boolean[] blendAndDig(float[] a, float[] b, float baseThr, float f1, float f2) {
         // preprocess: top → bottom; when cell digs, blend into cells above (headroom)
         for (int y = DIG_TOP; y >= DIG_BOTTOM; --y) {
             int i = y - DIG_BOTTOM;
@@ -148,19 +181,58 @@ public final class UpperTunnelNetwork {
         return dig;
     }
 
-    private static boolean rawDigAt(FastNoise n1, FastNoise n2, float xzComp, float yComp,
-                                    float baseThr, int worldX, int y, int worldZ) {
-        if (y < DIG_BOTTOM || y > DIG_TOP) return false;
-        float thr = thresholdAt(y, baseThr);
-        float a = n1.GetNoise(worldX * xzComp, y * yComp, worldZ * xzComp);
-        float b = n2.GetNoise(worldX * xzComp, y * yComp, worldZ * xzComp);
-        return a >= thr && b >= thr;
+    /**
+     * Both noise systems sampled once for the whole column, giving the raw (no y-adjust) dig bits
+     * and the blended Type 1 / Type 2 dig used for tunnels. Both come from the same 108 samples.
+     */
+    private static ColumnData columnData(int worldX, int worldZ, Caches caches) {
+        long key = key(worldX, worldZ);
+        ColumnData cached = caches.columns.get(key);
+        if (cached != null) return cached;
+
+        float[] a1 = new float[DIG_HEIGHT];
+        float[] b1 = new float[DIG_HEIGHT];
+        float[] a2 = new float[DIG_HEIGHT];
+        float[] b2 = new float[DIG_HEIGHT];
+        for (int y = DIG_BOTTOM; y <= DIG_TOP; ++y) {
+            int i = y - DIG_BOTTOM;
+            a1[i] = type1A.GetNoise(worldX * T1_XZ, y * T1_Y, worldZ * T1_XZ);
+            b1[i] = type1B.GetNoise(worldX * T1_XZ, y * T1_Y, worldZ * T1_XZ);
+            a2[i] = type2A.GetNoise(worldX * T2_XZ, y * T2_Y, worldZ * T2_XZ);
+            b2[i] = type2B.GetNoise(worldX * T2_XZ, y * T2_Y, worldZ * T2_XZ);
+        }
+
+        // Raw bits first — blendAndDig overwrites the sample arrays.
+        int rawMask = 0;
+        for (int y = DIG_BOTTOM; y <= DIG_TOP; ++y) {
+            int i = y - DIG_BOTTOM;
+            float thr1 = thresholdAt(y, T1_THR);
+            float thr2 = thresholdAt(y, T2_THR);
+            if ((a1[i] >= thr1 && b1[i] >= thr1) || (a2[i] >= thr2 && b2[i] >= thr2)) {
+                rawMask |= 1 << i;
+            }
+        }
+
+        boolean[] t1 = blendAndDig(a1, b1, T1_THR, T1_F1, T1_F2);
+        boolean[] t2 = blendAndDig(a2, b2, T2_THR, T2_F1, T2_F2);
+        boolean[] tunnel = new boolean[DIG_HEIGHT];
+        for (int i = 0; i < DIG_HEIGHT; ++i) {
+            tunnel[i] = t1[i] || t2[i];
+        }
+
+        ColumnData data = new ColumnData(rawMask, tunnel);
+        caches.columns.put(key, data);
+        return data;
     }
 
     /** True if this block is inside a tunnel dig (either Type 1 or Type 2), raw (no y-adjust). */
     public static boolean wormDigCore(int worldX, int y, int worldZ) {
-        if (rawDigAt(type1A, type1B, T1_XZ, T1_Y, T1_THR, worldX, y, worldZ)) return true;
-        return rawDigAt(type2A, type2B, T2_XZ, T2_Y, T2_THR, worldX, y, worldZ);
+        return wormDigCore(worldX, y, worldZ, caches());
+    }
+
+    private static boolean wormDigCore(int worldX, int y, int worldZ, Caches caches) {
+        if (y < DIG_BOTTOM || y > DIG_TOP) return false;
+        return (columnData(worldX, worldZ, caches).rawMask & (1 << (y - DIG_BOTTOM))) != 0;
     }
 
     public static boolean carveTunnelAt(int worldX, int worldZ, int y) {
@@ -187,16 +259,22 @@ public final class UpperTunnelNetwork {
 
     /** Build dig/chamber/seam flags once per column (hot path for primer / seam). */
     public static ColumnDigCache forColumn(int worldX, int worldZ) {
-        boolean[] t1 = digSystem(type1A, type1B, T1_XZ, T1_Y, T1_THR, T1_F1, T1_F2, worldX, worldZ);
-        boolean[] t2 = digSystem(type2A, type2B, T2_XZ, T2_Y, T2_THR, T2_F1, T2_F2, worldX, worldZ);
+        Caches caches = caches();
+        long key = key(worldX, worldZ);
+        ColumnDigCache cached = caches.digs.get(key);
+        if (cached != null) return cached;
 
-        boolean[] tunnel = new boolean[DIG_HEIGHT];
-        for (int i = 0; i < DIG_HEIGHT; ++i) {
-            tunnel[i] = t1[i] || t2[i];
-        }
+        ColumnDigCache built = buildColumn(worldX, worldZ, caches);
+        caches.digs.put(key, built);
+        return built;
+    }
+
+    private static ColumnDigCache buildColumn(int worldX, int worldZ, Caches caches) {
+        // Connectors mutate the dig flags, so work on a copy of the cached column.
+        boolean[] tunnel = columnData(worldX, worldZ, caches).tunnel.clone();
 
         int[] ft = new int[2];
-        boolean hasChamber = chamberBoundsRaw(worldX, worldZ, ft, true);
+        boolean hasChamber = chamberBoundsRaw(worldX, worldZ, ft, caches);
         int chamberFloor = hasChamber ? ft[0] : 0;
         int chamberTop = hasChamber ? ft[1] : Integer.MIN_VALUE;
 
@@ -210,8 +288,8 @@ public final class UpperTunnelNetwork {
                 for (int dx = -1; dx <= 1; ++dx) {
                     for (int dz = -1; dz <= 1; ++dz) {
                         if (dx == 0 && dz == 0) continue;
-                        if (wormDigCore(worldX + dx, y, worldZ + dz)
-                                || (y - 1 >= DIG_BOTTOM && wormDigCore(worldX + dx, y - 1, worldZ + dz))) {
+                        if (wormDigCore(worldX + dx, y, worldZ + dz, caches)
+                                || (y - 1 >= DIG_BOTTOM && wormDigCore(worldX + dx, y - 1, worldZ + dz, caches))) {
                             tunnel[i] = true;
                             break outer;
                         }
@@ -243,68 +321,82 @@ public final class UpperTunnelNetwork {
         return new ColumnDigCache(tunnel, hasChamber, chamberFloor, chamberTop, openSeam, tunnelFloorY);
     }
 
-    private static boolean columnHasWorm(int worldX, int worldZ) {
-        for (int y = DIG_BOTTOM; y <= DIG_TOP; y += 2) {
-            if (wormDigCore(worldX, y, worldZ)) return true;
-        }
-        return false;
+    private static boolean columnHasWorm(int worldX, int worldZ, Caches caches) {
+        return (columnData(worldX, worldZ, caches).rawMask & WORM_SCAN_MASK) != 0;
     }
 
-    private static boolean chamberBoundsRaw(int worldX, int worldZ, int[] outFloorTop, boolean requireWorm) {
-        int spacing = CHAMBER_SPACING;
-        int cellX = Math.floorDiv(worldX, spacing);
-        int cellZ = Math.floorDiv(worldZ, spacing);
-        boolean found = false;
-        int bestFloor = 0;
-        int bestTop = Integer.MIN_VALUE;
+    /**
+     * Spawn test, jittered centre, worm requirement, size and shape for one 23-block cell.
+     * All of it depends on the cell alone, so the ~256 columns that scan a cell share one result.
+     */
+    private static ChamberCell chamberCell(int cx, int cz, Caches caches) {
+        long key = key(cx, cz);
+        ChamberCell cached = caches.cells.get(key);
+        if (cached != null) return cached;
 
-        for (int dx = -1; dx <= 1; ++dx) {
-            for (int dz = -1; dz <= 1; ++dz) {
-                int cx = cellX + dx;
-                int cz = cellZ + dz;
-                if (chamberSpawn.GetNoise(cx * 17.1f, cz * 29.3f) < CHAMBER_SPAWN_MIN) continue;
+        ChamberCell cell = ChamberCell.NONE;
+        if (chamberSpawn.GetNoise(cx * 17.1f, cz * 29.3f) >= CHAMBER_SPAWN_MIN) {
+            int spacing = CHAMBER_SPACING;
+            float jx = chamberJitter.GetNoise(cx * 11.3f, cz * 19.7f);
+            float jz = chamberJitter.GetNoise(cx * 23.1f + 40.0f, cz * 13.9f);
+            int centerX = Math.round(cx * spacing + spacing * 0.5f + jx * (spacing * 0.18f));
+            int centerZ = Math.round(cz * spacing + spacing * 0.5f + jz * (spacing * 0.18f));
 
-                float jx = chamberJitter.GetNoise(cx * 11.3f, cz * 19.7f);
-                float jz = chamberJitter.GetNoise(cx * 23.1f + 40.0f, cz * 13.9f);
-                int centerX = Math.round(cx * spacing + spacing * 0.5f + jx * (spacing * 0.18f));
-                int centerZ = Math.round(cz * spacing + spacing * 0.5f + jz * (spacing * 0.18f));
-
-                if (requireWorm && !columnHasWorm(centerX, centerZ)) continue;
-
+            if (columnHasWorm(centerX, centerZ, caches)) {
                 float sizeN = chamberSize.GetNoise(cx * 7.7f, cz * 9.1f) * 0.5f + 0.5f;
                 float half = 4.0f + sizeN * 2.0f; // diameter 8–12
                 boolean square = chamberShape.GetNoise(cx * 5.3f, cz * 15.7f) >= 0.0f;
 
-                float dxw = worldX - centerX;
-                float dzw = worldZ - centerZ;
-                float norm;
-                if (square) {
-                    float ax = Math.abs(dxw) / half;
-                    float az = Math.abs(dzw) / half;
-                    if (ax > 1.0f || az > 1.0f) continue;
-                    norm = Math.max(ax, az);
-                } else {
-                    float dist = MathHelper.sqrt(dxw * dxw + dzw * dzw);
-                    if (dist > half) continue;
-                    norm = dist / half;
-                }
-
                 int chamberFloor = -16;
                 for (int y = -20; y <= -8; ++y) {
-                    if (wormDigCore(centerX, y, centerZ)) {
+                    if (wormDigCore(centerX, y, centerZ, caches)) {
                         chamberFloor = y;
                         break;
                     }
                 }
                 chamberFloor = MathHelper.clamp(chamberFloor, -20, -8);
 
+                cell = new ChamberCell(centerX, centerZ, half, square, chamberFloor);
+            }
+        }
+
+        caches.cells.put(key, cell);
+        return cell;
+    }
+
+    private static boolean chamberBoundsRaw(int worldX, int worldZ, int[] outFloorTop, Caches caches) {
+        int cellX = Math.floorDiv(worldX, CHAMBER_SPACING);
+        int cellZ = Math.floorDiv(worldZ, CHAMBER_SPACING);
+        boolean found = false;
+        int bestFloor = 0;
+        int bestTop = Integer.MIN_VALUE;
+
+        for (int dx = -1; dx <= 1; ++dx) {
+            for (int dz = -1; dz <= 1; ++dz) {
+                ChamberCell cell = chamberCell(cellX + dx, cellZ + dz, caches);
+                if (!cell.active) continue;
+
+                float dxw = worldX - cell.centerX;
+                float dzw = worldZ - cell.centerZ;
+                float norm;
+                if (cell.square) {
+                    float ax = Math.abs(dxw) / cell.half;
+                    float az = Math.abs(dzw) / cell.half;
+                    if (ax > 1.0f || az > 1.0f) continue;
+                    norm = Math.max(ax, az);
+                } else {
+                    float dist = MathHelper.sqrt(dxw * dxw + dzw * dzw);
+                    if (dist > cell.half) continue;
+                    norm = dist / cell.half;
+                }
+
                 float hFrac = (float) Math.sqrt(Math.max(0.0, 1.0 - norm * norm));
                 int maxH = MathHelper.clamp(5 + Math.round(3.0f * hFrac), 4, 8);
-                int top = Math.min(chamberFloor + maxH - 1, -5);
+                int top = Math.min(cell.floorY + maxH - 1, -5);
 
                 if (!found || top > bestTop) {
                     found = true;
-                    bestFloor = chamberFloor;
+                    bestFloor = cell.floorY;
                     bestTop = top;
                 }
             }
@@ -314,6 +406,70 @@ public final class UpperTunnelNetwork {
         outFloorTop[0] = bestFloor;
         outFloorTop[1] = bestTop;
         return true;
+    }
+
+    private static final class ColumnData {
+        /** Bit {@code i} set when {@code wormDigCore} digs {@code DIG_BOTTOM + i}. */
+        private final int rawMask;
+        /** Blended Type 1 / Type 2 dig, before chamber connectors. */
+        private final boolean[] tunnel;
+
+        private ColumnData(int rawMask, boolean[] tunnel) {
+            this.rawMask = rawMask;
+            this.tunnel = tunnel;
+        }
+    }
+
+    private static final class ChamberCell {
+        private static final ChamberCell NONE = new ChamberCell();
+
+        private final boolean active;
+        private final int centerX;
+        private final int centerZ;
+        private final float half;
+        private final boolean square;
+        private final int floorY;
+
+        private ChamberCell() {
+            this.active = false;
+            this.centerX = 0;
+            this.centerZ = 0;
+            this.half = 0.0f;
+            this.square = false;
+            this.floorY = 0;
+        }
+
+        private ChamberCell(int centerX, int centerZ, float half, boolean square, int floorY) {
+            this.active = true;
+            this.centerX = centerX;
+            this.centerZ = centerZ;
+            this.half = half;
+            this.square = square;
+            this.floorY = floorY;
+        }
+    }
+
+    /** Per-thread memo. Worldgen can run off the server thread, so this is never shared. */
+    private static final class Caches {
+        private int generation = -1;
+        private final Map<Long, ColumnData> columns = lru(COLUMN_CACHE_MAX);
+        private final Map<Long, ColumnDigCache> digs = lru(COLUMN_CACHE_MAX);
+        private final Map<Long, ChamberCell> cells = lru(CELL_CACHE_MAX);
+
+        private void clear() {
+            columns.clear();
+            digs.clear();
+            cells.clear();
+        }
+
+        private static <V> Map<Long, V> lru(final int max) {
+            return new LinkedHashMap<Long, V>(256, 0.75f, false) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<Long, V> eldest) {
+                    return size() > max;
+                }
+            };
+        }
     }
 
     /** Per-column dig/chamber/seam cache for primer and seam hot paths. */

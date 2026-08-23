@@ -94,6 +94,16 @@ Vertical bands (defaults, `minWorldY` = -64):
 
 Mimic Better Caves 1.12 `CaveCarver`: sample two noises, require both ≥ threshold, then blend upward (F1 into y+1, F2 into y+2) for headroom. Soft-close: threshold rises 30% over the top 5 blocks (`DIG_TOP` 4, `TOP_CUTOFF` 5).
 
+**Memoised.** Every value here is a pure function of world XZ and the seed, so results are cached per thread (`ThreadLocal`, LRU-bounded, cleared when `init` rebuilds noise). Do not make it a shared map — worldgen is not guaranteed to be single-threaded. Three caches:
+
+| Cache | Key | Holds |
+| --- | --- | --- |
+| `columns` | world XZ | Raw dig bitmask (27 bits, Y `DIG_BOTTOM`..`DIG_TOP`) + blended tunnel flags, from **one** 108-sample pass |
+| `digs` | world XZ | Finished `ColumnDigCache` (post chamber connectors) |
+| `cells` | chamber cell XZ | Spawn pass, jittered centre, `columnHasWorm(centre)`, half-size, square/round, floor Y |
+
+`wormDigCore` and `columnHasWorm` read bits off the cached raw mask — the raw samples and the blended samples come from the same pass because `blendAndDig` only mutates copies made after the mask is built. Chamber cells matter most: each column scans 9 cells but a chunk only touches ~16 distinct ones. The `digs` cache is what stops the primer carve, the BC companion, and the chunk seam from rebuilding the same 256 columns three times.
+
 | System | Noise | XZ / Y scale | Base thr | F1 / F2 | Freq |
 | --- | --- | --- | --- | --- | --- |
 | Type 1 (worm) | CubicFractal RigidMulti, 1 octave, gain 0.3 | 1.6 / 5.0 | 0.95 | 0.9 / 0.9 | 0.03 |
@@ -117,7 +127,7 @@ A column carves if Type 1 **or** Type 2 digs that Y.
 
 Decor (Deepslate), after carve:
 
-- **Columns:** 24-block cells, spawn noise ≥ 0.25, radius ~3.75 wider at ends, strength &gt; 0.18.
+- **Columns:** 24-block cells, spawn noise ≥ 0.25, radius ~3.75 wider at ends, strength &gt; 0.18. The 9-cell scan is `pillarMinDist`, resolved **once per column**; `columnStrength(minDist, heightFrac)` then runs per Y. The flare radius is the same for every cell at a given Y and strength falls off with distance, so the nearest centre is always the strongest — nearest distance alone is enough.
 - **Floor spikes:** land only, spike noise &gt; 0.52, height 4 or 5 (rarer than stalactites).
 - **Stalactites:** spike `&lt; -0.15` and not a lower-breach column, length 5–16 down from ceiling, stop on solid, stay above land surface.
 - **Bridges:** 16-block cells, spawn ≥ 0.28, span 16, half-width ~1.2. Both ends land, mid a lava channel. Solid fill under a smooth arch, deck 4–6 above lava. Skip breach shafts.
@@ -176,6 +186,7 @@ Same `UpperTunnelNetwork` as -Y upper worms. Overworld only (`dimension == 0`).
 | `mixin/MixinChunkProviderServer.java` | Seam reinforce / water seal (Y≥0) |
 | `mixin/MixinRenderGlobal.java` | Hide sky |
 | `depths/UpperTunnelNetwork.java` | Shared tunnel / chamber / seam / shaft paths |
+| `depths/PrimerAccess.java` | Direct (remapped) primer/state reads + open-sky surface scan |
 | `depths/DepthsFogHandler.java` | Fog |
 | `depths/DepthsBiomeUtil.java` | Water/beach/ocean/river/coral/kelp for seam seal |
 | `ArcanaQuestTweaksConfig.DepthsModuleConfig` | `aqtweaks_depths.cfg` |
@@ -198,6 +209,8 @@ Blocks below 0 often failed to stick on the chunk object. **Fix:** primer is aut
 
 BC `getSurfaceAltitudeForColumn` returned underground lids, so caves broke the surface or died early. **Fix:** highest solid with open sky (air/water) to 255.
 
+The first version searched **up** from every candidate to 255 to prove open sky. That nested scan could never fail: descending from 254, the first solid found already had nothing solid above it. The **only** case it changed was a solid block at Y 255, where every candidate failed and the method fell through to the 64 fallback. `PrimerAccess.openSkySurfaceY` is one downward pass and keeps that fallback explicitly (`Y 255 solid → 64`). Do not “simplify” it to plain first-non-air-from-the-top.
+
 ### 5. BC `FlattenBedrock` at Y0
 
 Moved Depths bedrock back up. **Fix:** cancel flatten when the bedrock flag is on.
@@ -210,6 +223,12 @@ Seam air under oceans drained the sea into the deep. **Fix:** `DepthsBiomeUtil` 
 
 Double carve / wrong look. **Fix:** never sample Depths y&lt;0; when Tweaks caves are on, cancel Depths `generate` after our primer write.
 
+### 8. Reflection and repeated noise on the carve path
+
+A Spark profile put Tweaks at ~56% of chunk generation: 34s primer carve, 18s surface altitude, 12s seam pass. None of it was algorithm cost. `UpperTunnelNetwork` re-sampled the same columns for all three passes and re-scanned chamber cells per column; `columnStrength` ran its 9-cell scan per Y; and every primer read went through `Reflect`’s `Method.invoke` because the mixins are `remap = false`.
+
+**Fix:** memoise (above), hoist `pillarMinDist` per column, and move primer reads into `PrimerAccess`. Cave shape is unchanged — all three are exact-equivalence rewrites, not approximations.
+
 ## Do not regress
 
 - Primer owns **-Y**. Chunk writes below 0 are not trusted.
@@ -217,6 +236,9 @@ Double carve / wrong look. **Fix:** never sample Depths y&lt;0; when Tweaks cave
 - Do not fill Y=0 solid in the RTG terrain mixin.
 - Water/beach/river/ocean/coral/kelp columns: no Y0 mouths into the sea.
 - Keep `UpperTunnelNetwork` as the single path for primer, BC mouths, and chunk seam.
+- `UpperTunnelNetwork` caches are **per thread** and bounded. Never a shared map; never unbounded.
+- Performance work here stays exact-equivalence. No coarser noise, fewer octaves, or shifted thresholds.
+- Vanilla member access stays out of `remap = false` mixin bodies — use `PrimerAccess` (hot path) or `Reflect`.
 - `enableBetterDepthsCaves` vs `enableBetterCavesNegativeY` stay separate.
 - `@Overwrite` on `RayMatcher.cast` — re-verify on Recurrent Complex updates.
 - Turning off Better Depths Caves does **not** restore Depths’ own -Y caves (sample redirect has no flag).

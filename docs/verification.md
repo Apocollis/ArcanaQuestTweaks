@@ -74,6 +74,8 @@ Missing **RTG, Depths Update, Better Caves, CoFH World, Recurrent Complex, or Iv
 | Hill village (new chunks) | All pieces on **one** well Y; no chunk-border stone wall; unused AABB corners stay hills | rtg |
 | Under a house at plate-4 | `isInsideStructure("Village")` true; below well floor false | rtg |
 | Below Y0 Overworld | Deepslate fill, AQ caves, Y0 mouths on land, **no** ocean drain | [depths.md](depths.md) |
+| -Y caves after a perf change (new chunks) | Same seed, same chunks: tunnels, chambers, pillars, bridges, stalactites and floater cleanup unchanged. Perf work here is exact-equivalence, so any visible difference is a bug | depths |
+| Spark while flying new terrain | `UpperTunnelNetwork.forColumn`, `columnStrength`, `getSurfaceAltitudeForColumn` and `Reflect.getBlockState` all well down; chunk gen no longer ~half Tweaks | depths |
 | Fog / sky below Y0 | Dark fog ~32–52; no skybox | depths |
 
 Log snippets if debug on: `veto chunk=`, `forget chunk=`, `flatten chunk=`, `seal chunk=`, `waystone relocate`, `village piece skip water floor charm`, `astral small shrine village piece`.
