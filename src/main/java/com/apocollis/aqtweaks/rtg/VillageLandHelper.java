@@ -16,7 +16,9 @@ import net.minecraft.world.gen.structure.MapGenVillage;
 import net.minecraft.world.gen.structure.StructureBoundingBox;
 import net.minecraft.world.gen.structure.StructureVillagePieces;
 import net.minecraftforge.common.BiomeDictionary;
+import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.Loader;
+import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.registry.ForgeRegistries;
 import rtg.world.gen.ChunkGeneratorRTG;
 import rtg.world.gen.ChunkLandscape;
@@ -33,6 +35,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Village placement: wet-column tests, ocean-like well veto, coast buffer, and land retry slots for buildings.
@@ -51,6 +54,9 @@ public final class VillageLandHelper {
             ThreadLocal.withInitial(ArrayDeque::new);
     private static final Map<World, MapGenVillage> STASHED_VILLAGE = Collections.synchronizedMap(new WeakHashMap<>());
     private static final Map<World, ChunkGeneratorRTG> STASHED_RTG = Collections.synchronizedMap(new WeakHashMap<>());
+    private static final Map<StashKey, MapGenVillage> STASHED_VILLAGE_BY_DIM = new ConcurrentHashMap<>();
+    private static final Map<StashKey, ChunkGeneratorRTG> STASHED_RTG_BY_DIM = new ConcurrentHashMap<>();
+    private static final Set<String> VETTED_STARTS = ConcurrentHashMap.newKeySet();
     private static IBlockState loamyGrass;
     private static boolean loamyGrassLoaded;
 
@@ -90,16 +96,62 @@ public final class VillageLandHelper {
 
     public static void stashGenerators(World world, MapGenVillage village, ChunkGeneratorRTG rtg) {
         if (world == null) return;
-        if (village != null) STASHED_VILLAGE.put(world, village);
-        if (rtg != null) STASHED_RTG.put(world, rtg);
+        StashKey key = stashKey(world);
+        if (village != null) {
+            STASHED_VILLAGE.put(world, village);
+            if (key != null) STASHED_VILLAGE_BY_DIM.put(key, village);
+        }
+        if (rtg != null) {
+            STASHED_RTG.put(world, rtg);
+            if (key != null) STASHED_RTG_BY_DIM.put(key, rtg);
+        }
     }
 
     public static MapGenVillage stashedVillage(World world) {
-        return world == null ? null : STASHED_VILLAGE.get(world);
+        if (world == null) return null;
+        MapGenVillage direct = STASHED_VILLAGE.get(world);
+        if (direct != null) return direct;
+        StashKey key = stashKey(world);
+        return key == null ? null : STASHED_VILLAGE_BY_DIM.get(key);
     }
 
     public static ChunkGeneratorRTG stashedRtg(World world) {
-        return world == null ? null : STASHED_RTG.get(world);
+        if (world == null) return null;
+        ChunkGeneratorRTG direct = STASHED_RTG.get(world);
+        if (direct != null) return direct;
+        StashKey key = stashKey(world);
+        return key == null ? null : STASHED_RTG_BY_DIM.get(key);
+    }
+
+    public static void dropStash(World world) {
+        if (world == null || world.isRemote) return;
+        STASHED_VILLAGE.remove(world);
+        STASHED_RTG.remove(world);
+        StashKey key = stashKey(world);
+        if (key != null) {
+            STASHED_VILLAGE_BY_DIM.remove(key);
+            STASHED_RTG_BY_DIM.remove(key);
+        }
+    }
+
+    private static StashKey stashKey(World world) {
+        if (world == null || world.provider == null) return null;
+        try {
+            return new StashKey(Reflect.getSeed(world), world.provider.getDimension());
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    private record StashKey(long seed, int dim) {}
+
+    public static final class Events {
+        @SubscribeEvent
+        public void onWorldUnload(WorldEvent.Unload event) {
+            if (event.getWorld() != null) {
+                dropStash(event.getWorld());
+            }
+        }
     }
 
     public static boolean isSamplingLandscape() {
@@ -294,8 +346,13 @@ public final class VillageLandHelper {
             int cx = Reflect.getStructureStartChunkX(start);
             int cz = Reflect.getStructureStartChunkZ(start);
             if (cx == Integer.MIN_VALUE || cz == Integer.MIN_VALUE) continue;
+            String key = seed + ":" + cx + "," + cz;
+            if (VETTED_STARTS.contains(key)) continue;
             String reason = startRejectReason(world, cx, cz);
-            if (reason == null) continue;
+            if (reason == null) {
+                VETTED_STARTS.add(key);
+                continue;
+            }
             Reflect.removeStructureStart(gen, cx, cz);
             VillagePlate.forget(world, start, cx, cz);
             if (VillageDebug.once("forget:" + seed + ":" + cx + "," + cz)) {
@@ -621,22 +678,25 @@ public final class VillageLandHelper {
     }
 
     /**
-     * True if any column is ocean-like, river biome, or RTG river. Those columns never get village pieces or a plate.
+     * True if any column is ocean-like or river <em>biome</em>. RTG river noise on desert/mesa
+     * land does not drop the path (those columns still plate inside the component pad).
      */
     public static boolean isAabbTouchesOceanOrRiver(Object villageStart, Object component) {
         int[] box = Reflect.getStructureComponentBoxXZ(component);
         if (box == null) return false;
+        BiomeProvider provider = Reflect.getVillageStartBiomeProvider(villageStart);
         World world = currentWorld();
         if (world == null) {
             world = Reflect.getVillageStartWorld(villageStart);
         }
-        BiomeProvider provider = Reflect.getVillageStartBiomeProvider(villageStart);
+        BiomeProvider biomes = provider;
+        if (biomes == null && world != null) {
+            biomes = world.getBiomeProvider();
+        }
         for (int x = box[0]; x <= box[1]; x++) {
             for (int z = box[2]; z <= box[3]; z++) {
-                if (isNeverRaiseAt(world, villageStart, x, z)) {
-                    return true;
-                }
-                if (world == null && isNeverRaiseBiome(Reflect.getBiome(provider, x, z))) {
+                Biome biome = Reflect.getBiome(biomes, x, z);
+                if (isNeverRaiseBiome(biome)) {
                     return true;
                 }
             }
@@ -683,9 +743,10 @@ public final class VillageLandHelper {
     }
 
     /**
-     * Last-resort populate check: do not paste a village building onto ocean/river or open liquid.
-     * Roads, the well, and swamp-like liquids stay. Uses surface height, not {@code getTopSolidOrLiquidBlock}
-     * (1.12 that method skips water and hits the seafloor).
+     * Last-resort populate check: do not paste a village building onto leftover ocean/river.
+     * Skip the whole chunk paste only if every clipped column is never-raise. Mixed land/water
+     * and leftover lakes still paste so a piece that spans chunks is not sliced. Roads, the well,
+     * and swamp-like land stay.
      */
     public static boolean isOceanOrRiverFloor(World world, Object component, StructureBoundingBox clip) {
         if (world == null || world.isRemote || component == null) return false;
@@ -704,18 +765,14 @@ public final class VillageLandHelper {
             maxZ = Math.min(maxZ, clip.maxZ);
         }
         if (minX > maxX || minZ > maxZ) return false;
+        boolean any = false;
         for (int x = minX; x <= maxX; x++) {
             for (int z = minZ; z <= maxZ; z++) {
-                int y = Math.max(1, world.getHeight(x, z) - 1);
-                BlockPos pos = new BlockPos(x, y, z);
-                Biome biome = world.getBiome(pos);
-                if (VillageLandHelper.isNeverRaiseAt(world, x, z)) return true;
-                if (isSwampLikeForRaise(biome)) continue;
-                IBlockState state = world.getBlockState(pos);
-                if (state != null && state.getMaterial().isLiquid()) return true;
+                any = true;
+                if (!isNeverRaiseAt(world, x, z)) return false;
             }
         }
-        return false;
+        return any;
     }
 
     public static boolean withinVillageCap(Object villageStart, int x, int z) {

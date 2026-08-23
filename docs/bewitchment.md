@@ -4,7 +4,7 @@ Last updated: 2026-08-20.
 
 Config: `config/arcanaquesttweaks/aqtweaks_bewitchment.cfg`. `BewitchmentRegistryHandler` registers on the Forge bus only if `bewitchment` is loaded.
 
-Cambion house Y+1 paste and village-skip live in the RTG module ([rtg.md](rtg.md)), not here. Those mixins are `mixins.aqtweaks.bewitchment.json` (`required: false`). This file is **ritual warp only**.
+Cambion house paste-at-ground, skip-air, and village-skip live in the RTG module ([rtg.md](rtg.md)), not here. Those mixins are `mixins.aqtweaks.bewitchment.json` (`required: false`). This file is **ritual warp only**.
 
 ## Locked intent
 

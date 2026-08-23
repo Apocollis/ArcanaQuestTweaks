@@ -44,7 +44,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 | RTG, Depths Update, Better Caves, CoFH World, Recurrent Complex | Depths + RTG mixins in **required** `mixins.aqtweaks.json` | Mixin apply can fail; this pack always ships them |
 | Astral Sorcery | Optional mixin json + village shrine handler | Mixin config `required: false`; handler not registered |
 | Mystical World | Optional mixin json | No hut skip/settle |
-| Simple Difficulty, Biomes O' Plenty | Comfort potions / hot spring block | Those benefits no-op |
+| Simple Difficulty, Biomes O' Plenty | Comfort potions / hot spring block; BOP optional mixin skips village quicksand | Those benefits no-op; quicksand mixin json skipped |
 | Roguelike Dungeons Arcana | Thaumcraft dungeon warp via `isInsideStructure("RoguelikeDungeon")` | Dungeon exposure never matches |
 
 ### Init (`CommonProxy` / `ClientProxy`)
@@ -78,8 +78,9 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 | `mixins.aqtweaks.dss.json` | false | Stamina | Skip |
 | `mixins.aqtweaks.astral.json` | false | RTG post-terrain shrines | Skip |
 | `mixins.aqtweaks.charm.json` | false | RTG Charm village paste skip | Skip |
-| `mixins.aqtweaks.bewitchment.json` | false | RTG Cambion houses | Skip |
+| `mixins.aqtweaks.bewitchment.json` | false | RTG Cambion + circle/menhir/wickerman | Skip |
 | `mixins.aqtweaks.mysticalworld.json` | false | RTG Mystical huts | Skip |
+| `mixins.aqtweaks.biomesoplenty.json` | false | RTG BOP quicksand village skip | Skip |
 
 `mixins.aqtweaks.json` contents (package `com.apocollis.aqtweaks.mixin`):
 

@@ -39,25 +39,42 @@ public final class VillageAstralSmallShrineHandler implements VillagerRegistry.I
                                                          int x, int y, int z, EnumFacing facing, int type) {
         VillagePieceAstralSmallShrine placed = VillagePieceAstralSmallShrine.build(
                 startPiece, pieces, random, x, y, z, facing, type);
-        if (placed == null) return null;
+        if (placed == null) {
+            VillageDebug.log("astral shrine aabb blocked origin=%d,%d, retrying inland", x, z);
+            placed = retryInland(startPiece, pieces, random, x, y, z, facing, type, false);
+            if (placed == null) {
+                VillageDebug.log("astral shrine retry miss origin=%d,%d", x, z);
+                return null;
+            }
+        }
         if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.skipWaterVillagePieces) return placed;
-        if (!VillageLandHelper.isAabbWet(startPiece, placed)) return placed;
+        if (!VillageLandHelper.isAabbTouchesOceanOrRiver(startPiece, placed)) return placed;
 
         VillageLandHelper.removeVillagePiece(startPiece, pieces, placed);
         VillageDebug.log("astral shrine aabb wet origin=%d,%d, retrying inland", x, z);
+        VillagePieceAstralSmallShrine retry = retryInland(startPiece, pieces, random, x, y, z, facing, type, true);
+        if (retry == null) {
+            VillageDebug.log("astral shrine retry miss origin=%d,%d", x, z);
+        }
+        return retry;
+    }
+
+    private static VillagePieceAstralSmallShrine retryInland(StructureVillagePieces.Start startPiece,
+                                                            List<StructureComponent> pieces, Random random,
+                                                            int x, int y, int z, EnumFacing facing, int type,
+                                                            boolean requireLandBiome) {
         int maxStep = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageWaterRetryDistance);
         for (int[] slot : VillageLandHelper.inlandCandidates(startPiece, x, z, facing, maxStep)) {
             VillagePieceAstralSmallShrine retry = VillagePieceAstralSmallShrine.build(
                     startPiece, pieces, random, slot[0], y, slot[1], facing, type);
-            if (retry != null && !VillageLandHelper.isAabbWet(startPiece, retry)) {
-                VillageDebug.log("astral shrine retry hit origin=%d,%d slot=%d,%d", x, z, slot[0], slot[1]);
-                return retry;
-            }
-            if (retry != null) {
+            if (retry == null) continue;
+            if (requireLandBiome && VillageLandHelper.isAabbTouchesOceanOrRiver(startPiece, retry)) {
                 VillageLandHelper.removeVillagePiece(startPiece, pieces, retry);
+                continue;
             }
+            VillageDebug.log("astral shrine retry hit origin=%d,%d slot=%d,%d", x, z, slot[0], slot[1]);
+            return retry;
         }
-        VillageDebug.log("astral shrine retry miss origin=%d,%d", x, z);
         return null;
     }
 }

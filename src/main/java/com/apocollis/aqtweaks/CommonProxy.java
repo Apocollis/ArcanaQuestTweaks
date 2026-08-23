@@ -45,6 +45,7 @@ public class CommonProxy {
         }
 
         MinecraftForge.EVENT_BUS.register(new ComfortSystemHandler());
+        MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.rtg.VillageLandHelper.Events());
 
         if (net.minecraftforge.fml.common.Loader.isModLoaded("astralsorcery")) {
             com.apocollis.aqtweaks.rtg.VillageAstralSmallShrineHandler.register();

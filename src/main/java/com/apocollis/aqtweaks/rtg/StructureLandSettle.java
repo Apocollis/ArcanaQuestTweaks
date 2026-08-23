@@ -12,7 +12,9 @@ import net.minecraft.init.Blocks;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
+import net.minecraft.world.gen.structure.template.ITemplateProcessor;
 import net.minecraft.world.gen.structure.template.PlacementSettings;
+import net.minecraft.world.gen.structure.template.Template;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -39,6 +41,25 @@ public final class StructureLandSettle {
         settle(world, floors);
     }
 
+    /**
+     * Replace liquid only, inside an AABB, at {@code floorY}. Never ocean/river. No pad, no dirt collar.
+     */
+    public static void fillLiquidAt(World world, int minX, int maxX, int minZ, int maxZ, int floorY) {
+        if (world == null || Reflect.isRemote(world) || floorY < 1 || floorY > 255) return;
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                if (VillageLandHelper.isNeverRaiseAt(world, x, z)) continue;
+                BlockPos pos = new BlockPos(x, floorY, z);
+                IBlockState state = world.getBlockState(pos);
+                if (!isLiquid(state)) continue;
+                Biome biome = world.getBiome(pos);
+                IBlockState top = biome != null && biome.topBlock != null
+                        ? biome.topBlock : Blocks.GRASS.getDefaultState();
+                world.setBlockState(pos, top, 2);
+            }
+        }
+    }
+
     public static void settleTemplate(World world, BlockPos origin, BlockPos size, PlacementSettings settings) {
         if (origin == null || size == null) return;
         int[] box = StructureVillageOverlap.aabbAfterRotation(origin, size, settings);
@@ -61,6 +82,60 @@ public final class StructureLandSettle {
             }
         }
         settle(world, floors, fillSwampLiquid, falloff, null);
+    }
+
+    /**
+     * Paste a template but do not place air (or structure void), so yard holes cannot punch grass.
+     */
+    public static void addBlocksSkippingAir(Template template,
+                                            World world, BlockPos pos, PlacementSettings settings) {
+        if (template == null || world == null || pos == null) return;
+        ITemplateProcessor skipAir = (w, at, info) -> {
+            if (info == null || info.blockState == null) return info;
+            Block block = info.blockState.getBlock();
+            if (block == Blocks.AIR || block == Blocks.STRUCTURE_VOID) return null;
+            return info;
+        };
+        template.addBlocksToWorld(world, pos, skipAir, settings, 2);
+    }
+
+    /**
+     * Fill air/plants/liquid up to {@code solidTopY} in a pad around an AABB. Does not stack a new
+     * ground layer above existing grass. Hermite only raises dips toward {@code solidTopY}.
+     */
+    public static void fillHolesPadded(World world, int minX, int maxX, int minZ, int maxZ,
+                                       int solidTopY, int pad, int falloff, boolean fillSwampLiquid) {
+        if (!enabled() || world == null || Reflect.isRemote(world)) return;
+        if (solidTopY < 1 || solidTopY > 255) return;
+        int p = Math.max(0, pad);
+        int walkable = solidTopY + 1;
+        int fillDepth = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.structureFillDepth);
+        int bank = Math.max(0, falloff);
+        int minPadX = minX - p;
+        int maxPadX = maxX + p;
+        int minPadZ = minZ - p;
+        int maxPadZ = maxZ + p;
+        for (int x = minPadX; x <= maxPadX; x++) {
+            for (int z = minPadZ; z <= maxPadZ; z++) {
+                if (distanceToBoxXZ(x, z, minX, maxX, minZ, maxZ) > p) continue;
+                fillColumn(world, x, z, walkable, fillDepth, false, fillSwampLiquid, null);
+            }
+        }
+        if (bank <= 0) return;
+        for (int x = minPadX - bank; x <= maxPadX + bank; x++) {
+            for (int z = minPadZ - bank; z <= maxPadZ + bank; z++) {
+                if (distanceToBoxXZ(x, z, minX, maxX, minZ, maxZ) <= p) continue;
+                double dist = distanceToBoxXZ(x, z, minPadX, maxPadX, minPadZ, maxPadZ);
+                if (dist <= 0.0 || dist >= bank) continue;
+                float blend = blendForDistance(dist, bank);
+                if (blend <= 0.0F) continue;
+                int ground = surfaceY(world, x, z);
+                if (ground <= 0) continue;
+                int target = Math.round(ground * (1.0F - blend) + solidTopY * blend);
+                if (target <= ground || target > solidTopY) continue;
+                fillColumn(world, x, z, target + 1, fillDepth, false, fillSwampLiquid, null);
+            }
+        }
     }
 
     public static void settle(World world, Map<Long, Integer> floorByColumn) {

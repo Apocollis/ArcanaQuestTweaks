@@ -315,6 +315,21 @@ public final class VillagePlate {
         return new ArrayList<>(byWell.values());
     }
 
+    /**
+     * Rebuild unlocked land boxes once (world-load {@code rememberIfAbsent} snapshots).
+     * Locked Records (layout remember / prior refresh) are left as-is.
+     */
+    public static List<Record> refreshUnlocked(long seed, List<Record> hits) {
+        if (hits == null || hits.isEmpty()) {
+            return hits == null ? Collections.emptyList() : hits;
+        }
+        List<Record> out = new ArrayList<>(hits.size());
+        for (Record rec : hits) {
+            out.add(maybeRefreshLandBoxes(seed, rec));
+        }
+        return out;
+    }
+
     private static Record maybeRefreshLandBoxes(long seed, Record rec) {
         if (rec == null || rec.start == null) return rec;
         if (rec.landBoxesLocked) return rec;

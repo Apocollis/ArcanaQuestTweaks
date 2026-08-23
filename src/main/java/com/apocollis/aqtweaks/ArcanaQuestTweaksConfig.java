@@ -635,6 +635,23 @@ public class ArcanaQuestTweaksConfig {
         @Config.RangeInt(min = 0, max = 64)
         public int villageWaterBank = 16;
 
+        @Config.Name("Village Ocean Wall")
+        @Config.Comment("Replace the outside-facing plate rim (8-connected to non-plate / ocean) with stone brick below the plate top. Top stays sand/grass. Inland cliffs are unchanged.")
+        public boolean villageOceanWall = true;
+
+        @Config.Name("Village Shore Smooth")
+        @Config.Comment("Open 1-block sand jetties off the coastal plate and close 1-block notches. Houses and roads stay plated.")
+        public boolean villageShoreSmooth = true;
+
+        @Config.Name("Village Shore Smooth Radius")
+        @Config.Comment("Chebyshev kernel for shore opening. 1 = default. 0 = no opening (hole fill still uses Village Shore Close Ocean).")
+        @Config.RangeInt(min = 0, max = 2)
+        public int villageShoreSmoothRadius = 1;
+
+        @Config.Name("Village Shore Close Ocean")
+        @Config.Comment("Fill 1-block ocean/river notches inside the hard pad (cardinal-enclosed or 7 of 8 land neighbors). Not a pier into open water.")
+        public boolean villageShoreCloseOcean = true;
+
         @Config.Name("Village Plate Slope")
         @Config.Comment("Inside the village box: 0 = fully flat plate at the box-average height. 30 = allow at most 1 block of height change per 30 blocks from the plate center.")
         @Config.RangeInt(min = 0, max = 256)
@@ -682,7 +699,7 @@ public class ArcanaQuestTweaksConfig {
         public boolean villageFlattenDebug = false;
 
         @Config.Name("Skip Structures On Village")
-        @Config.Comment("Cancel Astral shrines and Bewitchment Cambion houses on village overlap. Mystical World huts and barrows skip that spot and retry nearby.")
+        @Config.Comment("Cancel Astral shrines and Bewitchment Cambion houses on village overlap. Mystical World huts/barrows and Bewitchment stone circles/menhir/wickerman skip that spot and retry nearby. BOP quicksand lakes that overlap a village are skipped.")
         public boolean skipStructuresOnVillage = true;
 
         @Config.Name("Enable Structure Land Settle")
@@ -694,7 +711,7 @@ public class ArcanaQuestTweaksConfig {
         public boolean enableAstralShrineSettle = true;
 
         @Config.Name("Enable Cambion House Settle")
-        @Config.Comment("Skip Bewitchment Cambion houses that overlap a village. Paste stays Y+1. After paste, plate land with Cambion House Pad and Falloff.")
+        @Config.Comment("Skip Bewitchment Cambion houses that overlap a village. House pastes one above ground (cobble on the grass). The 6-pad stays at plains Y and only fills air holes.")
         public boolean enableCambionHouseSettle = true;
 
         @Config.Name("Enable Astral Small Shrine Village Piece")
@@ -721,7 +738,7 @@ public class ArcanaQuestTweaksConfig {
         public int smallShrinePad = 3;
 
         @Config.Name("Cambion House Pad")
-        @Config.Comment("Full-plate radius around a Cambion house AABB after Y+1 paste. Default 6.")
+        @Config.Comment("Radius around a Cambion house AABB used to fill air holes up to ground Y. Default 6. Does not raise the pad above plains.")
         @Config.RangeInt(min = 0, max = 32)
         public int cambionHousePad = 6;
 

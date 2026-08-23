@@ -1,5 +1,6 @@
 package com.apocollis.aqtweaks.rtg;
 
+import com.apocollis.aqtweaks.util.Reflect;
 import hellfirepvp.astralsorcery.common.lib.MultiBlockArrays;
 import hellfirepvp.astralsorcery.common.structure.array.BlockArray;
 import hellfirepvp.astralsorcery.common.structure.array.StructureBlockArray;
@@ -19,6 +20,8 @@ import java.util.Random;
 
 /**
  * Village component that pastes Astral Sorcery's small shrine. At most one per village.
+ * Template is pasted unrotated; the AABB is sized from the pattern so every chunk that
+ * contains marble also intersects the piece.
  */
 public class VillagePieceAstralSmallShrine extends StructureVillagePieces.Village {
 
@@ -35,15 +38,31 @@ public class VillagePieceAstralSmallShrine extends StructureVillagePieces.Villag
                                                       List<StructureComponent> pieces, Random random,
                                                       int x, int y, int z, EnumFacing facing, int type) {
         StructureBlockArray template = template();
-        if (template == null || template.getSize() == null) return null;
-        Vec3i size = template.getSize();
-        int footprint = Math.max(1, Math.max(size.getX(), size.getZ()));
-        int height = Math.max(1, size.getY());
-        StructureBoundingBox box = StructureBoundingBox.getComponentToAddBoundingBox(
-                x, y, z, 0, 0, 0, footprint, height, footprint, facing);
-        if (!canVillageGoDeeper(box) || StructureComponent.findIntersecting(pieces, box) != null) {
-            return null;
+        if (template == null || template.getPattern() == null) return null;
+        int minX = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int minY = Integer.MAX_VALUE;
+        int maxY = Integer.MIN_VALUE;
+        int minZ = Integer.MAX_VALUE;
+        int maxZ = Integer.MIN_VALUE;
+        for (BlockPos key : template.getPattern().keySet()) {
+            if (key == null) continue;
+            minX = Math.min(minX, key.getX());
+            maxX = Math.max(maxX, key.getX());
+            minY = Math.min(minY, key.getY());
+            maxY = Math.max(maxY, key.getY());
+            minZ = Math.min(minZ, key.getZ());
+            maxZ = Math.max(maxZ, key.getZ());
         }
+        if (minX > maxX || minY > maxY || minZ > maxZ) return null;
+        int sizeX = maxX - minX + 1;
+        int sizeY = maxY - minY + 1;
+        int sizeZ = maxZ - minZ + 1;
+        StructureBoundingBox box = StructureBoundingBox.getComponentToAddBoundingBox(
+                x, y, z, 0, 0, 0, sizeX, sizeY, sizeZ, EnumFacing.SOUTH);
+        if (!canVillageGoDeeper(box)) return null;
+        StructureComponent hit = StructureComponent.findIntersecting(pieces, box);
+        if (hit != null && !VillageLandHelper.isVillageRoad(hit)) return null;
         return new VillagePieceAstralSmallShrine(start, type, box, facing);
     }
 
@@ -60,11 +79,6 @@ public class VillagePieceAstralSmallShrine extends StructureVillagePieces.Villag
         }
 
         if (world.isRemote) return true;
-        if (VillageLandHelper.isOceanOrRiverFloor(world, this, structurebb)) {
-            VillageDebug.log("astral shrine skip ocean floor at=%d,%d y=%d",
-                    this.boundingBox.minX, this.boundingBox.minZ, this.averageGroundLvl);
-            return true;
-        }
         BlockPos origin = new BlockPos(
                 this.boundingBox.minX - min.getX(),
                 this.boundingBox.minY - min.getY(),
@@ -75,6 +89,7 @@ public class VillagePieceAstralSmallShrine extends StructureVillagePieces.Villag
         for (Map.Entry<BlockPos, BlockArray.BlockInformation> entry : template.getPattern().entrySet()) {
             BlockPos at = origin.add(entry.getKey());
             if (!structurebb.isVecInside(at)) continue;
+            if (VillageLandHelper.isNeverRaiseBiome(Reflect.getBiome(world.getBiomeProvider(), at.getX(), at.getZ()))) continue;
             IBlockState place = entry.getValue().state;
             boolean liquid = place != null && place.getMaterial().isLiquid();
             world.setBlockState(at, place, liquid ? 3 : 2);
@@ -94,8 +109,14 @@ public class VillagePieceAstralSmallShrine extends StructureVillagePieces.Villag
                 world.neighborChanged(at, state.getBlock(), at);
             }
         }
-        if (any && VillageDebug.once("shrine-piece-" + origin.getX() + "," + origin.getZ())) {
-            VillageDebug.log("astral small shrine village piece at=%d,%d,%d", origin.getX(), origin.getY(), origin.getZ());
+        if (any) {
+            StructureLandSettle.fillLiquidAt(world,
+                    this.boundingBox.minX, this.boundingBox.maxX,
+                    this.boundingBox.minZ, this.boundingBox.maxZ,
+                    this.boundingBox.minY);
+            if (VillageDebug.once("shrine-piece-" + origin.getX() + "," + origin.getZ())) {
+                VillageDebug.log("astral small shrine village piece at=%d,%d,%d", origin.getX(), origin.getY(), origin.getZ());
+            }
         }
         return true;
     }

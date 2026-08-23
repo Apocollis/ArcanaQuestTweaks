@@ -5,6 +5,9 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "MixinWorldGenCambionHome",
-    "MixinWorldGenCambionHomeMedium"
+    "MixinWorldGenCambionHomeMedium",
+    "MixinWorldGenStonecircle",
+    "MixinWorldGenMenhir",
+    "MixinWorldGenWickerman"
   ]
 }

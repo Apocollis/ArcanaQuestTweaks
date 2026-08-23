@@ -14,13 +14,18 @@ import rtg.world.gen.ChunkGeneratorRTG;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Village overlap for post-terrain schematic structures (Astral, Cambion, Mystical huts).
  */
 public final class StructureVillageOverlap {
+
+    public static final int RETRY_STEP = 8;
+    public static final int RETRY_MAX = 32;
 
     private StructureVillageOverlap() {}
 
@@ -126,6 +131,59 @@ public final class StructureVillageOverlap {
         };
     }
 
+    /**
+     * If {@code pos} overlaps a village, walk Chebyshev rings (step 8, max 32) for a dry
+     * non-village slot. Preserves {@code origin} Y relative to {@code getHeight}.
+     * Returns {@code pos} when skip-on-village is off or there is no overlap.
+     * Returns {@code null} when every slot still overlaps (caller should skip paste).
+     */
+    public static BlockPos relocateOrSkip(World world, Template template, BlockPos pos,
+                                          PlacementSettings settings, String name) {
+        if (!enabled() || world == null || pos == null || template == null || template.getSize() == null) {
+            return pos;
+        }
+        if (!overlapsVillage(world, pos, template.getSize(), settings)) {
+            return pos;
+        }
+        BlockPos retry = findNearbyLand(world, template, pos, settings);
+        if (retry == null) {
+            VillageDebug.log("%s skip village overlap at=%d,%d,%d",
+                    name == null ? "structure" : name, pos.getX(), pos.getY(), pos.getZ());
+            return null;
+        }
+        VillageDebug.log("%s relocate from=%d,%d,%d to=%d,%d,%d",
+                name == null ? "structure" : name,
+                pos.getX(), pos.getY(), pos.getZ(),
+                retry.getX(), retry.getY(), retry.getZ());
+        return retry;
+    }
+
+    public static BlockPos findNearbyLand(World world, Template template, BlockPos origin,
+                                          PlacementSettings settings) {
+        if (world == null || origin == null || template == null || template.getSize() == null) {
+            return null;
+        }
+        int originSurface = Math.max(1, world.getHeight(origin.getX(), origin.getZ()));
+        int yOff = origin.getY() - originSurface;
+        for (int r = RETRY_STEP; r <= RETRY_MAX; r += RETRY_STEP) {
+            for (int dx = -r; dx <= r; dx += RETRY_STEP) {
+                for (int dz = -r; dz <= r; dz += RETRY_STEP) {
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;
+                    int x = origin.getX() + dx;
+                    int z = origin.getZ() + dz;
+                    if (VillageLandHelper.isNeverRaiseAt(world, x, z)) continue;
+                    int y = Math.max(1, world.getHeight(x, z) + yOff);
+                    BlockPos candidate = new BlockPos(x, y, z);
+                    if (overlapsVillage(world, candidate, template.getSize(), settings)) {
+                        continue;
+                    }
+                    return candidate;
+                }
+            }
+        }
+        return null;
+    }
+
     private static boolean xzIntersects(int[] box, int minX, int maxX, int minZ, int maxZ) {
         if (box == null) return false;
         return box[0] <= maxX && box[1] >= minX && box[2] <= maxZ && box[3] >= minZ;
@@ -135,37 +193,54 @@ public final class StructureVillageOverlap {
         VillagePlate.ensureStarts(world, findVillageGenerator(world));
     }
 
+    private static final int UNWRAP_DEPTH = 8;
+    private static final int UNWRAP_COLLECTION_CAP = 32;
+
     public static Object findVillageGenerator(World world) {
         MapGenVillage stashed = VillageLandHelper.stashedVillage(world);
         if (stashed != null) return stashed;
-        return findVillageGenerator(Reflect.getChunkGenerator(world), new IdentityHashMap<>());
+        IdentityHashMap<Object, Boolean> seen = new IdentityHashMap<>();
+        Object found = findVillageGenerator(Reflect.getChunkGenerator(world), seen, 0);
+        if (found != null) return found;
+        try {
+            return findVillageGenerator(world.getChunkProvider(), seen, 0);
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     public static ChunkGeneratorRTG findRtgGenerator(World world) {
         ChunkGeneratorRTG stashed = VillageLandHelper.stashedRtg(world);
         if (stashed != null) return stashed;
-        return findRtgGenerator(Reflect.getChunkGenerator(world), new IdentityHashMap<>());
+        IdentityHashMap<Object, Boolean> seen = new IdentityHashMap<>();
+        ChunkGeneratorRTG found = findRtgGenerator(Reflect.getChunkGenerator(world), seen, 0);
+        if (found != null) return found;
+        try {
+            return findRtgGenerator(world.getChunkProvider(), seen, 0);
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
-    private static Object findVillageGenerator(Object chunkGen, IdentityHashMap<Object, Boolean> seen) {
-        if (chunkGen == null || seen.containsKey(chunkGen)) return null;
-        seen.put(chunkGen, Boolean.TRUE);
-        if (chunkGen instanceof MapGenVillage) return chunkGen;
-        Object direct = villageField(chunkGen);
+    private static Object findVillageGenerator(Object node, IdentityHashMap<Object, Boolean> seen, int depth) {
+        if (node == null || depth > UNWRAP_DEPTH || seen.containsKey(node) || skipUnwrap(node)) return null;
+        seen.put(node, Boolean.TRUE);
+        if (node instanceof MapGenVillage) return node;
+        Object direct = villageField(node);
         if (direct != null) return direct;
-        for (Object nested : nestedChunkGenerators(chunkGen)) {
-            Object found = findVillageGenerator(nested, seen);
+        for (Object nested : nestedUnwrap(node)) {
+            Object found = findVillageGenerator(nested, seen, depth + 1);
             if (found != null) return found;
         }
         return null;
     }
 
-    private static ChunkGeneratorRTG findRtgGenerator(Object chunkGen, IdentityHashMap<Object, Boolean> seen) {
-        if (chunkGen == null || seen.containsKey(chunkGen)) return null;
-        seen.put(chunkGen, Boolean.TRUE);
-        if (chunkGen instanceof ChunkGeneratorRTG) return (ChunkGeneratorRTG) chunkGen;
-        for (Object nested : nestedChunkGenerators(chunkGen)) {
-            ChunkGeneratorRTG found = findRtgGenerator(nested, seen);
+    private static ChunkGeneratorRTG findRtgGenerator(Object node, IdentityHashMap<Object, Boolean> seen, int depth) {
+        if (node == null || depth > UNWRAP_DEPTH || seen.containsKey(node) || skipUnwrap(node)) return null;
+        seen.put(node, Boolean.TRUE);
+        if (node instanceof ChunkGeneratorRTG) return (ChunkGeneratorRTG) node;
+        for (Object nested : nestedUnwrap(node)) {
+            ChunkGeneratorRTG found = findRtgGenerator(nested, seen, depth + 1);
             if (found != null) return found;
         }
         return null;
@@ -173,7 +248,13 @@ public final class StructureVillageOverlap {
 
     private static Object villageField(Object chunkGen) {
         for (Class<?> type = chunkGen.getClass(); type != null && type != Object.class; type = type.getSuperclass()) {
-            for (Field field : type.getDeclaredFields()) {
+            Field[] fields;
+            try {
+                fields = type.getDeclaredFields();
+            } catch (Throwable t) {
+                continue;
+            }
+            for (Field field : fields) {
                 try {
                     field.setAccessible(true);
                     Object value = field.get(chunkGen);
@@ -184,20 +265,65 @@ public final class StructureVillageOverlap {
         return null;
     }
 
-    private static List<Object> nestedChunkGenerators(Object chunkGen) {
+    private static boolean skipUnwrap(Object value) {
+        if (value instanceof World) return true;
+        if (value instanceof String || value instanceof Number || value instanceof Boolean) return true;
+        if (value instanceof Class || value instanceof Enum) return true;
+        Class<?> type = value.getClass();
+        if (type.isPrimitive()) return true;
+        String name = type.getName();
+        return name.startsWith("net.minecraft.entity.")
+                || name.startsWith("net.minecraft.block.")
+                || name.startsWith("net.minecraft.world.chunk.Chunk")
+                || name.contains("BiomeProvider");
+    }
+
+    private static List<Object> nestedUnwrap(Object node) {
         List<Object> out = new ArrayList<>();
-        for (Class<?> type = chunkGen.getClass(); type != null && type != Object.class; type = type.getSuperclass()) {
-            for (Field field : type.getDeclaredFields()) {
+        for (Class<?> type = node.getClass(); type != null && type != Object.class; type = type.getSuperclass()) {
+            Field[] fields;
+            try {
+                fields = type.getDeclaredFields();
+            } catch (Throwable t) {
+                continue;
+            }
+            for (Field field : fields) {
                 try {
                     field.setAccessible(true);
-                    Object value = field.get(chunkGen);
-                    if (value == null || value == chunkGen) continue;
-                    if (value instanceof IChunkGenerator || value instanceof ChunkGeneratorRTG) {
-                        out.add(value);
-                    }
+                    Object value = field.get(node);
+                    addUnwrapChild(out, node, value);
                 } catch (Throwable ignored) {}
             }
         }
         return out;
+    }
+
+    private static void addUnwrapChild(List<Object> out, Object parent, Object value) {
+        if (value == null || value == parent || skipUnwrap(value)) return;
+        if (value instanceof MapGenVillage) return;
+        if (value instanceof IChunkGenerator || value instanceof IChunkProvider || value instanceof ChunkGeneratorRTG) {
+            out.add(value);
+            return;
+        }
+        if (value instanceof Collection<?> collection) {
+            int n = 0;
+            for (Object item : collection) {
+                if (n++ >= UNWRAP_COLLECTION_CAP) break;
+                addUnwrapChild(out, parent, item);
+            }
+            return;
+        }
+        if (value instanceof Map<?, ?> map) {
+            int n = 0;
+            for (Object item : map.values()) {
+                if (n++ >= UNWRAP_COLLECTION_CAP) break;
+                addUnwrapChild(out, parent, item);
+            }
+            return;
+        }
+        String name = value.getClass().getName().toLowerCase();
+        if (name.contains("chunkgenerator") || name.contains("chunkprovider") || name.contains("wrapped")) {
+            out.add(value);
+        }
     }
 }

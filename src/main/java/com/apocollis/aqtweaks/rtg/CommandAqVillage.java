@@ -13,6 +13,8 @@ import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.gen.structure.MapGenVillage;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import rtg.world.gen.ChunkGeneratorRTG;
 
 import java.util.Arrays;
@@ -25,6 +27,7 @@ import java.util.List;
  */
 public final class CommandAqVillage extends CommandBase {
 
+    private static final Logger LOGGER = LogManager.getLogger("aqtweaks");
     private static final int CELL_RADIUS = 16;
     private static final int STAND_OFFSET = 6;
     private static final int[][] STAND_OFFSETS = {
@@ -81,8 +84,18 @@ public final class CommandAqVillage extends CommandBase {
         Object rawGen = StructureVillageOverlap.findVillageGenerator(world);
         if (!(rawGen instanceof MapGenVillage)) {
             Object chunkGen = Reflect.getChunkGenerator(world);
-            VillageDebug.log("aqvillage missing gen provider=%s generator=%s",
-                    world.getChunkProvider() != null ? world.getChunkProvider().getClass().getName() : "null",
+            Object provider = null;
+            try {
+                provider = world.getChunkProvider();
+            } catch (Throwable ignored) {}
+            int dim = 0;
+            try {
+                dim = world.provider.getDimension();
+            } catch (Throwable ignored) {}
+            LOGGER.info("[aqvillage] missing MapGenVillage dim={} stashVillage={} provider={} generator={}",
+                    dim,
+                    VillageLandHelper.stashedVillage(world) != null,
+                    provider != null ? provider.getClass().getName() : "null",
                     chunkGen != null ? chunkGen.getClass().getName() : "null");
             throw new CommandException("No village generator on this world");
         }

@@ -9,6 +9,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -44,6 +45,8 @@ import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.BiomeProvider;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.ChunkPrimer;
+import net.minecraft.world.chunk.IChunkProvider;
+import net.minecraft.world.gen.IChunkGenerator;
 import net.minecraft.world.storage.MapStorage;
 
 public class Reflect {
@@ -3312,9 +3315,17 @@ public class Reflect {
             } catch (Throwable ignored) {}
         }
         if (provider == null) return null;
+        Object direct = chunkGeneratorField(provider);
+        if (direct != null) return direct;
+        return nestedChunkGenerator(provider, new IdentityHashMap<>(), 0);
+    }
+
+    private static Object chunkGeneratorField(Object provider) {
+        if (provider == null) return null;
         if (chunkProviderChunkGeneratorField != null) {
             try {
-                return chunkProviderChunkGeneratorField.get(provider);
+                Object value = chunkProviderChunkGeneratorField.get(provider);
+                if (value != null) return value;
             } catch (Exception ignored) {}
         }
         try {
@@ -3324,6 +3335,38 @@ public class Reflect {
                 return f.get(provider);
             }
         } catch (Throwable ignored) {}
+        return null;
+    }
+
+    private static Object nestedChunkGenerator(Object node, IdentityHashMap<Object, Boolean> seen, int depth) {
+        if (node == null || depth > 8 || seen.containsKey(node)) return null;
+        seen.put(node, Boolean.TRUE);
+        if (node instanceof IChunkGenerator) return node;
+        Object field = chunkGeneratorField(node);
+        if (field != null && field != node) {
+            Object found = nestedChunkGenerator(field, seen, depth + 1);
+            if (found != null) return found;
+        }
+        for (Class<?> type = node.getClass(); type != null && type != Object.class; type = type.getSuperclass()) {
+            Field[] fields;
+            try {
+                fields = type.getDeclaredFields();
+            } catch (Throwable t) {
+                continue;
+            }
+            for (Field f : fields) {
+                try {
+                    f.setAccessible(true);
+                    Object value = f.get(node);
+                    if (value == null || value == node) continue;
+                    if (value instanceof IChunkGenerator) return value;
+                    if (value instanceof IChunkProvider) {
+                        Object found = nestedChunkGenerator(value, seen, depth + 1);
+                        if (found != null) return found;
+                    }
+                } catch (Throwable ignored) {}
+            }
+        }
         return null;
     }
 

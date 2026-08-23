@@ -15,6 +15,7 @@ public class AQTweaksLateMixinLoader implements ILateMixinLoader {
                 "mixins.aqtweaks.astral.json",
                 "mixins.aqtweaks.charm.json",
                 "mixins.aqtweaks.bewitchment.json",
-                "mixins.aqtweaks.mysticalworld.json");
+                "mixins.aqtweaks.mysticalworld.json",
+                "mixins.aqtweaks.biomesoplenty.json");
     }
 }

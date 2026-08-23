@@ -4,7 +4,6 @@ import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.rtg.StructureLandSettle;
 import com.apocollis.aqtweaks.rtg.StructureVillageOverlap;
 import com.apocollis.aqtweaks.rtg.VillageDebug;
-import com.apocollis.aqtweaks.rtg.VillageLandHelper;
 import epicsquid.mysticalworld.world.StructureGenerator;
 import epicsquid.mysticalworld.world.data.DataHelper;
 import net.minecraft.util.ResourceLocation;
@@ -26,9 +25,6 @@ import java.util.Random;
 
 @Mixin(value = StructureGenerator.class, remap = false)
 public abstract class MixinStructureGenerator {
-
-    private static final int RETRY_STEP = 8;
-    private static final int RETRY_MAX = 32;
 
     @Shadow
     private ResourceLocation structure;
@@ -62,7 +58,7 @@ public abstract class MixinStructureGenerator {
                 && StructureVillageOverlap.enabled()
                 && aqtweaks$surfaceSkipEnabled()
                 && StructureVillageOverlap.overlapsVillage(world, pos, template.getSize(), settings)) {
-            BlockPos retry = aqtweaks$findNearbyLand(world, template, pos, settings);
+            BlockPos retry = StructureVillageOverlap.findNearbyLand(world, template, pos, settings);
             if (retry == null) {
                 aqtweaks$skipStructure = true;
                 VillageDebug.log("mystical %s skip village overlap at=%d,%d,%d",
@@ -138,26 +134,4 @@ public abstract class MixinStructureGenerator {
         return path == null ? "" : path.toLowerCase();
     }
 
-    @Unique
-    private BlockPos aqtweaks$findNearbyLand(World world, Template template, BlockPos origin,
-                                            PlacementSettings settings) {
-        if (world == null || origin == null || template == null) return null;
-        for (int r = RETRY_STEP; r <= RETRY_MAX; r += RETRY_STEP) {
-            for (int dx = -r; dx <= r; dx += RETRY_STEP) {
-                for (int dz = -r; dz <= r; dz += RETRY_STEP) {
-                    if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;
-                    int x = origin.getX() + dx;
-                    int z = origin.getZ() + dz;
-                    if (VillageLandHelper.isNeverRaiseAt(world, x, z)) continue;
-                    int y = Math.max(1, world.getHeight(x, z));
-                    BlockPos candidate = new BlockPos(x, y, z);
-                    if (StructureVillageOverlap.overlapsVillage(world, candidate, template.getSize(), settings)) {
-                        continue;
-                    }
-                    return candidate;
-                }
-            }
-        }
-        return null;
-    }
 }

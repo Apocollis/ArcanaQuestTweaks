@@ -1,6 +1,6 @@
 # Compatibility matrix (1.6)
 
-Last updated: 2026-08-20.
+Last updated: 2026-08-23.
 
 This is the compile / mixin-apply / runtime contract. Module behavior lives in the per-module docs. Do not treat “required vs optional” as one bit.
 
@@ -52,7 +52,7 @@ Jar names below are from the **Arcana Quest DEVBOX** instance on 2026-08-20 unle
 | `astralsorcery` | `astralsorcery-1.12.2-1.10.27.jar` | omitted | optional `mixins.aqtweaks.astral.json` | **yes** if that json compiles against AS | skip json if absent | **yes** | rtg | Shrine skip/settle; village piece only if loaded |
 | `mysticalworld` | `mysticalworld-1.12.2-1.11.0.jar` | omitted | optional `mixins.aqtweaks.mysticalworld.json` | **yes** (`StructureGenerator`) | skip json if absent | **yes** | rtg | Huts only, not barrows. Pack also has `mysticallib` |
 | `roguelike` / Arcana | DEVBOX `RoguelikeDungeons-Arcana-2.5.3.jar` | omitted | — | no | `isInsideStructure("RoguelikeDungeon")` | script lists **`RoguelikeDungeons-Arcana-1.12.2-2.5.0.jar`** (name mismatch → copy often skips) | thaumcraft | No Tweaks mixin on that method |
-| `biomesoplenty` | `BiomesOPlenty-1.12.2-7.0.1.2445-universal.jar` | omitted | — | no | yes | **no** | comfort, rtg | Hot spring block; kelp/coral biome names |
+| `biomesoplenty` | `BiomesOPlenty-1.12.2-7.0.1.2445-universal.jar` | omitted | optional `mixins.aqtweaks.biomesoplenty.json` | no (string target) | yes | **no** | comfort, rtg | Hot spring block; kelp/coral biome names; `MixinGeneratorLakes` skips village quicksand |
 | Forge | (Cleanroom) | — | **required** json | yes | always | — | [recipes.md](recipes.md) | `MixinCraftingHelperFindFiles`. Metallurgy/Spartan jars are runtime recipe trees, not Tweaks compile deps |
 | `waystones` | `Waystones_1.12.2-4.1.0.jar` | omitted | — | no | village piece class name | **no** | rtg | Relocate same gazebo; Tweaks does not mixin Waystones |
 
