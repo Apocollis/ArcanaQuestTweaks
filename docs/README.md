@@ -1,10 +1,10 @@
 # Arcana Quest Tweaks — Architecture
 
-This directory is the design and engineering spec for `aqtweaks` **1.6**. Read the index, then the module file for the system you are changing. Worldgen applies to **new chunks only**.
+This directory is the design and engineering spec for `aqtweaks` **1.7**. Read the index, then the module file for the system you are changing. Worldgen applies to **new chunks only**.
 
 **Ops (reproduce / ship):** [compatibility-matrix.md](compatibility-matrix.md) · [build-and-release.md](build-and-release.md) · [verification.md](verification.md)
 
-Mod: `aqtweaks`. Minecraft 1.12.2 / CleanroomMC / Forge. Stay on **1.6** unless asked to bump.
+Mod: `aqtweaks`. Minecraft 1.12.2 / CleanroomMC / Forge. Stay on **1.7** unless asked to bump.
 
 **Always compile as Java 21.** Gradle toolchain may be JDK 25, but `JavaCompile` must keep `options.release = 21` (class major 65). Do not emit Java 22+ bytecode. Mixin/Fugue will refuse class version 66+. Details: [build-and-release.md](build-and-release.md).
 
