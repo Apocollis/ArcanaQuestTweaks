@@ -781,7 +781,7 @@ public class StaminaModule {
     public void onPlayerRespawn(net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerRespawnEvent event) {
         if (event.player instanceof EntityPlayerMP) {
             EntityPlayerMP playerMP = (EntityPlayerMP) event.player;
-            FeathersHelper.fillFeathers(playerMP);
+            FeathersHelper.increaseFeathers(playerMP, FeathersHelper.getMaxFeatherLevel(playerMP));
         }
     }
 }

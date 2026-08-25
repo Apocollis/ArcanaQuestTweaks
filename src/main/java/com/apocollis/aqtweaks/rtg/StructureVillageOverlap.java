@@ -66,7 +66,6 @@ public final class StructureVillageOverlap {
 
         ensureVillageStarts(world);
         long seed = Reflect.getSeed(world);
-        int pad = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageBoxXZPad);
         int heightAbove = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageBoxHeight);
 
         for (VillagePlate.Record rec : VillagePlate.starts(seed)) {
@@ -78,15 +77,7 @@ public final class StructureVillageOverlap {
                     && !VillagePlate.yInVillageVolume(midY, plate, heightAbove, rec)) {
                 continue;
             }
-            boolean xzHit = false;
-            for (int[] box : rec.landBoxesOrEmpty()) {
-                int[] padded = VillagePlate.padded(box, pad);
-                if (xzIntersects(padded, minX, maxX, minZ, maxZ)) {
-                    xzHit = true;
-                    break;
-                }
-            }
-            if (xzHit) return true;
+            if (VillagePlate.aabbOverlapsVillagePad(minX, maxX, minZ, maxZ, rec)) return true;
         }
 
         IChunkProvider provider;
@@ -182,11 +173,6 @@ public final class StructureVillageOverlap {
             }
         }
         return null;
-    }
-
-    private static boolean xzIntersects(int[] box, int minX, int maxX, int minZ, int maxZ) {
-        if (box == null) return false;
-        return box[0] <= maxX && box[1] >= minX && box[2] <= maxZ && box[3] >= minZ;
     }
 
     private static void ensureVillageStarts(World world) {

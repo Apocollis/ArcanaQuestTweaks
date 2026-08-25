@@ -67,11 +67,31 @@ public abstract class MixinSkillActive {
 
     @Unique
     private String aqtweaks$registryName() {
+        String unlocalized = aqtweaks$invokeString("getUnlocalizedName");
+        if (unlocalized != null && !unlocalized.isEmpty()) return unlocalized;
         try {
             Object name = this.getClass().getMethod("getRegistryName").invoke(this);
             if (name instanceof ResourceLocation) return name.toString();
             if (name != null) return name.toString();
         } catch (Exception ignored) {}
+        return null;
+    }
+
+    @Unique
+    private String aqtweaks$invokeString(String methodName) {
+        Class<?> type = this.getClass();
+        while (type != null && type != Object.class) {
+            try {
+                java.lang.reflect.Method method = type.getDeclaredMethod(methodName);
+                method.setAccessible(true);
+                Object value = method.invoke(this);
+                return value != null ? value.toString() : null;
+            } catch (NoSuchMethodException ignored) {
+                type = type.getSuperclass();
+            } catch (Exception ignored) {
+                return null;
+            }
+        }
         return null;
     }
 }

@@ -6,6 +6,8 @@ This directory is the design and engineering spec for `aqtweaks` **1.6**. Read t
 
 Mod: `aqtweaks`. Minecraft 1.12.2 / CleanroomMC / Forge. Stay on **1.6** unless asked to bump.
 
+**Always compile as Java 21.** Gradle toolchain may be JDK 25, but `JavaCompile` must keep `options.release = 21` (class major 65). Do not emit Java 22+ bytecode. Mixin/Fugue will refuse class version 66+. Details: [build-and-release.md](build-and-release.md).
+
 `aqtweaks` is a **tweak layer**. Parent mods still own their systems. Tweaks listens to Forge events, calls public APIs (`FeathersHelper`, Thaumcraft warp caps, Bewitchment `Ritual`), or mixins parent methods when events are not enough. Vanilla calls inside `remap = false` mixins go through `Reflect` — see below.
 
 ## Module docs
@@ -22,6 +24,7 @@ Each file covers: what Tweaks changes, how the **parent mod** implements the fea
 | Depths | Depths Update, YUNG's Better Caves, RTG, CoFH World, Recurrent Complex | [depths.md](depths.md) |
 | RTG | Realistic Terrain Generation + vanilla `MapGenVillage` + Recurrent Complex + Astral / Bewitchment Cambion / Mystical World huts | [rtg.md](rtg.md) |
 | Village gen (pack pipeline) | Vanilla + RTG + Geographicraft + Recurrent Complex + Charm + Tweaks overlay | [villagegen_info.md](villagegen_info.md) |
+| Client | Toughness Bar (optional), tooltip lines for non-Metallurgy tools | [client.md](client.md) |
 | Recipes | Forge `CraftingHelper` (Metallurgy / Spartan JSON) | [recipes.md](recipes.md) |
 | Compatibility / jars | Compile vs mixin vs runtime vs copy script | [compatibility-matrix.md](compatibility-matrix.md) |
 | Build / deploy | `gradlew build` vs `build_gradle.ps1` | [build-and-release.md](build-and-release.md) |
@@ -63,7 +66,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 
 **init (client)**
 
-- `StaminaModuleClient`, `DepthsFogHandler`.
+- `StaminaModuleClient`, `DepthsFogHandler`, `ClientModule`.
 
 `postInit` is empty.
 
@@ -76,6 +79,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 | `mixins.aqtweaks.json` | **true** | Depths, RTG villages, Recipes | Load fails |
 | `mixins.aqtweaks.grapple.json` | false | Stamina | Skip |
 | `mixins.aqtweaks.dss.json` | false | Stamina | Skip |
+| `mixins.aqtweaks.toughnessbar.json` | false | Client HUD | Skip |
 | `mixins.aqtweaks.astral.json` | false | RTG post-terrain shrines | Skip |
 | `mixins.aqtweaks.charm.json` | false | RTG Charm village paste skip | Skip |
 | `mixins.aqtweaks.bewitchment.json` | false | RTG Cambion + circle/menhir/wickerman | Skip |
@@ -101,6 +105,7 @@ Forge `@Config` on nested classes in `ArcanaQuestTweaksConfig`. Comfort is JSON,
 | File | Class |
 | --- | --- |
 | `aqtweaks_stamina.cfg` | `StaminaModuleConfig` |
+| `aqtweaks_client.cfg` | `ClientModuleConfig` |
 | `aqtweaks_grimoireofgaia.cfg` | `GrimoireOfGaiaConfig` |
 | `aqtweaks_thaumcraft.cfg` | `ThaumcraftConfig` |
 | `aqtweaks_bewitchment.cfg` | `BewitchmentConfig` |
@@ -137,6 +142,6 @@ When hooking a new parent (or a new mixin on an existing one):
 1. Investigate read-only.
 2. Write `implementation_plan.md`, also put the plan in chat.
 3. Wait for explicit `proceed`.
-4. Implement, then `.\build_gradle.ps1` unless told not to rebuild. Portable compile: `.\gradlew.bat build`. Details: [build-and-release.md](build-and-release.md).
+4. Implement, then `.\build_gradle.ps1` unless told not to rebuild. Portable compile: `.\gradlew.bat build`. That path already sets `--release 21`. Never drop that flag. Details: [build-and-release.md](build-and-release.md).
 
 Worldgen changes apply to **new chunks only**.

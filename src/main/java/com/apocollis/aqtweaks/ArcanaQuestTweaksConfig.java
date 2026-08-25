@@ -166,7 +166,7 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Ladder Climb Cost")
         @Config.Comment("Stamina cost (in half-feathers) per ascend interval on ladders")
         @Config.RangeInt(min = 0)
-        public int ladderCost = 2;
+        public int ladderCost = 1;
 
         @Config.Name("Vine Climb Tick Interval")
         @Config.Comment("Ticks between feather consumption while ascending vines (20 ticks = 1 second)")
@@ -406,6 +406,29 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Stamina cost (in half-feathers) per ledge climb")
         @Config.RangeInt(min = 0)
         public int ledgeClimbCost = 2;
+    }
+
+    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_client", category = "")
+    public static class ClientModuleConfig {
+        @Config.Name("HUD")
+        @Config.Comment("Client overlay placement. Does not change Elenai feather or thirst icons.")
+        public static final Hud hud = new Hud();
+
+        @Config.Name("Tooltips")
+        @Config.Comment("Client item tooltip lines.")
+        public static final Tooltips tooltips = new Tooltips();
+    }
+
+    public static class Hud {
+        @Config.Name("Move Toughness Bar To Armor Side")
+        @Config.Comment("If Toughness Bar is loaded, draw it above armor (left), left to right. Feathers and thirst stay above hunger (right).")
+        public boolean moveToughnessBarToArmorSide = true;
+    }
+
+    public static class Tooltips {
+        @Config.Name("Metallurgy Tooltip Compat")
+        @Config.Comment("Add Metallurgy-style harvest / durability / efficiency lines to non-Metallurgy pickaxes, axes, shovels, and tools.")
+        public boolean metallurgyTooltipCompat = true;
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_grimoireofgaia")
@@ -681,18 +704,18 @@ public class ArcanaQuestTweaksConfig {
         public int villageCoastBuffer = 16;
 
         @Config.Name("Enable Village Bounding Box Detection")
-        @Config.Comment("Treat plated land boxes (houses, RC, well, kept roads) as Village for isInsideStructure / InControl. Y is well-shaft floor through plate plus Village Box Height. Not the unsnapped start AABB.")
+        @Config.Comment("Treat the flatten hard pad (Village Component Pad around land boxes, including kept roads and yards) as Village for isInsideStructure / InControl. Y is well-shaft floor through plate plus Village Box Height.")
         public boolean enableVillageBoxDetection = true;
 
         @Config.Name("Village Box XZ Pad")
-        @Config.Comment("Extra blocks outside each land component AABB that still count as Village for detection, and the swamp dock-approach slope radius. Flattening uses Village Component Pad, not this value.")
+        @Config.Comment("Swamp dock-approach slope radius for flatten only. Detection uses Village Component Pad, not this value.")
         @Config.RangeInt(min = 0, max = 64)
         public int villageBoxXZPad = 8;
 
         @Config.Name("Village Box Height")
-        @Config.Comment("Blocks above the pad surface that still count as Village. Floor is the well shaft (about 11-14 below the plate), not the pad.")
+        @Config.Comment("Blocks above the pad surface that still count as Village. Floor is the well shaft (about 11-14 below the plate). Existing cfg with 32 stays 32 until changed.")
         @Config.RangeInt(min = 0, max = 256)
-        public int villageBoxHeight = 32;
+        public int villageBoxHeight = 30;
 
         @Config.Name("Village Flatten Debug")
         @Config.Comment("Write village terrain traces to logs/villagepatch.log (not latest.log). Off by default: appends stall chunk gen. Turn on only while diagnosing villages.")

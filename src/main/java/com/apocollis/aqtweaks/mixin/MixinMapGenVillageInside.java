@@ -29,7 +29,6 @@ public abstract class MixinMapGenVillageInside {
         long seed = Reflect.getSeed(world);
         VillagePlate.ensureStarts(world, this);
 
-        int xzPad = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageBoxXZPad);
         int heightAbove = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageBoxHeight);
 
         for (VillagePlate.Record rec : VillagePlate.starts(seed)) {
@@ -37,16 +36,7 @@ public abstract class MixinMapGenVillageInside {
             float plate = VillagePlate.resolvePlate(world, rec);
             if (Float.isNaN(plate)) continue;
             if (!VillagePlate.yInVillageVolume(pos.getY(), plate, heightAbove, rec)) continue;
-
-            boolean xzHit = false;
-            for (int[] box : rec.landBoxesOrEmpty()) {
-                int[] padded = VillagePlate.padded(box, xzPad);
-                if (VillagePlate.containsXZ(pos.getX(), pos.getZ(), padded)) {
-                    xzHit = true;
-                    break;
-                }
-            }
-            if (!xzHit) continue;
+            if (!VillagePlate.inVillagePadXZ(pos.getX(), pos.getZ(), rec)) continue;
 
             if (rec.start instanceof StructureStart) {
                 String boxId = VillagePlate.wellKey(seed, rec);

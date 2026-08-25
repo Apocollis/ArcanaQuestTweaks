@@ -1,6 +1,6 @@
 # Compatibility matrix (1.6)
 
-Last updated: 2026-08-23.
+Last updated: 2026-08-24.
 
 This is the compile / mixin-apply / runtime contract. Module behavior lives in the per-module docs. Do not treat “required vs optional” as one bit.
 
@@ -35,6 +35,7 @@ Jar names below are from the **Arcana Quest DEVBOX** instance on 2026-08-20 unle
 | Modid | Jar (DEVBOX) | `@Mod` | Mixin apply | Compile | Runtime | Copy | Doc | Mixins / notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `elenaidodge2` | `ElenaiDodge2Extended-1.12.2-1.1.3.jar` | **required-after** | — | **yes** (`FeathersHelper`, HUD) | hard | **yes** | [stamina.md](stamina.md) | Compile **Extended 1.1.3**, not 1.1.0 |
+| `toughnessbar` | `toughnessbar-2.4.jar` | omitted | optional `mixins.aqtweaks.toughnessbar.json` | no (string target) | client HUD | **no** | [client.md](client.md) | `MixinEventHandlerClient` → `EventHandlerClient.onRenderArmorToughnessEvent`. Armor column, left-to-right |
 | `grapplemod` | `grappling_hook_mod-1.12.2-v13.jar` | after | optional `mixins.aqtweaks.grapple.json` | no (string target) | yes | **no** | stamina | `MixinGrappleController` → `grappleController.updatePlayerPos` |
 | `embers` | `embers-1.26.1.jar` | after | — | no (reflection) | yes | **no** | stamina | `EmberInventoryUtil` via `EmberMotorHelper` |
 | `dynamicswordskills` | `1.12.2-DynamicSwordSkills-6.0.1.jar` (+ `SwordSkillsApi-1.1.0`) | omitted | optional `mixins.aqtweaks.dss.json` | no (string target) | yes | **no** | stamina | `MixinSkillActive` → `SkillActive.trigger`. Still compiles Elenai for spend |

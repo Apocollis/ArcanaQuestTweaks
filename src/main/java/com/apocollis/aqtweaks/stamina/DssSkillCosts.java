@@ -29,8 +29,25 @@ public final class DssSkillCosts {
         if (registryName != null) {
             Integer exact = map.get(registryName);
             if (exact != null) return Math.max(0, exact);
+            if (registryName.indexOf(':') < 0) {
+                Integer prefixed = map.get("dynamicswordskills:" + registryName);
+                if (prefixed != null) return Math.max(0, prefixed);
+            }
+            String compact = compact(registryName);
+            for (Map.Entry<String, Integer> entry : map.entrySet()) {
+                if (compact.equals(compact(entry.getKey()))) {
+                    return Math.max(0, entry.getValue());
+                }
+            }
         }
         return Math.max(0, cfg.defaultSkillCost);
+    }
+
+    private static String compact(String name) {
+        String s = name;
+        int colon = s.lastIndexOf(':');
+        if (colon >= 0) s = s.substring(colon + 1);
+        return s.replace("_", "").toLowerCase();
     }
 
     private static Map<String, Integer> parse(String[] entries) {

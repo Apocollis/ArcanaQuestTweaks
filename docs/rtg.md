@@ -47,7 +47,7 @@ Keep **what** villages create (vanilla pieces + Recurrent Complex, plus at most 
 - Keep a **flat plate under dry-land roads**, including stretches with no buildings. Omit a road from the plate (and from layout) if it touches ocean/river or is mostly lake.
 - The plate is the **walkable village footprint**: every surviving piece **and** a 12-block hard pad around it. Overlap is one level. It is **not** a village-wide rectangle. Empty AABB corners with no nearby piece stay hills.
 - Inland plains/forest (playtest “village 2”) is the target look for non-water biomes.
-- Structure detection uses **plated land boxes** plus `villageBoxXZPad`, Y from the **well shaft floor** through plate plus `villageBoxHeight`. It does not use the unsnapped start AABB or template Y `64..151`.
+- Structure detection uses the **same 12-pad as flatten** (Euclidean to land boxes, including kept paths and overlapping yards), Y from the **well shaft floor** through plate plus `villageBoxHeight` (default 30). It does not use the unsnapped start AABB or template Y `64..151`.
 
 ## Hard constraints
 
@@ -220,9 +220,9 @@ Flooded for paths = never-raise **or** RTG lake (`noise < villageMinWellHeight`,
 
 ## Structure detection
 
-`MixinMapGenVillageInside` treats **land component AABBs + xzPad (8)** as village for `isInsideStructure`, only if a plate height was cached this session. Y is **well shaft floor through plate + villageBoxHeight**. Unsnapped well template `64..78` uses `plate - 14` so a hill village is not Village down to Y=64. Template start Y (`minY=64 maxY=151`) and the huge unsnapped start AABB are not used. No plate → miss (vanilla child pieces after snap may still match).
+`MixinMapGenVillageInside` treats the **flatten hard pad** as village for `isInsideStructure`: Euclidean `dist ≤ villageComponentPad` (12) to any land box (well, houses, RC, kept roads), or `≤ smallShrinePad` (3) to a village shrine. Only if a plate height was cached this session. Y is **well shaft floor through plate + villageBoxHeight** (default 30). Unsnapped well template `64..78` uses `plate - 14` so a hill village is not Village down to Y=64. Template start Y (`minY=64 maxY=151`) and the huge unsnapped start AABB are not used. No plate → miss (vanilla child pieces after snap may still match). `StructureVillageOverlap` uses the same pad.
 
-Flatten does **not** use `villageBoxXZPad` as extra 100% plate; flatten uses per-component distance (`villageComponentPad`, default 12). Live `villageEdgeFalloff` may still be **48** (Forge keeps saved cfg); code default is 12. `written=256 pad=0` is falloff-only blend, not a missing component pad.
+Flatten does **not** use `villageBoxXZPad` as extra 100% plate or as detection; flatten uses per-component distance (`villageComponentPad`, default 12). `villageBoxXZPad` is swamp dock-approach only. Live `villageEdgeFalloff` may still be **48** (Forge keeps saved cfg); code default is 12. `written=256 pad=0` is falloff-only blend, not a missing component pad.
 
 ## `/aqvillage` (OP)
 
@@ -254,9 +254,9 @@ Teleport is **on the plate** (`round(plate)+1`), about 6 blocks east of the well
 | Reject Coastal Village Starts | true | yes | Well veto: never-raise with no dry slot; ocean coast buffer. Walk river/ocean wells inland |
 | Village Min Well Height | 64 | yes | Dry well / lake plate floor. Live DEVBOX cfg already 64 |
 | Village Coast Buffer | 16 | yes | Chebyshev; veto dry well if ocean-like closer than this. Nearby river does not cancel. `0` = well column only |
-| Enable Village Bounding Box Detection | true | yes | Plated land boxes as Village |
-| Village Box XZ Pad | 8 | yes | Detection pad around **land boxes** + swamp dock-approach radius. Not flatten mesa |
-| Village Box Height | 32 | yes | Detection Y above plate. Floor is the well shaft (~11–14 below plate) |
+| Enable Village Bounding Box Detection | true | yes | Flatten 12-pad (yards + kept paths) as Village |
+| Village Box XZ Pad | 8 | yes | Flatten swamp dock-approach only. Not detection |
+| Village Box Height | 30 | yes | Detection Y above plate. Floor is the well shaft (~11–14 below plate). Live cfg may still be **32** |
 | Village Flatten Debug | false | yes | `logs/villagepatch.log`. Live DEVBOX must be edited off; old true is kept until changed |
 | Skip Structures On Village | true | yes | Cancel AS surface shrines and Cambion houses on village AABB. MW hut/barrow and Bewitchment circle/menhir/wickerman skip that spot and retry nearby. BOP quicksand on village AABB is skipped |
 | Enable Structure Land Settle | true | yes | Fill under those structures and ramp the rim |
@@ -461,6 +461,12 @@ Y+1 paste stacked a ground layer above plains. Template air at y=0 punched pits.
 
 **Fix:** paste house at ground Y+1 (cobble on grass); skip schematic air; `fillHolesPadded` only raises air/liquid up to **plains Y** (pad flush, never a mesa).
 
+### 24. Yards not Village
+
+`isInsideStructure` used land AABBs + 8, so grass between a path and a house missed.
+
+**Fix:** detection and `StructureVillageOverlap` use the flatten hard pad (Euclidean 12 to land boxes, shrine 3). `villageBoxHeight` default 30.
+
 ## Playtest reference (this line)
 
 - **Wanted:** inland plains village (example `-2897, 97, -2119`) — flat plate, houses on it, blend to hills.
@@ -470,7 +476,7 @@ Y+1 paste stacked a ground layer above plains. Template air at y=0 punched pits.
 - **Wanted:** large Astral ancient/desert temple — raw marble under the pad, not dirt; no floating logs/leaves in or above the AABB.
 - **Wanted:** new Cambion house on a slope — pad flush with plains; cobble on the grass (house +1); door +1 above cobble; air under the footprint filled.
 - **Wanted:** Mystical barrow or hut next to a village — relocates or skips; barrow is not plated.
-- **Wanted:** grass between a dirt path and a house at the same Y as the path (swamp/forest yards). L-shaped villages hug pieces; unused AABB corners stay hills.
+- **Wanted:** grass between a dirt path and a house is Village (`isInsideStructure`); Hermite outside the 12-pad is not. Y well floor through plate + `villageBoxHeight`.
 - **Wanted:** hill village — well, houses, RC, and path pads at **one** well Y; Hermite only outside the 12-pad; no chunk-aligned stone wall through town.
 - **Wanted:** desert/mesa village — one sand plate through yards and paths; no toothed red-sand holes between houses; F3 River biome still unplated.
 - **Wanted:** new Cambion house — pad flush with grass; cobble one above that; door one above cobble; no pit; no extra pad layer.

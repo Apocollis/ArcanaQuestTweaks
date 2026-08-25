@@ -1,5 +1,6 @@
 package com.apocollis.aqtweaks.rtg;
 
+import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.world.World;
 
@@ -418,6 +419,64 @@ public final class VillagePlate {
 
     public static boolean containsXZ(int x, int z, int[] box) {
         return box != null && x >= box[0] && x <= box[1] && z >= box[2] && z <= box[3];
+    }
+
+    /**
+     * Euclidean XZ distance to an AABB: 0 inside, rounded corners outside. Same as flatten hard pad.
+     */
+    public static double distanceToBoxXZ(int x, int z, int minX, int maxX, int minZ, int maxZ) {
+        int dx = 0;
+        if (x < minX) dx = minX - x;
+        else if (x > maxX) dx = x - maxX;
+        int dz = 0;
+        if (z < minZ) dz = minZ - z;
+        else if (z > maxZ) dz = z - maxZ;
+        if (dx == 0 && dz == 0) return 0.0;
+        return Math.sqrt((double) dx * dx + (double) dz * dz);
+    }
+
+    public static double distanceToBoxXZ(int x, int z, int[] box) {
+        if (box == null) return Double.MAX_VALUE;
+        return distanceToBoxXZ(x, z, box[0], box[1], box[2], box[3]);
+    }
+
+    public static double distanceBetweenAabbXZ(int minX, int maxX, int minZ, int maxZ, int[] box) {
+        if (box == null) return Double.MAX_VALUE;
+        int dx = 0;
+        if (maxX < box[0]) dx = box[0] - maxX;
+        else if (minX > box[1]) dx = minX - box[1];
+        int dz = 0;
+        if (maxZ < box[2]) dz = box[2] - maxZ;
+        else if (minZ > box[3]) dz = minZ - box[3];
+        if (dx == 0 && dz == 0) return 0.0;
+        return Math.sqrt((double) dx * dx + (double) dz * dz);
+    }
+
+    /** Flatten hard pad: land {@code villageComponentPad}, shrine {@code smallShrinePad}. */
+    public static boolean inVillagePadXZ(int x, int z, Record rec) {
+        if (rec == null) return false;
+        int landPad = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageComponentPad);
+        int shrinePad = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.smallShrinePad);
+        for (int[] box : rec.landBoxesOrEmpty()) {
+            if (distanceToBoxXZ(x, z, box) <= landPad) return true;
+        }
+        for (int[] box : rec.shrineBoxesOrEmpty()) {
+            if (distanceToBoxXZ(x, z, box) <= shrinePad) return true;
+        }
+        return false;
+    }
+
+    public static boolean aabbOverlapsVillagePad(int minX, int maxX, int minZ, int maxZ, Record rec) {
+        if (rec == null) return false;
+        int landPad = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageComponentPad);
+        int shrinePad = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.smallShrinePad);
+        for (int[] box : rec.landBoxesOrEmpty()) {
+            if (distanceBetweenAabbXZ(minX, maxX, minZ, maxZ, box) <= landPad) return true;
+        }
+        for (int[] box : rec.shrineBoxesOrEmpty()) {
+            if (distanceBetweenAabbXZ(minX, maxX, minZ, maxZ, box) <= shrinePad) return true;
+        }
+        return false;
     }
 
     public static boolean yInVillageVolume(int y, float plateHeight, int heightAbove, Record rec) {

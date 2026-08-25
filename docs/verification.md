@@ -27,6 +27,7 @@ These json files are `required: false`. Removing the parent should skip that jso
 | --- | --- |
 | Grapple | No motor mixin; grapple stamina no-ops if not loaded |
 | Dynamic Sword Skills | No skill feather gate |
+| Toughness Bar | No HUD mixin; feathers still on the right; tooltip compat still runs |
 | Astral Sorcery | No shrine mixins; no village `AQTSmallShrine` |
 | Bewitchment | No Cambion/circle mixins; no ritual wrap (handler not registered) |
 | Mystical World | No hut skip/settle |
@@ -73,6 +74,7 @@ Missing **RTG, Depths Update, Better Caves, CoFH World, Recurrent Complex, or Iv
 | Swamp village plate | Well on grass, not over a ravine; roads level with houses; overlapping pads; `seal chunk=` in debug | rtg |
 | Hill village (new chunks) | All pieces on **one** well Y; no chunk-border stone wall; unused AABB corners stay hills | rtg |
 | Under a house at plate-4 | `isInsideStructure("Village")` true; below well floor false | rtg |
+| Yard between path and house (12-pad) | `isInsideStructure("Village")` true. Outside the 12-pad false. Plate+31 false if box height is 30 | rtg |
 | Below Y0 Overworld | Deepslate fill, AQ caves, Y0 mouths on land, **no** ocean drain | [depths.md](depths.md) |
 | -Y caves after a perf change (new chunks) | Same seed, same chunks: tunnels, chambers, pillars, bridges, stalactites and floater cleanup unchanged. Perf work here is exact-equivalence, so any visible difference is a bug | depths |
 | Spark while flying new terrain | `UpperTunnelNetwork.forColumn`, `columnStrength`, `getSurfaceAltitudeForColumn` and `Reflect.getBlockState` all well down; chunk gen no longer ~half Tweaks | depths |
@@ -82,7 +84,7 @@ Log snippets if debug on: `veto chunk=`, `forget chunk=`, `flatten chunk=`, `sea
 
 ## Stamina
 
-Use the full list in [stamina.md](stamina.md) **Verify**. Minimum: jump costs/blocks, melee hit spend, bow draw, climb slide when empty, grapple hang vs climb vs grounded, HUD when dodge locked.
+Use the full list in [stamina.md](stamina.md) **Verify**. Minimum: jump costs/blocks, melee hit spend, bow draw, climb slide when empty, grapple hang vs climb vs grounded, HUD when dodge locked. With armor + toughness + thirst: toughness **left-to-right** one row above **armor** (left); feathers above **thirst** (right), not overlapping. Iron pick tooltip: `Vanilla Tools` + harvest stars + durability + efficiency. Metallurgy pick: no duplicate Tweaks harvest line. See [client.md](client.md).
 
 ## Other modules (one-line)
 
@@ -92,6 +94,7 @@ Use the full list in [stamina.md](stamina.md) **Verify**. Minimum: jump costs/bl
 | Thaumcraft | First Nether visit warps after ~2s; sleep at dawn reduces warp; whispers underground on interval |
 | Bewitchment | Listed ritual **finish** grants warp; halt does not |
 | Comfort | Homestead icon while resting in a scored room; hot spring → cold resist if SD+BOP |
+| Client | Toughness LTR above armor; iron pick shows Vanilla Tools stats; Metallurgy pick not duplicated |
 | Recipes | Pack boots without Metallurgy `generated/item/spartanweaponry` recipe spam |
 
 ## After mixin / parent bumps

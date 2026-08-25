@@ -1,6 +1,6 @@
 # Stamina module (1.6)
 
-Last updated: 2026-08-20.
+Last updated: 2026-08-24.
 
 Config: `config/arcanaquesttweaks/aqtweaks_stamina.cfg`. Compile against **Elenai Dodge 2 Extended** (`ElenaiDodge2Extended-1.12.2-1.1.3.jar`). Forge modid is still `elenaidodge2`.
 
@@ -18,7 +18,7 @@ Optional parents: Grapple motor Ember, Open Glider undeploy, Reskillable Armor M
 
 - Stay version **1.6**.
 - Hard `@Mod` dependency: `required-after:elenaidodge2`. Soft: `after:grapplemod;after:embers`.
-- Grapple mixin `mixins.aqtweaks.grapple.json` and DSS mixin `mixins.aqtweaks.dss.json` are late, **`required: false`**.
+- Grapple mixin `mixins.aqtweaks.grapple.json` and DSS mixin `mixins.aqtweaks.dss.json` are late, **`required: false`**. Toughness Bar HUD is the [client module](client.md).
 - Packets 0–2 register on **SERVER** in `CommonProxy.preInit`. Client handlers live on `StaminaModuleClient`.
 - `FeathersHelper.decreaseFeathers(EntityPlayerMP, int)` is the **only** spend path.
 - Compile jar is Extended **1.1.3**, not 1.1.0 (HUD internals differ).
@@ -80,7 +80,7 @@ This jar does **not** register `aqtweaks:armor_mastery` or `aqtweaks:mining_effi
 
 On join (`EntityJoinWorldEvent`): **HIGHEST** backup + clear Elenai’s weight array for `EntityPlayerMP`; **LOWEST** restore. That window is so Elenai’s join handler does not apply weight first. Client tick restores `ClientStorage.weightValues` if emptied and clears `ArmorTickEventListener.previousArmor` so weight re-evaluates. Armor Mastery also sends Elenai `SWeightMessage` when `ClientStorage.weight` disagrees (`ClientTickEvent` END LOWEST).
 
-Respawn: `PlayerRespawnEvent` → `FeathersHelper.fillFeathers`. Do not set the pool by hand.
+Respawn: `PlayerRespawnEvent` → `FeathersHelper.increaseFeathers(player, getMaxFeatherLevel(player))` (caps at max, `CUpdateDodgeMessage` only). Do **not** call `fillFeathers` (that also runs `updateClientConfig` and can overflow `CUpdateConfigMessage` on this pack’s weight list). Do not set the pool by hand.
 
 ## Files
 
@@ -113,7 +113,7 @@ Tune in cfg unless noted. Interval `20` = once per second.
 | Bow hold | | 1 | 20, **two timers** | Cancel / reset active hand |
 | Throw hold | `enableThrowingCost` | bow hold cost | bow interval × **2** | Reset active hand |
 | Throw release | | 1 | `UseItem.Stop` | Cancel throw |
-| Ladder climb | `enableClimbCost` | 2 | 20 | `fallOnDepleted`: slide `motionY = -0.15` |
+| Ladder climb | `enableClimbCost` | 1 | 20 | `fallOnDepleted`: slide `motionY = -0.15` |
 | Vine climb | | 3 | 20 | same |
 | Rope climb | `enableRopeCost` | 3 | 20 | same; option off = free on ropes |
 | Climb cling | | same cost | interval × **2** | same |
@@ -149,7 +149,7 @@ DSS default list is every stock skill `=0`. Change `Skill Costs` in cfg; no rebu
 | `LivingEntityUseItemEvent.Tick` | | Extra bow-hold spend on use-duration cadence (independent of player-tick timer) |
 | `LivingEntityUseItemEvent.Stop` | | Throw release or cancel |
 | `BlockEvent.BreakEvent` | | Mining spend (break is not cancelled) |
-| `PlayerRespawnEvent` | | `fillFeathers` |
+| `PlayerRespawnEvent` | | `increaseFeathers` to max (not `fillFeathers`) |
 | `TickEvent.PlayerTickEvent` START (client, local) | `StaminaModuleClient` | Weight restore; climb jump packet + client slide; ledge state machine |
 | `InputUpdateEvent` LOWEST (client) | | Grapple packet |
 | `InputUpdateEvent` NORMAL (client) | | Climb: clear jump/sneak when empty so vanilla doesn’t keep climbing |
@@ -161,6 +161,10 @@ DSS default list is every stock skill `=0`. Change `Skill Costs` in cfg; no rebu
 ### HUD
 
 If `Utils.dodgeTraitUnlocked`, Elenai’s `DodgeGui` draws. If not, Tweaks calls the **same** Extended `DodgeGui.renderFeathers` / `renderAbsorptionFeathers` on `FOOD` (or `ALL` when `compatHud`). Do not fork old 1.1.0 icons. Respect `ModConfig.client.hud.hud` and creative/spectator.
+
+**Right column:** feathers stay on Forge `right_height` (above hunger / Simple Difficulty thirst). Do not mixin `DodgeGui` to move them.
+
+Toughness Bar overlay (armor column, LTR) is the [client module](client.md), not this cfg.
 
 ### Jump
 
@@ -231,7 +235,7 @@ Ember: server `removeEmber` every `motorEmberInterval` for `motorEmberCost` (**4
 
 ### Dynamic Sword Skills
 
-Mixin `SkillActive.trigger`: HEAD cancel (return false) if cost > 0 and not enough feathers; RETURN spend if trigger returned true; Redirect `addExhaustion` no-op when `enableSkillCost && replaceHungerExhaustion`. Cost from exact `skillCosts` map or `defaultSkillCost`. Client/creative/spectator skipped. Registry name via `getRegistryName()` on the skill instance.
+Mixin `SkillActive.trigger`: HEAD cancel (return false) if cost > 0 and not enough feathers; RETURN spend if trigger returned true; Redirect `addExhaustion` no-op when `enableSkillCost && replaceHungerExhaustion`. Client/creative/spectator skipped. Skill id is `getUnlocalizedName()` (e.g. `swordbeam`), then `getRegistryName()` if present. Cost: exact `skillCosts` key, then `dynamicswordskills:` + name, then compare with `_` stripped (`sword_beam` = `swordbeam`); else `defaultSkillCost`.
 
 ## Config (`aqtweaks_stamina.cfg`)
 
@@ -255,7 +259,7 @@ All live unless noted. Nested Forge categories.
 | Skill Costs | stock skills `=0` | `id=N` lines |
 | Enable Climbing Stamina Cost | true | Ladder/vine; ropes have their own flag |
 | Ladder/Vine/Rope interval | 20 | |
-| Ladder / Vine / Rope cost | 2 / 3 / 3 | |
+| Ladder / Vine / Rope cost | 1 / 3 / 3 | |
 | Enable Rope Climb Cost | true | Off = ropes free |
 | Cling Interval Multiplier | 2 | |
 | Fall on Stamina Depleted | true | Slide + clear climb keys |
@@ -345,11 +349,17 @@ Elenai applied full weight on join before Tweaks’ reduction. **Fix:** empty th
 
 Empty-stamina slide cancelled the mantle. **Fix:** grace ticks + jump packet + client mantleIntent skip.
 
+### 8. Respawn `fillFeathers` config packet overflow
+
+`fillFeathers` also calls `Utils.updateClientConfig`, which writes the full weights array as one UTF-8 string (`CUpdateConfigMessage`). This pack’s `S:"Weights Override"` is large enough to throw `EncoderException` on Respawn (join is usually safe because Tweaks empties that array HIGHEST→LOWEST around Elenai’s join sync). **Fix:** refill with `increaseFeathers(max)` only.
+
 ## Do not regress
 
 - Spend only via `FeathersHelper.decreaseFeathers`. Never `SpendFeatherEvent`.
-- HUD = Extended `DodgeGui`, not 1.1.0 icons. Respawn = `fillFeathers`.
-- Compile jar **Extended 1.1.3**. Grapple and DSS mixins stay `required: false`.
+- HUD = Extended `DodgeGui`, not 1.1.0 icons. Respawn = `increaseFeathers` to max, never `fillFeathers`.
+- Compile jar **Extended 1.1.3**. Grapple, DSS, and Toughness Bar mixins stay `required: false`.
+- Do not move Elenai feathers off the hunger/thirst column. Toughness Bar (when the flag is on) uses `left_height + 10` so it clears Overloaded Armor Bar’s unreserved armor row, then PUT `+ 10`.
+- DSS skill ids: `getUnlocalizedName()` first, not `getRegistryName()`. `sword_beam` in cfg must match `swordbeam`.
 - Grapple climb/descend: controller `playerforward` after Grapple’s `InputUpdateEvent`, not vanilla `moveForward`.
 - Do not treat pendulum upswing as climb. Hang↔swing must not reset the stamina timer.
 - Motor Ember on **both** sides (server consume + client mixin). Empty Ember must not unhook. Empty stamina must not unhook on descend or grounded-without-motor.
@@ -361,11 +371,11 @@ Empty-stamina slide cancelled the mantle. **Fix:** grace ticks + jump packet + c
 
 **Combat / tools:** jump costs 1 and blocks at 0; sword 2, axe 4, dagger 1; empty-hand punch is light **on a hit**; short-stamina **hit** deals reduced damage once; bow 2 on draw + hold (hold may tick twice); throw hold slower than bow, 1 on release; shield 1/s then drops; break stone 1, ore 2; Fatigue III at ≤ 2 full feathers; glider 1/s then folds; DSS with cost > 0 spends and blocks when empty; hunger not also drained if replace exhaustion is on.
 
-**Climb / ledge:** ladder 2/s up, cling half rate, slide free; empty slides; jump+forward mantle 2 and does not fight slide.
+**Climb / ledge:** ladder 1/s up, cling half rate, slide free; empty slides; jump+forward mantle 2 and does not fight slide.
 
 **Grapple:** plant on ground = 0; Shift+W = 3/s; hang = 1/s; pendulum = 2/s through the apex; Shift+S = 0; motor = hang + 40 Ember/s from jar/cartridge/bulb; empty Ember = motor off, still hooked; empty feathers = unhook except descend / grounded.
 
-**Integrations:** Armor Mastery lowers displayed weight; mining perk −1 on break; regen feathers add SD thirst; dodge-locked still shows Extended feathers.
+**HUD:** dodge-locked still shows Extended feathers on the **right** above thirst. Toughness placement is [client.md](client.md).
 
 ## Out of scope unless asked
 
