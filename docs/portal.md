@@ -29,7 +29,7 @@ Lifespan from cfg (default 1200 ticks). `setSize(1.6, 2.4)`, noClip, not saved (
 
 Block light **15** at the mid cell (`RiftLighting` + `MixinWorldRiftLight` on `World.getRawLight`); `checkLight` on spawn/move/death. That mixin is in `mixins.aqtweaks.early.json` (jar `MixinConfigs`), not the late Tweaks json — late prepare hits `World` after it is already loaded and crashes boot.
 
-Teleport: AABB overlap. Skip other rifts and **sitting** tamed pets. Players still dismount, companion-pull (radius), remount, re-leash. Everything else in the box (`EntityItem`, villagers, hostiles, standing tames, XP orbs, etc.) `moveToExit`. Then `timeUntilPortal` = cooldown (default 80). Exit = dest rift + look × exit offset.
+Teleport: AABB overlap. Skip other rifts and **sitting** tamed pets. Players still dismount, companion-pull (radius), remount, re-leash. Everything else in the box (`EntityItem`, villagers, hostiles, standing tames, XP orbs, etc.) `moveToExit`. Then `timeUntilPortal` = cooldown (default 80). Exit = dest rift + look × exit offset. After a player arrives, next tick **untrack/track** the dest rift so a remote pair is spawned on the client (chunk packets do not carry entities).
 
 Same dimension: `setPlayerLocation` / `setLocationAndAngles`. Cross-dimension: `entity.changeDimension(destDim, RiftTeleporter)` with `isVanilla() == false`. Sitting pets still stay in the origin dimension.
 
