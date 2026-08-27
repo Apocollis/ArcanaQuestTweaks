@@ -11,8 +11,9 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 @SideOnly(Side.CLIENT)
 public final class RiftParticles {
 
-    private static final int BURST = 4;
+    private static final int BURST = 2;
     private static final double HEIGHT = 2.4;
+    private static final double MAX_RADIUS = 0.70;
 
     private RiftParticles() {}
 
@@ -27,24 +28,24 @@ public final class RiftParticles {
         float g = wild ? 0.12F : 0.2F;
         float b = wild ? 0.08F : 0.85F;
         for (int i = 0; i < BURST; i++) {
-            boolean core = rand.nextBoolean();
-            double radius = core ? rand.nextDouble() * 0.35 : 0.35 + rand.nextDouble() * 0.80;
+            double radius = rand.nextDouble() * MAX_RADIUS;
             double angle = rand.nextDouble() * Math.PI * 2.0;
             double ox = Math.cos(angle) * radius;
             double oz = Math.sin(angle) * radius;
             double y = cy + rand.nextDouble() * HEIGHT;
-            double outward = core ? 0.008 : 0.03;
             spawnTinted(EnumParticleTypes.DRAGON_BREATH,
                     cx + ox, y, cz + oz,
-                    ox * outward, 0.02 + rand.nextDouble() * 0.03, oz * outward,
+                    ox * -0.008, 0.02 + rand.nextDouble() * 0.03, oz * -0.008,
                     r, g, b);
         }
         if (remaining <= 1) {
-            for (int i = 0; i < 6; i++) {
+            for (int i = 0; i < 4; i++) {
+                double radius = rand.nextDouble() * MAX_RADIUS;
+                double angle = rand.nextDouble() * Math.PI * 2.0;
                 rift.world.spawnParticle(EnumParticleTypes.CLOUD,
-                        cx + (rand.nextDouble() - 0.5),
+                        cx + Math.cos(angle) * radius,
                         cy + 1.0,
-                        cz + (rand.nextDouble() - 0.5),
+                        cz + Math.sin(angle) * radius,
                         0.0, 0.05, 0.0);
             }
         }

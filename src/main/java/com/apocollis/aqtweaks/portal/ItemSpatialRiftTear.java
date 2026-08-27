@@ -3,8 +3,6 @@ package com.apocollis.aqtweaks.portal;
 import com.apocollis.aqtweaks.ArcanaQuestTweaks;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig.PortalModuleConfig;
 
-import net.minecraft.client.gui.GuiScreen;
-import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.player.EntityPlayer;
@@ -19,7 +17,8 @@ import net.minecraft.util.EnumHand;
 import net.minecraft.util.SoundCategory;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.RayTraceResult;
-import net.minecraft.util.text.TextComponentTranslation;
+import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -47,8 +46,12 @@ public class ItemSpatialRiftTear extends Item {
         if (!player.isSneaking() || !PortalModuleConfig.general.enable) {
             return EnumActionResult.PASS;
         }
+        ItemStack stack = player.getHeldItem(hand);
+        if (!isBound(stack)) {
+            return EnumActionResult.PASS;
+        }
         if (!world.isRemote) {
-            bind(player.getHeldItem(hand), player, pos.up(), world.provider.getDimension());
+            unbind(stack, player);
         }
         return EnumActionResult.SUCCESS;
     }
@@ -60,9 +63,8 @@ public class ItemSpatialRiftTear extends Item {
             return new ActionResult<>(EnumActionResult.FAIL, stack);
         }
         if (player.isSneaking()) {
-            if (!world.isRemote) {
-                BlockPos feet = new BlockPos(player.posX, Math.floor(player.posY), player.posZ);
-                bind(stack, player, feet, world.provider.getDimension());
+            if (!world.isRemote && isBound(stack)) {
+                unbind(stack, player);
             }
             return new ActionResult<>(EnumActionResult.SUCCESS, stack);
         }
@@ -81,7 +83,8 @@ public class ItemSpatialRiftTear extends Item {
         int dim = stack.getTagCompound().getInteger(TAG_DIM);
         World destWorld = player.getServer() != null ? player.getServer().getWorld(dim) : null;
         if (destWorld == null) {
-            player.sendStatusMessage(new TextComponentTranslation("item.aqtweaks.spatial_rift_tear.missing_dim"), true);
+            player.sendStatusMessage(new TextComponentString(
+                    PortalLang.format("item.aqtweaks.spatial_rift_tear.missing_dim")), true);
             return new ActionResult<>(EnumActionResult.FAIL, stack);
         }
         BlockPos dest = new BlockPos(
@@ -89,7 +92,8 @@ public class ItemSpatialRiftTear extends Item {
                 stack.getTagCompound().getInteger(TAG_Y),
                 stack.getTagCompound().getInteger(TAG_Z));
         if (!PortalModule.spawnLinkedRifts(world, destWorld, player, dest, false)) {
-            player.sendStatusMessage(new TextComponentTranslation("item.aqtweaks.spatial_rift_tear.failed"), true);
+            player.sendStatusMessage(new TextComponentString(
+                    PortalLang.format("item.aqtweaks.spatial_rift_tear.failed")), true);
             return new ActionResult<>(EnumActionResult.FAIL, stack);
         }
         if (!player.capabilities.isCreativeMode) {
@@ -101,10 +105,9 @@ public class ItemSpatialRiftTear extends Item {
     @Override
     public String getItemStackDisplayName(ItemStack stack) {
         if (isBound(stack)) {
-            return net.minecraft.util.text.translation.I18n.translateToLocal(
-                    "item.aqtweaks.spatial_rift_tear.name_linked");
+            return PortalLang.format(PortalLang.TEAR_NAME_LINKED);
         }
-        return super.getItemStackDisplayName(stack);
+        return PortalLang.format(PortalLang.TEAR_NAME);
     }
 
     @Override
@@ -115,20 +118,16 @@ public class ItemSpatialRiftTear extends Item {
     @Override
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
-        tooltip.add(I18n.format("item.aqtweaks.spatial_rift_tear.lore"));
+        tooltip.add(PortalLang.format(PortalLang.TEAR_LORE));
         if (!isBound(stack)) {
-            tooltip.add(I18n.format("item.aqtweaks.spatial_rift_tear.unbound"));
-            return;
-        }
-        NBTTagCompound tag = stack.getTagCompound();
-        tooltip.add(net.minecraft.util.text.TextFormatting.LIGHT_PURPLE + I18n.format(
-                "item.aqtweaks.spatial_rift_tear.bound",
-                tag.getInteger(TAG_X), tag.getInteger(TAG_Y), tag.getInteger(TAG_Z), tag.getInteger(TAG_DIM)));
-        if (GuiScreen.isShiftKeyDown()) {
-            tooltip.add(I18n.format("item.aqtweaks.spatial_rift_tear.shift"));
+            tooltip.add(PortalLang.format(PortalLang.TEAR_UNBOUND));
         } else {
-            tooltip.add(I18n.format("item.aqtweaks.spatial_rift_tear.shift_hint"));
+            NBTTagCompound tag = stack.getTagCompound();
+            tooltip.add(TextFormatting.LIGHT_PURPLE + PortalLang.format(
+                    PortalLang.TEAR_BOUND,
+                    tag.getInteger(TAG_X), tag.getInteger(TAG_Y), tag.getInteger(TAG_Z), tag.getInteger(TAG_DIM)));
         }
+        tooltip.add(PortalLang.format(PortalLang.TEAR_SHIFT));
     }
 
     public static boolean isBound(ItemStack stack) {
@@ -145,7 +144,23 @@ public class ItemSpatialRiftTear extends Item {
         stack.setTagCompound(tag);
         player.world.playSound(null, player.getPosition(), SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP,
                 SoundCategory.PLAYERS, 0.7F, 1.2F);
-        player.sendMessage(new TextComponentTranslation(
-                "item.aqtweaks.spatial_rift_tear.attuned", pos.getX(), pos.getY(), pos.getZ()));
+        player.sendStatusMessage(new TextComponentString(
+                PortalLang.format("item.aqtweaks.spatial_rift_tear.attuned", pos.getX(), pos.getY(), pos.getZ())), true);
+    }
+
+    static void unbind(ItemStack stack, EntityPlayer player) {
+        if (!isBound(stack)) {
+            return;
+        }
+        NBTTagCompound tag = stack.getTagCompound();
+        tag.setBoolean(TAG_BOUND, false);
+        tag.removeTag(TAG_X);
+        tag.removeTag(TAG_Y);
+        tag.removeTag(TAG_Z);
+        tag.removeTag(TAG_DIM);
+        player.world.playSound(null, player.getPosition(), SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP,
+                SoundCategory.PLAYERS, 0.7F, 0.8F);
+        player.sendStatusMessage(new TextComponentString(
+                PortalLang.format("item.aqtweaks.spatial_rift_tear.cleared")), true);
     }
 }

@@ -16,7 +16,7 @@ Do **not** instant-teleport the player. Do **not** use vanilla end-portal TESR. 
 
 | Id | Display | Use |
 | --- | --- | --- |
-| `aqtweaks:spatial_rift_tear` | Arcane Tunnel; **Linked Arcane Tunnel** + glint when bound | Unbound air-use binds feet. Sneak+block binds Y+1. Sneak-air rebinds feet. Bound air-use opens source here and dest at bound XYZ in `BoundDim`. Bind is item NBT (`Bound`, `BoundX/Y/Z`, `BoundDim`). Creative does not consume. |
+| `aqtweaks:spatial_rift_tear` | Arcane Tunnel; **Linked Arcane Tunnel** + glint when bound | Unbound air-use binds feet. Bound air-use opens source here and dest at bound XYZ in `BoundDim`. **Sneak-use unbinds** (air or block). Unbound sneak does nothing. Bind is item NBT (`Bound`, `BoundX/Y/Z`, `BoundDim`). Creative does not consume. Tooltip always shows the use line. |
 | `aqtweaks:spatial_rift_wild` | Unstable Arcane Tunnel | Air-use searches random XZ in min–max range, surface Y, reject liquid / leaves / ocean. Same-dimension rift pair. |
 
 Wild `findStandPos` starts at `getHeight` and walks **down** through air, plants, and **leaves** (cap 48) onto **solid + 1** whose two body cells are air or plants **only** (not leaves, not a log in the canopy). Source / bound spawn uses `snapStand`: skip plants at that Y, do **not** fall through air. Failed dest snap does **not** use a solid `destStand` — open fails.
@@ -41,7 +41,7 @@ Companion pull (player trips only, same tick, radius cfg 16): `EntityTameable` o
 
 `RenderArcaneRift`: nether-portal texture on a **wobbly cylinder**, **V scrolls upward** (no yaw spin). Vertex alpha **0.75** healthy / **0.25** collapse. Wild pair: red vertex tint. Not End TESR, not a dest camera.
 
-Particles (client `RiftParticles`, **4**/tick): **purple** `DRAGON_BREATH` column (wild **red**); no `PORTAL` motes; no enchantment-table glyphs; **6** `CLOUD` on collapse.
+Particles (client `RiftParticles`, **2**/tick): **purple** `DRAGON_BREATH` inside the cylinder (radius ≤ 0.70, slight inward drift); wild **red**; no `PORTAL` motes; no enchantment-table glyphs; **4** `CLOUD` on collapse (same disc).
 
 **Open:** `ENTITY_LIGHTNING_THUNDER` and `BLOCK_PORTAL_TRIGGER` at **origin and destination**. **While open:** `BLOCK_PORTAL_AMBIENT` every 40 ticks per rift. **Collapse:** `BLOCK_PORTAL_TRIGGER` on that rift.
 
@@ -80,10 +80,10 @@ Existing instance `aqtweaks_portal.cfg` keeps old wild distances until edited.
 - Renderer only from `ClientProxy.preInit`. No `RenderArcaneRift` on the server classpath path.
 - `getRawLight` no-ops when no rifts are live. Stamina packets stay 0–2. Java 21 `--release`.
 - Sitting pets must not companion-pull. Leash rebind must not attach unleashed pets.
-- Particle counts stay capped. No vanilla nether portal math on rift travel. Tear rifts must not use the wild red flag.
+- Particle counts stay capped at 2/tick inside the cylinder. No vanilla nether portal math on rift travel. Tear rifts must not use the wild red flag.
 - Do not `untrack`/`track` rifts. No portal light packet.
 - Wild dest must not sit on canopy logs. Exit must snap at Exit Offset, not dest Y in a trunk.
 
 ## Verify
 
-`/give @p aqtweaks:spatial_rift_tear` then `/give @p aqtweaks:spatial_rift_wild`. Unbound name Arcane Tunnel; first use binds (Linked Arcane Tunnel + glint). Second (elsewhere, including Nether) opens purple rifts both ends; wild opens red. Dark cave lights like glowstone. Walk through both ways; villager/zombie in the box also go; 60s collapse. Sitting wolf stays; standing follows. Lead follows. Wild tear lands on dirt/stone ~4000–6000 blocks away, not ocean, **not** on a tree limb. Walk through: stand on solid ~1.5 in front of dest. Far dest cylinder still draws with DS full bypass. Missing dest dim fails with item kept. Dedicated server boots.
+`/give @p aqtweaks:spatial_rift_tear` then `/give @p aqtweaks:spatial_rift_wild`. Unbound name Arcane Tunnel; tooltip has use line. First air-use binds (Linked + glint). Sneak-use unbinds. Second air-use (elsewhere, including Nether) opens purple rifts both ends; wild opens red. Breath stays inside the cylinder. Dark cave lights like glowstone. Walk through both ways; villager/zombie in the box also go; 60s collapse. Sitting wolf stays; standing follows. Lead follows. Wild tear lands on dirt/stone ~4000–6000 blocks away, not ocean, **not** on a tree limb. Walk through: stand on solid ~1.5 in front of dest. Far dest cylinder still draws with DS full bypass. Missing dest dim fails with item kept. Dedicated server boots.

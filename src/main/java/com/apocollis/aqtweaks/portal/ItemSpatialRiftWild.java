@@ -4,7 +4,6 @@ import com.apocollis.aqtweaks.ArcanaQuestTweaks;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig.PortalModuleConfig;
 
 import net.minecraft.client.gui.GuiScreen;
-import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.player.EntityPlayer;
@@ -60,13 +59,18 @@ public class ItemSpatialRiftWild extends Item {
     }
 
     @Override
+    public String getItemStackDisplayName(ItemStack stack) {
+        return PortalLang.format(PortalLang.WILD_NAME);
+    }
+
+    @Override
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
-        tooltip.add(I18n.format("item.aqtweaks.spatial_rift_wild.lore"));
+        tooltip.add(PortalLang.format(PortalLang.WILD_LORE));
         if (GuiScreen.isShiftKeyDown()) {
-            tooltip.add(I18n.format("item.aqtweaks.spatial_rift_wild.shift"));
+            tooltip.add(PortalLang.format(PortalLang.WILD_SHIFT));
         } else {
-            tooltip.add(I18n.format("item.aqtweaks.spatial_rift_wild.shift_hint"));
+            tooltip.add(PortalLang.format(PortalLang.WILD_SHIFT_HINT));
         }
     }
 }
