@@ -771,6 +771,59 @@ public class ArcanaQuestTweaksConfig {
         public int cambionHouseFalloff = 12;
     }
 
+    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_portal", category = "")
+    public static class PortalModuleConfig {
+        @Config.Name("General")
+        @Config.Comment("Spatial rift items and entity.")
+        public static final PortalGeneral general = new PortalGeneral();
+    }
+
+    public static class PortalGeneral {
+        @Config.Name("Enable Portal Module")
+        @Config.Comment("If false, rift items do not attune or open. Registry still loads.")
+        public boolean enable = true;
+
+        @Config.Name("Rift Lifespan Ticks")
+        @Config.Comment("How long both rifts stay open. 1200 = 60 seconds.")
+        @Config.RangeInt(min = 20, max = 24000)
+        public int lifespanTicks = 1200;
+
+        @Config.Name("Teleport Cooldown Ticks")
+        @Config.Comment("Vanilla-style timeUntilPortal after a trip so entities do not bounce. 80 = 4 seconds.")
+        @Config.RangeInt(min = 1, max = 400)
+        public int cooldownTicks = 80;
+
+        @Config.Name("Spawn Offset")
+        @Config.Comment("Blocks along look direction to place the source rift in front of the player.")
+        @Config.RangeDouble(min = 0.5, max = 4.0)
+        public double spawnOffset = 1.5;
+
+        @Config.Name("Exit Offset")
+        @Config.Comment("Blocks in front of the destination rift to stand after teleport.")
+        @Config.RangeDouble(min = 0.5, max = 4.0)
+        public double exitOffset = 1.5;
+
+        @Config.Name("Companion Radius")
+        @Config.Comment("Blocks around the player to pull standing owned pets and leashed mobs.")
+        @Config.RangeDouble(min = 4.0, max = 32.0)
+        public double companionRadius = 16.0;
+
+        @Config.Name("Wild Min Distance")
+        @Config.Comment("Minimum blocks from the player for an unstable tear landing.")
+        @Config.RangeInt(min = 16, max = 8000)
+        public int wildMinDistance = 4000;
+
+        @Config.Name("Wild Max Distance")
+        @Config.Comment("Maximum blocks from the player for an unstable tear landing.")
+        @Config.RangeInt(min = 32, max = 16000)
+        public int wildMaxDistance = 6000;
+
+        @Config.Name("Wild Search Attempts")
+        @Config.Comment("Random land columns to try before giving up.")
+        @Config.RangeInt(min = 8, max = 256)
+        public int wildSearchAttempts = 48;
+    }
+
     @Mod.EventBusSubscriber(modid = ArcanaQuestTweaks.MODID)
     public static class ConfigEventHandler {
         @SubscribeEvent

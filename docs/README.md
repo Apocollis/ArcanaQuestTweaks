@@ -21,6 +21,7 @@ Each file covers: what Tweaks changes, how the **parent mod** implements the fea
 | Thaumcraft | Thaumcraft 6 | [thaumcraft.md](thaumcraft.md) |
 | Bewitchment | Bewitchment + Thaumcraft | [bewitchment.md](bewitchment.md) |
 | Comfort | Vanilla + optional Thaumcraft, Simple Difficulty, Biomes O' Plenty | [comfort.md](comfort.md) |
+| Portal | Tweaks-owned (no parent) | [portal.md](portal.md) |
 | Depths | Depths Update, YUNG's Better Caves, RTG, CoFH World, Recurrent Complex | [depths.md](depths.md) |
 | RTG | Realistic Terrain Generation + vanilla `MapGenVillage` + Recurrent Complex + Astral / Bewitchment Cambion / Mystical World huts | [rtg.md](rtg.md) |
 | Village gen (pack pipeline) | Vanilla + RTG + Geographicraft + Recurrent Complex + Charm + Tweaks overlay | [villagegen_info.md](villagegen_info.md) |
@@ -56,6 +57,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 
 - Register SimpleNetworkWrapper messages 0–2 (stamina climb/grapple). See [stamina.md](stamina.md).
 - `ComfortConfigLoader.load` from the Forge config directory.
+- `PortalModule.preInit` (`ForgeChunkManager` callback). Item/entity register via `RegistryEvent` (not init).
 
 **init (common)**
 
@@ -67,12 +69,17 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 **init (client)**
 
 - `StaminaModuleClient`, `DepthsFogHandler`, `ClientModule`.
+- Entity renderer for `EntityArcaneRift` in **client preInit**. Item models on `ModelRegistryEvent`.
 
 `postInit` is empty.
 
+### MixinBooter: early vs late
+
+Vanilla `World` is already loaded when late mixins prepare. Portal glowstone light (`MixinWorldRiftLight` on `World.getRawLight`) is in **`mixins.aqtweaks.early.json`** (`required: true`). MixinBooter 11 reads that name from the jar manifest attribute `MixinConfigs` (set in `build.gradle`). Do not register this json from `AQTweaksLateMixinLoader`. Missing it fails load.
+
 ### MixinBooter late loader
 
-`AQTweaksLateMixinLoader` always returns these configs (MixinBooter / Fugue). There is no early mixin json.
+`AQTweaksLateMixinLoader` always returns these configs (MixinBooter / Fugue).
 
 | File | `required` | Module | If parent jar missing |
 | --- | --- | --- | --- |
@@ -89,7 +96,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 `mixins.aqtweaks.json` contents (package `com.apocollis.aqtweaks.mixin`):
 
 - Client: `MixinRenderGlobal` (Depths hide sky)
-- Common: `MixinChunkProviderServer`, `depthsupdate.MixinDepthsCaveNoiseGenerator`, `cofh.MixinDistributionUniform`, `reccomplex.MixinRayMatcher`, `reccomplex.MixinGenericVillageCreationHandler`, Better Caves / RTG village mixins listed in [depths.md](depths.md) and [rtg.md](rtg.md), `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinMapGenVillageInside/Spawn/Start/World`, `MixinCraftingHelperFindFiles`. Charm paste: optional `mixins.aqtweaks.charm.json`.
+- Common: `MixinChunkProviderServer`, `depthsupdate.MixinDepthsCaveNoiseGenerator`, `cofh.MixinDistributionUniform`, `reccomplex.MixinRayMatcher`, `reccomplex.MixinGenericVillageCreationHandler`, Better Caves / RTG village mixins listed in [depths.md](depths.md) and [rtg.md](rtg.md), `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinMapGenVillageInside/Spawn/Start/World`, `MixinCraftingHelperFindFiles`. Charm paste: optional `mixins.aqtweaks.charm.json`. Portal `MixinWorldRiftLight` is in `mixins.aqtweaks.early.json`.
 
 Two mixins target `ChunkGeneratorRTG` in that required json, in this order:
 
@@ -111,6 +118,7 @@ Forge `@Config` on nested classes in `ArcanaQuestTweaksConfig`. Comfort is JSON,
 | `aqtweaks_bewitchment.cfg` | `BewitchmentConfig` |
 | `aqtweaks_depths.cfg` | `DepthsModuleConfig` |
 | `aqtweaks_rtg.cfg` | `RtgModuleConfig` |
+| `aqtweaks_portal.cfg` | `PortalModuleConfig` |
 | `aqtweaks_comfort.json` | `ComfortConfigLoader` (not `@Config`) |
 
 `ConfigEventHandler` runs `ConfigManager.sync` on any `aqtweaks` cfg change and invalidates DSS skill-cost cache. Existing instance files keep old values when Java defaults change.

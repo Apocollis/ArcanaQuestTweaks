@@ -1,6 +1,6 @@
 # Thaumcraft module (1.7)
 
-Last updated: 2026-08-20.
+Last updated: 2026-08-26.
 
 Config: `config/arcanaquesttweaks/aqtweaks_thaumcraft.cfg`. Event handler registers only if `thaumcraft` is loaded (`CommonProxy.init`). Warp API is reflection (`ThaumcraftHelper`) so the rest of Tweaks still compiles if TC is absent from the workspace.
 
@@ -105,7 +105,7 @@ Accrual and decay are **1:1** (20 seconds per check either way). Not 1.5×.
 ## Files
 
 - `thaumcraft/ThaumcraftModule.java`
-- `thaumcraft/ThaumcraftHelper.java` — lazy `init()`, type index 0/1/2, `sync` only if `EntityPlayerMP`
+- `thaumcraft/ThaumcraftHelper.java` — lazy `init()`, type index 0/1/2, `sync` only if `EntityPlayerMP`. Use raw `Class` (not `Class<?>`): Forge 1.12 `SideTransformer` throws on Java 21 generic Signature / LVT and the class then looks missing (`NoClassDefFoundError` from Comfort homestead cleanse).
 
 ## Do not regress
 
@@ -115,6 +115,7 @@ Accrual and decay are **1:1** (20 seconds per check either way). Not 1.5×.
 - Off-thread sleep then `addScheduledTask` — never TC API from the worker thread.
 - Exposure decay is **−20 / 20s**, same as accrual, not an instant wipe and not 1.5×.
 - Comfort `WarpCleansingProgress` is a different counter.
+- `ThaumcraftHelper` fields and `Class.forName` locals stay raw `Class`. Generics here crash SideTransformer on Java 21 class files.
 
 ## Out of scope unless asked
 

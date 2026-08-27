@@ -1,7 +1,5 @@
 package com.apocollis.aqtweaks.thaumcraft;
 
-import com.apocollis.aqtweaks.util.Reflect;
-
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraftforge.fml.common.Loader;
@@ -10,7 +8,7 @@ import java.lang.reflect.Method;
 public class ThaumcraftHelper {
 
     private static boolean initialized = false;
-    private static Class<?> enumWarpTypeClass = null;
+    private static Class enumWarpTypeClass = null;
     private static Object warpTypeNormal = null;
     private static Object warpTypeTemp = null;
     private static Object warpTypePerm = null;
@@ -26,22 +24,26 @@ public class ThaumcraftHelper {
         if (!Loader.isModLoaded("thaumcraft")) return;
 
         try {
-            Class<?> capsClass = Class.forName("thaumcraft.api.capabilities.ThaumcraftCapabilities");
+            Class capsClass = Class.forName("thaumcraft.api.capabilities.ThaumcraftCapabilities");
             getWarpMethod = capsClass.getMethod("getWarp", EntityPlayer.class);
 
             enumWarpTypeClass = Class.forName("thaumcraft.api.capabilities.IPlayerWarp$EnumWarpType");
-            for (Object enumConstant : enumWarpTypeClass.getEnumConstants()) {
-                String name = ((Enum<?>) enumConstant).name();
-                if ("NORMAL".equals(name)) {
-                    warpTypeNormal = enumConstant;
-                } else if ("TEMPORARY".equals(name)) {
-                    warpTypeTemp = enumConstant;
-                } else if ("PERMANENT".equals(name)) {
-                    warpTypePerm = enumConstant;
+            Object[] enumConstants = enumWarpTypeClass.getEnumConstants();
+            if (enumConstants != null) {
+                for (int i = 0; i < enumConstants.length; i++) {
+                    Object enumConstant = enumConstants[i];
+                    String name = ((Enum) enumConstant).name();
+                    if ("NORMAL".equals(name)) {
+                        warpTypeNormal = enumConstant;
+                    } else if ("TEMPORARY".equals(name)) {
+                        warpTypeTemp = enumConstant;
+                    } else if ("PERMANENT".equals(name)) {
+                        warpTypePerm = enumConstant;
+                    }
                 }
             }
 
-            Class<?> warpCapClass = Class.forName("thaumcraft.api.capabilities.IPlayerWarp");
+            Class warpCapClass = Class.forName("thaumcraft.api.capabilities.IPlayerWarp");
             getWarpValueMethod = warpCapClass.getMethod("get", enumWarpTypeClass);
             addWarpMethod = warpCapClass.getMethod("add", enumWarpTypeClass, int.class);
             reduceWarpMethod = warpCapClass.getMethod("reduce", enumWarpTypeClass, int.class);

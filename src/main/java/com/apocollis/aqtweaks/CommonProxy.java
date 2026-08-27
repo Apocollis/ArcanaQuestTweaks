@@ -30,6 +30,7 @@ public class CommonProxy {
         ArcanaQuestTweaks.NETWORK.registerMessage(PacketLedgeClimb.Handler.class, PacketLedgeClimb.class, 1, Side.SERVER);
         ArcanaQuestTweaks.NETWORK.registerMessage(PacketSyncGrappleInput.Handler.class, PacketSyncGrappleInput.class, 2, Side.SERVER);
         ComfortConfigLoader.load(event.getModConfigurationDirectory());
+        com.apocollis.aqtweaks.portal.PortalModule.preInit();
     }
 
     public void init(FMLInitializationEvent event) {

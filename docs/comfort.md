@@ -1,6 +1,6 @@
 # Comfort module (1.7)
 
-Last updated: 2026-08-20.
+Last updated: 2026-08-26.
 
 JSON: `config/arcanaquesttweaks/aqtweaks_comfort.json`. Always registered. No parent “Comfort mod” — Tweaks-owned, with optional hooks into other mods’ potions and warp.
 
@@ -155,6 +155,7 @@ Missing pack blocks simply never match; they do not crash.
 - Benefits are **ambient, no particles** (`true, false` on `PotionEffect`).
 - Keep category caps.
 - Comfort warp NBT is `WarpCleansingProgress`, not Thaumcraft exposure `WarpExposureProgress`.
+- Homestead cleanse calls `ThaumcraftHelper` (raw `Class` only). Generic `Class<?>` on that helper made Forge `SideTransformer` drop the class and crash the server tick.
 - Thermals and cold resist look up potions by name so Simple Difficulty absence never classloads SD.
 - Entry requires rest pose/stillness; **continuing** rest allows walking inside the scored area.
 - `isRiding()` is the sit check. Do not switch to a missing “isSitting” API and drop chair/boat rest.
