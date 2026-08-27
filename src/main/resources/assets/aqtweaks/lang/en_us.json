@@ -1,0 +1,19 @@
+{
+  "item.aqtweaks.spatial_rift_tear.name": "Arcane Tunnel",
+  "item.aqtweaks.spatial_rift_tear.name_linked": "Linked Arcane Tunnel",
+  "item.aqtweaks.spatial_rift_tear.lore": "\u00a7dPulls the arcane threads between places to open a temporary tunnel between them. Attune to a destination to open a rift back to that point.",
+  "item.aqtweaks.spatial_rift_tear.unbound": "\u00a77Unbound. Right-click in air to mark this place.",
+  "item.aqtweaks.spatial_rift_tear.bound": "Bound: %d, %d, %d (dim %d)",
+  "item.aqtweaks.spatial_rift_tear.shift": "\u00a78Sneak-use to rebind. Air-use opens a 60s rift at the bound point (any loaded dimension). Standing pets and leads follow; sitting pets stay.",
+  "item.aqtweaks.spatial_rift_tear.shift_hint": "\u00a78Hold Shift for details.",
+  "item.aqtweaks.spatial_rift_tear.attuned": "\u00a75[Arcana]\u00a7r \u00a7dAttuned Arcane Tunnel to X: %d, Y: %d, Z: %d.",
+  "item.aqtweaks.spatial_rift_tear.failed": "\u00a75[Arcana]\u00a7r The rift failed to open.",
+  "item.aqtweaks.spatial_rift_tear.missing_dim": "\u00a75[Arcana]\u00a7r The bound dimension is not loaded.",
+  "item.aqtweaks.spatial_rift_wild.name": "Unstable Arcane Tunnel",
+  "item.aqtweaks.spatial_rift_wild.lore": "\u00a7dDistorts arcane energy to open a tunnel between the current location and another random point in the same dimension.",
+  "item.aqtweaks.spatial_rift_wild.shift": "\u00a78Air-use opens a red rift pair 4000-6000 blocks away. Standing pets and leads follow; sitting pets stay.",
+  "item.aqtweaks.spatial_rift_wild.shift_hint": "\u00a78Hold Shift for details.",
+  "item.aqtweaks.spatial_rift_wild.no_land": "\u00a75[Arcana]\u00a7r No safe land was found.",
+  "entity.arcane_rift.name": "Arcane Rift",
+  "effect.aqtweaks.homestead": "Homestead"
+}

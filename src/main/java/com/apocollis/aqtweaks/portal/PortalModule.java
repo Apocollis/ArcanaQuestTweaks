@@ -34,6 +34,7 @@ public final class PortalModule {
     private PortalModule() {}
 
     public static void preInit() {
+        PortalLang.register();
         ForgeChunkManager.setForcedChunkLoadingCallback(ArcanaQuestTweaks.instance, (tickets, world) -> {
             for (ForgeChunkManager.Ticket ticket : tickets) {
                 ForgeChunkManager.releaseTicket(ticket);
@@ -70,11 +71,15 @@ public final class PortalModule {
         double spawn = PortalModuleConfig.general.spawnOffset;
         double sx = player.posX + look.x * spawn;
         double sz = player.posZ + look.z * spawn;
-        BlockPos sourceFeet = snapStand(sourceWorld, MathHelper.floor(sx), MathHelper.floor(player.posY), MathHelper.floor(sz));
+        BlockPos sourceFeet = snapStand(sourceWorld, MathHelper.floor(sx), MathHelper.floor(player.posY),
+                MathHelper.floor(sz));
         double sy = sourceFeet != null ? sourceFeet.getY() : player.posY;
         BlockPos destFeet = snapStand(destWorld, destStand.getX(), destStand.getY(), destStand.getZ());
         if (destFeet == null) {
-            destFeet = destStand;
+            destFeet = findStandFromY(destWorld, destStand.getX(), destStand.getY(), destStand.getZ());
+        }
+        if (destFeet == null) {
+            return false;
         }
         EntityArcaneRift source = new EntityArcaneRift(sourceWorld);
         source.setWild(wild);
@@ -129,12 +134,11 @@ public final class PortalModule {
     public static BlockPos findStandPos(World world, int x, int z) {
         world.getChunk(x >> 4, z >> 4);
         int startY = Math.max(world.getHeight(x, z), 1);
-        BlockPos feet = snapStand(world, x, startY, z);
+        BlockPos feet = findStandFromY(world, x, startY, z);
         if (feet == null) {
             return null;
         }
-        BlockPos ground = feet.down();
-        IBlockState groundState = world.getBlockState(ground);
+        IBlockState groundState = world.getBlockState(feet.down());
         if (groundState.getMaterial().isLiquid()) {
             return null;
         }
@@ -145,27 +149,106 @@ public final class PortalModule {
         return feet;
     }
 
-    static BlockPos snapStand(World world, int x, int startY, int z) {
-        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos(x, Math.max(startY, 0), z);
-        while (cursor.getY() > 0 && isPassable(world, cursor)) {
-            cursor.setY(cursor.getY() - 1);
+    public static Vec3d standAtOffset(World world, double destX, double destY, double destZ, float yaw) {
+        double offset = PortalModuleConfig.general.exitOffset;
+        int startY = MathHelper.floor(destY);
+        for (int step = 0; step < 8; step++) {
+            float heading = yaw + step * 45.0F;
+            double rad = Math.toRadians(heading);
+            double x = destX + (-Math.sin(rad)) * offset;
+            double z = destZ + Math.cos(rad) * offset;
+            BlockPos feet = findStandFromY(world, MathHelper.floor(x), startY, MathHelper.floor(z));
+            if (feet != null) {
+                return new Vec3d(feet.getX() + 0.5, feet.getY(), feet.getZ() + 0.5);
+            }
         }
-        if (!isSolidFloor(world, cursor)) {
-            return null;
+        BlockPos destFeet = findStandFromY(world, MathHelper.floor(destX), startY, MathHelper.floor(destZ));
+        if (destFeet != null) {
+            return new Vec3d(destFeet.getX() + 0.5, destFeet.getY(), destFeet.getZ() + 0.5);
         }
-        BlockPos feet = cursor.up();
-        if (!isPassable(world, feet) || !isPassable(world, feet.up())) {
-            return null;
-        }
-        return feet;
+        return new Vec3d(destX, destY, destZ);
     }
 
-    private static boolean isPassable(World world, BlockPos pos) {
-        IBlockState state = world.getBlockState(pos);
-        if (state.getMaterial().isLiquid()) {
+    static BlockPos snapStand(World world, int x, int startY, int z) {
+        int y = MathHelper.clamp(startY, 0, world.getHeight() - 2);
+        while (y > 0 && isPlant(world, new BlockPos(x, y, z))) {
+            y--;
+        }
+        BlockPos at = new BlockPos(x, y, z);
+        if (isSolidFloor(world, at)) {
+            return climbForBody(world, at);
+        }
+        if (isStandBody(world, at) && isSolidFloor(world, at.down()) && isStandBody(world, at.up())) {
+            return at;
+        }
+        return null;
+    }
+
+    static BlockPos findStandFromY(World world, int x, int startY, int z) {
+        int y = MathHelper.clamp(startY, 0, world.getHeight() - 2);
+        int minY = Math.max(0, y - 48);
+        int top = Math.min(world.getHeight() - 2, y + 8);
+        for (int cursor = y; cursor >= minY; cursor--) {
+            BlockPos ground = new BlockPos(x, cursor, z);
+            if (!isSolidFloor(world, ground)) {
+                continue;
+            }
+            BlockPos feet = ground.up();
+            if (isStandBody(world, feet) && isStandBody(world, feet.up())) {
+                return feet;
+            }
+        }
+        for (int cursor = y; cursor <= top; cursor++) {
+            BlockPos climbed = climbForBody(world, new BlockPos(x, cursor, z));
+            if (climbed != null) {
+                return climbed;
+            }
+        }
+        return null;
+    }
+
+    private static BlockPos climbForBody(World world, BlockPos solid) {
+        if (!isSolidFloor(world, solid)) {
+            return null;
+        }
+        int maxY = world.getHeight() - 2;
+        for (int dy = 1; dy <= 8; dy++) {
+            int feetY = solid.getY() + dy;
+            if (feetY > maxY) {
+                break;
+            }
+            BlockPos feet = new BlockPos(solid.getX(), feetY, solid.getZ());
+            if (isStandBody(world, feet) && isStandBody(world, feet.up())) {
+                return feet;
+            }
+        }
+        return null;
+    }
+
+    private static boolean isPlant(World world, BlockPos pos) {
+        if (world.isAirBlock(pos) || isCanopy(world, pos)) {
             return false;
         }
-        return state.getBlock().isReplaceable(world, pos) || !state.getMaterial().blocksMovement();
+        IBlockState state = world.getBlockState(pos);
+        if (state.getMaterial().isLiquid() || state.getMaterial() == Material.AIR) {
+            return false;
+        }
+        return state.getBlock().isReplaceable(world, pos);
+    }
+
+    private static boolean isCanopy(World world, BlockPos pos) {
+        IBlockState state = world.getBlockState(pos);
+        return state.getBlock().isLeaves(state, world, pos)
+                || state.getMaterial() == Material.LEAVES
+                || state.getBlock().isFoliage(world, pos);
+    }
+
+    private static boolean isStandBody(World world, BlockPos pos) {
+        IBlockState state = world.getBlockState(pos);
+        if (state.getMaterial().isLiquid() || isCanopy(world, pos) || isSolidFloor(world, pos)) {
+            return false;
+        }
+        return world.isAirBlock(pos) || state.getMaterial() == Material.AIR || isPlant(world, pos);
     }
 
     private static boolean isSolidFloor(World world, BlockPos pos) {
@@ -173,10 +256,7 @@ public final class PortalModule {
         if (state.getMaterial().isLiquid()) {
             return false;
         }
-        if (state.getBlock().isLeaves(state, world, pos) || state.getMaterial() == Material.LEAVES) {
-            return false;
-        }
-        if (state.getBlock().isFoliage(world, pos)) {
+        if (isCanopy(world, pos)) {
             return false;
         }
         return state.getMaterial().blocksMovement();

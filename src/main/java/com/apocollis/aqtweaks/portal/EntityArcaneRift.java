@@ -2,7 +2,6 @@ package com.apocollis.aqtweaks.portal;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig.PortalModuleConfig;
 
-import net.minecraft.entity.EntityTracker;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.item.EntityItem;
@@ -202,11 +201,10 @@ public class EntityArcaneRift extends Entity {
         if (entity == null || entity.isDead) {
             return entity;
         }
-        Vec3d look = dest.getLookVec();
-        double offset = PortalModuleConfig.general.exitOffset;
-        double x = dest.posX + look.x * offset;
-        double y = dest.posY;
-        double z = dest.posZ + look.z * offset;
+        Vec3d stand = PortalModule.standAtOffset(dest.world, dest.posX, dest.posY, dest.posZ, dest.rotationYaw);
+        double x = stand.x;
+        double y = stand.y;
+        double z = stand.z;
         float yaw = dest.rotationYaw;
         int destDim = dest.world.provider.getDimension();
         if (entity.world.provider.getDimension() == destDim) {
@@ -220,35 +218,10 @@ public class EntityArcaneRift extends Entity {
             entity.motionX = 0.0;
             entity.motionY = 0.0;
             entity.motionZ = 0.0;
-            if (entity instanceof EntityPlayerMP mp) {
-                resyncRiftForPlayer(mp, dest);
-            }
             return entity;
         }
         Entity transferred = entity.changeDimension(destDim, new RiftTeleporter(x, y, z, yaw));
-        Entity arrived = transferred != null ? transferred : entity;
-        if (arrived instanceof EntityPlayerMP mp) {
-            resyncRiftForPlayer(mp, dest);
-        }
-        return arrived;
-    }
-
-    private static void resyncRiftForPlayer(EntityPlayerMP player, EntityArcaneRift rift) {
-        if (rift == null || rift.isDead || !(rift.world instanceof WorldServer ws)) {
-            return;
-        }
-        MinecraftServer server = ws.getMinecraftServer();
-        if (server == null) {
-            return;
-        }
-        server.addScheduledTask(() -> {
-            if (rift.isDead || player.isDead || player.world != rift.world) {
-                return;
-            }
-            EntityTracker tracker = ws.getEntityTracker();
-            tracker.untrack(rift);
-            tracker.track(rift);
-        });
+        return transferred != null ? transferred : entity;
     }
 
     private EntityArcaneRift findLinked() {
