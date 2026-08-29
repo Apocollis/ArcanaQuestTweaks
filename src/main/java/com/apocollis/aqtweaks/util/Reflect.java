@@ -85,6 +85,8 @@ public class Reflect {
     private static Method worldGetBiomeMethod;
     private static Method worldGetSeedMethod;
     private static Method worldGetMapStorageMethod;
+    private static Method worldCheckLightMethod;
+    private static Method worldMarkBlockRangeForRenderUpdateMethod;
     private static Method blockIsAirMethod;
     private static Method blockGetDefaultStateMethod;
     private static Method blockGetSoundTypeMethod;
@@ -982,6 +984,12 @@ public class Reflect {
             }
             try { worldGetMapStorageMethod = wClass.getMethod("func_175693_T"); } catch (Throwable t) {
                 try { worldGetMapStorageMethod = wClass.getMethod("getMapStorage"); } catch (Throwable ignored) {}
+            }
+            try { worldCheckLightMethod = wClass.getMethod("func_175678_i", BlockPos.class); } catch (Throwable t) {
+                try { worldCheckLightMethod = wClass.getMethod("checkLight", BlockPos.class); } catch (Throwable ignored) {}
+            }
+            try { worldMarkBlockRangeForRenderUpdateMethod = wClass.getMethod("func_147585_a", int.class, int.class, int.class, int.class, int.class, int.class); } catch (Throwable t) {
+                try { worldMarkBlockRangeForRenderUpdateMethod = wClass.getMethod("markBlockRangeForRenderUpdate", int.class, int.class, int.class, int.class, int.class, int.class); } catch (Throwable ignored) {}
             }
             try {
                 playSoundMethod = wClass.getMethod("func_184378_a", EntityPlayer.class, double.class, double.class, double.class, SoundEvent.class, SoundCategory.class, float.class, float.class);
@@ -2701,6 +2709,49 @@ public class Reflect {
             return world.getBlockState(pos);
         } catch (Throwable t) {}
         return getDefaultState(net.minecraft.init.Blocks.AIR);
+    }
+
+    public static boolean checkLight(World world, BlockPos pos) {
+        if (world == null || pos == null) return false;
+        if (worldCheckLightMethod != null) {
+            try {
+                Object result = worldCheckLightMethod.invoke(world, pos);
+                return Boolean.TRUE.equals(result);
+            } catch (Exception ignored) {}
+        }
+        try {
+            return world.checkLight(pos);
+        } catch (Throwable ignored) {}
+        return false;
+    }
+
+    public static void markBlockRangeForRenderUpdate(World world, int minX, int minY, int minZ,
+                                                      int maxX, int maxY, int maxZ) {
+        if (world == null) return;
+        if (worldMarkBlockRangeForRenderUpdateMethod != null) {
+            try {
+                worldMarkBlockRangeForRenderUpdateMethod.invoke(world, minX, minY, minZ, maxX, maxY, maxZ);
+                return;
+            } catch (Exception ignored) {}
+        }
+        try {
+            world.markBlockRangeForRenderUpdate(minX, minY, minZ, maxX, maxY, maxZ);
+        } catch (Throwable ignored) {}
+    }
+
+    public static int[] getStructureBoundingBox(Object box) {
+        if (box == null || structureBoxMinXField == null) return null;
+        try {
+            return new int[] {
+                    structureBoxMinXField.getInt(box),
+                    structureBoxMaxXField.getInt(box),
+                    structureBoxMinYField.getInt(box),
+                    structureBoxMaxYField.getInt(box),
+                    structureBoxMinZField.getInt(box),
+                    structureBoxMaxZField.getInt(box)
+            };
+        } catch (Exception ignored) {}
+        return null;
     }
 
     public static IBlockState getBlockState(ChunkPrimer primer, int x, int y, int z) {

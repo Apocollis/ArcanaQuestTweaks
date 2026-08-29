@@ -68,7 +68,7 @@ Keep **what** villages create. Change **where** they start and **how RTG land un
 2. Sample plate Y from the well via live `ChunkGeneratorRTG.getLandscape`.
 3. Flatten `landscape.noise` under land boxes (houses, well, mixed/dry roads). Never write ocean/river except 1-block pad notches. Flooded swamp/lake **inside the hard pad** is raised to plate Y.
 4. RTG carves from that noise. Caves and ravines then punch the primer. Tweaks reseals shore-mask columns solid up to plate Y before `new Chunk`. Production method `func_185932_a` (`remap = false`).
-5. Populate places the same pieces. Wet houses/RC/shrine/waystone/paths retry inland; leftover ocean/river or mostly-lake paths are omitted. If layout missed, paste skips the building when the surface is still liquid. Water lakes whose blob overlaps the 12-pad are skipped (lava lakes are not).
+5. Populate places the same pieces. Wet houses/RC/shrine/waystone/paths retry inland; leftover ocean/river or mostly-lake paths are omitted. If layout missed, paste skips the building when the surface is still liquid. Water lakes whose blob overlaps the 12-pad are skipped (lava lakes are not). After paste in a chunk, Tweaks re-checks light at torch/lamp sources so flag-2 placements actually flood.
 
 Do not recarve old chunks. Do not veto a whole village because one building was wet. Do not treat a puddle on a path as a water bridge.
 
@@ -111,7 +111,8 @@ Flatten looks up `VillagePlate` records by **land-box overlap** first. Hit → f
 | `mixin/MixinMapGenVillageInside.java` | Flatten plate as “inside village”; fallback if `Village.dat` has no pad children yet |
 | `rtg/CommandAqVillage.java` | OP `/aqvillage` (level 2): TP on generated ground ~6 off the well; prefers unexplored. Miss logs provider/generator to `latest.log` |
 | `mixin/MixinStructureVillagePieces.java` | House skip/retry inland on water; waystone relocates inland as the same piece; wet paths retry inland then omit |
-| `mixin/MixinStructureStartVillagePaste.java` | Populate abort on ocean/river floor; stamp `AQTVillagePlate` children into the Start |
+| `rtg/VillageRelight.java` | After village paste in a chunk, `checkLight` at emitting blocks in the clip |
+| `mixin/MixinStructureStartVillagePaste.java` | Populate abort on ocean/river floor; stamp `AQTVillagePlate`; relight clip |
 | `mixin/charm/MixinASMHooksVillagePaste.java` | Same abort on Charm `ASMHooks.addComponentParts` (optional `mixins.aqtweaks.charm.json`) |
 | `mixin/reccomplex/MixinGenericVillageCreationHandler.java` | RC building skip/retry on water |
 | `rtg/VillagePieceAstralSmallShrine.java` | Village component that pastes Astral `smallShrine`; AABB from pattern; path overlap OK at layout; paste skips ocean/river **biome** only; liquid-only fill (no dirt collar) |
@@ -259,6 +260,7 @@ Teleport is **on the generated ground** at that column (`world.getHeight`, skip 
 | Enable Village Bounding Box Detection | true | yes | Flatten 12-pad (yards + kept paths) as Village |
 | Village Box XZ Pad | 8 | yes | Flatten swamp dock-approach only. Not detection |
 | Village Box Height | 30 | yes | Detection Y above plate. Floor is the well shaft (~11–14 below plate). Live cfg may still be **32** |
+| Enable Village Relight | true | yes | After populate paste, re-check light at torches/lamps in that chunk clip |
 | Village Flatten Debug | false | yes | `logs/villagepatch.log`. Live DEVBOX must be edited off; old true is kept until changed |
 | Skip Structures On Village | true | yes | Cancel AS surface shrines and Cambion houses on village AABB. MW hut/barrow and Bewitchment circle/menhir/wickerman skip that spot and retry nearby. Vanilla water lakes and BOP water/quicksand on the village pad are skipped |
 | Enable Structure Land Settle | true | yes | Fill under those structures and ramp the rim |
@@ -487,6 +489,12 @@ Pad/height mixin needed this-session flatten cache, so yards missed after relog.
 
 **Fix:** append non-placing `AQTVillagePlate` children (pad + Hermite AABB, well floor through plate + box height) after layout; houses/paths/RC keep their own boxes. Mixin fallback samples plate if uncached. `/aqvillage` stands on generated surface at the stand column.
 
+### 28. Village torches not lighting the plate
+
+Populate placed lamps with flag 2; block light did not flood (1-block puddles, dark houses).
+
+**Fix:** after `MapGenVillage.Start` paste for a chunk clip, `checkLight` every emitting block in that AABB. No flatten or detection changes.
+
 ## Playtest reference (this line)
 
 - **Wanted:** inland plains village (example `-2897, 97, -2119`) — flat plate, houses on it, blend to hills.
@@ -497,6 +505,7 @@ Pad/height mixin needed this-session flatten cache, so yards missed after relog.
 - **Wanted:** new Cambion house on a slope — pad flush with plains; cobble on the grass (house +1); door +1 above cobble; air under the footprint filled.
 - **Wanted:** Mystical barrow or hut next to a village — relocates or skips; barrow is not plated.
 - **Wanted:** grass between a dirt path and a house is Village (`isInsideStructure`); Hermite skirt is Village; beyond pad+falloff is not. Y well floor through plate + `villageBoxHeight`. Relog still Village (pad boxes in `Village.dat`).
+- **Wanted:** new village at night — path torch and fence lamp light the plate and nearby walls (not a 1-block puddle).
 - **Wanted:** hill village — well, houses, RC, and path pads at **one** well Y; Hermite only outside the 12-pad; no chunk-aligned stone wall through town.
 - **Wanted:** desert/mesa village — one sand plate through yards and paths; no toothed red-sand holes between houses; F3 River biome still unplated.
 - **Wanted:** new Cambion house — pad flush with grass; cobble one above that; door one above cobble; no pit; no extra pad layer.

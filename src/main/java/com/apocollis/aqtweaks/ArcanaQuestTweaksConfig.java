@@ -717,6 +717,10 @@ public class ArcanaQuestTweaksConfig {
         @Config.RangeInt(min = 0, max = 256)
         public int villageBoxHeight = 30;
 
+        @Config.Name("Enable Village Relight")
+        @Config.Comment("After village pieces paste in a chunk, re-check block light at torches and other sources so lamps actually light the plate. Does not change blocks.")
+        public boolean enableVillageRelight = true;
+
         @Config.Name("Village Flatten Debug")
         @Config.Comment("Write village terrain traces to logs/villagepatch.log (not latest.log). Off by default: appends stall chunk gen. Turn on only while diagnosing villages.")
         public boolean villageFlattenDebug = false;

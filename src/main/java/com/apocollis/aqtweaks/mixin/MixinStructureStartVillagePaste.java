@@ -5,6 +5,7 @@ import com.apocollis.aqtweaks.rtg.StructureVillageOverlap;
 import com.apocollis.aqtweaks.rtg.VillageDebug;
 import com.apocollis.aqtweaks.rtg.VillageLandHelper;
 import com.apocollis.aqtweaks.rtg.VillagePlate;
+import com.apocollis.aqtweaks.rtg.VillageRelight;
 import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.world.World;
 import net.minecraft.world.gen.structure.MapGenVillage;
@@ -52,6 +53,7 @@ public abstract class MixinStructureStartVillagePaste {
         for (VillagePlate.Record rec : VillagePlate.starts(seed)) {
             if (rec.start == this) {
                 VillagePlate.stampDetectionPieces(world, rec, gen);
+                VillageRelight.afterVillagePaste(world, box);
                 return;
             }
         }
@@ -59,8 +61,9 @@ public abstract class MixinStructureStartVillagePaste {
         for (VillagePlate.Record rec : VillagePlate.starts(seed)) {
             if (rec.start == this) {
                 VillagePlate.stampDetectionPieces(world, rec, gen);
-                return;
+                break;
             }
         }
+        VillageRelight.afterVillagePaste(world, box);
     }
 }

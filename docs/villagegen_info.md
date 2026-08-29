@@ -138,7 +138,7 @@ Tweaks’ `@Redirect` on `StructureComponent.func_74875_a` inside `StructureStar
 | `MixinStructureVillagePieces` | House/waystone skip/retry inland on never-raise; wet paths retry inland then omit leftover ocean/river or mostly-wet docks. |
 | `MixinGenericVillageCreationHandler` | Same skip/retry for RC AABBs. |
 | `MixinASMHooksVillagePaste` | Charm populate abort on ocean/river floor (`mixins.aqtweaks.charm.json`). |
-| `MixinStructureStartVillagePaste` | Same abort if Charm did not wrap the invoke. |
+| `MixinStructureStartVillagePaste` | Populate abort on ocean/river floor; stamp pad children; relight clip. |
 | `MixinMapGenVillageInside` | Detection = pad + Hermite AABBs (also stamped into `Village.dat`). Well floor through plate + `villageBoxHeight`. |
 
 `isLandscapeLake`: a **null** sample (or nested sampling) is **not** wet. Load-time forget must not treat missing landscape as a flooded plains well. Layout must not treat missing landscape as a lake (that omitted every road).
