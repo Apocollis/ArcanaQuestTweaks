@@ -3,6 +3,7 @@ package com.apocollis.aqtweaks.mixin.biomesoplenty;
 import com.apocollis.aqtweaks.rtg.StructureVillageOverlap;
 import com.apocollis.aqtweaks.rtg.VillageDebug;
 import net.minecraft.block.Block;
+import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
@@ -20,15 +21,16 @@ import java.util.Random;
 public abstract class MixinGeneratorLakes {
 
     @Inject(method = "func_180709_b", at = @At("HEAD"), cancellable = true)
-    private void aqtweaks$skipVillageQuicksand(World world, Random rand, BlockPos pos,
+    private void aqtweaks$skipVillageLake(World world, Random rand, BlockPos pos,
                                               CallbackInfoReturnable<Boolean> cir) {
         if (!StructureVillageOverlap.enabled() || world == null || pos == null) return;
-        if (!aqtweaks$isBopQuicksand(aqtweaks$liquid())) return;
+        IBlockState liquid = aqtweaks$liquid();
+        if (!aqtweaks$isBopQuicksand(liquid) && !aqtweaks$isWater(liquid)) return;
         if (StructureVillageOverlap.overlapsVillage(world,
                 pos.getX(), pos.getX() + 15,
                 pos.getZ(), pos.getZ() + 15,
                 pos.getY(), pos.getY() + 7)) {
-            VillageDebug.log("bop quicksand skip village at=%d,%d,%d", pos.getX(), pos.getY(), pos.getZ());
+            VillageDebug.log("bop lake skip village at=%d,%d,%d", pos.getX(), pos.getY(), pos.getZ());
             cir.setReturnValue(Boolean.FALSE);
         }
     }
@@ -54,5 +56,10 @@ public abstract class MixinGeneratorLakes {
         if (name == null || !"biomesoplenty".equals(name.getNamespace())) return false;
         String path = name.getPath();
         return "sand".equals(path) || "sand_fluid".equals(path);
+    }
+
+    @Unique
+    private static boolean aqtweaks$isWater(IBlockState liquid) {
+        return liquid != null && liquid.getMaterial() == Material.WATER;
     }
 }

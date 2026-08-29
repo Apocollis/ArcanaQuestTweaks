@@ -31,6 +31,8 @@ public class CommonProxy {
         ArcanaQuestTweaks.NETWORK.registerMessage(PacketSyncGrappleInput.Handler.class, PacketSyncGrappleInput.class, 2, Side.SERVER);
         ComfortConfigLoader.load(event.getModConfigurationDirectory());
         com.apocollis.aqtweaks.portal.PortalModule.preInit();
+        net.minecraft.world.gen.structure.MapGenStructureIO.registerStructureComponent(
+                com.apocollis.aqtweaks.rtg.VillagePieceVillagePlate.class, "AQTVillagePlate");
     }
 
     public void init(FMLInitializationEvent event) {

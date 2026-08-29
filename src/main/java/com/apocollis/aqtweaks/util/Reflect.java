@@ -218,6 +218,8 @@ public class Reflect {
     private static Method structureComponentGetBoundingBoxMethod;
     private static Method structureComponentOffsetMethod;
     private static Method structureStartUpdateBoundingBoxMethod;
+    private static Method structureStartWriteNbtMethod;
+    private static Method mapGenStructureDataWriteInstanceMethod;
     private static Method biomeProviderGetBiomeMethod;
     private static Method biomeProviderGetBiomeFallbackMethod;
 
@@ -1076,6 +1078,17 @@ public class Reflect {
             }
             try { structureStartUpdateBoundingBoxMethod = startClass.getMethod("func_75072_c"); } catch (Throwable t) {
                 try { structureStartUpdateBoundingBoxMethod = startClass.getMethod("updateBoundingBox"); } catch (Throwable ignored) {}
+            }
+            try { structureStartWriteNbtMethod = startClass.getMethod("func_143022_a", int.class, int.class); } catch (Throwable t) {
+                try { structureStartWriteNbtMethod = startClass.getMethod("writeStructureComponentsToNBT", int.class, int.class); } catch (Throwable ignored) {}
+            }
+            if (mapGenStructureDataField != null) {
+                try {
+                    Class<?> dataClass = Class.forName("net.minecraft.world.gen.structure.MapGenStructureData");
+                    try { mapGenStructureDataWriteInstanceMethod = dataClass.getMethod("func_143043_a", NBTTagCompound.class, int.class, int.class); } catch (Throwable t) {
+                        try { mapGenStructureDataWriteInstanceMethod = dataClass.getMethod("writeInstance", NBTTagCompound.class, int.class, int.class); } catch (Throwable ignored) {}
+                    }
+                } catch (Throwable ignored) {}
             }
             Class<?> villageStartClass = Class.forName("net.minecraft.world.gen.structure.StructureVillagePieces$Start");
             for (Field f : villageStartClass.getDeclaredFields()) {
@@ -3619,6 +3632,41 @@ public class Reflect {
         if (start == null || structureStartUpdateBoundingBoxMethod == null) return;
         try {
             structureStartUpdateBoundingBoxMethod.invoke(start);
+        } catch (Exception ignored) {}
+    }
+
+    @SuppressWarnings("unchecked")
+    public static boolean addStructureStartComponent(Object start, Object component) {
+        if (start == null || component == null || structureStartComponentsField == null) return false;
+        try {
+            Object list = structureStartComponentsField.get(start);
+            if (!(list instanceof List)) return false;
+            ((List<Object>) list).add(component);
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    public static void saveMapGenStructureStart(Object mapGen, World world, Object start) {
+        if (mapGen == null || world == null || start == null) return;
+        initializeStructureData(mapGen, world);
+        int cx = getStructureStartChunkX(start);
+        int cz = getStructureStartChunkZ(start);
+        if (cx == Integer.MIN_VALUE || cz == Integer.MIN_VALUE) return;
+        if (structureStartWriteNbtMethod == null || mapGenStructureDataWriteInstanceMethod == null
+                || mapGenStructureDataField == null) {
+            return;
+        }
+        try {
+            Object data = mapGenStructureDataField.get(mapGen);
+            if (data == null) return;
+            Object nbt = structureStartWriteNbtMethod.invoke(start, cx, cz);
+            if (!(nbt instanceof NBTTagCompound)) return;
+            mapGenStructureDataWriteInstanceMethod.invoke(data, nbt, cx, cz);
+            if (data instanceof net.minecraft.world.storage.WorldSavedData) {
+                ((net.minecraft.world.storage.WorldSavedData) data).markDirty();
+            }
         } catch (Exception ignored) {}
     }
 

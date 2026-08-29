@@ -207,6 +207,7 @@ public abstract class MixinChunkGeneratorRTGVillage {
         for (VillagePlate.Record rec : hits) {
             float target = getOrComputePlateHeight(rec);
             if (Float.isNaN(target)) continue;
+            VillagePlate.stampDetectionPieces(world, rec, villageGenerator);
             List<int[]> land = rec.landBoxesOrEmpty();
             List<int[]> shrines = rec.shrineBoxesOrEmpty();
             if (VillageDebug.once("plate:" + VillagePlate.wellKey(seed, rec))) {

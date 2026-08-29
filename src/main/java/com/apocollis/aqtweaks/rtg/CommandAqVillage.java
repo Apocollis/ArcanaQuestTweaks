@@ -22,7 +22,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * OP {@code /aqvillage}: teleport onto the village plate, a few blocks off the well.
+ * OP {@code /aqvillage}: teleport onto generated ground a few blocks off the well.
  * Prefers an unexplored allowed well; falls back to a known Start.
  */
 public final class CommandAqVillage extends CommandBase {
@@ -222,13 +222,12 @@ public final class CommandAqVillage extends CommandBase {
     }
 
     private static int[] pickStand(World world, Hit hit) {
-        int plateFeet = plateFeetY(world, hit);
         int[] fallback = null;
         for (int[] offset : STAND_OFFSETS) {
             int x = hit.wellX + offset[0];
             int z = hit.wellZ + offset[1];
             world.getChunk(x >> 4, z >> 4);
-            int y = plateFeet > 0 ? plateFeet : standY(world, x, z);
+            int y = standY(world, x, z);
             if (fallback == null) {
                 fallback = new int[] {x, z, y};
             }
@@ -236,24 +235,13 @@ public final class CommandAqVillage extends CommandBase {
                 return new int[] {x, z, y};
             }
         }
-        return fallback != null ? fallback : new int[] {hit.wellX + STAND_OFFSET, hit.wellZ + 2, Math.max(1, plateFeet)};
-    }
-
-    private static int plateFeetY(World world, Hit hit) {
-        long seed = Reflect.getSeed(world);
-        for (VillagePlate.Record rec : VillagePlate.starts(seed)) {
-            boolean match = rec.wellX == hit.wellX && rec.wellZ == hit.wellZ;
-            if (!match && rec.start != null) {
-                match = Reflect.getStructureStartChunkX(rec.start) == hit.chunkX
-                        && Reflect.getStructureStartChunkZ(rec.start) == hit.chunkZ;
-            }
-            if (!match) continue;
-            float plate = VillagePlate.resolvePlate(world, rec);
-            if (!Float.isNaN(plate)) {
-                return Math.round(plate) + 1;
-            }
+        if (fallback != null) {
+            return fallback;
         }
-        return 0;
+        int x = hit.wellX + STAND_OFFSET;
+        int z = hit.wellZ + 2;
+        world.getChunk(x >> 4, z >> 4);
+        return new int[] {x, z, standY(world, x, z)};
     }
 
     private static boolean isStandSafe(World world, int x, int y, int z) {

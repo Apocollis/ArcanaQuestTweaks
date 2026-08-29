@@ -1,6 +1,6 @@
 # Client module (1.7)
 
-Last updated: 2026-08-24.
+Last updated: 2026-08-28.
 
 Config: `config/arcanaquesttweaks/aqtweaks_client.cfg`. Client-only. No `@Mod` parent. Optional mixin if Toughness Bar is present.
 
@@ -31,7 +31,7 @@ When `Move Toughness Bar To Armor Side` is true:
 - GET `right_height` → `left_height + 10` (sit one row above Overloaded Armor Bar).
 - PUT `right_height` → `left_height`.
 - Constant `82` → `-91` (armor left edge).
-- Constant `-8` → `+8` (left to right, matching armor).
+- Stock still `IINC` **-8**. Mixin does not rewrite IINC. Each `fullIcon` / `halfIcon` X is mirrored around the first draw (`2 * origin - x`) so icons fill left to right on that origin.
 
 When false: stock right-side RTL. Missing jar → json skipped.
 
@@ -70,4 +70,4 @@ Always visible (Metallurgy’s own items stay shift-gated by Metallurgy). Swords
 
 ## Verify
 
-Armor + toughness: icons left to right, one row above armor; feathers above thirst. Flag off: stock right RTL. Iron pick: Vanilla Tools + stars + durability + efficiency. Axe efficiency is log speed, not 1.0. Metallurgy pick: no second Tweaks harvest line. Remove toughnessbar jar: mixin skipped; tooltips still work.
+Armor + toughness: leftmost toughness icon over the leftmost heart/armor; extra pips go right (half pip on the right of a partial row). One row above armor. Feathers above thirst. Flag off: stock right RTL. Iron pick: Vanilla Tools + stars + durability + efficiency. Axe efficiency is log speed, not 1.0. Metallurgy pick: no second Tweaks harvest line. Remove toughnessbar jar: mixin skipped; tooltips still work.

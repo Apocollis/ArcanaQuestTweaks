@@ -48,6 +48,11 @@ public class ComfortConfigLoader {
                 // Load existing config from disk
                 try (FileReader reader = new FileReader(configFile)) {
                     ComfortConfig config = gson.fromJson(reader, ComfortConfig.class);
+                    if (mergeMissingCrafting(config)) {
+                        try (FileWriter writer = new FileWriter(configFile)) {
+                            gson.toJson(config, writer);
+                        }
+                    }
                     apply(config);
                 }
             }
@@ -63,6 +68,7 @@ public class ComfortConfigLoader {
 
         // Category limits (max items that count per category)
         config.category_limits.put("hearth", 1);
+        config.category_limits.put("crafting", 1);
         config.category_limits.put("bedding", 1);
         config.category_limits.put("seating", 2);
         config.category_limits.put("lighting", 3);
@@ -76,14 +82,17 @@ public class ComfortConfigLoader {
         config.pet_comfort_value = 3.0f;
 
         // Homestead comfort score thresholds
-        config.threshold_homestead_1 = 5.0f;
-        config.threshold_homestead_2 = 15.0f;
-        config.threshold_homestead_3 = 30.0f;
+        config.threshold_homestead_1 = 15.0f;
+        config.threshold_homestead_2 = 40.0f;
+        config.threshold_homestead_3 = 60.0f;
 
         // --- Hearth (Warmth & Cooking) ---
         Map<String, Float> hearth = new LinkedHashMap<>();
         hearth.put("farmersdelight:stove", 4.0f);
         config.categories.put("hearth", hearth);
+
+        // --- Crafting (Workbenches) ---
+        config.categories.put("crafting", defaultCraftingBlocks());
 
         // --- Bedding (Resting & Sleep) ---
         Map<String, Float> bedding = new LinkedHashMap<>();
@@ -133,6 +142,36 @@ public class ComfortConfigLoader {
         config.categories.put("structure", structure);
 
         return config;
+    }
+
+    private static Map<String, Float> defaultCraftingBlocks() {
+        Map<String, Float> crafting = new LinkedHashMap<>();
+        crafting.put("minecraft:crafting_table", 3.0f);
+        return crafting;
+    }
+
+    /**
+     * Inserts {@code crafting} limit and default blocks when an existing JSON omits them.
+     * Does not overwrite a player-defined crafting limit or block map.
+     */
+    private static boolean mergeMissingCrafting(ComfortConfig config) {
+        if (config.category_limits == null) {
+            config.category_limits = new LinkedHashMap<>();
+        }
+        if (config.categories == null) {
+            config.categories = new LinkedHashMap<>();
+        }
+
+        boolean changed = false;
+        if (!config.category_limits.containsKey("crafting")) {
+            config.category_limits.put("crafting", 1);
+            changed = true;
+        }
+        if (!config.categories.containsKey("crafting") || config.categories.get("crafting") == null) {
+            config.categories.put("crafting", defaultCraftingBlocks());
+            changed = true;
+        }
+        return changed;
     }
 
     private static void apply(ComfortConfig config) {

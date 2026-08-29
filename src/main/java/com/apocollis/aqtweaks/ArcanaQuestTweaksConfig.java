@@ -704,7 +704,7 @@ public class ArcanaQuestTweaksConfig {
         public int villageCoastBuffer = 16;
 
         @Config.Name("Enable Village Bounding Box Detection")
-        @Config.Comment("Treat the flatten hard pad (Village Component Pad around land boxes, including kept roads and yards) as Village for isInsideStructure / InControl. Y is well-shaft floor through plate plus Village Box Height.")
+        @Config.Comment("Treat the flatten plate (Village Component Pad plus Village Edge Falloff around land boxes, including kept roads and yards) as Village for isInsideStructure / InControl. Y is well-shaft floor through plate plus Village Box Height. New villages also save that volume as extra Village.dat pieces.")
         public boolean enableVillageBoxDetection = true;
 
         @Config.Name("Village Box XZ Pad")
@@ -722,7 +722,7 @@ public class ArcanaQuestTweaksConfig {
         public boolean villageFlattenDebug = false;
 
         @Config.Name("Skip Structures On Village")
-        @Config.Comment("Cancel Astral shrines and Bewitchment Cambion houses on village overlap. Mystical World huts/barrows and Bewitchment stone circles/menhir/wickerman skip that spot and retry nearby. BOP quicksand lakes that overlap a village are skipped.")
+        @Config.Comment("Cancel Astral shrines and Bewitchment Cambion houses on village overlap. Mystical World huts/barrows and Bewitchment stone circles/menhir/wickerman skip that spot and retry nearby. Vanilla water lakes and BOP water/quicksand lakes that overlap a village pad are skipped. Lava lakes are not skipped.")
         public boolean skipStructuresOnVillage = true;
 
         @Config.Name("Enable Structure Land Settle")

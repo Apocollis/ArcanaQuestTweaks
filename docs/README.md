@@ -48,7 +48,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 | RTG, Depths Update, Better Caves, CoFH World, Recurrent Complex | Depths + RTG mixins in **required** `mixins.aqtweaks.json` | Mixin apply can fail; this pack always ships them |
 | Astral Sorcery | Optional mixin json + village shrine handler | Mixin config `required: false`; handler not registered |
 | Mystical World | Optional mixin json | No hut skip/settle |
-| Simple Difficulty, Biomes O' Plenty | Comfort potions / hot spring block; BOP optional mixin skips village quicksand | Those benefits no-op; quicksand mixin json skipped |
+| Simple Difficulty, Biomes O' Plenty | Comfort potions / hot spring block; BOP optional mixin skips village water/quicksand lakes | Those benefits no-op; BOP lake mixin json skipped; vanilla water-lake skip still runs |
 | Roguelike Dungeons Arcana | Thaumcraft dungeon warp via `isInsideStructure("RoguelikeDungeon")` | Dungeon exposure never matches |
 
 ### Init (`CommonProxy` / `ClientProxy`)
@@ -91,12 +91,12 @@ Vanilla `World` is already loaded when late mixins prepare. Portal glowstone lig
 | `mixins.aqtweaks.charm.json` | false | RTG Charm village paste skip | Skip |
 | `mixins.aqtweaks.bewitchment.json` | false | RTG Cambion + circle/menhir/wickerman | Skip |
 | `mixins.aqtweaks.mysticalworld.json` | false | RTG Mystical huts | Skip |
-| `mixins.aqtweaks.biomesoplenty.json` | false | RTG BOP quicksand village skip | Skip |
+| `mixins.aqtweaks.biomesoplenty.json` | false | RTG BOP water/quicksand village skip | Skip |
 
 `mixins.aqtweaks.json` contents (package `com.apocollis.aqtweaks.mixin`):
 
 - Client: `MixinRenderGlobal` (Depths hide sky)
-- Common: `MixinChunkProviderServer`, `depthsupdate.MixinDepthsCaveNoiseGenerator`, `cofh.MixinDistributionUniform`, `reccomplex.MixinRayMatcher`, `reccomplex.MixinGenericVillageCreationHandler`, Better Caves / RTG village mixins listed in [depths.md](depths.md) and [rtg.md](rtg.md), `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinMapGenVillageInside/Spawn/Start/World`, `MixinCraftingHelperFindFiles`. Charm paste: optional `mixins.aqtweaks.charm.json`. Portal `MixinWorldRiftLight` is in `mixins.aqtweaks.early.json`.
+- Common: `MixinChunkProviderServer`, `depthsupdate.MixinDepthsCaveNoiseGenerator`, `cofh.MixinDistributionUniform`, `reccomplex.MixinRayMatcher`, `reccomplex.MixinGenericVillageCreationHandler`, Better Caves / RTG village mixins listed in [depths.md](depths.md) and [rtg.md](rtg.md), `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinWorldGenLakes`, `MixinMapGenVillageInside/Spawn/Start/World`, `MixinCraftingHelperFindFiles`. Charm paste: optional `mixins.aqtweaks.charm.json`. Portal `MixinWorldRiftLight` is in `mixins.aqtweaks.early.json`.
 
 Two mixins target `ChunkGeneratorRTG` in that required json, in this order:
 

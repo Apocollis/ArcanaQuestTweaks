@@ -10,8 +10,8 @@ import java.util.Map;
 public class ComfortConfig {
     public Map<String, Integer> category_limits = new LinkedHashMap<>();
     public float pet_comfort_value = 3.0f;
-    public float threshold_homestead_1 = 5.0f;
-    public float threshold_homestead_2 = 15.0f;
-    public float threshold_homestead_3 = 30.0f;
+    public float threshold_homestead_1 = 15.0f;
+    public float threshold_homestead_2 = 40.0f;
+    public float threshold_homestead_3 = 60.0f;
     public Map<String, Map<String, Float>> categories = new LinkedHashMap<>();
 }

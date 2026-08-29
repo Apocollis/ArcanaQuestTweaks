@@ -542,6 +542,10 @@ public final class VillageLandHelper {
                 || component instanceof StructureVillagePieces.Well;
     }
 
+    public static boolean isVillagePlatePad(Object component) {
+        return component instanceof VillagePieceVillagePlate;
+    }
+
     /**
      * Drop a layout piece from the start lists so it cannot paste or grow more roads/houses.
      */

@@ -1,6 +1,6 @@
 # Comfort module (1.7)
 
-Last updated: 2026-08-26.
+Last updated: 2026-08-29.
 
 JSON: `config/arcanaquesttweaks/aqtweaks_comfort.json`. Always registered. No parent “Comfort mod” — Tweaks-owned, with optional hooks into other mods’ potions and warp.
 
@@ -53,13 +53,13 @@ Pets: `EntityTameable` in AABB grown **16** from the player. Count if `isTamed()
 
 Per category: sort weights descending, sum only the top **N** (`category_limits`, default 1 if missing). Same block id in two categories cannot happen; last apply wins if the JSON repeats an id.
 
-Thresholds are floats in JSON (defaults 5 / 15 / 30):
+Thresholds are floats in JSON (defaults 15 / 40 / 60):
 
 | Band | Score | HUD | Other |
 | --- | --- | --- | --- |
-| I | ≥5 and &lt;15 | Homestead I (amp 0) | +9 warp-cleanse progress / 15s |
-| II | ≥15 and &lt;30 | Homestead II (amp 1) | Regen I, +13 progress, SD heat+cold protection |
-| III | ≥30 | Homestead III (amp 2) | Regen II, Saturation I, +25 progress, SD thermals |
+| I | ≥15 and &lt;40 | Homestead I (amp 0) | +9 warp-cleanse progress / 15s |
+| II | ≥40 and &lt;60 | Homestead II (amp 1) | Regen I, +13 progress, SD heat+cold protection |
+| III | ≥60 | Homestead III (amp 2) | Regen II, Saturation I, +25 progress, SD thermals |
 
 Potion duration is **340 ticks** (15s + 40) so the HUD does not flicker between scans. All `PotionEffect`s use ambient **true**, particles **false**.
 
@@ -85,13 +85,14 @@ Gson → `ComfortConfig`. Unknown fields ignored. Load failure → in-memory def
 
 ```json
 {
-  "category_limits": { "hearth": 1, "pets": 2 },
+  "category_limits": { "hearth": 1, "crafting": 1, "pets": 2 },
   "pet_comfort_value": 3.0,
-  "threshold_homestead_1": 5.0,
-  "threshold_homestead_2": 15.0,
-  "threshold_homestead_3": 30.0,
+  "threshold_homestead_1": 15.0,
+  "threshold_homestead_2": 40.0,
+  "threshold_homestead_3": 60.0,
   "categories": {
-    "hearth": { "farmersdelight:stove": 4.0 }
+    "hearth": { "farmersdelight:stove": 4.0 },
+    "crafting": { "minecraft:crafting_table": 3.0 }
   }
 }
 ```
@@ -103,6 +104,7 @@ Gson → `ComfortConfig`. Unknown fields ignored. Load failure → in-memory def
 | Category | Limit |
 | --- | --- |
 | hearth | 1 |
+| crafting | 1 |
 | bedding | 1 |
 | seating | 2 |
 | lighting | 3 |
@@ -119,6 +121,7 @@ Gson → `ComfortConfig`. Unknown fields ignored. Load failure → in-memory def
 | Category | Id | Weight |
 | --- | --- | --- |
 | hearth | `farmersdelight:stove` | 4 |
+| crafting | `minecraft:crafting_table` | 3 |
 | bedding | `comforts:hammock` | 3.5 |
 | bedding | `minecraft:bed` | 3 |
 | bedding | `comforts:sleeping_bag` | 2 |
@@ -145,7 +148,7 @@ Missing pack blocks simply never match; they do not crash.
 
 - `comfort/ComfortSystemHandler.java` — tick, score, benefits, hot springs, cancel on hurt/attack
 - `comfort/ComfortConfig.java` — Gson DTO
-- `comfort/ComfortConfigLoader.java` — load/rename/defaults/`apply` into handler maps
+- `comfort/ComfortConfigLoader.java` — load/rename/defaults; merge missing `crafting`; `apply` into handler maps
 - `comfort/PotionHomestead.java` — potion + `RegistrationHandler`
 - `assets/aqtweaks/lang/en_us.lang`
 - `assets/aqtweaks/textures/gui/homestead_icon.png`
@@ -153,7 +156,7 @@ Missing pack blocks simply never match; they do not crash.
 ## Do not regress
 
 - Benefits are **ambient, no particles** (`true, false` on `PotionEffect`).
-- Keep category caps.
+- Keep category caps. Existing JSON without `crafting` gets limit 1 and `minecraft:crafting_table`; a player-defined `crafting` key is not overwritten.
 - Comfort warp NBT is `WarpCleansingProgress`, not Thaumcraft exposure `WarpExposureProgress`.
 - Homestead cleanse calls `ThaumcraftHelper` (raw `Class` only). Generic `Class<?>` on that helper made Forge `SideTransformer` drop the class and crash the server tick.
 - Thermals and cold resist look up potions by name so Simple Difficulty absence never classloads SD.

@@ -58,8 +58,8 @@ Houses: `StructureVillagePieces.func_176066_d`. Roads: `func_176069_e`. Vanilla 
 | Caller | Reads |
 | --- | --- |
 | `/locate Village` | Nearest Start in `structureMap` (`func_180706_b`). AABB **center**, often Y ~100. Not Tweaks’ detection mixin. |
-| `/aqvillage` | OP Tweaks command: plate Y+1, ~6 off the well. Prefers unexplored. See [rtg.md](rtg.md). |
-| `isInsideStructure("Village", pos)` / InControl | Vanilla child-piece boxes, **or** Tweaks `MixinMapGenVillageInside` (flatten 12-pad including yards/paths, well floor through plate + `villageBoxHeight`). |
+| `/aqvillage` | OP Tweaks command: generated ground Y, ~6 off the well. Prefers unexplored. See [rtg.md](rtg.md). |
+| `isInsideStructure("Village", pos)` / InControl | Vanilla child boxes (including Tweaks `AQTVillagePlate` pad children) **or** `MixinMapGenVillageInside` (pad + Hermite, well floor through plate + `villageBoxHeight`). |
 | Antique Atlas village marker | Structure presence, same family as locate. |
 
 A Start with no pasted buildings is still a Village for locate. Template Y `64..151` plus teleport Y=100 can count as “inside” even when the plate is at 64.
@@ -139,7 +139,7 @@ Tweaks’ `@Redirect` on `StructureComponent.func_74875_a` inside `StructureStar
 | `MixinGenericVillageCreationHandler` | Same skip/retry for RC AABBs. |
 | `MixinASMHooksVillagePaste` | Charm populate abort on ocean/river floor (`mixins.aqtweaks.charm.json`). |
 | `MixinStructureStartVillagePaste` | Same abort if Charm did not wrap the invoke. |
-| `MixinMapGenVillageInside` | Detection = flatten hard pad (Euclidean 12 to land boxes), well floor through plate + `villageBoxHeight`. |
+| `MixinMapGenVillageInside` | Detection = pad + Hermite AABBs (also stamped into `Village.dat`). Well floor through plate + `villageBoxHeight`. |
 
 `isLandscapeLake`: a **null** sample (or nested sampling) is **not** wet. Load-time forget must not treat missing landscape as a flooded plains well. Layout must not treat missing landscape as a lake (that omitted every road).
 

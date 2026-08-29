@@ -3,6 +3,8 @@ package com.apocollis.aqtweaks.rtg;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.world.World;
+import net.minecraft.world.gen.structure.StructureBoundingBox;
+import net.minecraft.world.gen.structure.StructureVillagePieces;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -466,17 +468,155 @@ public final class VillagePlate {
         return false;
     }
 
-    public static boolean aabbOverlapsVillagePad(int minX, int maxX, int minZ, int maxZ, Record rec) {
+    /** Detection / saved pad pieces: AABB expand by component pad + Hermite falloff. */
+    public static boolean inVillagePlateXZ(int x, int z, Record rec) {
         if (rec == null) return false;
-        int landPad = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageComponentPad);
-        int shrinePad = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.smallShrinePad);
+        int landR = detectionLandRadius();
+        int shrineR = detectionShrineRadius();
         for (int[] box : rec.landBoxesOrEmpty()) {
-            if (distanceBetweenAabbXZ(minX, maxX, minZ, maxZ, box) <= landPad) return true;
+            if (inExpandedBoxXZ(x, z, box, landR)) return true;
         }
         for (int[] box : rec.shrineBoxesOrEmpty()) {
-            if (distanceBetweenAabbXZ(minX, maxX, minZ, maxZ, box) <= shrinePad) return true;
+            if (inExpandedBoxXZ(x, z, box, shrineR)) return true;
         }
         return false;
+    }
+
+    public static boolean aabbOverlapsVillagePad(int minX, int maxX, int minZ, int maxZ, Record rec) {
+        if (rec == null) return false;
+        int landR = detectionLandRadius();
+        int shrineR = detectionShrineRadius();
+        for (int[] box : rec.landBoxesOrEmpty()) {
+            if (distanceBetweenAabbXZ(minX, maxX, minZ, maxZ, box) <= landR) return true;
+        }
+        for (int[] box : rec.shrineBoxesOrEmpty()) {
+            if (distanceBetweenAabbXZ(minX, maxX, minZ, maxZ, box) <= shrineR) return true;
+        }
+        return false;
+    }
+
+    private static int detectionLandRadius() {
+        return Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageComponentPad)
+                + Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageEdgeFalloff);
+    }
+
+    private static int detectionShrineRadius() {
+        return Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.smallShrinePad)
+                + Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageEdgeFalloff);
+    }
+
+    private static boolean inExpandedBoxXZ(int x, int z, int[] box, int r) {
+        if (box == null) return false;
+        int pad = Math.max(0, r);
+        return x >= box[0] - pad && x <= box[1] + pad && z >= box[2] - pad && z <= box[3] + pad;
+    }
+
+    public static Object startAt(World world, Object mapGen, int x, int y, int z) {
+        if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.enableVillageBoxDetection) return null;
+        if (world == null) return null;
+        ensureStarts(world, mapGen);
+        if (mapGen != null) {
+            rememberNearby(world, mapGen, x >> 4, z >> 4);
+        }
+        int heightAbove = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageBoxHeight);
+        long seed = Reflect.getSeed(world);
+        for (Record rec : starts(seed)) {
+            if (rec.start == null) continue;
+            Record live = maybeRefreshLandBoxes(seed, rec);
+            float plate = resolvePlateOrSample(world, live);
+            if (Float.isNaN(plate)) continue;
+            if (!yInVillageVolume(y, plate, heightAbove, live)) continue;
+            if (!inVillagePlateXZ(x, z, live)) continue;
+            return live.start;
+        }
+        return null;
+    }
+
+    public static float resolvePlateOrSample(World world, Record rec) {
+        float cached = resolvePlate(world, rec);
+        if (!Float.isNaN(cached)) return cached;
+        if (world == null || rec == null) return Float.NaN;
+        int minWell = VillageLandHelper.minWellHeight();
+        float wellHeight = VillageLandHelper.sampleNoise(world, rec.wellX, rec.wellZ);
+        long seed = Reflect.getSeed(world);
+        if (VillageLandHelper.isNeverRaiseAt(world, rec.wellX, rec.wellZ)
+                || !VillageLandHelper.isUsableHeight(wellHeight)) {
+            try {
+                if (VillageLandHelper.isSwampLikeForRaise(
+                        Reflect.getBiome(world.getBiomeProvider(), rec.wellX, rec.wellZ))) {
+                    put(seed, rec, (float) minWell);
+                    return minWell;
+                }
+            } catch (Throwable ignored) {}
+            try {
+                int y = world.getHeight(rec.wellX, rec.wellZ);
+                if (y > 0) {
+                    put(seed, rec, (float) y);
+                    return y;
+                }
+            } catch (Throwable ignored) {}
+            return Float.NaN;
+        }
+        float target = Math.max(wellHeight, minWell);
+        put(seed, rec, target);
+        return target;
+    }
+
+    /**
+     * Append non-placing pad children (one per land/shrine box) and write {@code Village.dat}.
+     * Real houses/paths/RC stay as their own children. Idempotent.
+     */
+    public static void stampDetectionPieces(World world, Record rec, Object mapGen) {
+        if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.enableVillageBoxDetection) return;
+        if (world == null || rec == null || rec.start == null) return;
+        for (Object piece : Reflect.getStructureStartComponents(rec.start)) {
+            if (VillageLandHelper.isVillagePlatePad(piece)) return;
+        }
+        float plate = resolvePlateOrSample(world, rec);
+        if (Float.isNaN(plate)) return;
+        StructureVillagePieces.Start well = villageWellStart(rec.start);
+        if (well == null) return;
+        int padY = Math.round(plate);
+        int floor = wellFloorY(rec, padY);
+        int maxY = padY + Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageBoxHeight);
+        int landR = detectionLandRadius();
+        int shrineR = detectionShrineRadius();
+        List<int[]> shrines = rec.shrineBoxesOrEmpty();
+        boolean any = false;
+        for (int[] box : rec.landBoxesOrEmpty()) {
+            if (containsXZBox(shrines, box)) continue;
+            any |= addPadPiece(rec.start, well, box, landR, floor, maxY);
+        }
+        for (int[] box : shrines) {
+            any |= addPadPiece(rec.start, well, box, shrineR, floor, maxY);
+        }
+        if (!any) return;
+        Reflect.updateStructureStartBoundingBox(rec.start);
+        Reflect.saveMapGenStructureStart(mapGen, world, rec.start);
+        if (VillageDebug.once("stampPlate:" + wellKey(Reflect.getSeed(world), rec))) {
+            VillageDebug.log("stamp village plate well=%d,%d floor=%d maxY=%d landR=%d",
+                    rec.wellX, rec.wellZ, floor, maxY, landR);
+        }
+    }
+
+    private static StructureVillagePieces.Start villageWellStart(Object start) {
+        for (Object piece : Reflect.getStructureStartComponents(start)) {
+            if (piece instanceof StructureVillagePieces.Start) {
+                return (StructureVillagePieces.Start) piece;
+            }
+        }
+        return null;
+    }
+
+    private static boolean addPadPiece(Object start, StructureVillagePieces.Start well,
+                                       int[] box, int radius, int minY, int maxY) {
+        if (box == null) return false;
+        int r = Math.max(0, radius);
+        StructureBoundingBox aabb = new StructureBoundingBox(
+                box[0] - r, minY, box[2] - r,
+                box[1] + r, maxY, box[3] + r);
+        VillagePieceVillagePlate pad = new VillagePieceVillagePlate(well, aabb);
+        return Reflect.addStructureStartComponent(start, pad);
     }
 
     public static boolean yInVillageVolume(int y, float plateHeight, int heightAbove, Record rec) {
@@ -561,6 +701,7 @@ public final class VillagePlate {
         try {
             List<int[]> out = new ArrayList<>();
             for (Object piece : Reflect.getStructureStartComponents(start)) {
+                if (VillageLandHelper.isVillagePlatePad(piece)) continue;
                 int[] box = Reflect.getStructureComponentBoxXZ(piece);
                 if (box == null) continue;
                 if (VillageLandHelper.isVillageRoad(piece) && VillageLandHelper.isAabbFullyFlooded(start, piece)) {
@@ -580,6 +721,7 @@ public final class VillagePlate {
     public static List<int[]> buildingBoxesOf(Object start) {
         List<int[]> out = new ArrayList<>();
         for (Object piece : Reflect.getStructureStartComponents(start)) {
+            if (VillageLandHelper.isVillagePlatePad(piece)) continue;
             int[] box = Reflect.getStructureComponentBoxXZ(piece);
             if (box == null || VillageLandHelper.isVillageRoad(piece)) continue;
             out.add(box);

@@ -37,7 +37,7 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
  * 1. Every 15 seconds, check if the player is resting (sleeping, sitting, sneaking, or stationary).
  * 2. If resting, scan a 24x5x24 area for cozy blocks and nearby pets.
  * 3. Calculate a category-limited comfort score using the top-X highest values per category.
- * 4. If score >= 5.0, set the "Resting" tag and apply silent benefits (warp drain, potions).
+ * 4. If score >= Homestead I threshold, set the "Resting" tag and apply silent benefits (warp drain, potions).
  * 5. While the tag is active, continue scanning even if the player moves.
  * 6. Cancel the tag immediately on taking damage, attacking, or leaving the cozy area.
  */
@@ -52,9 +52,9 @@ public class ComfortSystemHandler {
     static final Map<String, CozyConfig> COZY_BLOCKS = new HashMap<>();
     static final Map<String, Integer> CATEGORY_LIMITS = new HashMap<>();
     static float PET_COMFORT_VALUE = 3.0f;
-    public static float THRESHOLD_HOMESTEAD_1 = 5.0f;
-    public static float THRESHOLD_HOMESTEAD_2 = 15.0f;
-    public static float THRESHOLD_HOMESTEAD_3 = 30.0f;
+    public static float THRESHOLD_HOMESTEAD_1 = 15.0f;
+    public static float THRESHOLD_HOMESTEAD_2 = 40.0f;
+    public static float THRESHOLD_HOMESTEAD_3 = 60.0f;
 
     // ==================== Event Handlers ====================
 

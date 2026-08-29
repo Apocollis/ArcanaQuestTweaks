@@ -1,6 +1,6 @@
 # RTG module (1.7)
 
-Last updated: 2026-08-23, `/aqvillage` stash at RTG construct + seed+dim unwrap; village `AQTSmallShrine` can place (path overlap OK, biome wet only, weight 5).
+Last updated: 2026-08-28, `MixinWorldGenLakes` remap true (`generate`) + lake-block field walk.
 
 This is the RTG module: village flatten/placement, then post-terrain structure skip/settle. Locked intent, current pipeline, and why earlier approaches were dropped. Read this before changing village flatten, spawn veto, piece retry, or shrine/house/hut land settle.
 
@@ -47,7 +47,7 @@ Keep **what** villages create (vanilla pieces + Recurrent Complex, plus at most 
 - Keep a **flat plate under dry-land roads**, including stretches with no buildings. Omit a road from the plate (and from layout) if it touches ocean/river or is mostly lake.
 - The plate is the **walkable village footprint**: every surviving piece **and** a 12-block hard pad around it. Overlap is one level. It is **not** a village-wide rectangle. Empty AABB corners with no nearby piece stay hills.
 - Inland plains/forest (playtest “village 2”) is the target look for non-water biomes.
-- Structure detection uses the **same 12-pad as flatten** (Euclidean to land boxes, including kept paths and overlapping yards), Y from the **well shaft floor** through plate plus `villageBoxHeight` (default 30). It does not use the unsnapped start AABB or template Y `64..151`.
+- Structure detection uses the **flatten plate** (land-box AABB + component pad + Hermite falloff), Y from the **well shaft floor** through plate plus `villageBoxHeight`. Those volumes are also saved as extra `AQTVillagePlate` children on the Start (`Village.dat`) without replacing house/path/RC boxes.
 
 ## Hard constraints
 
@@ -68,7 +68,7 @@ Keep **what** villages create. Change **where** they start and **how RTG land un
 2. Sample plate Y from the well via live `ChunkGeneratorRTG.getLandscape`.
 3. Flatten `landscape.noise` under land boxes (houses, well, mixed/dry roads). Never write ocean/river except 1-block pad notches. Flooded swamp/lake **inside the hard pad** is raised to plate Y.
 4. RTG carves from that noise. Caves and ravines then punch the primer. Tweaks reseals shore-mask columns solid up to plate Y before `new Chunk`. Production method `func_185932_a` (`remap = false`).
-5. Populate places the same pieces. Wet houses/RC/shrine/waystone/paths retry inland; leftover ocean/river or mostly-lake paths are omitted. If layout missed, paste skips the building when the surface is still liquid.
+5. Populate places the same pieces. Wet houses/RC/shrine/waystone/paths retry inland; leftover ocean/river or mostly-lake paths are omitted. If layout missed, paste skips the building when the surface is still liquid. Water lakes whose blob overlaps the 12-pad are skipped (lava lakes are not).
 
 Do not recarve old chunks. Do not veto a whole village because one building was wet. Do not treat a puddle on a path as a water bridge.
 
@@ -107,14 +107,15 @@ Flatten looks up `VillagePlate` records by **land-box overlap** first. Hit → f
 | `mixin/MixinMapGenVillageSpawn.java` | Well veto (`func_75047_a`) |
 | `mixin/MixinMapGenVillageStart.java` | Remember start after create (`func_75049_b`) |
 | `mixin/MixinMapGenVillageWorld.java` | Push/pop `World` around village `generate`; unwrap RTG from wrapped chunk gens |
-| `mixin/MixinMapGenVillageInside.java` | Plated land boxes as “inside village” for InControl / `isInsideStructure` |
+| `rtg/VillagePieceVillagePlate.java` | Non-placing pad children saved on the Start (`AQTVillagePlate`). Houses/paths/RC stay separate |
+| `mixin/MixinMapGenVillageInside.java` | Flatten plate as “inside village”; fallback if `Village.dat` has no pad children yet |
+| `rtg/CommandAqVillage.java` | OP `/aqvillage` (level 2): TP on generated ground ~6 off the well; prefers unexplored. Miss logs provider/generator to `latest.log` |
 | `mixin/MixinStructureVillagePieces.java` | House skip/retry inland on water; waystone relocates inland as the same piece; wet paths retry inland then omit |
-| `mixin/MixinStructureStartVillagePaste.java` | Populate abort if Charm did not wrap paste and every clipped column is never-raise |
+| `mixin/MixinStructureStartVillagePaste.java` | Populate abort on ocean/river floor; stamp `AQTVillagePlate` children into the Start |
 | `mixin/charm/MixinASMHooksVillagePaste.java` | Same abort on Charm `ASMHooks.addComponentParts` (optional `mixins.aqtweaks.charm.json`) |
 | `mixin/reccomplex/MixinGenericVillageCreationHandler.java` | RC building skip/retry on water |
 | `rtg/VillagePieceAstralSmallShrine.java` | Village component that pastes Astral `smallShrine`; AABB from pattern; path overlap OK at layout; paste skips ocean/river **biome** only; liquid-only fill (no dirt collar) |
 | `rtg/VillageAstralSmallShrineHandler.java` | Forge village handler, weight 5, limit 1. Inland retry on building collision or ocean/river biome. `CommonProxy` registers only if `astralsorcery` is loaded. Piece id `AQTSmallShrine` |
-| `rtg/CommandAqVillage.java` | OP `/aqvillage` (level 2): TP onto the plate ~6 off the well; prefers unexplored. Miss logs provider/generator to `latest.log` |
 | `mixin/bewitchment/MixinWorldGenCambionHome.java` | House +1 paste, skip schematic air, village skip, hole-fill 6-pad at plains Y. Optional `mixins.aqtweaks.bewitchment.json` |
 | `mixin/bewitchment/MixinWorldGenCambionHomeMedium.java` | Same for medium Cambion house |
 | `mixin/bewitchment/MixinWorldGenStonecircle.java` | Village skip + Chebyshev retry. No plate |
@@ -123,9 +124,10 @@ Flatten looks up `VillagePlate` records by **land-box overlap** first. Hit → f
 | `mixin/mysticalworld/MixinStructureGenerator.java` | Hut village-skip/retry + land settle; barrow skip/retry (no plate). Optional `mixins.aqtweaks.mysticalworld.json` |
 | `mixin/astral/MixinWorldGenAttributeCommon.java` | Skip Astral surface shrines on village overlap. Optional `mixins.aqtweaks.astral.json` |
 | `mixin/astral/MixinWorldGenAttributeStructure.java` | Settle land after `generateAsSubmergedStructure`; small shrine/ruin use walkway Y + swamp fill |
-| `mixin/biomesoplenty/MixinGeneratorLakes.java` | Skip BOP quicksand lakes on village overlap. Optional `mixins.aqtweaks.biomesoplenty.json` |
+| `mixin/MixinWorldGenLakes.java` | Skip vanilla water lakes on village 12-pad. Required `mixins.aqtweaks.json`. Remap **true**, MCP `generate`; lake fluid via `block` / `field_150589_a` (no `@Shadow block` — Unimined maps that MCP name to the wrong SRG). Lava lakes are not skipped |
+| `mixin/biomesoplenty/MixinGeneratorLakes.java` | Skip BOP water and quicksand lakes on village overlap. Optional `mixins.aqtweaks.biomesoplenty.json` |
 | `ArcanaQuestTweaksConfig.RtgModuleConfig.surface` | `config/arcanaquesttweaks/aqtweaks_rtg.cfg` |
-| `mixins.aqtweaks.json` | Required: village spawn/start/world/inside, `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinChunkGeneratorRTGVillage`, `MixinGenericVillageCreationHandler` |
+| `mixins.aqtweaks.json` | Required: village spawn/start/world/inside, `MixinWorldGenLakes`, `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinChunkGeneratorRTGVillage`, `MixinGenericVillageCreationHandler` |
 | `mixins.aqtweaks.charm.json` | Optional: Charm ASM village paste skip |
 
 Related but separate: `MixinChunkGeneratorRTG.java` fills Deepslate below Y=0 for Depths. Do not conflate with village flatten. See [depths.md](depths.md).
@@ -220,7 +222,7 @@ Flooded for paths = never-raise **or** RTG lake (`noise < villageMinWellHeight`,
 
 ## Structure detection
 
-`MixinMapGenVillageInside` treats the **flatten hard pad** as village for `isInsideStructure`: Euclidean `dist ≤ villageComponentPad` (12) to any land box (well, houses, RC, kept roads), or `≤ smallShrinePad` (3) to a village shrine. Only if a plate height was cached this session. Y is **well shaft floor through plate + villageBoxHeight** (default 30). Unsnapped well template `64..78` uses `plate - 14` so a hill village is not Village down to Y=64. Template start Y (`minY=64 maxY=151`) and the huge unsnapped start AABB are not used. No plate → miss (vanilla child pieces after snap may still match). `StructureVillageOverlap` uses the same pad.
+`MixinMapGenVillageInside` treats the **flatten plate** as village for `isInsideStructure`: AABB expand of each land box by `villageComponentPad + villageEdgeFalloff` (and shrine pad + falloff). Y is **well shaft floor through plate + villageBoxHeight**. After generation, Tweaks also appends non-placing `AQTVillagePlate` children to the Start so `Village.dat` stores those boxes next to houses/paths; vanilla `isVecInside` then matches after relog. Mixin still covers towns generated before the stamp. Unsnapped well template `64..78` uses `plate - 14`. Template start Y (`minY=64 maxY=151`) is not used as the only test.
 
 Flatten does **not** use `villageBoxXZPad` as extra 100% plate or as detection; flatten uses per-component distance (`villageComponentPad`, default 12). `villageBoxXZPad` is swamp dock-approach only. Live `villageEdgeFalloff` may still be **48** (Forge keeps saved cfg); code default is 12. `written=256 pad=0` is falloff-only blend, not a missing component pad.
 
@@ -232,7 +234,7 @@ Permission level **2** (same as `/locate`). Player sender only.
 - `/aqvillage unexplored` — unexplored only; errors if none in range.
 - `/aqvillage known` — nearest already-generated allowed well.
 
-Teleport is **on the plate** (`round(plate)+1`), about 6 blocks east of the well (other cardinals if that column is unsafe), not the well shaft and not vanilla `/locate` AABB center / Y=100. Search does not layout villages; arriving generates the chunk.
+Teleport is **on the generated ground** at that column (`world.getHeight`, skip leaves), about 6 blocks off the well. It does **not** use the well-column HEIGHTS cache (that Y can sit inside a hill or below the walkable plate). Search does not layout villages; arriving generates the chunk.
 
 `MapGenVillage` is stashed when `ChunkGeneratorRTG` is constructed (and again on layout), keyed by World and by `seed+dimension`. Unwrap BFS walks wrapped chunk providers/generators. A miss logs one INFO line to `latest.log` (`[aqvillage] missing MapGenVillage …`) then throws. Nether/Aether still have no village generator.
 
@@ -258,7 +260,7 @@ Teleport is **on the plate** (`round(plate)+1`), about 6 blocks east of the well
 | Village Box XZ Pad | 8 | yes | Flatten swamp dock-approach only. Not detection |
 | Village Box Height | 30 | yes | Detection Y above plate. Floor is the well shaft (~11–14 below plate). Live cfg may still be **32** |
 | Village Flatten Debug | false | yes | `logs/villagepatch.log`. Live DEVBOX must be edited off; old true is kept until changed |
-| Skip Structures On Village | true | yes | Cancel AS surface shrines and Cambion houses on village AABB. MW hut/barrow and Bewitchment circle/menhir/wickerman skip that spot and retry nearby. BOP quicksand on village AABB is skipped |
+| Skip Structures On Village | true | yes | Cancel AS surface shrines and Cambion houses on village AABB. MW hut/barrow and Bewitchment circle/menhir/wickerman skip that spot and retry nearby. Vanilla water lakes and BOP water/quicksand on the village pad are skipped |
 | Enable Structure Land Settle | true | yes | Fill under those structures and ramp the rim |
 | Enable Astral Shrine Settle | true | yes | Village-skip + land settle for surface shrines |
 | Enable Cambion House Settle | true | yes | Village-skip; house +1 (cobble on grass); skip air; pad at plains Y hole-fill only |
@@ -274,7 +276,7 @@ Teleport is **on the plate** (`round(plate)+1`), about 6 blocks east of the well
 
 Astral surface shrines, Bewitchment Cambion houses, and Mystical World huts/barrows paste **after** RTG terrain. They cannot reuse village noise flatten.
 
-- Overlap a village (real AABB / Y, not chunk origin at Y=0) → Astral/Cambion **do not place**. Huts, barrows, stone circles, menhirs, and wickermen **retry nearby** (Chebyshev step 8, up to 32); miss → skip and do not mark. BOP quicksand lakes that overlap are cancelled.
+- Overlap a village (real AABB / Y, not chunk origin at Y=0) → Astral/Cambion **do not place**. Huts, barrows, stone circles, menhirs, and wickermen **retry nearby** (Chebyshev step 8, up to 32); miss → skip and do not mark. Vanilla `WorldGenLakes` water and BOP water/quicksand lakes whose ~16×8 blob overlaps the 12-pad are cancelled. Lava lakes still generate.
 - **Large ancient/desert shrines:** fill under the footprint with raw `astralsorcery:blockmarble` (`MarbleBlockType.RAW`), rim still biome top/filler, max depth 16, rim 16, never ocean/river. After settle, clear wood/leaves/vines in the template AABB through `maxY + 16`. Treasure caves are not settled.
 - Mystical **huts:** biome fill under the footprint (min foundation Y), rim 16, never ocean/river. **Barrows:** skip/retry only, **no plate**.
 - **Small shrine and small ruin:** plate Y is the generate **center / walkway**, not min foundation Y. Rim is `smallShrinePad` (3), not the 16-block large-shrine bank. In **swamp-like** biomes, water is filled up to that plate. Ocean/river still never filled. Plant-like blocks (BOP / Rustic / Farmer’s Delight, `BlockBush`, `Material.PLANTS`) are overwritten; leftover tops above the plate are cleared. Logs and leaves are not (small only).
@@ -467,6 +469,24 @@ Y+1 paste stacked a ground layer above plains. Template air at y=0 punched pits.
 
 **Fix:** detection and `StructureVillageOverlap` use the flatten hard pad (Euclidean 12 to land boxes, shrine 3). `villageBoxHeight` default 30.
 
+### 25. Water lakes carving the plate
+
+Populate `WorldGenLakes` (and BOP water lakes) ran after village paste and punched 6–16 block ponds through yards and house foundations.
+
+**Fix:** skip water lakes when the generate blob overlaps the village 12-pad (`Skip Structures On Village`). Same as BOP quicksand. Lava lakes unchanged.
+
+### 26. `WorldGenLakes` SRG shadow under CleanroomRemapper
+
+`remap = false` plus `@Shadow field_150589_a` failed at boot: Cleanroom 0.6.12 applies mixins to MCP-named vanilla, so the field is `block`. Mixin apply marked `WorldGenLakes` invalid; Lycanites `WorldGenOozeLakes` then crashed as a follow-on. Remap true plus `@Shadow private Block block` is also wrong: Unimined maps the generic MCP name `block` to `field_150556_a`, not `WorldGenLakes.field_150589_a`.
+
+**Fix:** remap true and MCP `generate` (refmap `func_180709_b`). Read the fluid with a field walk (`block`, then `field_150589_a`) so Lycanites subclasses still resolve the field on the vanilla super. BOP `MixinGeneratorLakes` stays `remap = false` (mod class, SRG).
+
+### 27. Village detection in `Village.dat`; `/aqvillage` into ground
+
+Pad/height mixin needed this-session flatten cache, so yards missed after relog. `/aqvillage` used well-column HEIGHTS even when that Y was inside a hill.
+
+**Fix:** append non-placing `AQTVillagePlate` children (pad + Hermite AABB, well floor through plate + box height) after layout; houses/paths/RC keep their own boxes. Mixin fallback samples plate if uncached. `/aqvillage` stands on generated surface at the stand column.
+
 ## Playtest reference (this line)
 
 - **Wanted:** inland plains village (example `-2897, 97, -2119`) — flat plate, houses on it, blend to hills.
@@ -476,15 +496,16 @@ Y+1 paste stacked a ground layer above plains. Template air at y=0 punched pits.
 - **Wanted:** large Astral ancient/desert temple — raw marble under the pad, not dirt; no floating logs/leaves in or above the AABB.
 - **Wanted:** new Cambion house on a slope — pad flush with plains; cobble on the grass (house +1); door +1 above cobble; air under the footprint filled.
 - **Wanted:** Mystical barrow or hut next to a village — relocates or skips; barrow is not plated.
-- **Wanted:** grass between a dirt path and a house is Village (`isInsideStructure`); Hermite outside the 12-pad is not. Y well floor through plate + `villageBoxHeight`.
+- **Wanted:** grass between a dirt path and a house is Village (`isInsideStructure`); Hermite skirt is Village; beyond pad+falloff is not. Y well floor through plate + `villageBoxHeight`. Relog still Village (pad boxes in `Village.dat`).
 - **Wanted:** hill village — well, houses, RC, and path pads at **one** well Y; Hermite only outside the 12-pad; no chunk-aligned stone wall through town.
 - **Wanted:** desert/mesa village — one sand plate through yards and paths; no toothed red-sand holes between houses; F3 River biome still unplated.
 - **Wanted:** new Cambion house — pad flush with grass; cobble one above that; door one above cobble; no pit; no extra pad layer.
 - **Wanted:** Bewitchment stone circle / menhir / wickerman next to a village — relocates or skips; farms intact.
 - **Wanted:** wild BOP quicksand still generates; none inside desert village land boxes.
+- **Wanted:** small water ponds still generate off the village pad; none through yards or house foundations. Lava lakes still generate.
 - **Wanted:** village Astral small shrine **capable of generating** (weight 5, not every village); when it does, complete on the plate, no dirt/grass collar; true ocean/river biome columns still skip.
 - **Wanted:** coastal plate — cleaner top-down outline (no 1-block sand jetties; 1-block ocean notches in the pad filled); stone-brick on the whole 8-connected rim below the top; sand/grass on top; inland hill cliffs still dirt/stone.
-- **Unwanted (fixed in flatten, verify on new chunks):** beach sand piers into ocean (except 1-block enclosed notches); ocean ledges; swamp/beach vertical plate walls into water; 1-block grass pads under houses with path one lower; village well in coral reef / kelp forest / open ocean; **river well in the water** (walk inland); plains hill villages stepping instead of one pad; **chunk-aligned stone cliff / forgotten 16×16 in town**; dirt cliff at the far end of a tall RC village piece; in-village grass basins between roads and houses; oak plank path sitting in a lake; houses/roads in F3 River; well over a ravine; floating lamps after cave carve; whole pad forced to loamy grass; leftover BOP mud on the pad; **half marble shrine**; raw sand/ore ocean plate face; **toothed sand/red-sand plate in desert/mesa**; **dirt collar around village shrine**; **BOP quicksand in a village square**; **stone circle through a village farm**; **sawtooth coastal plate / mixed dirt-stone-sand ocean face**.
+- **Unwanted (fixed in flatten, verify on new chunks):** beach sand piers into ocean (except 1-block enclosed notches); ocean ledges; swamp/beach vertical plate walls into water; 1-block grass pads under houses with path one lower; village well in coral reef / kelp forest / open ocean; **river well in the water** (walk inland); plains hill villages stepping instead of one pad; **chunk-aligned stone cliff / forgotten 16×16 in town**; dirt cliff at the far end of a tall RC village piece; in-village grass basins between roads and houses; oak plank path sitting in a lake; **small water pond through village foundations**; houses/roads in F3 River; well over a ravine; floating lamps after cave carve; whole pad forced to loamy grass; leftover BOP mud on the pad; **half marble shrine**; raw sand/ore ocean plate face; **toothed sand/red-sand plate in desert/mesa**; **dirt collar around village shrine**; **BOP quicksand in a village square**; **stone circle through a village farm**; **sawtooth coastal plate / mixed dirt-stone-sand ocean face**.
 - Swamp villages still keep pieces in swamp water; that water **inside the 12-pad** is filled to plate Y. Open swamp **outside** the pads stays water. Ocean/river columns are never filled except 1-block pad notches.
 
 ## Likely next levers
