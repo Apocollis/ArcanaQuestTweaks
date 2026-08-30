@@ -92,7 +92,7 @@ Use the full list in [stamina.md](stamina.md) **Verify**. Minimum: jump costs/bl
 
 | Module | Smoke |
 | --- | --- |
-| Gaia | Gaia melee second hit reduced by armor; magic protection still applies |
+| Gaia | Melee: one physical hit, names the mob, no MAGIC 6. Hard archer: no MAGIC tip. Bolts: armor skip, Magic Protection works, death names shooter. Bomb: armor + Blast Protection, no extra 2.0. JSON `grimoireofgaia:orc` changes orc melee and bolts after restart. |
 | Thaumcraft | First Nether visit warps after ~2s; sleep at dawn reduces warp; whispers underground on interval |
 | Bewitchment | Listed ritual **finish** grants warp; halt does not |
 | Comfort | Homestead icon while resting in a scored room; hot spring → cold resist if SD+BOP |

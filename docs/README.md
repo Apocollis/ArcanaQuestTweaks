@@ -56,12 +56,12 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 **preInit**
 
 - Register SimpleNetworkWrapper messages 0–2 (stamina climb/grapple). See [stamina.md](stamina.md).
-- `ComfortConfigLoader.load` from the Forge config directory.
+- `ComfortConfigLoader.load` and `GaiaDamageConfig.load` from the Forge config directory.
 - `PortalModule.preInit` (`ForgeChunkManager` callback). Item/entity register via `RegistryEvent` (not init).
 
 **init (common)**
 
-- Always: `StaminaModule`, `GrimoireOfGaiaModule`, `ComfortSystemHandler`.
+- Always: `StaminaModule`, `GaiaDamageHandler` (Gaia JSON bases), `ComfortSystemHandler`.
 - If `thaumcraft`: `ThaumcraftModule`.
 - If `bewitchment`: `BewitchmentRegistryHandler` (ritual wrap still no-ops unless Thaumcraft is also loaded; see [bewitchment.md](bewitchment.md)).
 - If `astralsorcery`: `VillageAstralSmallShrineHandler.register()` (structure piece id `AQTSmallShrine`).
@@ -92,6 +92,7 @@ Vanilla `World` is already loaded when late mixins prepare. Portal glowstone lig
 | `mixins.aqtweaks.bewitchment.json` | false | RTG Cambion + circle/menhir/wickerman | Skip |
 | `mixins.aqtweaks.mysticalworld.json` | false | RTG Mystical huts | Skip |
 | `mixins.aqtweaks.biomesoplenty.json` | false | RTG BOP water/quicksand village skip | Skip |
+| `mixins.aqtweaks.gaia.json` | false | Grimoire of Gaia pierce drop + bolt/bomb retype | Skip |
 
 `mixins.aqtweaks.json` contents (package `com.apocollis.aqtweaks.mixin`):
 
@@ -114,6 +115,7 @@ Forge `@Config` on nested classes in `ArcanaQuestTweaksConfig`. Comfort is JSON,
 | `aqtweaks_stamina.cfg` | `StaminaModuleConfig` |
 | `aqtweaks_client.cfg` | `ClientModuleConfig` |
 | `aqtweaks_grimoireofgaia.cfg` | `GrimoireOfGaiaConfig` |
+| `gaia_mob_damage.json` | `GaiaDamageConfig` (not `@Config`) |
 | `aqtweaks_thaumcraft.cfg` | `ThaumcraftConfig` |
 | `aqtweaks_bewitchment.cfg` | `BewitchmentConfig` |
 | `aqtweaks_depths.cfg` | `DepthsModuleConfig` |

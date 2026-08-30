@@ -14,7 +14,8 @@ import com.apocollis.aqtweaks.stamina.StaminaModule;
 
 import com.apocollis.aqtweaks.comfort.ComfortConfigLoader;
 
-import com.apocollis.aqtweaks.gaia.GrimoireOfGaiaModule;
+import com.apocollis.aqtweaks.gaia.GaiaDamageConfig;
+import com.apocollis.aqtweaks.gaia.GaiaDamageHandler;
 
 import com.apocollis.aqtweaks.comfort.ComfortSystemHandler;
 
@@ -30,6 +31,7 @@ public class CommonProxy {
         ArcanaQuestTweaks.NETWORK.registerMessage(PacketLedgeClimb.Handler.class, PacketLedgeClimb.class, 1, Side.SERVER);
         ArcanaQuestTweaks.NETWORK.registerMessage(PacketSyncGrappleInput.Handler.class, PacketSyncGrappleInput.class, 2, Side.SERVER);
         ComfortConfigLoader.load(event.getModConfigurationDirectory());
+        GaiaDamageConfig.load(event.getModConfigurationDirectory());
         com.apocollis.aqtweaks.portal.PortalModule.preInit();
         net.minecraft.world.gen.structure.MapGenStructureIO.registerStructureComponent(
                 com.apocollis.aqtweaks.rtg.VillagePieceVillagePlate.class, "AQTVillagePlate");
@@ -37,7 +39,7 @@ public class CommonProxy {
 
     public void init(FMLInitializationEvent event) {
         MinecraftForge.EVENT_BUS.register(new StaminaModule());
-        MinecraftForge.EVENT_BUS.register(new GrimoireOfGaiaModule());
+        MinecraftForge.EVENT_BUS.register(new GaiaDamageHandler());
 
         if (net.minecraftforge.fml.common.Loader.isModLoaded("thaumcraft")) {
             MinecraftForge.EVENT_BUS.register(new ThaumcraftModule());

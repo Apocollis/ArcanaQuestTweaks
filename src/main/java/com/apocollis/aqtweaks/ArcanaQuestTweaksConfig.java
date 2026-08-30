@@ -434,7 +434,7 @@ public class ArcanaQuestTweaksConfig {
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_grimoireofgaia")
     public static class GrimoireOfGaiaConfig {
         @Config.Name("Disable Piercing Damage")
-        @Config.Comment("Should piercing/penetrating damage from Grimoire of Gaia mobs be converted to normal damage that is reducible by physical armor?")
+        @Config.Comment("When true, drop Gaia melee/archer extra MAGIC pierce, retype bolts/bombs, and apply per-mob attack JSON. When false, Gaia vanilla.")
         public static boolean disablePiercingDamage = true;
     }
 

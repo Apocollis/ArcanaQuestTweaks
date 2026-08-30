@@ -1,0 +1,13 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.apocollis.aqtweaks.mixin.gaia",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "MixinEntityMobHostileBase",
+    "MixinEntityMobAssistBase",
+    "MixinGaiaMagicProjectile",
+    "MixinEntityGaiaProjectileBomb",
+    "MixinRanged"
+  ]
+}
