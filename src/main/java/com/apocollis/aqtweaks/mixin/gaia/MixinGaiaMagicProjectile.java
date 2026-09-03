@@ -25,7 +25,8 @@ public abstract class MixinGaiaMagicProjectile {
             method = "func_70227_a",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/entity/Entity;func_70097_a:(Lnet/minecraft/util/DamageSource;F)Z"
+                    target = "Lnet/minecraft/entity/Entity;attackEntityFrom(Lnet/minecraft/util/DamageSource;F)Z",
+                    remap = true
             )
     )
     private boolean aqtweaks$retypeMagic(Entity victim, DamageSource source, float amount) {

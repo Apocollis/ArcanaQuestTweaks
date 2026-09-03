@@ -267,6 +267,9 @@ public class Reflect {
     private static Method getThirstDataMethod;
     private static Class<?> thirstCapabilityClass;
     private static Method addThirstExhaustionMethod;
+    private static Method getThirstLevelMethod;
+    private static Method getTemperatureDataMethod;
+    private static Method getTemperatureLevelMethod;
 
     static {
         // isSprinting
@@ -1245,6 +1248,10 @@ public class Reflect {
                 getThirstDataMethod = sdCapabilitiesClass.getMethod("getThirstData", EntityPlayer.class);
                 thirstCapabilityClass = Class.forName("com.charles445.simpledifficulty.api.thirst.IThirstCapability");
                 addThirstExhaustionMethod = thirstCapabilityClass.getMethod("addThirstExhaustion", float.class);
+                getThirstLevelMethod = thirstCapabilityClass.getMethod("getThirstLevel");
+                getTemperatureDataMethod = sdCapabilitiesClass.getMethod("getTemperatureData", EntityPlayer.class);
+                Class<?> temperatureCapabilityClass = Class.forName("com.charles445.simpledifficulty.api.temperature.ITemperatureCapability");
+                getTemperatureLevelMethod = temperatureCapabilityClass.getMethod("getTemperatureLevel");
                 isSimpleDifficultyLoaded = true;
             }
         } catch (Exception e) {
@@ -1525,15 +1532,7 @@ public class Reflect {
             com.elenai.elenaidodge2.init.EnchantmentInit.LIGHTWEIGHT, player
         );
         intWeight -= lightweightLevel;
-
-        boolean halfFeathers = com.elenai.elenaidodge2.ModConfig.common.feathers.half;
-        int finalWeight = 0;
-        if (!halfFeathers) {
-            finalWeight = (int) (Math.floor(intWeight / 2.0) * 2);
-        } else {
-            finalWeight = intWeight;
-        }
-        return Math.max(0, finalWeight);
+        return intWeight;
     }
 
     public static boolean hasUnlockable(EntityPlayer player, String registryId) {
@@ -1560,21 +1559,39 @@ public class Reflect {
     }
 
     public static int getWeight(EntityPlayer player) {
-        int baseWeight = getBaseWeight(player);
+        if (player.isPotionActive(com.elenai.elenaidodge2.init.PotionInit.WEIGHT_EFFECT)) {
+            if (Reflect.isRemote(player)) {
+                return com.elenai.elenaidodge2.util.ClientStorage.weight;
+            }
+            if (player instanceof EntityPlayerMP) {
+                return com.elenai.elenaidodge2.api.FeathersHelper.getWeight((EntityPlayerMP) player);
+            }
+            return 200;
+        }
 
-        // Apply Armor Mastery reduction
-        if (ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.enableReskillable && 
+        int weight = getBaseWeight(player);
+        PotionEffect endurance = player.getActivePotionEffect(com.elenai.elenaidodge2.init.PotionInit.ENDURANCE_EFFECT);
+        if (endurance != null) {
+            weight -= (endurance.getAmplifier() + 1) * 4;
+        }
+
+        boolean halfFeathers = com.elenai.elenaidodge2.ModConfig.common.feathers.half;
+        if (!halfFeathers) {
+            weight = (int) (Math.floor(weight / 2.0) * 2);
+        }
+
+        if (ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.enableReskillable &&
             hasUnlockable(player, ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.armorMasteryPerkId)) {
             int pieces = 0;
-            for (net.minecraft.item.ItemStack armor : player.getArmorInventoryList()) {
+            for (ItemStack armor : player.getArmorInventoryList()) {
                 if (armor != null && !armor.isEmpty()) {
                     pieces++;
                 }
             }
             int reduction = (int) Math.round(pieces * ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.armorMasteryReductionPerPiece);
-            baseWeight = Math.max(0, baseWeight - reduction);
+            weight -= reduction;
         }
-        return baseWeight;
+        return Math.max(0, weight);
     }
 
     public static boolean hasEnoughStamina(EntityPlayer player, int cost) {
@@ -1618,6 +1635,42 @@ public class Reflect {
             }
         } catch (Exception e) {
             // ignore
+        }
+    }
+
+    /**
+     * Simple Difficulty thirst 0–20, or {@code null} if the mod/cap is absent.
+     */
+    public static Integer getSdThirstLevel(EntityPlayer player) {
+        if (!isSimpleDifficultyLoaded || getThirstDataMethod == null || getThirstLevelMethod == null) {
+            return null;
+        }
+        try {
+            Object thirst = getThirstDataMethod.invoke(null, player);
+            if (thirst == null) {
+                return null;
+            }
+            return (Integer) getThirstLevelMethod.invoke(thirst);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Simple Difficulty body temperature 0–25, or {@code null} if the mod/cap is absent.
+     */
+    public static Integer getSdTemperatureLevel(EntityPlayer player) {
+        if (!isSimpleDifficultyLoaded || getTemperatureDataMethod == null || getTemperatureLevelMethod == null) {
+            return null;
+        }
+        try {
+            Object temp = getTemperatureDataMethod.invoke(null, player);
+            if (temp == null) {
+                return null;
+            }
+            return (Integer) getTemperatureLevelMethod.invoke(temp);
+        } catch (Exception e) {
+            return null;
         }
     }
 

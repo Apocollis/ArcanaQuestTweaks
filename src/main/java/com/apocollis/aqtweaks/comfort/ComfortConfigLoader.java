@@ -1,20 +1,23 @@
 package com.apocollis.aqtweaks.comfort;
 
-import com.apocollis.aqtweaks.ArcanaQuestTweaks;
-
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
- * Handles loading, default generation, and application of the comfort JSON configuration.
- * Called during FMLPreInitializationEvent to populate ComfortSystemHandler's lookup maps.
+ * Loads {@code aqtweaks_comfort_settings.json} and {@code aqtweaks_comfort_blocks.json}.
+ * Does not read the legacy combined {@code aqtweaks_comfort.json}.
  */
 public class ComfortConfigLoader {
+
+    private static final String SETTINGS_NAME = "aqtweaks_comfort_settings.json";
+    private static final String BLOCKS_NAME = "aqtweaks_comfort_blocks.json";
 
     public static void load(File configDir) {
         File subDir = new File(configDir, "arcanaquesttweaks");
@@ -22,126 +25,125 @@ public class ComfortConfigLoader {
             subDir.mkdirs();
         }
 
-        File configFile = new File(subDir, "aqtweaks_comfort.json");
-        File legacyFile1 = new File(configDir, "arcanaquesttweaks_comfort.json");
-        File legacyFile2 = new File(subDir, "arcanaquesttweaks_comfort.json");
-
-        if (!configFile.exists()) {
-            if (legacyFile2.exists()) {
-                legacyFile2.renameTo(configFile);
-            } else if (legacyFile1.exists()) {
-                legacyFile1.renameTo(configFile);
-            }
-        }
-
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        loadSettings(new File(subDir, SETTINGS_NAME), gson);
+        loadBlocks(new File(subDir, BLOCKS_NAME), gson);
+    }
 
+    private static void loadSettings(File settingsFile, Gson gson) {
         try {
-            if (!configFile.exists()) {
-                // Generate default config file on first launch
-                ComfortConfig config = createDefaults();
-                try (FileWriter writer = new FileWriter(configFile)) {
-                    gson.toJson(config, writer);
+            ComfortSettings settings;
+            if (!settingsFile.exists()) {
+                settings = new ComfortSettings();
+                try (FileWriter writer = new FileWriter(settingsFile)) {
+                    gson.toJson(settings, writer);
                 }
-                apply(config);
             } else {
-                // Load existing config from disk
-                try (FileReader reader = new FileReader(configFile)) {
-                    ComfortConfig config = gson.fromJson(reader, ComfortConfig.class);
-                    if (mergeMissingCrafting(config)) {
-                        try (FileWriter writer = new FileWriter(configFile)) {
-                            gson.toJson(config, writer);
-                        }
-                    }
-                    apply(config);
+                try (FileReader reader = new FileReader(settingsFile)) {
+                    settings = gson.fromJson(reader, ComfortSettings.class);
+                }
+                if (settings == null) {
+                    settings = new ComfortSettings();
                 }
             }
+            applySettings(settings);
         } catch (Exception e) {
-            System.err.println("[ArcanaQuestTweaks] Failed to load comfort config, using defaults.");
+            System.err.println("[ArcanaQuestTweaks] Failed to load comfort settings, using defaults.");
             e.printStackTrace();
-            apply(createDefaults());
+            applySettings(new ComfortSettings());
         }
     }
 
-    private static ComfortConfig createDefaults() {
-        ComfortConfig config = new ComfortConfig();
+    private static void loadBlocks(File blocksFile, Gson gson) {
+        try {
+            ComfortBlocks blocks;
+            if (!blocksFile.exists()) {
+                blocks = createBlocksDefaults();
+                try (FileWriter writer = new FileWriter(blocksFile)) {
+                    gson.toJson(blocks, writer);
+                }
+            } else {
+                try (FileReader reader = new FileReader(blocksFile)) {
+                    blocks = gson.fromJson(reader, ComfortBlocks.class);
+                }
+                if (blocks == null) {
+                    blocks = createBlocksDefaults();
+                }
+                if (mergeMissingCrafting(blocks)) {
+                    try (FileWriter writer = new FileWriter(blocksFile)) {
+                        gson.toJson(blocks, writer);
+                    }
+                }
+            }
+            applyBlocks(blocks);
+        } catch (Exception e) {
+            System.err.println("[ArcanaQuestTweaks] Failed to load comfort blocks, using defaults.");
+            e.printStackTrace();
+            applyBlocks(createBlocksDefaults());
+        }
+    }
 
-        // Category limits (max items that count per category)
-        config.category_limits.put("hearth", 1);
-        config.category_limits.put("crafting", 1);
-        config.category_limits.put("bedding", 1);
-        config.category_limits.put("seating", 2);
-        config.category_limits.put("lighting", 3);
-        config.category_limits.put("study", 2);
-        config.category_limits.put("decoration", 4);
-        config.category_limits.put("nature", 3);
-        config.category_limits.put("structure", 8);
-        config.category_limits.put("pets", 2);
+    private static ComfortBlocks createBlocksDefaults() {
+        ComfortBlocks blocks = new ComfortBlocks();
 
-        // Pet comfort value per tamed companion
-        config.pet_comfort_value = 3.0f;
+        blocks.category_limits.put("hearth", 1);
+        blocks.category_limits.put("crafting", 1);
+        blocks.category_limits.put("bedding", 1);
+        blocks.category_limits.put("seating", 2);
+        blocks.category_limits.put("lighting", 3);
+        blocks.category_limits.put("study", 2);
+        blocks.category_limits.put("decoration", 4);
+        blocks.category_limits.put("nature", 3);
+        blocks.category_limits.put("structure", 8);
+        blocks.category_limits.put("pets", 2);
 
-        // Homestead comfort score thresholds
-        config.threshold_homestead_1 = 15.0f;
-        config.threshold_homestead_2 = 40.0f;
-        config.threshold_homestead_3 = 60.0f;
-
-        // --- Hearth (Warmth & Cooking) ---
         Map<String, Float> hearth = new LinkedHashMap<>();
         hearth.put("farmersdelight:stove", 4.0f);
-        config.categories.put("hearth", hearth);
+        blocks.categories.put("hearth", hearth);
 
-        // --- Crafting (Workbenches) ---
-        config.categories.put("crafting", defaultCraftingBlocks());
+        blocks.categories.put("crafting", defaultCraftingBlocks());
 
-        // --- Bedding (Resting & Sleep) ---
         Map<String, Float> bedding = new LinkedHashMap<>();
         bedding.put("comforts:hammock", 3.5f);
         bedding.put("minecraft:bed", 3.0f);
         bedding.put("comforts:sleeping_bag", 2.0f);
-        config.categories.put("bedding", bedding);
+        blocks.categories.put("bedding", bedding);
 
-        // --- Seating (Comfort & Relaxation) ---
         Map<String, Float> seating = new LinkedHashMap<>();
         seating.put("bibliocraft:seat", 3.0f);
-        config.categories.put("seating", seating);
+        blocks.categories.put("seating", seating);
 
-        // --- Lighting (Atmosphere) ---
         Map<String, Float> lighting = new LinkedHashMap<>();
         lighting.put("saltmod:salt_lamp", 2.0f);
         lighting.put("fancylamps:gothic_lamp", 2.0f);
         lighting.put("rustic:iron_lantern", 2.0f);
-        config.categories.put("lighting", lighting);
+        blocks.categories.put("lighting", lighting);
 
-        // --- Study (Mental Focus & Magic) ---
         Map<String, Float> study = new LinkedHashMap<>();
         study.put("bibliocraft:bookcase", 1.5f);
         study.put("inspirations:bookshelf", 1.5f);
-        config.categories.put("study", study);
+        blocks.categories.put("study", study);
 
-        // --- Decoration (Aesthetics) ---
         Map<String, Float> decoration = new LinkedHashMap<>();
         decoration.put("minecraft:carpet", 1.0f);
         decoration.put("minecraft:standing_banner", 1.5f);
         decoration.put("minecraft:wall_banner", 1.5f);
-        config.categories.put("decoration", decoration);
+        blocks.categories.put("decoration", decoration);
 
-        // --- Nature (Plants & Greenery) ---
         Map<String, Float> nature = new LinkedHashMap<>();
         nature.put("minecraft:flower_pot", 1.5f);
         nature.put("minecraft:red_flower", 1.0f);
         nature.put("minecraft:yellow_flower", 1.0f);
-        config.categories.put("nature", nature);
+        blocks.categories.put("nature", nature);
 
-        // --- Structure (Walls & Flooring) ---
         Map<String, Float> structure = new LinkedHashMap<>();
         structure.put("rustic:slate_chiseled", 1.0f);
         structure.put("earthworks:block_plaster", 1.0f);
         structure.put("earthworks:block_adobe", 1.0f);
         structure.put("earthworks:block_cob", 1.0f);
-        config.categories.put("structure", structure);
+        blocks.categories.put("structure", structure);
 
-        return config;
+        return blocks;
     }
 
     private static Map<String, Float> defaultCraftingBlocks() {
@@ -150,52 +152,101 @@ public class ComfortConfigLoader {
         return crafting;
     }
 
-    /**
-     * Inserts {@code crafting} limit and default blocks when an existing JSON omits them.
-     * Does not overwrite a player-defined crafting limit or block map.
-     */
-    private static boolean mergeMissingCrafting(ComfortConfig config) {
-        if (config.category_limits == null) {
-            config.category_limits = new LinkedHashMap<>();
+    private static boolean mergeMissingCrafting(ComfortBlocks blocks) {
+        if (blocks.category_limits == null) {
+            blocks.category_limits = new LinkedHashMap<>();
         }
-        if (config.categories == null) {
-            config.categories = new LinkedHashMap<>();
+        if (blocks.categories == null) {
+            blocks.categories = new LinkedHashMap<>();
         }
 
         boolean changed = false;
-        if (!config.category_limits.containsKey("crafting")) {
-            config.category_limits.put("crafting", 1);
+        if (!blocks.category_limits.containsKey("crafting")) {
+            blocks.category_limits.put("crafting", 1);
             changed = true;
         }
-        if (!config.categories.containsKey("crafting") || config.categories.get("crafting") == null) {
-            config.categories.put("crafting", defaultCraftingBlocks());
+        if (!blocks.categories.containsKey("crafting") || blocks.categories.get("crafting") == null) {
+            blocks.categories.put("crafting", defaultCraftingBlocks());
             changed = true;
         }
         return changed;
     }
 
-    private static void apply(ComfortConfig config) {
+    private static void applySettings(ComfortSettings settings) {
+        ComfortSystemHandler.PET_COMFORT_VALUE = settings.pet_comfort_value;
+        ComfortSystemHandler.THRESHOLD_HOMESTEAD_1 = settings.threshold_homestead_1;
+        ComfortSystemHandler.THRESHOLD_HOMESTEAD_2 = settings.threshold_homestead_2;
+        ComfortSystemHandler.THRESHOLD_HOMESTEAD_3 = settings.threshold_homestead_3;
+        ComfortSystemHandler.PROMOTE_TICKS = settings.promote_ticks > 0 ? settings.promote_ticks : 1200L;
+
+        ComfortSettings.PenaltiesConfig penalties = settings.penalties != null
+            ? settings.penalties : ComfortSettings.PenaltiesConfig.defaults();
+        ComfortSystemHandler.PENALTIES_ENABLED = penalties.enabled;
+        ComfortSystemHandler.TEMP_PENALTY = penalties.temperature != null
+            ? penalties.temperature : ComfortSettings.TemperaturePenalty.defaults();
+        ComfortSystemHandler.THIRST_PENALTY = penalties.thirst != null
+            ? penalties.thirst : ComfortSettings.RatePenalty.thirstDefaults();
+        ComfortSystemHandler.HUNGER_PENALTY = penalties.hunger != null
+            ? penalties.hunger : ComfortSettings.RatePenalty.hungerDefaults();
+        ComfortSystemHandler.HEALTH_PENALTY = penalties.health != null
+            ? penalties.health : ComfortSettings.HealthPenalty.defaults();
+        ComfortSystemHandler.POTION_PENALTIES = resolvePenaltyEffects(penalties);
+
+        ComfortSettings.BonusesConfig bonuses = settings.bonuses != null
+            ? settings.bonuses : ComfortSettings.BonusesConfig.defaults();
+        ComfortSystemHandler.BONUSES_ENABLED = bonuses.enabled;
+        ComfortSystemHandler.POTION_BONUSES = resolveBonusEffects(bonuses);
+    }
+
+    private static List<ComfortSettings.PotionModifier> resolveBonusEffects(ComfortSettings.BonusesConfig bonuses) {
+        if (bonuses.effects != null) {
+            return bonuses.effects;
+        }
+        if (bonuses.farmers_delight_comfort != null) {
+            List<ComfortSettings.PotionModifier> list = new ArrayList<>();
+            list.add(bonuses.farmers_delight_comfort);
+            return list;
+        }
+        return ComfortSettings.defaultBonusEffects();
+    }
+
+    private static List<ComfortSettings.PotionModifier> resolvePenaltyEffects(ComfortSettings.PenaltiesConfig penalties) {
+        if (penalties.effects != null) {
+            return penalties.effects;
+        }
+        if (penalties.somnia != null && penalties.somnia.enabled) {
+            ComfortSettings.SomniaPenalty s = penalties.somnia;
+            List<ComfortSettings.PotionModifier> list = new ArrayList<>();
+            list.add(ComfortSettings.modifier(s.sleepy_potion, s.sleepy));
+            list.add(ComfortSettings.modifier(s.exhausted_potion, s.exhausted));
+            list.add(ComfortSettings.modifier(s.fading_potion, s.fading));
+            return list;
+        }
+        if (penalties.somnia != null && !penalties.somnia.enabled) {
+            return new ArrayList<>();
+        }
+        return ComfortSettings.defaultPenaltyEffects();
+    }
+
+    private static void applyBlocks(ComfortBlocks blocks) {
         ComfortSystemHandler.CATEGORY_LIMITS.clear();
-        ComfortSystemHandler.CATEGORY_LIMITS.putAll(config.category_limits);
-
-        ComfortSystemHandler.PET_COMFORT_VALUE = config.pet_comfort_value;
-
-        ComfortSystemHandler.THRESHOLD_HOMESTEAD_1 = config.threshold_homestead_1;
-        ComfortSystemHandler.THRESHOLD_HOMESTEAD_2 = config.threshold_homestead_2;
-        ComfortSystemHandler.THRESHOLD_HOMESTEAD_3 = config.threshold_homestead_3;
+        if (blocks.category_limits != null) {
+            ComfortSystemHandler.CATEGORY_LIMITS.putAll(blocks.category_limits);
+        }
 
         ComfortSystemHandler.COZY_BLOCKS.clear();
-        for (Map.Entry<String, Map<String, Float>> categoryEntry : config.categories.entrySet()) {
+        if (blocks.categories == null) {
+            return;
+        }
+        for (Map.Entry<String, Map<String, Float>> categoryEntry : blocks.categories.entrySet()) {
             String category = categoryEntry.getKey();
             Map<String, Float> blocksMap = categoryEntry.getValue();
-
-            if (blocksMap != null) {
-                for (Map.Entry<String, Float> blockEntry : blocksMap.entrySet()) {
-                    String blockId = blockEntry.getKey();
-                    float weight = blockEntry.getValue();
-                    ComfortSystemHandler.COZY_BLOCKS.put(blockId,
-                        new ComfortSystemHandler.CozyConfig(weight, category));
-                }
+            if (blocksMap == null) {
+                continue;
+            }
+            for (Map.Entry<String, Float> blockEntry : blocksMap.entrySet()) {
+                ComfortSystemHandler.COZY_BLOCKS.put(blockEntry.getKey(),
+                    new ComfortSystemHandler.CozyConfig(blockEntry.getValue(), category));
             }
         }
     }

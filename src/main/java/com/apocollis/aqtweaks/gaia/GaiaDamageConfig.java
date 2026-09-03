@@ -10,6 +10,7 @@ import java.util.Map;
 
 /**
  * Instance JSON {@code config/arcanaquesttweaks/gaia_mob_damage.json}. Loaded once in preInit.
+ * {@code mobs[id]} is {@code ATTACK_DAMAGE} base; held weapons and Strength still stack.
  */
 public final class GaiaDamageConfig {
 

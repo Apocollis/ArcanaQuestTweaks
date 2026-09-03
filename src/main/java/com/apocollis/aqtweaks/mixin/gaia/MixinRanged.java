@@ -15,7 +15,8 @@ public abstract class MixinRanged {
             method = "rangedAttack",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/entity/projectile/EntityTippedArrow;func_184558_a:(Lnet/minecraft/potion/PotionEffect;)V"
+                    target = "Lnet/minecraft/entity/projectile/EntityTippedArrow;addEffect(Lnet/minecraft/potion/PotionEffect;)V",
+                    remap = true
             )
     )
     private static void aqtweaks$skipInstantTip(EntityTippedArrow arrow, PotionEffect effect) {

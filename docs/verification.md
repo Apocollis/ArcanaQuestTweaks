@@ -1,6 +1,6 @@
 # Verification (1.7)
 
-Last updated: 2026-08-28.
+Last updated: 2026-09-03.
 
 Manual release / smoke checklist. **No automated tests.** Harness: CurseForge **Arcana Quest DEVBOX**, remapped `ArcanaQuestTweaks-1.7.jar` in `mods/`. Algorithms and full checklists stay in module docs; this is the pack-level pass/fail.
 
@@ -14,7 +14,7 @@ Worldgen applies to **new chunks only**.
 
 ## Boot
 
-- [ ] Client starts the full pack; no mixin apply crash from `mixins.aqtweaks.json` or `mixins.aqtweaks.early.json`. Log must not say `MixinWorldRiftLight` / `World was loaded too early`, or `MixinWorldGenLakes` / `field_150589_a was not located` / `WorldGenLakes in invalid classes`.
+- [ ] Client starts the full pack; no mixin apply crash from `mixins.aqtweaks.json` or `mixins.aqtweaks.early.json`. Log must not say `MixinWorldRiftLight` / `World was loaded too early`, or `MixinWorldGenLakes` / `field_150589_a was not located` / `WorldGenLakes in invalid classes`. Optional `mixins.aqtweaks.gaia.json` must not log `InvalidInjectionException` (vanilla INVOKEs must be MCP + `remap = true`; a miss boots anyway because `required: false`).
 - [ ] Mixin log does **not** say Tweaks mixins require class version 69 (Java 21 class files).
 - [ ] Wait through full JEI / ThaumicJEI / **TC6 Aspects 4 JEI** load. Title screen stays up. No `hs_err_pid*.log`.
 - [ ] Dedicated server: **not routinely tested** in this repo. If you ship a server, start one with the same mods and confirm it reaches “Done”.
@@ -32,6 +32,7 @@ These json files are `required: false`. Removing the parent should skip that jso
 | Bewitchment | No Cambion/circle mixins; no ritual wrap (handler not registered) |
 | Mystical World | No hut skip/settle |
 | Biomes O' Plenty | No BOP lake village skip mixin; vanilla water-lake skip still runs; hot spring comfort no-ops |
+| Grimoire of Gaia | No Gaia mixins; pierce and MAGIC bolts/bombs stay parent vanilla |
 
 ### Do not treat as optional
 
@@ -40,7 +41,7 @@ Missing **RTG, Depths Update, Better Caves, CoFH World, Recurrent Complex, or Iv
 ## Config
 
 - [ ] After a Java default change, instance cfg still has the **old** value until edited (e.g. RTG Coast Buffer 32 vs 16).
-- [ ] Change a live cfg in-game: stamina DSS costs refresh (`DssSkillCosts.invalidate`). Comfort JSON needs a restart (loaded in preInit).
+- [ ] Change a live cfg in-game: stamina DSS costs refresh (`DssSkillCosts.invalidate`). Comfort JSON needs a restart (loaded in preInit). Settings vs blocks are separate files; the old combined `aqtweaks_comfort.json` is ignored.
 
 ## Worldgen (new chunks)
 
@@ -92,10 +93,10 @@ Use the full list in [stamina.md](stamina.md) **Verify**. Minimum: jump costs/bl
 
 | Module | Smoke |
 | --- | --- |
-| Gaia | Melee: one physical hit, names the mob, no MAGIC 6. Hard archer: no MAGIC tip. Bolts: armor skip, Magic Protection works, death names shooter. Bomb: armor + Blast Protection, no extra 2.0. JSON `grimoireofgaia:orc` changes orc melee and bolts after restart. |
+| Gaia | Melee: one physical hit, names the mob, **no MAGIC 6** (diamond must not take a flat ~3 hearts of magic). Unarmored may exceed JSON if the mob holds a sword. Hard archer: no MAGIC tip. Bolts: armor skip, Magic Protection works, death names shooter. Bomb: armor + Blast Protection, no extra 2.0, facing shield zeroes. Log: no `mixins.aqtweaks.gaia.json` injection failure. JSON `grimoireofgaia:orc` changes orc melee and bolts after restart. |
 | Thaumcraft | First Nether visit warps after ~2s; sleep at dawn reduces warp; whispers underground on interval |
 | Bewitchment | Listed ritual **finish** grants warp; halt does not |
-| Comfort | Homestead icon while resting in a scored room; hot spring → cold resist if SD+BOP |
+| Comfort | Homestead I in a scored room while healthy; penalties (hungry/thirsty/hurt/sleepy) can deny it; II after ~1:00 if score ≥40, III after another 1:00 if ≥60. No regen/saturation/SD thermals from Homestead. XP boost refreshes 8:00 while held, counts down after cancel. Hot spring → cold resist if SD+BOP |
 | Portal | Arcane Tunnel binds then opens a 60s two-way rift (cross-dim if bound elsewhere); Unstable Arcane Tunnel lands ~4000–6000 same dim; villagers/mobs in the box teleport; sitting pet stays; lead follows. Dark cave mid-cell lights like glowstone. See [portal.md](portal.md) |
 | Client | Toughness LTR above armor; iron pick shows Vanilla Tools stats; Metallurgy pick not duplicated |
 | Recipes | Pack boots without Metallurgy `generated/item/spartanweaponry` recipe spam |

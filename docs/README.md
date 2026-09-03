@@ -92,7 +92,7 @@ Vanilla `World` is already loaded when late mixins prepare. Portal glowstone lig
 | `mixins.aqtweaks.bewitchment.json` | false | RTG Cambion + circle/menhir/wickerman | Skip |
 | `mixins.aqtweaks.mysticalworld.json` | false | RTG Mystical huts | Skip |
 | `mixins.aqtweaks.biomesoplenty.json` | false | RTG BOP water/quicksand village skip | Skip |
-| `mixins.aqtweaks.gaia.json` | false | Grimoire of Gaia pierce drop + bolt/bomb retype | Skip |
+| `mixins.aqtweaks.gaia.json` | false | Grimoire of Gaia drop pierce + recast bolts/bombs | Skip |
 
 `mixins.aqtweaks.json` contents (package `com.apocollis.aqtweaks.mixin`):
 
@@ -121,7 +121,8 @@ Forge `@Config` on nested classes in `ArcanaQuestTweaksConfig`. Comfort is JSON,
 | `aqtweaks_depths.cfg` | `DepthsModuleConfig` |
 | `aqtweaks_rtg.cfg` | `RtgModuleConfig` |
 | `aqtweaks_portal.cfg` | `PortalModuleConfig` |
-| `aqtweaks_comfort.json` | `ComfortConfigLoader` (not `@Config`) |
+| `aqtweaks_comfort_settings.json` | `ComfortConfigLoader` (not `@Config`) |
+| `aqtweaks_comfort_blocks.json` | `ComfortConfigLoader` (not `@Config`) |
 
 `ConfigEventHandler` runs `ConfigManager.sync` on any `aqtweaks` cfg change and invalidates DSS skill-cost cache. Existing instance files keep old values when Java defaults change.
 

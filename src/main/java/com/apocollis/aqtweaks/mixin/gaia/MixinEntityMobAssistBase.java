@@ -15,7 +15,8 @@ public abstract class MixinEntityMobAssistBase {
             method = "func_70652_k",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/entity/EntityLivingBase;func_70690_d:(Lnet/minecraft/potion/PotionEffect;)V"
+                    target = "Lnet/minecraft/entity/EntityLivingBase;addPotionEffect(Lnet/minecraft/potion/PotionEffect;)V",
+                    remap = true
             )
     )
     private void aqtweaks$skipMeleeInstantDamage(EntityLivingBase victim, PotionEffect effect) {

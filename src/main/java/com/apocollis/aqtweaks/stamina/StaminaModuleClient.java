@@ -115,6 +115,7 @@ public class StaminaModuleClient {
 
         EntityPlayer player = Reflect.getClientPlayer();
         if (player == null) return;
+        if (player.isPotionActive(com.elenai.elenaidodge2.init.PotionInit.WEIGHT_EFFECT)) return;
 
         // Enforce Armor Mastery weight reduction on the client side
         if (ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.enableReskillable && 

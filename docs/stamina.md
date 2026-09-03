@@ -1,6 +1,6 @@
 # Stamina module (1.7)
 
-Last updated: 2026-08-24.
+Last updated: 2026-09-03.
 
 Config: `config/arcanaquesttweaks/aqtweaks_stamina.cfg`. Compile against **Elenai Dodge 2 Extended** (`ElenaiDodge2Extended-1.12.2-1.1.3.jar`). Forge modid is still `elenaidodge2`.
 
@@ -71,10 +71,14 @@ Perk lookup is `Reflect.hasUnlockable`. Thirst is `addThirstExhaustion` on SD’
 
 `Reflect.getWeight`:
 
-1. Sum Elenai weight list for equipped armor (one match per slot).
-2. Subtract Lightweight enchantment levels.
-3. If Elenai `half` is false, round down to even (`floor(w/2)*2`).
-4. Armor Mastery: if Reskillable flag on and perk unlocked, subtract `round(armorPieces × armorMasteryReductionPerPiece)` (default 1 per piece), floor 0.
+1. If Elenai **Weight** potion is active, return Elenai’s cap (`ClientStorage.weight` / `FeathersHelper.getWeight`, typically 200). Do not recompute from armor or apply Mastery.
+2. Sum Elenai weight list for equipped armor (one match per slot).
+3. Subtract Lightweight enchantment levels.
+4. Subtract Endurance: `(amplifier + 1) × 4` (I = 4, II = 8) when `ENDURANCE_EFFECT` is active.
+5. If Elenai `half` is false, round down to even (`floor(w/2)*2`).
+6. Armor Mastery: if Reskillable flag on and perk unlocked, subtract `round(armorPieces × armorMasteryReductionPerPiece)` (default 1 per piece), floor 0.
+
+Mastery stacks **after** Endurance. Client `SWeightMessage` uses this combined value; skip that overwrite while Weight potion is active so crushing weight stays 200.
 
 This jar does **not** register `aqtweaks:armor_mastery` or `aqtweaks:mining_efficiency`. The pack’s Reskillable content must provide those ids or the perks never apply.
 
@@ -353,6 +357,10 @@ Empty-stamina slide cancelled the mantle. **Fix:** grace ticks + jump packet + c
 
 `fillFeathers` also calls `Utils.updateClientConfig`, which writes the full weights array as one UTF-8 string (`CUpdateConfigMessage`). This pack’s `S:"Weights Override"` is large enough to throw `EncoderException` on Respawn (join is usually safe because Tweaks empties that array HIGHEST→LOWEST around Elenai’s join sync). **Fix:** refill with `increaseFeathers(max)` only.
 
+### 9. Armor Mastery overwrote Endurance
+
+Tweaks `ClientTickEvent` END LOWEST wrote `Reflect.getWeight` (armor + Lightweight + Mastery, no Endurance) into `ClientStorage.weight` and `SWeightMessage`, after Elenai had already subtracted Endurance. **Fix:** Endurance in `getWeight` before half rounding and Mastery; do not overwrite while Weight potion owns 200.
+
 ## Do not regress
 
 - Spend only via `FeathersHelper.decreaseFeathers`. Never `SpendFeatherEvent`.
@@ -363,7 +371,7 @@ Empty-stamina slide cancelled the mantle. **Fix:** grace ticks + jump packet + c
 - Grapple climb/descend: controller `playerforward` after Grapple’s `InputUpdateEvent`, not vanilla `moveForward`.
 - Do not treat pendulum upswing as climb. Hang↔swing must not reset the stamina timer.
 - Motor Ember on **both** sides (server consume + client mixin). Empty Ember must not unhook. Empty stamina must not unhook on descend or grounded-without-motor.
-- `hasEnoughStamina` must keep absorption-then-usable-after-weight. Armor Mastery must affect `getWeight` and the client `SWeightMessage` sync.
+- `hasEnoughStamina` must keep absorption-then-usable-after-weight. Armor Mastery must affect `getWeight` and the client `SWeightMessage` sync. Endurance `(amp+1)×4` must still apply with Mastery; Weight potion 200 must not be overwritten.
 - Ledge grace / jump packet must keep `fallOnDepleted` from cancelling a mantle.
 - Mining break is never cancelled. Fatigue uses **regular** feathers.
 

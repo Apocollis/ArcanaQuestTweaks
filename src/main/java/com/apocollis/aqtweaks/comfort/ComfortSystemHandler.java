@@ -1,9 +1,6 @@
 package com.apocollis.aqtweaks.comfort;
 
-import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
-
 import com.apocollis.aqtweaks.thaumcraft.ThaumcraftHelper;
-
 import com.apocollis.aqtweaks.util.Reflect;
 
 import java.util.ArrayList;
@@ -15,15 +12,12 @@ import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.passive.EntityTameable;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.MobEffects;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.potion.Potion;
 import net.minecraft.potion.PotionEffect;
-import net.minecraft.util.EnumParticleTypes;
-import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
-import net.minecraft.world.WorldServer;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.player.AttackEntityEvent;
 import net.minecraftforge.fml.common.Loader;
@@ -36,27 +30,40 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
  * Activation Flow:
  * 1. Every 15 seconds, check if the player is resting (sleeping, sitting, sneaking, or stationary).
  * 2. If resting, scan a 24x5x24 area for cozy blocks and nearby pets.
- * 3. Calculate a category-limited comfort score using the top-X highest values per category.
- * 4. If score >= Homestead I threshold, set the "Resting" tag and apply silent benefits (warp drain, potions).
- * 5. While the tag is active, continue scanning even if the player moves.
- * 6. Cancel the tag immediately on taking damage, attacking, or leaving the cozy area.
+ * 3. Calculate a category-limited comfort score using the top-X highest values per category,
+ *    then add bonuses and subtract player-state penalties.
+ * 4. If effective score >= Homestead I, set the "Resting" tag and apply silent benefits.
+ * 5. Granted band starts at I and promotes after promote_ticks while score still supports the next band.
+ * 6. While the tag is active, continue scanning even if the player moves.
+ * 7. Cancel the tag immediately on taking damage, attacking, or dropping below Homestead I.
  */
 public class ComfortSystemHandler {
 
     private static final int CHECK_INTERVAL_TICKS = 300; // 15 seconds
-    private static final double DETECT_RADIUS = 12.0;    // 24x5x24 scan area (12 block horizontal radius)
-    private static final double PET_RADIUS = 16.0;       // Pet detection radius
+    private static final int HOMESTEAD_DURATION_TICKS = CHECK_INTERVAL_TICKS + 40;
+    private static final int EIGHT_MINUTES_TICKS = 9600;
+    private static final int FOUR_MINUTES_TICKS = 4800;
+    private static final double DETECT_RADIUS = 12.0;
+    private static final double PET_RADIUS = 16.0;
     private static final String RESTING_TAG = "AQTComfortResting";
+    private static final String GRANTED_BAND_TAG = "AQTComfortGrantedBand";
+    private static final String BAND_SINCE_TAG = "AQTComfortBandSince";
 
-    // Populated by ComfortConfigLoader during preInit
     static final Map<String, CozyConfig> COZY_BLOCKS = new HashMap<>();
     static final Map<String, Integer> CATEGORY_LIMITS = new HashMap<>();
     static float PET_COMFORT_VALUE = 3.0f;
     public static float THRESHOLD_HOMESTEAD_1 = 15.0f;
     public static float THRESHOLD_HOMESTEAD_2 = 40.0f;
     public static float THRESHOLD_HOMESTEAD_3 = 60.0f;
-
-    // ==================== Event Handlers ====================
+    static long PROMOTE_TICKS = 1200L;
+    static boolean PENALTIES_ENABLED = true;
+    static boolean BONUSES_ENABLED = true;
+    static ComfortSettings.TemperaturePenalty TEMP_PENALTY = ComfortSettings.TemperaturePenalty.defaults();
+    static ComfortSettings.RatePenalty THIRST_PENALTY = ComfortSettings.RatePenalty.thirstDefaults();
+    static ComfortSettings.RatePenalty HUNGER_PENALTY = ComfortSettings.RatePenalty.hungerDefaults();
+    static ComfortSettings.HealthPenalty HEALTH_PENALTY = ComfortSettings.HealthPenalty.defaults();
+    static List<ComfortSettings.PotionModifier> POTION_PENALTIES = ComfortSettings.defaultPenaltyEffects();
+    static List<ComfortSettings.PotionModifier> POTION_BONUSES = ComfortSettings.defaultBonusEffects();
 
     @SubscribeEvent
     public void onPlayerTick(TickEvent.PlayerTickEvent event) {
@@ -64,33 +71,39 @@ public class ComfortSystemHandler {
         EntityPlayer player = event.player;
         if (player == null) return;
         World world = Reflect.getWorld(player);
-        if (Reflect.isRemote(player)) return;
+        if (Reflect.isRemote(player) || world == null) return;
 
-        // Only evaluate at the configured interval
         if (Reflect.getTicksExisted(player) % CHECK_INTERVAL_TICKS != 0) return;
 
         boolean currentlyResting = isComfortResting(player);
+        float score = calculateComfortScore(player);
+        int scoreBand = scoreBand(score);
 
-        if (!currentlyResting) {
-            // Player is NOT in resting state; check if they should enter it
-            if (!isPlayerResting(player)) return;
-
-            // Player is resting; run the comfort scan
-            float score = calculateComfortScore(player);
-            if (score >= THRESHOLD_HOMESTEAD_1) {
-                setComfortResting(player, true);
-                applyComfortBenefits(player, score);
-            }
-        } else {
-            // Player IS in resting state; re-evaluate comfort while allowing movement
-            float score = calculateComfortScore(player);
-            if (score >= THRESHOLD_HOMESTEAD_1) {
-                applyComfortBenefits(player, score);
-            } else {
-                // No longer in a cozy area; cancel resting state
+        if (scoreBand <= 0) {
+            if (currentlyResting) {
                 setComfortResting(player, false);
             }
+            return;
         }
+
+        if (!currentlyResting) {
+            if (!isPlayerResting(player)) return;
+            startLadder(player, world, 1);
+            setComfortResting(player, true);
+            applyComfortBenefits(player, 1);
+            return;
+        }
+
+        int granted = getGrantedBand(player);
+        if (scoreBand < granted) {
+            granted = scoreBand;
+            stampLadder(player, world, granted);
+        } else if (scoreBand > granted && world.getTotalWorldTime() - getBandSince(player) >= PROMOTE_TICKS) {
+            granted = Math.min(granted + 1, scoreBand);
+            stampLadder(player, world, granted);
+        }
+
+        applyComfortBenefits(player, granted);
     }
 
     /**
@@ -116,16 +129,10 @@ public class ComfortSystemHandler {
         String headName = headBlock.getRegistryName() != null ? headBlock.getRegistryName().toString() : "";
 
         if (registryName.equals("biomesoplenty:hot_spring_water") || headName.equals("biomesoplenty:hot_spring_water")) {
-            Potion coldResist = Potion.getPotionFromResourceLocation("simpledifficulty:cold_resist");
-            if (coldResist != null) {
-                Reflect.addPotionEffect(player, new PotionEffect(coldResist, 200, 0, true, false));
-            }
+            applyNamedPotion(player, "simpledifficulty:cold_resist", 200, 0);
         }
     }
 
-    /**
-     * Cancel comfort resting when the player takes damage from any source.
-     */
     @SubscribeEvent
     public void onPlayerHurt(LivingHurtEvent event) {
         if (event.getEntityLiving() instanceof EntityPlayer) {
@@ -136,9 +143,6 @@ public class ComfortSystemHandler {
         }
     }
 
-    /**
-     * Cancel comfort resting when the player attacks any entity.
-     */
     @SubscribeEvent
     public void onPlayerAttack(AttackEntityEvent event) {
         EntityPlayer player = event.getEntityPlayer();
@@ -147,19 +151,13 @@ public class ComfortSystemHandler {
         }
     }
 
-    // ==================== Resting State Checks ====================
-
-    /**
-     * Checks if the player is in a resting state:
-     * sleeping in a bed, sitting (riding a mount/chair entity), sneaking, or standing still.
-     */
     private static boolean isPlayerResting(EntityPlayer player) {
         if (Reflect.isPlayerSleeping(player)) return true;
         if (Reflect.isRiding(player)) return true;
         if (Reflect.isSneaking(player)) return true;
 
-        // Check if nearly stationary (horizontal velocity near zero)
-        double hSpeedSq = Reflect.getMotionX(player) * Reflect.getMotionX(player) + Reflect.getMotionZ(player) * Reflect.getMotionZ(player);
+        double hSpeedSq = Reflect.getMotionX(player) * Reflect.getMotionX(player)
+            + Reflect.getMotionZ(player) * Reflect.getMotionZ(player);
         return hSpeedSq < 0.001D;
     }
 
@@ -168,20 +166,54 @@ public class ComfortSystemHandler {
     }
 
     private static void setComfortResting(EntityPlayer player, boolean resting) {
-        Reflect.setBoolean(Reflect.getEntityData(player), RESTING_TAG, resting);
+        NBTTagCompound data = Reflect.getEntityData(player);
+        Reflect.setBoolean(data, RESTING_TAG, resting);
         if (!resting) {
             Reflect.removePotionEffect(player, PotionHomestead.INSTANCE);
+            data.removeTag(GRANTED_BAND_TAG);
+            data.removeTag(BAND_SINCE_TAG);
         }
     }
 
-    // ==================== Comfort Scoring ====================
+    private static void startLadder(EntityPlayer player, World world, int band) {
+        stampLadder(player, world, band);
+    }
+
+    private static void stampLadder(EntityPlayer player, World world, int band) {
+        NBTTagCompound data = Reflect.getEntityData(player);
+        data.setInteger(GRANTED_BAND_TAG, band);
+        data.setLong(BAND_SINCE_TAG, world.getTotalWorldTime());
+    }
+
+    private static int getGrantedBand(EntityPlayer player) {
+        int band = Reflect.getEntityData(player).getInteger(GRANTED_BAND_TAG);
+        if (band < 1) return 1;
+        if (band > 3) return 3;
+        return band;
+    }
+
+    private static long getBandSince(EntityPlayer player) {
+        return Reflect.getEntityData(player).getLong(BAND_SINCE_TAG);
+    }
+
+    private static int scoreBand(float score) {
+        if (score < THRESHOLD_HOMESTEAD_1) return 0;
+        if (score < THRESHOLD_HOMESTEAD_2) return 1;
+        if (score < THRESHOLD_HOMESTEAD_3) return 2;
+        return 3;
+    }
 
     /**
-     * Scans the 24x5x24 area around the player for registered cozy blocks and nearby pets.
-     * Groups all found comfort values by category, sorts each category descending,
-     * and sums only the highest values up to each category's configured limit.
+     * Cozy blocks + pets, then bonuses, then penalties. Result is never negative.
      */
     private static float calculateComfortScore(EntityPlayer player) {
+        float cozy = calculateCozyScore(player);
+        float bonuses = calculateBonuses(player);
+        float penalties = calculatePenalties(player);
+        return Math.max(0.0f, cozy + bonuses - penalties);
+    }
+
+    private static float calculateCozyScore(EntityPlayer player) {
         World world = Reflect.getWorld(player);
         if (world == null) return 0.0f;
 
@@ -192,7 +224,6 @@ public class ComfortSystemHandler {
         int rY = 2;
         int rZ = (int) DETECT_RADIUS;
 
-        // Scan 24x5x24 area
         for (int dx = -rX; dx <= rX; dx++) {
             for (int dz = -rZ; dz <= rZ; dz++) {
                 for (int dy = -rY; dy <= rY; dy++) {
@@ -210,7 +241,6 @@ public class ComfortSystemHandler {
             }
         }
 
-        // Scan for tamed pets owned by the player
         AxisAlignedBB searchBox = Reflect.grow(center, PET_RADIUS);
         List<EntityTameable> nearbyPets = Reflect.getEntitiesWithinAABB(world, EntityTameable.class, searchBox);
         for (EntityTameable pet : nearbyPets) {
@@ -219,65 +249,143 @@ public class ComfortSystemHandler {
             }
         }
 
-        // Process each category: sort descending, sum only the top X (limit) items
         float totalScore = 0.0f;
         for (Map.Entry<String, List<Float>> entry : categoryScores.entrySet()) {
             String category = entry.getKey();
             List<Float> weights = entry.getValue();
-
             weights.sort(Collections.reverseOrder());
-
             int limit = CATEGORY_LIMITS.getOrDefault(category, 1);
             int toTake = Math.min(weights.size(), limit);
             for (int i = 0; i < toTake; i++) {
                 totalScore += weights.get(i);
             }
         }
-
         return totalScore;
     }
 
-    // ==================== Benefit Application ====================
+    private static float calculateBonuses(EntityPlayer player) {
+        if (!BONUSES_ENABLED) return 0.0f;
+        return sumPotionModifiers(player, POTION_BONUSES);
+    }
+
+    private static float calculatePenalties(EntityPlayer player) {
+        if (!PENALTIES_ENABLED) return 0.0f;
+        return temperaturePenalty(player)
+            + thirstPenalty(player)
+            + hungerPenalty(player)
+            + healthPenalty(player)
+            + sumPotionModifiers(player, POTION_PENALTIES);
+    }
+
+    private static float sumPotionModifiers(EntityPlayer player, List<ComfortSettings.PotionModifier> modifiers) {
+        if (modifiers == null) return 0.0f;
+        float total = 0.0f;
+        for (ComfortSettings.PotionModifier modifier : modifiers) {
+            if (modifier == null || !modifier.enabled) continue;
+            if (hasPotion(player, modifier.potion)) {
+                total += modifier.amount;
+            }
+        }
+        return total;
+    }
+
+    private static float temperaturePenalty(EntityPlayer player) {
+        if (TEMP_PENALTY == null || !TEMP_PENALTY.enabled) return 0.0f;
+        Integer temp = Reflect.getSdTemperatureLevel(player);
+        if (temp == null) return 0.0f;
+        int t = temp;
+        if (t >= TEMP_PENALTY.comfort_min && t <= TEMP_PENALTY.comfort_max) return 0.0f;
+        if (t > TEMP_PENALTY.comfort_max && hasAnyPotion(player, TEMP_PENALTY.heat_ignore_potions)) return 0.0f;
+        if (t < TEMP_PENALTY.comfort_min && hasAnyPotion(player, TEMP_PENALTY.cold_ignore_potions)) return 0.0f;
+        int outside = t < TEMP_PENALTY.comfort_min
+            ? TEMP_PENALTY.comfort_min - t
+            : t - TEMP_PENALTY.comfort_max;
+        return outside * TEMP_PENALTY.per_point_outside;
+    }
+
+    private static float thirstPenalty(EntityPlayer player) {
+        if (THIRST_PENALTY == null || !THIRST_PENALTY.enabled) return 0.0f;
+        Integer thirst = Reflect.getSdThirstLevel(player);
+        if (thirst == null) return 0.0f;
+        int missing = Math.max(0, 20 - thirst);
+        return missing * THIRST_PENALTY.per_missing_point;
+    }
+
+    private static float hungerPenalty(EntityPlayer player) {
+        if (HUNGER_PENALTY == null || !HUNGER_PENALTY.enabled) return 0.0f;
+        int missing = Math.max(0, 20 - player.getFoodStats().getFoodLevel());
+        return missing * HUNGER_PENALTY.per_missing_point;
+    }
+
+    private static float healthPenalty(EntityPlayer player) {
+        if (HEALTH_PENALTY == null || !HEALTH_PENALTY.enabled) return 0.0f;
+        float max = player.getMaxHealth();
+        if (max <= 0.0f) return 0.0f;
+        float missingFraction = 1.0f - (player.getHealth() / max);
+        if (missingFraction <= 0.0f) return 0.0f;
+        return missingFraction * HEALTH_PENALTY.per_missing_fraction;
+    }
+
+    private static boolean hasAnyPotion(EntityPlayer player, String[] ids) {
+        if (ids == null) return false;
+        for (String id : ids) {
+            if (hasPotion(player, id)) return true;
+        }
+        return false;
+    }
+
+    private static boolean hasPotion(EntityPlayer player, String id) {
+        if (id == null || id.isEmpty()) return false;
+        Potion potion = Potion.getPotionFromResourceLocation(id);
+        return potion != null && player.isPotionActive(potion);
+    }
+
+    private static void applyNamedPotion(EntityPlayer player, String id, int duration, int amplifier) {
+        Potion potion = Potion.getPotionFromResourceLocation(id);
+        if (potion == null) return;
+        Reflect.addPotionEffect(player, new PotionEffect(potion, duration, amplifier, true, false));
+    }
 
     /**
-     * Applies scaling benefits silently based on comfort score thresholds.
-     * Applies the visible Homestead status effect icon on the HUD without particle swirls.
+     * Applies benefits for the granted Homestead band (1–3), not the raw score band.
      */
-    private static void applyComfortBenefits(EntityPlayer player, float score) {
+    private static void applyComfortBenefits(EntityPlayer player, int grantedBand) {
         int progressToAdd = 0;
-        int potionDurationTicks = CHECK_INTERVAL_TICKS + 40; // 17 seconds to ensure no-gap coverage
         int homesteadAmplifier = 0;
+        int xpAmp = 0;
 
-        // --- Threshold I: Score 5-14 ---
-        if (score >= THRESHOLD_HOMESTEAD_1 && score < THRESHOLD_HOMESTEAD_2) {
+        if (grantedBand == 1) {
             progressToAdd = 9;
-            homesteadAmplifier = 0; // Homestead I
-        }
-        // --- Threshold II: Score 15-29 ---
-        else if (score >= THRESHOLD_HOMESTEAD_2 && score < THRESHOLD_HOMESTEAD_3) {
+            homesteadAmplifier = 0;
+            xpAmp = 0;
+        } else if (grantedBand == 2) {
             progressToAdd = 13;
-            homesteadAmplifier = 1; // Homestead II
-            Reflect.addPotionEffect(player, new PotionEffect(MobEffects.REGENERATION, potionDurationTicks, 0, true, false));
-            applySimpleDifficultyThermals(player, potionDurationTicks);
-        }
-        // --- Threshold III: Score 30+ ---
-        else if (score >= THRESHOLD_HOMESTEAD_3) {
+            homesteadAmplifier = 1;
+            xpAmp = 1;
+        } else if (grantedBand >= 3) {
             progressToAdd = 25;
-            homesteadAmplifier = 2; // Homestead III
-            Reflect.addPotionEffect(player, new PotionEffect(MobEffects.REGENERATION, potionDurationTicks, 1, true, false));
-            Reflect.addPotionEffect(player, new PotionEffect(MobEffects.SATURATION, potionDurationTicks, 0, true, false));
-            applySimpleDifficultyThermals(player, potionDurationTicks);
+            homesteadAmplifier = 2;
+            xpAmp = 2;
+        } else {
+            return;
         }
 
-        // Apply Homestead Status Buff on HUD (ambient = true, showParticles = false)
-        Reflect.addPotionEffect(player, new PotionEffect(PotionHomestead.INSTANCE, potionDurationTicks, homesteadAmplifier, true, false));
+        Reflect.addPotionEffect(player, new PotionEffect(PotionHomestead.INSTANCE, HOMESTEAD_DURATION_TICKS, homesteadAmplifier, true, false));
+        applyNamedPotion(player, "soot:experience_boost", EIGHT_MINUTES_TICKS, xpAmp);
 
-        // Drain temporary warp via reflection-safe ThaumcraftHelper
+        if (grantedBand == 2) {
+            applyNamedPotion(player, "elenaidodge2:endurance", EIGHT_MINUTES_TICKS, 0);
+            applyNamedPotion(player, "elenaidodge2:replenishment", FOUR_MINUTES_TICKS, 0);
+        } else if (grantedBand >= 3) {
+            applyNamedPotion(player, "elenaidodge2:endurance", EIGHT_MINUTES_TICKS, 1);
+            applyNamedPotion(player, "elenaidodge2:replenishment", EIGHT_MINUTES_TICKS, 0);
+        }
+
         if (progressToAdd > 0 && Loader.isModLoaded("thaumcraft")) {
             net.minecraft.nbt.NBTTagCompound persisted = Reflect.getPersistedTag(player);
             int currentProgress = Reflect.getInteger(persisted, "WarpCleansingProgress") + progressToAdd;
             if (currentProgress >= 100) {
-                int currentWarp = ThaumcraftHelper.getWarp(player, 1); // 1 = TEMPORARY
+                int currentWarp = ThaumcraftHelper.getWarp(player, 1);
                 if (currentWarp > 0) {
                     ThaumcraftHelper.reduceWarp(player, 1, 1);
                     ThaumcraftHelper.syncWarp(player);
@@ -288,33 +396,6 @@ public class ComfortSystemHandler {
         }
     }
 
-    /**
-     * Safely applies SimpleDifficulty heat and cold protection potions.
-     * Uses dynamic resource location lookups to avoid compile-time dependencies.
-     */
-    private static void applySimpleDifficultyThermals(EntityPlayer player, int duration) {
-        try {
-            Potion heatProtection = Potion.getPotionFromResourceLocation("simpledifficulty:heat_protection");
-            if (heatProtection != null) {
-                Reflect.addPotionEffect(player, new PotionEffect(heatProtection, duration, 0, true, false));
-            }
-
-            Potion coldProtection = Potion.getPotionFromResourceLocation("simpledifficulty:cold_protection");
-            if (coldProtection != null) {
-                Reflect.addPotionEffect(player, new PotionEffect(coldProtection, duration, 0, true, false));
-            }
-        } catch (Exception e) {
-            // Failsafe: Prevent crashes if SimpleDifficulty is not loaded
-        }
-    }
-
-
-
-    // ==================== Inner Classes ====================
-
-    /**
-     * Configuration data class for each cozy block type.
-     */
     static class CozyConfig {
         public final float weight;
         public final String category;

@@ -5,7 +5,10 @@ import net.minecraft.util.EntityDamageSourceIndirect;
 
 public class GaiaDamageSources {
 
-    /** Attributed blast hit: armor + Blast Protection, not magic-bypass. */
+    /**
+     * Attributed blast: armor + Blast Protection, not magic-bypass.
+     * Vanilla shield facing-check can zero the hit ({@code explosion.player} + bomb location).
+     */
     public static class Bomb extends EntityDamageSourceIndirect {
         public Bomb(Entity bomb, Entity thrower) {
             super("explosion.player", bomb, thrower);

@@ -20,6 +20,15 @@ public final class GaiaPierce {
         return ArcanaQuestTweaksConfig.GrimoireOfGaiaConfig.disablePiercingDamage;
     }
 
+    public static boolean shouldDenyMeleePiercePotion(EntityLivingBase victim, PotionEffect effect) {
+        if (!enabled() || !(victim instanceof EntityPlayer) || effect == null) {
+            return false;
+        }
+        return effect.getPotion() == MobEffects.INSTANT_DAMAGE
+                && effect.getDuration() == 2
+                && effect.getAmplifier() == 0;
+    }
+
     public static void onMeleeInstantDamage(EntityLivingBase victim, PotionEffect effect) {
         if (!enabled() || !(victim instanceof EntityPlayer)) {
             victim.addPotionEffect(effect);
