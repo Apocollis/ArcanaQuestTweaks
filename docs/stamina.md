@@ -12,7 +12,7 @@ Creative and spectator players are skipped everywhere. Spectator is not billed; 
 
 Spend Elenai feathers for jump, melee, bow, throwing, climb, ledge mantle, shield, mine, glider, grapple, and DSS skills. Gate those actions when the pool cannot pay. Do **not** replace Elenai regen, dodge, or HUD icons. Do **not** post `SpendFeatherEvent`.
 
-Optional parents: Grapple motor Ember, Open Glider undeploy, Reskillable Armor Mastery / Mining Efficiency (perk **ids only** — this jar does not register those unlockables), Simple Difficulty thirst on feather regen.
+Optional parents: Grapple motor Ember, Open Glider undeploy, Reskillable Armor Mastery / Mining Efficiency (perk **ids only** — this jar does not register those unlockables; per-level drip is [reskillable.md](reskillable.md)), Simple Difficulty thirst on feather regen.
 
 ## Hard constraints
 
@@ -51,7 +51,7 @@ Deployed / gliding flags. Tweaks `Reflect.isGliding` = deployed and not ground/w
 
 ### Reskillable / Simple Difficulty
 
-Perk lookup is `Reflect.hasUnlockable`. Thirst is `addThirstExhaustion` on SD’s thirst cap. Both no-op if the mod is absent.
+Perk lookup is `Reflect.hasUnlockable`. Thirst is `addThirstExhaustion` on SD’s thirst cap. Both no-op if the mod is absent. Linear Attack/Defense/… bonuses are **not** this cfg; see [reskillable.md](reskillable.md) (`aqtweaks_reskillable.cfg`).
 
 ## Design plan (spend and gate)
 
@@ -389,5 +389,5 @@ Tweaks `ClientTickEvent` END LOWEST wrote `Reflect.getWeight` (armor + Lightweig
 
 - Billing air swings (would need a server-bound swing packet)
 - Deduplicating bow hold (player tick vs `UseItem.Tick`)
-- Registering Reskillable perks inside this jar
+- Registering Reskillable perks inside this jar (per-level bonuses are a different module)
 - Recarving / worldgen (stamina has none)

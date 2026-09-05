@@ -3,9 +3,9 @@ Specification-Title: aqtweaks
 Specification-Vendor: apocollis
 Specification-Version: 1
 Implementation-Title: ArcanaQuestTweaks
-Implementation-Version: 1.7
+Implementation-Version: 1.8
 Implementation-Vendor: apocollis
-Implementation-Timestamp: 2026-09-03T19:22:37+0000
+Implementation-Timestamp: 2026-09-05T03:01:35-0400
 ModType: CRL
 FMLCorePluginContainsFMLMod: true
 ForceLoadAsMod: true

@@ -71,7 +71,7 @@ Keep Zulu 25. Do **not** use `-XX:+UseCompactObjectHeaders`. `build_gradle.ps1` 
 
 Forge `@Config` files under `config/arcanaquesttweaks/` **keep saved values** when Java defaults change. Comfort is two JSON files (`aqtweaks_comfort_settings.json`, `aqtweaks_comfort_blocks.json`) loaded in preInit. After a default change (example: RTG coast buffer 32 → 16), edit or delete the old key in the instance cfg.
 
-In-game cfg change: `ConfigChangedEvent` → `ConfigManager.sync` + `DssSkillCosts.invalidate()`.
+In-game cfg change: `ConfigChangedEvent` → `ConfigManager.sync` + `DssSkillCosts.invalidate()` + Reskillable attribute restamp if loaded.
 
 ## Agent / human workflow
 

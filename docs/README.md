@@ -17,6 +17,7 @@ Each file covers: what Tweaks changes, how the **parent mod** implements the fea
 | Module | Parent mod(s) | Doc |
 | --- | --- | --- |
 | Stamina | Elenai Dodge 2 Extended, Grappling Hook, Dynamic Sword Skills, Embers, Reskillable, Simple Difficulty, Spartan Weaponry | [stamina.md](stamina.md) |
+| Reskillable | Reskillable + optional Effortless Building | [reskillable.md](reskillable.md) |
 | Grimoire of Gaia | Grimoire of Gaia (`gaia`) | [grimoire-of-gaia.md](grimoire-of-gaia.md) |
 | Thaumcraft | Thaumcraft 6 | [thaumcraft.md](thaumcraft.md) |
 | Bewitchment | Bewitchment + Thaumcraft | [bewitchment.md](bewitchment.md) |
@@ -39,7 +40,7 @@ Astral surface shrines, Bewitchment Cambion houses, and Mystical World thatch hu
 
 `ArcanaQuestTweaks` declares:
 
-`required-after:elenaidodge2;after:grimoireofgaia;after:thaumcraft;after:bewitchment;after:grapplemod;after:embers`
+`required-after:elenaidodge2;after:grimoireofgaia;after:thaumcraft;after:bewitchment;after:grapplemod;after:embers;after:reskillable;after:effortlessbuilding`
 
 That is **not** the full parent list. Soft parents that Tweaks mixins or events against, without `after:` / `required-after:`:
 
@@ -50,6 +51,8 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 | Mystical World | Optional mixin json | No hut skip/settle |
 | Simple Difficulty, Biomes O' Plenty | Comfort potions / hot spring block; BOP optional mixin skips village water/quicksand lakes | Those benefits no-op; BOP lake mixin json skipped; vanilla water-lake skip still runs |
 | Roguelike Dungeons Arcana | Thaumcraft dungeon warp via `isInsideStructure("RoguelikeDungeon")` | Dungeon exposure never matches |
+| Reskillable | Per-level bonuses + stamina perk id lookup | Module not registered; stamina `hasUnlockable` no-ops |
+| Effortless Building | Building skill place-reach / max blocks | Mixin json skipped; Building drip unused |
 
 ### Init (`CommonProxy` / `ClientProxy`)
 
@@ -65,6 +68,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 - If `thaumcraft`: `ThaumcraftModule`.
 - If `bewitchment`: `BewitchmentRegistryHandler` (ritual wrap still no-ops unless Thaumcraft is also loaded; see [bewitchment.md](bewitchment.md)).
 - If `astralsorcery`: `VillageAstralSmallShrineHandler.register()` (structure piece id `AQTSmallShrine`).
+- If `reskillable`: `ReskillableModule`.
 
 **init (client)**
 
@@ -93,6 +97,7 @@ Vanilla `World` is already loaded when late mixins prepare. Portal glowstone lig
 | `mixins.aqtweaks.mysticalworld.json` | false | RTG Mystical huts | Skip |
 | `mixins.aqtweaks.biomesoplenty.json` | false | RTG BOP water/quicksand village skip | Skip |
 | `mixins.aqtweaks.gaia.json` | false | Grimoire of Gaia drop pierce + recast bolts/bombs | Skip |
+| `mixins.aqtweaks.effortlessbuilding.json` | false | Reskillable Building EB place reach + max blocks | Skip |
 
 `mixins.aqtweaks.json` contents (package `com.apocollis.aqtweaks.mixin`):
 
@@ -121,14 +126,15 @@ Forge `@Config` on nested classes in `ArcanaQuestTweaksConfig`. Comfort is JSON,
 | `aqtweaks_depths.cfg` | `DepthsModuleConfig` |
 | `aqtweaks_rtg.cfg` | `RtgModuleConfig` |
 | `aqtweaks_portal.cfg` | `PortalModuleConfig` |
+| `aqtweaks_reskillable.cfg` | `ReskillableModuleConfig` |
 | `aqtweaks_comfort_settings.json` | `ComfortConfigLoader` (not `@Config`) |
 | `aqtweaks_comfort_blocks.json` | `ComfortConfigLoader` (not `@Config`) |
 
-`ConfigEventHandler` runs `ConfigManager.sync` on any `aqtweaks` cfg change and invalidates DSS skill-cost cache. Existing instance files keep old values when Java defaults change.
+`ConfigEventHandler` runs `ConfigManager.sync` on any `aqtweaks` cfg change, invalidates DSS skill-cost cache, and restamps Reskillable attributes if that mod is loaded. Existing instance files keep old values when Java defaults change.
 
 ### `util/Reflect.java`
 
-Cached reflection for entity/world/block/NBT/sound/primer and soft-mod APIs (Elenai weight, Grapple, glider, thirst, Reskillable).
+Cached reflection for entity/world/block/NBT/sound/primer and soft-mod APIs (Elenai weight, Grapple, glider, thirst, Reskillable perk ids). Per-level Reskillable bonuses compile-hard the API in the [reskillable module](reskillable.md).
 
 **Use Reflect** for vanilla member access inside **`remap = false` mixin bodies** (those strings are not remapped). Also use it for parent mods loaded only by reflection.
 

@@ -1,6 +1,6 @@
 # Compatibility matrix (1.8)
 
-Last updated: 2026-08-24.
+Last updated: 2026-09-05.
 
 This is the compile / mixin-apply / runtime contract. Module behavior lives in the per-module docs. Do not treat “required vs optional” as one bit.
 
@@ -40,7 +40,8 @@ Jar names below are from the **Arcana Quest DEVBOX** instance on 2026-08-20 unle
 | `embers` | `embers-1.26.1.jar` | after | — | no (reflection) | yes | **no** | stamina | `EmberInventoryUtil` via `EmberMotorHelper` |
 | `dynamicswordskills` | `1.12.2-DynamicSwordSkills-6.0.1.jar` (+ `SwordSkillsApi-1.1.0`) | omitted | optional `mixins.aqtweaks.dss.json` | no (string target) | yes | **no** | stamina | `MixinSkillActive` → `SkillActive.trigger`. Still compiles Elenai for spend |
 | `openglider` | `OpenGlider-1.12.1-1.1.0.jar` | omitted | — | no (Reflect) | yes | **no** | stamina | Undeploy when empty |
-| `reskillable` | `Reskillable-1.12.2-1.13.1.jar` | omitted | — | no (Reflect) | yes | **no** | stamina | Looks up `aqtweaks:armor_mastery` / `mining_efficiency` — **this jar does not register them** |
+| `reskillable` | `Reskillable-1.12.2-1.13.1.jar` | after | — | **yes** (`reskillable` package only) | yes | **yes** | [reskillable.md](reskillable.md), stamina | Per-level bonuses compile-hard. Stamina still uses Reflect for perk **ids**. This jar does **not** register `aqtweaks:armor_mastery` / `mining_efficiency` |
+| `effortlessbuilding` | `effortlessbuilding-1.12.2-2.16.jar` | after | optional `mixins.aqtweaks.effortlessbuilding.json` | **yes** (`ReachHelper` mixin) | yes | **yes** | [reskillable.md](reskillable.md) | `MixinReachHelper` → `getPlacementReach` + `getMaxBlocksPlacedAtOnce` RETURN. Not `getMaxReach` |
 | `simpledifficulty` | `SimpleDifficulty-1.12.2-0.3.9.jar` | omitted | — | no | yes | **no** | stamina, comfort | Thirst; potion ids `heat_protection` / `cold_protection` / `cold_resist` |
 | `grimoireofgaia` | `GrimoireOfGaia3-1.12.2-1.7.2.jar` | after | optional `mixins.aqtweaks.gaia.json` | **yes** (Gaia entity/projectile classes) | yes | **yes** | [grimoire-of-gaia.md](grimoire-of-gaia.md) | Melee/assist skip instant damage; MAGIC bolts → `causeIndirectMagicDamage`; bomb explosion; skip archer tip. Vanilla INVOKEs MCP + `remap = true` |
 | `thaumcraft` | `Thaumcraft-1.12.2-6.1.BETA26.jar` | after | — | no (`ThaumcraftHelper` reflection) | yes | **no** | [thaumcraft.md](thaumcraft.md) | Pack also has Fix / ResearchPatcher; Tweaks talks to TC API only |
@@ -61,7 +62,7 @@ Vanilla `MapGenVillage` / `MapGenCaves` / `WorldGenLakes` / `ChunkProviderServer
 
 ## `build_gradle.ps1` copy list vs contract
 
-**Copied if present:** Elenai Extended 1.1.3, Bewitchment, Roguelike **2.5.0 filename**, CoFH World, Better Caves, RC 2.0.0.9, IvToolkit, RTG 7.3.3.6, Astral 1.10.27, Mystical World 1.11.0, Grimoire of Gaia 1.7.2. Also **deletes** stale `ElenaiDodge2-1.12.2-1.1.0.jar` and `RecurrentComplexVolts-1.12.2-2.0.0.7.jar` from `libs/`.
+**Copied if present:** Elenai Extended 1.1.3, Bewitchment, Roguelike **2.5.0 filename**, CoFH World, Better Caves, RC 2.0.0.9, IvToolkit, RTG 7.3.3.6, Astral 1.10.27, Mystical World 1.11.0, Grimoire of Gaia 1.7.2, Reskillable 1.13.1, Effortless Building 2.16. Also **deletes** stale `ElenaiDodge2-1.12.2-1.1.0.jar` and `RecurrentComplexVolts-1.12.2-2.0.0.7.jar` from `libs/`.
 
 **Not copied (but needed to compile and/or mixin-apply):** Depths Update **a12**, Thaumcraft, Grapple, Embers, DSS, Simple Difficulty, BOP.
 

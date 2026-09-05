@@ -1,6 +1,6 @@
 # Verification (1.8)
 
-Last updated: 2026-09-03.
+Last updated: 2026-09-05.
 
 Manual release / smoke checklist. **No automated tests.** Harness: CurseForge **Arcana Quest DEVBOX**, remapped `ArcanaQuestTweaks-1.8.jar` in `mods/`. Algorithms and full checklists stay in module docs; this is the pack-level pass/fail.
 
@@ -33,6 +33,8 @@ These json files are `required: false`. Removing the parent should skip that jso
 | Mystical World | No hut skip/settle |
 | Biomes O' Plenty | No BOP lake village skip mixin; vanilla water-lake skip still runs; hot spring comfort no-ops |
 | Grimoire of Gaia | No Gaia mixins; pierce and MAGIC bolts/bombs stay parent vanilla |
+| Reskillable | No per-level bonuses; stamina perk lookups no-op |
+| Effortless Building | No Building place-reach / max-blocks mixin |
 
 ### Do not treat as optional
 
@@ -100,6 +102,7 @@ Use the full list in [stamina.md](stamina.md) **Verify**. Minimum: jump costs/bl
 | Portal | Arcane Tunnel binds then opens a 60s two-way rift (cross-dim if bound elsewhere); Unstable Arcane Tunnel lands ~4000–6000 same dim; villagers/mobs in the box teleport; sitting pet stays; lead follows. Dark cave mid-cell lights like glowstone. See [portal.md](portal.md) |
 | Client | Toughness LTR above armor; iron pick shows Vanilla Tools stats; Metallurgy pick not duplicated |
 | Recipes | Pack boots without Metallurgy `generated/item/spartanweaponry` recipe spam |
+| Reskillable | Attack 16 → +2 damage; Defense armor not HP; Building EB place +2 at 16 not sword reach; Magic log one focus `damageType`; harming splash does not scale. Full list: [reskillable.md](reskillable.md) |
 
 ## After mixin / parent bumps
 

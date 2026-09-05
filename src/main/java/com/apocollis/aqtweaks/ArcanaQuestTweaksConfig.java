@@ -828,6 +828,116 @@ public class ArcanaQuestTweaksConfig {
         public int wildSearchAttempts = 48;
     }
 
+    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_reskillable", category = "")
+    public static class ReskillableModuleConfig {
+        @Config.Name("General")
+        @Config.Comment("Master switch for per-level Reskillable drip bonuses. Stamina perk ids stay in aqtweaks_stamina.cfg.")
+        public static final ReskillableGeneral general = new ReskillableGeneral();
+
+        @Config.Name("Attack")
+        public static final ReskillableAttack attack = new ReskillableAttack();
+
+        @Config.Name("Defense")
+        public static final ReskillableDefense defense = new ReskillableDefense();
+
+        @Config.Name("Agility")
+        public static final ReskillableAgility agility = new ReskillableAgility();
+
+        @Config.Name("Building")
+        public static final ReskillableBuilding building = new ReskillableBuilding();
+
+        @Config.Name("Mining")
+        public static final ReskillableMining mining = new ReskillableMining();
+
+        @Config.Name("Gathering")
+        public static final ReskillableGathering gathering = new ReskillableGathering();
+
+        @Config.Name("Farming")
+        public static final ReskillableFarming farming = new ReskillableFarming();
+
+        @Config.Name("Magic")
+        public static final ReskillableMagic magic = new ReskillableMagic();
+    }
+
+    public static class ReskillableGeneral {
+        @Config.Name("Enable Reskillable Bonuses")
+        @Config.Comment("If false, no per-level attributes, harvest extras, magic multiply, or EB building bonuses.")
+        public boolean enable = true;
+    }
+
+    public static class ReskillableAttack {
+        @Config.Name("Damage Per Level")
+        @Config.Comment("Added to generic.attackDamage (operation 0). 0.125 → +2 at 16, +4 at 32.")
+        @Config.RangeDouble(min = 0.0, max = 4.0)
+        public double damagePerLevel = 0.125;
+    }
+
+    public static class ReskillableDefense {
+        @Config.Name("Armor Per Level")
+        @Config.Comment("Added to generic.armor (operation 0). 0.25 → +4 at 16, +8 at 32. Not max health.")
+        @Config.RangeDouble(min = 0.0, max = 4.0)
+        public double armorPerLevel = 0.25;
+    }
+
+    public static class ReskillableAgility {
+        @Config.Name("Speed Per Level")
+        @Config.Comment("Added to generic.movementSpeed. 0.0003125 → +5% of 0.1 at 16, +10% at 32.")
+        @Config.RangeDouble(min = 0.0, max = 0.01)
+        public double speedPerLevel = 0.0003125;
+    }
+
+    public static class ReskillableBuilding {
+        @Config.Name("EB Place Reach Per Level")
+        @Config.Comment("Added to Effortless Building getPlacementReach only (not vanilla REACH_DISTANCE, not attack reach). 0.125 → +2 at 16, +4 at 32.")
+        @Config.RangeDouble(min = 0.0, max = 4.0)
+        public double placeReachPerLevel = 0.125;
+
+        @Config.Name("EB Max Blocks Per Level")
+        @Config.Comment("Added to Effortless Building getMaxBlocksPlacedAtOnce in survival. 1 → +16 at 16, +32 at 32.")
+        @Config.RangeDouble(min = 0.0, max = 16.0)
+        public double maxBlocksPerLevel = 1.0;
+    }
+
+    public static class ReskillableMining {
+        @Config.Name("Break Speed Per Level")
+        @Config.Comment("BreakSpeed multiply: speed × (1 + level × k). 0.01 → +16% at 16, +32% at 32.")
+        @Config.RangeDouble(min = 0.0, max = 0.25)
+        public double breakSpeedPerLevel = 0.01;
+    }
+
+    public static class ReskillableGathering {
+        @Config.Name("Extra Drop Chance Per Level")
+        @Config.Comment("Chance of +1 forage / extra wool / extra fish. 0.00625 → 10% at 16, 20% at 32. Not ores, not crops.")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public double extraDropChancePerLevel = 0.00625;
+    }
+
+    public static class ReskillableFarming {
+        @Config.Name("Extra Drop Chance Per Level")
+        @Config.Comment("Chance of +1 on a mature crop harvest. 0.00625 → 10% at 16, 20% at 32.")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public double extraDropChancePerLevel = 0.00625;
+    }
+
+    public static class ReskillableMagic {
+        @Config.Name("Hurt Multiply Per Level")
+        @Config.Comment("Spell-like LivingHurtEvent multiply, capped at 40%. 0.0125 → ±20% at 16, ±40% at 32.")
+        @Config.RangeDouble(min = 0.0, max = 0.1)
+        public double perLevel = 0.0125;
+
+        @Config.Name("Log Damage Classify")
+        @Config.Comment("INFO-log unique damageType / isMagicDamage / source classes for player-involved hits (cap 48). Use to lock allow prefixes after a gauntlet shot.")
+        public boolean logClassify = true;
+
+        @Config.Name("Allow Type Prefixes")
+        @Config.Comment("If isMagicDamage is false, still treat damageType (lowercase prefix) as spell-like. Empty until the gauntlet log is reviewed.")
+        public String[] allowTypePrefixes = new String[0];
+
+        @Config.Name("Deny Types")
+        @Config.Comment("Exact damageType strings that never count as spell-like.")
+        public String[] denyTypes = new String[] {"wither", "onFire", "lava", "hotFloor"};
+    }
+
     @Mod.EventBusSubscriber(modid = ArcanaQuestTweaks.MODID)
     public static class ConfigEventHandler {
         @SubscribeEvent
@@ -835,6 +945,9 @@ public class ArcanaQuestTweaksConfig {
             if (event.getModID().equals(ArcanaQuestTweaks.MODID)) {
                 ConfigManager.sync(ArcanaQuestTweaks.MODID, Config.Type.INSTANCE);
                 DssSkillCosts.invalidate();
+                if (net.minecraftforge.fml.common.Loader.isModLoaded("reskillable")) {
+                    com.apocollis.aqtweaks.reskillable.ReskillableModule.restampOnlinePlayers();
+                }
             }
         }
     }

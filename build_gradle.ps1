@@ -30,7 +30,9 @@ $deps = @(
     "RTG-1.12.2-7.3.3.6.jar",
     "astralsorcery-1.12.2-1.10.27.jar",
     "mysticalworld-1.12.2-1.11.0.jar",
-    "GrimoireOfGaia3-1.12.2-1.7.2.jar"
+    "GrimoireOfGaia3-1.12.2-1.7.2.jar",
+    "Reskillable-1.12.2-1.13.1.jar",
+    "effortlessbuilding-1.12.2-2.16.jar"
 )
 foreach ($dep in $deps) {
     $src = "$localModsDir/$dep"

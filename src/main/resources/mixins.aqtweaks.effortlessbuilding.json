@@ -1,0 +1,9 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.apocollis.aqtweaks.mixin.effortlessbuilding",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "MixinReachHelper"
+  ]
+}
