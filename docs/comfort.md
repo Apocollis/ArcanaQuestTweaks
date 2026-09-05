@@ -1,4 +1,4 @@
-# Comfort module (1.7)
+# Comfort module (1.8)
 
 Last updated: 2026-09-03.
 

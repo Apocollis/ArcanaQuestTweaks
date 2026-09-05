@@ -124,7 +124,7 @@ Tweaks’ `@Redirect` on `StructureComponent.func_74875_a` inside `StructureStar
 
 `villageDoorsForBiome` / `BiomeEvent.GetVillageBlockID` only theme wood and doors.
 
-## Tweaks overlay (1.7 plate contract)
+## Tweaks overlay (1.8 plate contract)
 
 | Hook | Role |
 | --- | --- |

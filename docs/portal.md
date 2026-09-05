@@ -1,4 +1,4 @@
-# Portal module (1.7)
+# Portal module (1.8)
 
 Last updated: 2026-08-26.
 

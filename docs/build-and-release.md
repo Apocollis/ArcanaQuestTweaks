@@ -1,4 +1,4 @@
-# Build and release (1.7)
+# Build and release (1.8)
 
 Last updated: 2026-08-22.
 
@@ -29,8 +29,8 @@ Output:
 
 | File | Use |
 | --- | --- |
-| `build/libs/ArcanaQuestTweaks-1.7.jar` | **Ship this** (remapped, `defaultRemapJar = true`) |
-| `build/libs/ArcanaQuestTweaks-1.7-dev.jar` | MCP/dev classifier — **do not** drop in `mods/` |
+| `build/libs/ArcanaQuestTweaks-1.8.jar` | **Ship this** (remapped, `defaultRemapJar = true`) |
+| `build/libs/ArcanaQuestTweaks-1.8-dev.jar` | MCP/dev classifier — **do not** drop in `mods/` |
 
 Skip `*sources*` / `*javadoc*` if present.
 
@@ -80,4 +80,4 @@ In-game cfg change: `ConfigChangedEvent` → `ConfigManager.sync` + `DssSkillCos
 3. Default: run `.\build_gradle.ps1` (deploy). Skip only if told not to rebuild (docs-only, etc.).
 4. Worldgen: test **new chunks**.
 
-Version stays **1.7** unless a plan bumps `ArcanaQuestTweaks.VERSION` and `build.gradle` `version`.
+Version stays **1.8** unless a plan bumps `ArcanaQuestTweaks.VERSION` and `build.gradle` `version`.

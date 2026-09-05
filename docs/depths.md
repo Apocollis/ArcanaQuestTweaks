@@ -1,4 +1,4 @@
-# Depths module (1.7)
+# Depths module (1.8)
 
 Last updated: 2026-08-20.
 
@@ -21,7 +21,7 @@ Depths Update extends the Overworld to **Y = -64**. Several 1.12 gens still assu
 
 ## Hard constraints
 
-- Stay version **1.7**.
+- Stay version **1.8**.
 - Mixins live in **required** `mixins.aqtweaks.json`. RTG, Depths Update, Better Caves, CoFH World, and Recurrent Complex are assumed present in this pack.
 - `MapGenBetterCaves` subclasses `MapGenCaves`. Cancel vanilla worms only when `this.getClass().getName()` is exactly `net.minecraft.world.gen.MapGenCaves`.
 - Production Better Caves carve method is `func_186125_a` (`remap = false` on the mixin class). Seam inject is `@At("RETURN")` — after BC, not instead of BC.

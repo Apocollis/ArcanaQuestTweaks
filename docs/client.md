@@ -1,4 +1,4 @@
-# Client module (1.7)
+# Client module (1.8)
 
 Last updated: 2026-08-28.
 
