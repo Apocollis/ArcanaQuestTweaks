@@ -1,6 +1,6 @@
 # Compatibility matrix (1.8)
 
-Last updated: 2026-09-05.
+Last updated: 2026-09-06.
 
 This is the compile / mixin-apply / runtime contract. Module behavior lives in the per-module docs. Do not treat “required vs optional” as one bit.
 
@@ -44,7 +44,7 @@ Jar names below are from the **Arcana Quest DEVBOX** instance on 2026-08-20 unle
 | `effortlessbuilding` | `effortlessbuilding-1.12.2-2.16.jar` | after | optional `mixins.aqtweaks.effortlessbuilding.json` | **yes** (`ReachHelper` mixin) | yes | **yes** | [reskillable.md](reskillable.md) | `MixinReachHelper` → `getPlacementReach` + `getMaxBlocksPlacedAtOnce` RETURN. Not `getMaxReach` |
 | `simpledifficulty` | `SimpleDifficulty-1.12.2-0.3.9.jar` | omitted | — | no | yes | **no** | stamina, comfort | Thirst; potion ids `heat_protection` / `cold_protection` / `cold_resist` |
 | `grimoireofgaia` | `GrimoireOfGaia3-1.12.2-1.7.2.jar` | after | optional `mixins.aqtweaks.gaia.json` | **yes** (Gaia entity/projectile classes) | yes | **yes** | [grimoire-of-gaia.md](grimoire-of-gaia.md) | Melee/assist skip instant damage; MAGIC bolts → `causeIndirectMagicDamage`; bomb explosion; skip archer tip. Vanilla INVOKEs MCP + `remap = true` |
-| `thaumcraft` | `Thaumcraft-1.12.2-6.1.BETA26.jar` | after | — | no (`ThaumcraftHelper` reflection) | yes | **no** | [thaumcraft.md](thaumcraft.md) | Pack also has Fix / ResearchPatcher; Tweaks talks to TC API only |
+| `thaumcraft` | `Thaumcraft-1.12.2-6.1.BETA26.jar` | after | optional `mixins.aqtweaks.thaumcraft.json` | **yes** (focus effect classes) | yes | **yes** | [thaumcraft.md](thaumcraft.md) | Warp still `ThaumcraftHelper` reflection. `MixinFocusEffectExecute` stamps `setMagicDamage` on Fire/Frost/Air/Earth/Flux/Curse/Heal `attackEntityFrom`. `MixinFocusEffectHeal` scales `heal`. Vanilla INVOKE MCP + `remap = true`. Pack also has Fix / ResearchPatcher |
 | `bewitchment` | `bewitchment-1.12.2-0.0.22.65.jar` | after | optional `mixins.aqtweaks.bewitchment.json` | **yes** (`Ritual`, Cambion worldgen classes) | yes | **yes** | [bewitchment.md](bewitchment.md), [rtg.md](rtg.md) | Ritual wrap needs TC at register time. Cambion: `MixinWorldGenCambionHome` / `Medium` |
 | `rtg` | `RTG-1.12.2-7.3.3.6.jar` | omitted | **required** json | **yes** (`ChunkGeneratorRTG`) | pack always | **yes** | [rtg.md](rtg.md), [depths.md](depths.md) | `MixinChunkGeneratorRTG` + `MixinChunkGeneratorRTGVillage` |
 | `depthsupdate` | `depthsupdate-1.12.2-1.0.0-a12.jar` | omitted | **required** json | **yes** (`CaveNoiseGenerator` import) | pack always | **no** | depths | `MixinDepthsCaveNoiseGenerator`; `MixinCaveNoiseGenerator` string-targets the same class |
@@ -62,9 +62,9 @@ Vanilla `MapGenVillage` / `MapGenCaves` / `WorldGenLakes` / `ChunkProviderServer
 
 ## `build_gradle.ps1` copy list vs contract
 
-**Copied if present:** Elenai Extended 1.1.3, Bewitchment, Roguelike **2.5.0 filename**, CoFH World, Better Caves, RC 2.0.0.9, IvToolkit, RTG 7.3.3.6, Astral 1.10.27, Mystical World 1.11.0, Grimoire of Gaia 1.7.2, Reskillable 1.13.1, Effortless Building 2.16. Also **deletes** stale `ElenaiDodge2-1.12.2-1.1.0.jar` and `RecurrentComplexVolts-1.12.2-2.0.0.7.jar` from `libs/`.
+**Copied if present:** Elenai Extended 1.1.3, Bewitchment, Roguelike **2.5.0 filename**, CoFH World, Better Caves, RC 2.0.0.9, IvToolkit, RTG 7.3.3.6, Astral 1.10.27, Mystical World 1.11.0, Grimoire of Gaia 1.7.2, Reskillable 1.13.1, Effortless Building 2.16, Thaumcraft 6.1 BETA26. Also **deletes** stale `ElenaiDodge2-1.12.2-1.1.0.jar` and `RecurrentComplexVolts-1.12.2-2.0.0.7.jar` from `libs/`.
 
-**Not copied (but needed to compile and/or mixin-apply):** Depths Update **a12**, Thaumcraft, Grapple, Embers, DSS, Simple Difficulty, BOP.
+**Not copied (but needed to compile and/or mixin-apply):** Depths Update **a12**, Grapple, Embers, DSS, Simple Difficulty, BOP.
 
 **DEVBOX vs copy filename:** Roguelike on disk is `RoguelikeDungeons-Arcana-2.5.3.jar`; the script looks for `...-1.12.2-2.5.0.jar`.
 

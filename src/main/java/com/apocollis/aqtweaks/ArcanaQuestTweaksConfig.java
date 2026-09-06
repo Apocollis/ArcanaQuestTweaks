@@ -930,8 +930,8 @@ public class ArcanaQuestTweaksConfig {
         public boolean logClassify = true;
 
         @Config.Name("Allow Type Prefixes")
-        @Config.Comment("If isMagicDamage is false, still treat damageType (lowercase prefix) as spell-like. Empty until the gauntlet log is reviewed.")
-        public String[] allowTypePrefixes = new String[0];
+        @Config.Comment("If isMagicDamage is false, still treat damageType (lowercase prefix) as spell-like. Default fireball = ghast/blaze/Lich. TC foci use the Thaumcraft mixin, not this list. Do not add thrown (snowballs). Instance files keep an empty list until edited.")
+        public String[] allowTypePrefixes = new String[] {"fireball"};
 
         @Config.Name("Deny Types")
         @Config.Comment("Exact damageType strings that never count as spell-like.")

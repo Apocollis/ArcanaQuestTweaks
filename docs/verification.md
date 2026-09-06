@@ -1,6 +1,6 @@
 # Verification (1.8)
 
-Last updated: 2026-09-05.
+Last updated: 2026-09-06.
 
 Manual release / smoke checklist. **No automated tests.** Harness: CurseForge **Arcana Quest DEVBOX**, remapped `ArcanaQuestTweaks-1.8.jar` in `mods/`. Algorithms and full checklists stay in module docs; this is the pack-level pass/fail.
 
@@ -35,6 +35,7 @@ These json files are `required: false`. Removing the parent should skip that jso
 | Grimoire of Gaia | No Gaia mixins; pierce and MAGIC bolts/bombs stay parent vanilla |
 | Reskillable | No per-level bonuses; stamina perk lookups no-op |
 | Effortless Building | No Building place-reach / max-blocks mixin |
+| Thaumcraft | No focus mixins; frost stays `thrown` / not Magic; warp handler not registered |
 
 ### Do not treat as optional
 
@@ -96,7 +97,7 @@ Use the full list in [stamina.md](stamina.md) **Verify**. Minimum: jump costs/bl
 | Module | Smoke |
 | --- | --- |
 | Gaia | Melee: one physical hit, names the mob, **no MAGIC 6** (diamond must not take a flat ~3 hearts of magic). Unarmored may exceed JSON if the mob holds a sword. Hard archer: no MAGIC tip. Bolts: armor skip, Magic Protection works, death names shooter. Bomb: armor + Blast Protection, no extra 2.0, facing shield zeroes. Log: no `mixins.aqtweaks.gaia.json` injection failure. JSON `grimoireofgaia:orc` changes orc melee and bolts after restart. |
-| Thaumcraft | First Nether visit warps after ~2s; sleep at dawn reduces warp; whispers underground on interval |
+| Thaumcraft | First Nether visit warps after ~2s; sleep at dawn reduces warp; whispers underground on interval. Log: no `mixins.aqtweaks.thaumcraft.json` injection failure. Fire/frost foci `isMagic=true classified=true`; Heal on self scales with Magic; snowball does not |
 | Bewitchment | Listed ritual **finish** grants warp; halt does not |
 | Comfort | Homestead I in a scored room while healthy; penalties (hungry/thirsty/hurt/sleepy) can deny it; II after ~1:00 if score ≥40, III after another 1:00 if ≥60. No regen/saturation/SD thermals from Homestead. XP boost refreshes 8:00 while held, counts down after cancel. Hot spring → cold resist if SD+BOP |
 | Portal | Arcane Tunnel binds then opens a 60s two-way rift (cross-dim if bound elsewhere); Unstable Arcane Tunnel lands ~4000–6000 same dim; villagers/mobs in the box teleport; sitting pet stays; lead follows. Dark cave mid-cell lights like glowstone. See [portal.md](portal.md) |

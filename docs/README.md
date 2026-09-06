@@ -98,6 +98,7 @@ Vanilla `World` is already loaded when late mixins prepare. Portal glowstone lig
 | `mixins.aqtweaks.biomesoplenty.json` | false | RTG BOP water/quicksand village skip | Skip |
 | `mixins.aqtweaks.gaia.json` | false | Grimoire of Gaia drop pierce + recast bolts/bombs | Skip |
 | `mixins.aqtweaks.effortlessbuilding.json` | false | Reskillable Building EB place reach + max blocks | Skip |
+| `mixins.aqtweaks.thaumcraft.json` | false | Thaumcraft focus HP magic flag + Heal scale | Skip |
 
 `mixins.aqtweaks.json` contents (package `com.apocollis.aqtweaks.mixin`):
 
@@ -134,7 +135,7 @@ Forge `@Config` on nested classes in `ArcanaQuestTweaksConfig`. Comfort is JSON,
 
 ### `util/Reflect.java`
 
-Cached reflection for entity/world/block/NBT/sound/primer and soft-mod APIs (Elenai weight, Grapple, glider, thirst, Reskillable perk ids). Per-level Reskillable bonuses compile-hard the API in the [reskillable module](reskillable.md).
+Cached reflection for entity/world/block/NBT/sound/primer and soft-mod APIs (Elenai weight, Grapple, glider, thirst, Reskillable perk ids). Per-level Reskillable bonuses compile-hard the API in the [reskillable module](reskillable.md). Warp stays `ThaumcraftHelper` reflection; focus mixins compile-hard TC in [thaumcraft.md](thaumcraft.md).
 
 **Use Reflect** for vanilla member access inside **`remap = false` mixin bodies** (those strings are not remapped). Also use it for parent mods loaded only by reflection.
 

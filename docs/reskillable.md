@@ -1,6 +1,6 @@
 # Reskillable module (1.8)
 
-Last updated: 2026-09-05.
+Last updated: 2026-09-06.
 
 Config: `config/arcanaquesttweaks/aqtweaks_reskillable.cfg`. Handler registers only if `reskillable` is loaded (`CommonProxy.init`). Compile-hard CAD Reskillable **1.13.1** API; types live only in `com.apocollis.aqtweaks.reskillable`. Soft `@Mod` `after:reskillable` (not `required-after`).
 
@@ -42,7 +42,7 @@ Creative still uses EB’s creative limits (no Tweaks add).
 | Mining | `PlayerEvent.BreakSpeed` | `speed × (1 + level × 0.01)` |
 | Gathering | harvest / shear / fish | `level × 0.00625` chance of +1 |
 | Farming | mature crop `HarvestDropsEvent` | same k as Gathering |
-| Magic | `LivingHurtEvent` NORMAL | `± min(level × 0.0125, 0.4)` |
+| Magic | `LivingHurtEvent` NORMAL + TC Heal mixin | `± min(level × 0.0125, 0.4)` (heal is + only) |
 
 Attributes restamp: `LevelUpEvent.Post`, login, respawn, clone, dim change, Tweaks cfg change, every 20 server ticks. Skip `FakePlayer`. One Tweaks UUID per attribute; remove then apply; `setSaved(false)`.
 
@@ -66,7 +66,9 @@ Outgoing if trueSource is the player; incoming if victim is the player. Same cla
 
 Gaia bolts Tweaks recast to `causeIndirectMagicDamage` still match. Splash/lingering potion HP does not.
 
-`logClassify` (default **true**) INFO-logs unique `damageType` + `isMagicDamage` + source classes for player-involved hits (cap 48) so a gauntlet/focus shot can lock allow prefixes without a rebuild.
+Stock TC foci stamp `setMagicDamage()` in the [thaumcraft module](thaumcraft.md) mixin (not a `thrown` prefix). Heal on living uses `heal(float)`: caster outgoing `× (1 + bonus)` only; no incoming DR on heals. Food/regen/potions are not scaled.
+
+`logClassify` (default **true**) INFO-logs unique `damageType` + `isMagicDamage` + source classes for player-involved hits (cap 48). Default allow prefix **`fireball`** (ghast / blaze / Lich). Instance cfg may still be empty. **Do not** add `thrown`.
 
 ## Config
 
@@ -79,7 +81,7 @@ Gaia bolts Tweaks recast to `causeIndirectMagicDamage` still match. Splash/linge
 | Gathering / Farming extra chance per level | 0.00625 | yes | Proc chance |
 | Magic hurt per level | 0.0125 | yes | Cap 40% |
 | Log damage classify | true | yes | First-pass DEVBOX log |
-| Allow type prefixes | empty | yes | After gauntlet log |
+| Allow type prefixes | `fireball` | yes | Ghast/Lich if `isMagicDamage` is false; foci use the TC mixin |
 | Deny types | wither, onFire, lava, hotFloor | yes | Never spell-like |
 
 Instance cfg keeps old keys when Java defaults change.
@@ -112,7 +114,7 @@ Instance cfg keeps old keys when Java defaults change.
 - Mining: faster break; stamina break cost unchanged (perk still does)
 - Farming: extra wheat on mature crop; not on stone or ore
 - Gathering: extra log/leaf/flint, extra wool, extra fish; **not** ore; silk touch no extra
-- Magic: `latest.log` `AQTweaks-Reskillable` line for a gauntlet/focus shot (`type=`, `isMagic=`, `classified=`). At Magic 32, classified outgoing +40%, Gaia bolt taken −40%; harming splash does not scale; sword/thorns do not scale
+- Magic: `latest.log` `AQTweaks-Reskillable` line for a gauntlet/focus shot (`type=`, `isMagic=`, `classified=`). At Magic 32, classified outgoing +40%, Gaia bolt taken −40%; Heal focus on living +40% heal; harming splash does not scale; sword/thorns/snowballs do not scale
 
 ## Out of scope unless asked
 
