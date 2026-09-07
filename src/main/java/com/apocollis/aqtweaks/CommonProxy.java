@@ -32,6 +32,7 @@ public class CommonProxy {
         ArcanaQuestTweaks.NETWORK.registerMessage(PacketSyncGrappleInput.Handler.class, PacketSyncGrappleInput.class, 2, Side.SERVER);
         ComfortConfigLoader.load(event.getModConfigurationDirectory());
         GaiaDamageConfig.load(event.getModConfigurationDirectory());
+        com.apocollis.aqtweaks.spawning.SpawnTypeLists.load(event.getModConfigurationDirectory());
         com.apocollis.aqtweaks.portal.PortalModule.preInit();
         net.minecraft.world.gen.structure.MapGenStructureIO.registerStructureComponent(
                 com.apocollis.aqtweaks.rtg.VillagePieceVillagePlate.class, "AQTVillagePlate");
@@ -50,6 +51,7 @@ public class CommonProxy {
         }
 
         MinecraftForge.EVENT_BUS.register(new ComfortSystemHandler());
+        MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.spawning.SpawnLayerFilter());
         MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.rtg.VillageLandHelper.Events());
 
         if (net.minecraftforge.fml.common.Loader.isModLoaded("astralsorcery")) {

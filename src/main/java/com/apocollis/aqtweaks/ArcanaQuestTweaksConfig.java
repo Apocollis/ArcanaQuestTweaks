@@ -853,6 +853,45 @@ public class ArcanaQuestTweaksConfig {
         public int wildSearchAttempts = 48;
     }
 
+    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_spawning", category = "")
+    public static class SpawningModuleConfig {
+        @Config.Name("General")
+        @Config.Comment("Filter InControl/vanilla potential spawn lists by pack surface vs underground ids.")
+        public static final SpawningGeneral general = new SpawningGeneral();
+    }
+
+    public static class SpawningGeneral {
+        @Config.Name("Enable Spawning Module")
+        @Config.Comment("Master switch. When false, PotentialSpawns is not filtered.")
+        public boolean enable = true;
+
+        @Config.Name("Filter Potential Spawns")
+        @Config.Comment("At the spawn pick coordinate, drop surface-only mobs in caves and underground-only mobs on the surface.")
+        public boolean filterPotentialSpawns = true;
+
+        @Config.Name("Spawn Type File")
+        @Config.Comment("Pack JSON under the Forge config directory. Default is DEVBOX config/arcanaquest/mob_overworldspawntype.json. Tweaks does not ship or write this file.")
+        public String spawnTypeFile = "arcanaquest/mob_overworldspawntype.json";
+
+        @Config.Name("Cave Max Y")
+        @Config.Comment("Cave pick when Y is strictly below this and sky light is at or below Max Cave Sky Light.")
+        @Config.RangeInt(min = -64, max = 256)
+        public int caveMaxY = 60;
+
+        @Config.Name("Max Cave Sky Light")
+        @Config.Comment("Closed cave if sky light (0-15) is <= this. 0 avoids treating forest canopy as cave.")
+        @Config.RangeInt(min = 0, max = 15)
+        public int maxCaveSkyLight = 0;
+
+        @Config.Name("Overworld Only")
+        @Config.Comment("Only dimension 0. Nether/End lists are unchanged.")
+        public boolean overworldOnly = true;
+
+        @Config.Name("Monster Only")
+        @Config.Comment("Only EnumCreatureType.MONSTER. Animals, water, and ambient are unchanged.")
+        public boolean monsterOnly = true;
+    }
+
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_reskillable", category = "")
     public static class ReskillableModuleConfig {
         @Config.Name("General")
@@ -970,6 +1009,7 @@ public class ArcanaQuestTweaksConfig {
             if (event.getModID().equals(ArcanaQuestTweaks.MODID)) {
                 ConfigManager.sync(ArcanaQuestTweaks.MODID, Config.Type.INSTANCE);
                 DssSkillCosts.invalidate();
+                com.apocollis.aqtweaks.spawning.SpawnTypeLists.reload();
                 if (net.minecraftforge.fml.common.Loader.isModLoaded("reskillable")) {
                     com.apocollis.aqtweaks.reskillable.ReskillableModule.restampOnlinePlayers();
                 }

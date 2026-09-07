@@ -1,6 +1,6 @@
 # Verification (1.8)
 
-Last updated: 2026-09-06.
+Last updated: 2026-09-07.
 
 Manual release / smoke checklist. **No automated tests.** Harness: CurseForge **Arcana Quest DEVBOX**, remapped `ArcanaQuestTweaks-1.8.jar` in `mods/`. Algorithms and full checklists stay in module docs; this is the pack-level pass/fail.
 
@@ -104,6 +104,7 @@ Use the full list in [stamina.md](stamina.md) **Verify**. Minimum: jump costs/bl
 | Client | Toughness LTR above armor; iron pick shows Vanilla Tools stats; Metallurgy pick not duplicated |
 | Recipes | Pack boots without Metallurgy `generated/item/spartanweaponry` recipe spam |
 | Reskillable | Attack 16 → +2 damage; Defense armor not HP; Building EB place +2 at 16 not sword reach; Magic log one focus `damageType`; harming splash does not scale. Full list: [reskillable.md](reskillable.md) |
+| Spawning | Boot log loads `config/arcanaquest/mob_overworldspawntype.json`. Closed cave: dwarf/cave_spider/krake yes, Dryad/witch/Wildkin no, zombie/goblin still yes. Night surface: reverse exclusives; zombie still yes. Master off or JSON missing: no Tweaks strip. See [spawning.md](spawning.md) |
 
 ## After mixin / parent bumps
 

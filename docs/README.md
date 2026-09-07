@@ -27,6 +27,7 @@ Each file covers: what Tweaks changes, how the **parent mod** implements the fea
 | RTG | Realistic Terrain Generation + vanilla `MapGenVillage` + Recurrent Complex + Astral / Bewitchment Cambion / Mystical World huts | [rtg.md](rtg.md) |
 | Village gen (pack pipeline) | Vanilla + RTG + Geographicraft + Recurrent Complex + Charm + Tweaks overlay | [villagegen_info.md](villagegen_info.md) |
 | Client | Toughness Bar (optional), tooltip lines for non-Metallurgy tools | [client.md](client.md) |
+| Spawning | Vanilla `PotentialSpawns` + pack `mob_overworldspawntype.json` (InControl still owns deny) | [spawning.md](spawning.md) |
 | Recipes | Forge `CraftingHelper` (Metallurgy / Spartan JSON) | [recipes.md](recipes.md) |
 | Compatibility / jars | Compile vs mixin vs runtime vs copy script | [compatibility-matrix.md](compatibility-matrix.md) |
 | Build / deploy | `gradlew build` vs `build_gradle.ps1` | [build-and-release.md](build-and-release.md) |
@@ -53,18 +54,19 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 | Roguelike Dungeons Arcana | Thaumcraft dungeon warp via `isInsideStructure("RoguelikeDungeon")` | Dungeon exposure never matches |
 | Reskillable | Per-level bonuses + stamina perk id lookup | Module not registered; stamina `hasUnlockable` no-ops |
 | Effortless Building | Building skill place-reach / max blocks | Mixin json skipped; Building drip unused |
+| InControl | Spawning pool filter (event after InControl) | Filter still runs on vanilla+Gaia lists if JSON exists |
 
 ### Init (`CommonProxy` / `ClientProxy`)
 
 **preInit**
 
 - Register SimpleNetworkWrapper messages 0–2 (stamina climb/grapple). See [stamina.md](stamina.md).
-- `ComfortConfigLoader.load` and `GaiaDamageConfig.load` from the Forge config directory.
+- `ComfortConfigLoader.load`, `GaiaDamageConfig.load`, and `SpawnTypeLists.load` from the Forge config directory.
 - `PortalModule.preInit` (`ForgeChunkManager` callback). Item/entity register via `RegistryEvent` (not init).
 
 **init (common)**
 
-- Always: `StaminaModule`, `GaiaDamageHandler` (Gaia JSON bases), `ComfortSystemHandler`.
+- Always: `StaminaModule`, `GaiaDamageHandler` (Gaia JSON bases), `ComfortSystemHandler`, `SpawnLayerFilter`.
 - If `thaumcraft`: `ThaumcraftModule`.
 - If `bewitchment`: `BewitchmentRegistryHandler` (ritual wrap still no-ops unless Thaumcraft is also loaded; see [bewitchment.md](bewitchment.md)).
 - If `astralsorcery`: `VillageAstralSmallShrineHandler.register()` (structure piece id `AQTSmallShrine`).
@@ -128,10 +130,13 @@ Forge `@Config` on nested classes in `ArcanaQuestTweaksConfig`. Comfort is JSON,
 | `aqtweaks_rtg.cfg` | `RtgModuleConfig` |
 | `aqtweaks_portal.cfg` | `PortalModuleConfig` |
 | `aqtweaks_reskillable.cfg` | `ReskillableModuleConfig` |
+| `aqtweaks_spawning.cfg` | `SpawningModuleConfig` |
 | `aqtweaks_comfort_settings.json` | `ComfortConfigLoader` (not `@Config`) |
 | `aqtweaks_comfort_blocks.json` | `ComfortConfigLoader` (not `@Config`) |
 
-`ConfigEventHandler` runs `ConfigManager.sync` on any `aqtweaks` cfg change, invalidates DSS skill-cost cache, and restamps Reskillable attributes if that mod is loaded. Existing instance files keep old values when Java defaults change.
+`ConfigEventHandler` runs `ConfigManager.sync` on any `aqtweaks` cfg change, invalidates DSS skill-cost cache, reloads spawn-type JSON, and restamps Reskillable attributes if that mod is loaded. Existing instance files keep old keys when Java defaults change.
+
+Pack-owned (not Tweaks): `config/arcanaquest/mob_overworldspawntype.json` — surface/underground id lists for the [spawning](spawning.md) filter.
 
 ### `util/Reflect.java`
 
