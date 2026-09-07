@@ -103,7 +103,7 @@ Use the full list in [stamina.md](stamina.md) **Verify**. Minimum: jump costs/bl
 | Portal | Arcane Tunnel binds then opens a 60s two-way rift (cross-dim if bound elsewhere); Unstable Arcane Tunnel lands ~4000–6000 same dim; villagers/mobs in the box teleport; sitting pet stays; lead follows. Dark cave mid-cell lights like glowstone. See [portal.md](portal.md) |
 | Client | Toughness LTR above armor; iron pick shows Vanilla Tools stats; Metallurgy pick not duplicated |
 | Recipes | Pack boots without Metallurgy `generated/item/spartanweaponry` recipe spam |
-| Reskillable | Attack 16 → +2 damage; Defense armor not HP; Building EB place +2 at 16 not sword reach; Magic log one focus `damageType`; harming splash does not scale. Full list: [reskillable.md](reskillable.md) |
+| Reskillable | Attack 16 → +2 damage; Mining Expert wood pick drops diamond ore; stamina perks on tree. Full list: [reskillable.md](reskillable.md) |
 | Spawning | Boot log loads `config/arcanaquest/mob_overworldspawntype.json`. Closed cave: dwarf/cave_spider/krake yes, Dryad/witch/Wildkin no, zombie/goblin still yes. Night surface: reverse exclusives; zombie still yes. Master off or JSON missing: no Tweaks strip. See [spawning.md](spawning.md) |
 
 ## After mixin / parent bumps

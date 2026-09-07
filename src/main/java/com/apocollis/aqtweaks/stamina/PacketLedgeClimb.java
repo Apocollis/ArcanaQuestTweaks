@@ -37,7 +37,8 @@ public class PacketLedgeClimb implements IMessage {
             net.minecraft.server.MinecraftServer server = Reflect.getServer(player);
             if (player != null && server != null) {
                 server.addScheduledTask(() -> {
-                    int cost = ArcanaQuestTweaksConfig.StaminaModuleConfig.ledgeClimb.ledgeClimbCost;
+                    int cost = StaminaPerks.climbCost(player,
+                            ArcanaQuestTweaksConfig.StaminaModuleConfig.ledgeClimb.ledgeClimbCost);
                     if (Reflect.hasEnoughStamina(player, cost)) {
                         FeathersHelper.decreaseFeathers(player, cost);
                         NBTTagCompound pData = Reflect.getEntityData(player);

@@ -12,7 +12,7 @@ Creative and spectator players are skipped everywhere. Spectator is not billed; 
 
 Spend Elenai feathers for jump, sprint, melee, bow, throwing, climb, ledge mantle, shield, mine, glider, grapple, and DSS skills. Gate those actions when the pool cannot pay. Do **not** replace Elenai regen, dodge, or HUD icons. Do **not** post `SpendFeatherEvent`.
 
-Optional parents: Grapple motor Ember, Open Glider undeploy, Reskillable Armor Mastery / Mining Efficiency (perk **ids only** — this jar does not register those unlockables; per-level drip is [reskillable.md](reskillable.md)), Simple Difficulty thirst on feather regen.
+Optional parents: Grapple motor Ember, Open Glider undeploy, Reskillable stamina perks (ids in stamina cfg; Tweaks **registers** Melee/Ranged/Shield/Adrenaline/Climber/Cardio; **does not** register Armor Mastery / Mining Efficiency — pack CrT), Simple Difficulty thirst on feather regen.
 
 ## Hard constraints
 
@@ -80,7 +80,7 @@ Perk lookup is `Reflect.hasUnlockable`. Thirst is `addThirstExhaustion` on SD’
 
 Mastery stacks **after** Endurance. Client `SWeightMessage` uses this combined value; skip that overwrite while Weight potion is active so crushing weight stays 200.
 
-This jar does **not** register `aqtweaks:armor_mastery` or `aqtweaks:mining_efficiency`. The pack’s Reskillable content must provide those ids or the perks never apply.
+This jar does **not** register `aqtweaks:armor_mastery` or `aqtweaks:mining_efficiency`. The pack’s Reskillable content must provide those ids or the perks never apply. Tweaks **does** register the other stamina-tree traits in [reskillable.md](reskillable.md).
 
 On join (`EntityJoinWorldEvent`): **HIGHEST** backup + clear Elenai’s weight array for `EntityPlayerMP`; **LOWEST** restore. That window is so Elenai’s join handler does not apply weight first. Client tick restores `ClientStorage.weightValues` if emptied and clears `ArmorTickEventListener.previousArmor` so weight re-evaluates. Armor Mastery also sends Elenai `SWeightMessage` when `ClientStorage.weight` disagrees (`ClientTickEvent` END LOWEST).
 
@@ -92,6 +92,7 @@ Respawn: `PlayerRespawnEvent` → `FeathersHelper.increaseFeathers(player, getMa
 | --- | --- |
 | `ArcanaQuestTweaksConfig.StaminaModuleConfig` | All knobs → `aqtweaks_stamina.cfg`. `DssSkillCosts.invalidate()` on any `aqtweaks` cfg change |
 | `stamina/StaminaModule.java` | Server spend/gate |
+| `stamina/StaminaPerks.java` | Perk spend reductions + Adrenaline |
 | `stamina/StaminaModuleClient.java` | HUD if dodge locked; climb fall + jump packet; ledge FSM; grapple `InputUpdateEvent` LOWEST |
 | `stamina/GrappleClientInput.java` | Climb / descend / swing / motor / grounded from Grapple keys + controller |
 | `stamina/PacketSyncClimbingInput` | Channel **0** — climb jump held |
@@ -300,6 +301,11 @@ All live unless noted. Nested Forge categories.
 | Armor Mastery Reduction | 1.0 | Per armor piece |
 | Mining Efficiency Perk ID | `aqtweaks:mining_efficiency` | Pack must register |
 | Mining Efficiency Reduction | 1 | Subtracted from break cost |
+| Melee / Ranged / Shield / Adrenaline / Climber / Cardio perk ids | `aqtweaks:…` | Tweaks registers these |
+| Melee / Climber / Cardio reduction | 1 | Half-feathers, floor 0 |
+| Ranged draw reduction / hold interval × | 1 / 1.5 | Draw 2→1; hold 20→30 |
+| Shield hold interval × | 2 | 20→40 |
+| Adrenaline threshold / restore / cooldown | 3 / 20 / 400 ticks | Half-feathers; 20s |
 | Enable Thirst Cost | true | Regen → SD exhaustion |
 | Thirst Exhaustion Per Feather | 0.25 | Per half-feather gained |
 | Enable Ledge Climbing | true | Client FSM + packet |
@@ -316,7 +322,7 @@ All live unless noted. Nested Forge categories.
 | `GrappleClientSent*` | client | Packet debounce |
 | `GliderTicks` | server | Glider bill |
 | `ShieldActive` / `ShieldTicks` | server | Shield bill |
-| `AttackPenalty` | server | Next hurt × multiplier (attacker) |
+| `AdrenalineUntil` | server | Ticks-existed deadline for Adrenaline |
 | `LedgeClimbState` / `LedgeClimbGrace` / `LedgeClimbHeldTicks` / `LedgeClimbTargetY` / `LedgeClimbDx` / `LedgeClimbDz` | both | Mantle FSM; grace is server `ticksExisted` deadline |
 | `LastJumpInput` | client | Climb packet edge when leaving ladder |
 
@@ -399,5 +405,5 @@ Tweaks `ClientTickEvent` END LOWEST wrote `Reflect.getWeight` (armor + Lightweig
 
 - Billing air swings (would need a server-bound swing packet)
 - Deduplicating bow hold (player tick vs `UseItem.Tick`)
-- Registering Reskillable perks inside this jar (per-level bonuses are a different module)
+- Registering Armor Mastery / Mining Efficiency inside this jar (still pack CrT)
 - Recarving / worldgen (stamina has none)

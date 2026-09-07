@@ -16,6 +16,7 @@ import net.minecraft.init.Blocks;
 import net.minecraft.item.ItemShears;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.DamageSource;
+import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.world.World;
 import net.minecraftforge.common.util.FakePlayer;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
@@ -79,6 +80,26 @@ public class ReskillableModule {
         int level = ReskillableBonuses.skillLevel(player, "mining");
         if (level <= 0) return;
         event.setNewSpeed((float) (event.getNewSpeed() * (1.0 + level * k)));
+    }
+
+    @SubscribeEvent
+    public void onHarvestCheck(PlayerEvent.HarvestCheck event) {
+        if (event.canHarvest()) return;
+        EntityPlayer player = event.getEntityPlayer();
+        if (skipPlayer(player)) return;
+        if (!Reflect.hasUnlockable(player, "aqtweaks:mining_expert")) return;
+        if (!ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.miningExpert.enable) return;
+        ItemStack held = player.getHeldItemMainhand();
+        if (held.isEmpty()) return;
+        java.util.Set<String> classes = held.getItem().getToolClasses(held);
+        if (classes == null || !classes.contains("pickaxe")) return;
+        IBlockState state = event.getTargetBlock();
+        if (state == null) return;
+        String tool = state.getBlock().getHarvestTool(state);
+        if (tool != null && !"pickaxe".equals(tool)) return;
+        int floor = ArcanaQuestTweaksConfig.ReskillableModuleConfig.mining.expertHarvestFloor;
+        if (state.getBlock().getHarvestLevel(state) > floor) return;
+        event.setCanHarvest(true);
     }
 
     @SubscribeEvent

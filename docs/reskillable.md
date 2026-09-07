@@ -4,7 +4,7 @@ Last updated: 2026-09-06.
 
 Config: `config/arcanaquesttweaks/aqtweaks_reskillable.cfg`. Handler registers only if `reskillable` is loaded (`CommonProxy.init`). Compile-hard CAD Reskillable **1.13.1** API; types live only in `com.apocollis.aqtweaks.reskillable`. Soft `@Mod` `after:reskillable` (not `required-after`).
 
-Stamina Armor Mastery / Mining Efficiency **perk id lookups** stay in [stamina.md](stamina.md) (`Reflect.hasUnlockable`, `aqtweaks_stamina.cfg`). This module does **not** register those unlockables.
+Stamina Armor Mastery / Mining Efficiency **perk id lookups** stay in [stamina.md](stamina.md) (`Reflect.hasUnlockable`, `aqtweaks_stamina.cfg`). This jar **registers** the stamina-tree traits listed below plus Mining Expert. It still does **not** register `aqtweaks:armor_mastery` or `aqtweaks:mining_efficiency` (pack CrT).
 
 Effortless Building placement bonuses need both `reskillable` and `effortlessbuilding`. Optional `mixins.aqtweaks.effortlessbuilding.json` (`required: false`). Parent jar: `effortlessbuilding-1.12.2-2.16`. Soft `after:effortlessbuilding`.
 
@@ -86,9 +86,29 @@ Stock TC foci stamp `setMagicDamage()` in the [thaumcraft module](thaumcraft.md)
 
 Instance cfg keeps old keys when Java defaults change.
 
+Layout/enable for Tweaks-owned traits: `aqtweaks_reskillable.cfg` **Perks** (restart). Effect knobs for stamina traits: `aqtweaks_stamina.cfg`. Mining Expert harvest floor: Mining section `expertHarvestFloor` (vanilla diamond = **3**).
+
+Register in **preInit** (`ReskillablePerkRegistry`). CAD `getTraitConfig` still writes `reskillable.cfg`; Tweaks overlays `UnlockableConfig` so Tweaks cfg wins at runtime.
+
+| Id | Skill | Default cell | Cost | Req |
+| --- | --- | --- | --- | --- |
+| `aqtweaks:melee_efficiency` | attack | 2,2 | 6 | attack 16, agility 12 |
+| `aqtweaks:ranged_efficiency` | attack | 2,3 | 6 | attack 16, agility 12 |
+| `aqtweaks:shield_efficiency` | defense | 2,2 | 6 | defense 16 |
+| `aqtweaks:adrenaline` | agility | 2,1 | 6 | agility 16, defense 12 |
+| `aqtweaks:expert_climber` | agility | 1,2 | 6 | agility 20 |
+| `aqtweaks:cardio_master` | agility | 3,3 | 6 | agility 20 |
+| `aqtweaks:mining_expert` | mining | 3,3 | 6 | mining 24 |
+
+Mining Expert: `PlayerEvent.HarvestCheck` client+server. Pickaxe tool class, block pickaxe or null tool, harvest ≤ floor. Does not change `Item.getHarvestLevel`.
+
+Lang: `reskillable.unlock.aqtweaks.<path>` / `.desc`. Icons: `aqtweaks:textures/unlockables/<path>.png`.
+
 ## Files
 
-- `reskillable/ReskillableModule.java` — events
+- `reskillable/ReskillablePerkRegistry.java`, `AqtweaksTrait.java`, `ReskillablePerkLayout.java`
+- `reskillable/ReskillableModule.java` — events + Mining Expert HarvestCheck
+- `stamina/StaminaPerks.java` — spend reductions + Adrenaline
 - `reskillable/ReskillableBonuses.java` — levels, classify, EB add
 - `reskillable/EffortlessBuildingHooks.java` — mixin bridge (no Reskillable imports)
 - `mixin/effortlessbuilding/MixinReachHelper.java`
@@ -97,7 +117,7 @@ Instance cfg keeps old keys when Java defaults change.
 ## Do not regress
 
 - Stamina `aqtweaks_stamina.cfg` Reskillable perk section and `Reflect.hasUnlockable`
-- No unlockable registration
+- No unlockable registration for Armor Mastery / Mining Efficiency (pack CrT)
 - No Reskillable `import` from `StaminaModule` / `Reflect` / config class body
 - No vanilla `REACH_DISTANCE`; do not mixin EB `getMaxReach`
 - Attack/Defense not extra-multiplied in `LivingHurtEvent`
@@ -114,11 +134,11 @@ Instance cfg keeps old keys when Java defaults change.
 - Mining: faster break; stamina break cost unchanged (perk still does)
 - Farming: extra wheat on mature crop; not on stone or ore
 - Gathering: extra log/leaf/flint, extra wool, extra fish; **not** ore; silk touch no extra
-- Magic: `latest.log` `AQTweaks-Reskillable` line for a gauntlet/focus shot (`type=`, `isMagic=`, `classified=`). At Magic 32, classified outgoing +40%, Gaia bolt taken −40%; Heal focus on living +40% heal; harming splash does not scale; sword/thorns/snowballs do not scale
+- Mining Expert: wood pick + perk drops diamond ore/obsidian; tooltip stars unchanged; fist does not
 
 ## Out of scope unless asked
 
-- Perk registration; extra HP; attack speed; bow damage; general % DR; potion duration
+- Extra HP; attack speed; bow damage; general % DR; potion duration
 - Vanilla reach; Agility stamina/dodge; farming saturation; gathering extra **ore** (pack Mining perk)
 - Recipe/item gating (Recipe Stages / Game Stages / CrT)
 - Shipping Universal Tweaks Armor Curve in this jar

@@ -34,6 +34,9 @@ public class CommonProxy {
         GaiaDamageConfig.load(event.getModConfigurationDirectory());
         com.apocollis.aqtweaks.spawning.SpawnTypeLists.load(event.getModConfigurationDirectory());
         com.apocollis.aqtweaks.portal.PortalModule.preInit();
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("reskillable")) {
+            com.apocollis.aqtweaks.reskillable.ReskillablePerkRegistry.preInit();
+        }
         net.minecraft.world.gen.structure.MapGenStructureIO.registerStructureComponent(
                 com.apocollis.aqtweaks.rtg.VillagePieceVillagePlate.class, "AQTVillagePlate");
     }

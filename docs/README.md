@@ -63,6 +63,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 - Register SimpleNetworkWrapper messages 0–2 (stamina climb/grapple). See [stamina.md](stamina.md).
 - `ComfortConfigLoader.load`, `GaiaDamageConfig.load`, and `SpawnTypeLists.load` from the Forge config directory.
 - `PortalModule.preInit` (`ForgeChunkManager` callback). Item/entity register via `RegistryEvent` (not init).
+- If `reskillable`: `ReskillablePerkRegistry` (Unlockable `RegistryEvent`).
 
 **init (common)**
 

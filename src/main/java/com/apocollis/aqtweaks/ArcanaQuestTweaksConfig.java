@@ -1,6 +1,7 @@
 package com.apocollis.aqtweaks;
 
 import com.apocollis.aqtweaks.stamina.DssSkillCosts;
+import com.apocollis.aqtweaks.reskillable.ReskillablePerkLayout;
 import com.apocollis.aqtweaks.thaumcraft.ThaumcraftModule;
 
 import net.minecraftforge.common.config.Config;
@@ -409,6 +410,69 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Stamina cost reduction (in half-feathers) applied to mining actions")
         @Config.RangeInt(min = 0, max = 20)
         public int miningEfficiencyReduction = 1;
+
+        @Config.Name("Melee Efficiency Perk ID")
+        public String meleeEfficiencyPerkId = "aqtweaks:melee_efficiency";
+
+        @Config.Name("Melee Efficiency Reduction")
+        @Config.Comment("Subtracted from light/medium/heavy melee costs (half-feathers). Floor 0.")
+        @Config.RangeInt(min = 0, max = 20)
+        public int meleeEfficiencyReduction = 1;
+
+        @Config.Name("Ranged Efficiency Perk ID")
+        public String rangedEfficiencyPerkId = "aqtweaks:ranged_efficiency";
+
+        @Config.Name("Ranged Draw Reduction")
+        @Config.Comment("Subtracted from bow draw cost (half-feathers). Floor 0.")
+        @Config.RangeInt(min = 0, max = 20)
+        public int rangedDrawReduction = 1;
+
+        @Config.Name("Ranged Hold Interval Multiplier")
+        @Config.Comment("Multiplies bow hold interval (and throw hold, which uses bow interval). 1.5 → 20 becomes 30.")
+        @Config.RangeDouble(min = 1.0, max = 8.0)
+        public double rangedHoldIntervalMultiplier = 1.5;
+
+        @Config.Name("Shield Efficiency Perk ID")
+        public String shieldEfficiencyPerkId = "aqtweaks:shield_efficiency";
+
+        @Config.Name("Shield Hold Interval Multiplier")
+        @Config.Comment("Multiplies shield hold interval. 2.0 → 20 becomes 40.")
+        @Config.RangeDouble(min = 1.0, max = 8.0)
+        public double shieldHoldIntervalMultiplier = 2.0;
+
+        @Config.Name("Adrenaline Perk ID")
+        public String adrenalinePerkId = "aqtweaks:adrenaline";
+
+        @Config.Name("Adrenaline Threshold")
+        @Config.Comment("Proc when regular feathers (half-feathers) are below this.")
+        @Config.RangeInt(min = 0, max = 40)
+        public int adrenalineThreshold = 3;
+
+        @Config.Name("Adrenaline Restore")
+        @Config.Comment("Set regular feathers to this (half-feathers), capped at max.")
+        @Config.RangeInt(min = 0, max = 40)
+        public int adrenalineRestore = 20;
+
+        @Config.Name("Adrenaline Cooldown Ticks")
+        @Config.Comment("Ticks after a proc before it can fire again. 400 = 20 seconds.")
+        @Config.RangeInt(min = 0, max = 12000)
+        public int adrenalineCooldownTicks = 400;
+
+        @Config.Name("Expert Climber Perk ID")
+        public String expertClimberPerkId = "aqtweaks:expert_climber";
+
+        @Config.Name("Expert Climber Reduction")
+        @Config.Comment("Subtracted from ladder/vine/rope/cling, ledge, and grapple climb/swing/hang (half-feathers).")
+        @Config.RangeInt(min = 0, max = 20)
+        public int expertClimberReduction = 1;
+
+        @Config.Name("Cardio Master Perk ID")
+        public String cardioMasterPerkId = "aqtweaks:cardio_master";
+
+        @Config.Name("Cardio Master Reduction")
+        @Config.Comment("Subtracted from jump and sprint costs (half-feathers). Floor 0.")
+        @Config.RangeInt(min = 0, max = 20)
+        public int cardioMasterReduction = 1;
     }
 
     public static class SimpleDifficulty {
@@ -921,6 +985,40 @@ public class ArcanaQuestTweaksConfig {
 
         @Config.Name("Magic")
         public static final ReskillableMagic magic = new ReskillableMagic();
+
+        @Config.Name("Perks")
+        @Config.Comment("Tree layout for Tweaks-registered traits. Restart after edit. Does not hot-reload.")
+        public static final ReskillablePerks perks = new ReskillablePerks();
+    }
+
+    public static class ReskillablePerks {
+        @Config.Name("Melee Efficiency")
+        public ReskillablePerkLayout meleeEfficiency = new ReskillablePerkLayout(
+                2, 2, 6, "reskillable:attack", "reskillable:attack|16", "reskillable:agility|12");
+
+        @Config.Name("Ranged Efficiency")
+        public ReskillablePerkLayout rangedEfficiency = new ReskillablePerkLayout(
+                2, 3, 6, "reskillable:attack", "reskillable:attack|16", "reskillable:agility|12");
+
+        @Config.Name("Shield Efficiency")
+        public ReskillablePerkLayout shieldEfficiency = new ReskillablePerkLayout(
+                2, 2, 6, "reskillable:defense", "reskillable:defense|16");
+
+        @Config.Name("Adrenaline")
+        public ReskillablePerkLayout adrenaline = new ReskillablePerkLayout(
+                2, 1, 6, "reskillable:agility", "reskillable:agility|16", "reskillable:defense|12");
+
+        @Config.Name("Expert Climber")
+        public ReskillablePerkLayout expertClimber = new ReskillablePerkLayout(
+                1, 2, 6, "reskillable:agility", "reskillable:agility|20");
+
+        @Config.Name("Cardio Master")
+        public ReskillablePerkLayout cardioMaster = new ReskillablePerkLayout(
+                3, 3, 6, "reskillable:agility", "reskillable:agility|20");
+
+        @Config.Name("Mining Expert")
+        public ReskillablePerkLayout miningExpert = new ReskillablePerkLayout(
+                3, 3, 6, "reskillable:mining", "reskillable:mining|24");
     }
 
     public static class ReskillableGeneral {
@@ -967,6 +1065,11 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("BreakSpeed multiply: speed × (1 + level × k). 0.01 → +16% at 16, +32% at 32.")
         @Config.RangeDouble(min = 0.0, max = 0.25)
         public double breakSpeedPerLevel = 0.01;
+
+        @Config.Name("Mining Expert Harvest Floor")
+        @Config.Comment("Pickaxes with Mining Expert treat harvest as at least this level. Vanilla diamond = 3 (4 tooltip stars).")
+        @Config.RangeInt(min = 0, max = 16)
+        public int expertHarvestFloor = 3;
     }
 
     public static class ReskillableGathering {
