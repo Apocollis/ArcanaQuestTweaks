@@ -1,6 +1,6 @@
 # Stamina module (1.8)
 
-Last updated: 2026-09-03.
+Last updated: 2026-09-07.
 
 Config: `config/arcanaquesttweaks/aqtweaks_stamina.cfg`. Compile against **Elenai Dodge 2 Extended** (`ElenaiDodge2Extended-1.12.2-1.1.3.jar`). Forge modid is still `elenaidodge2`.
 
@@ -10,7 +10,7 @@ Creative and spectator players are skipped everywhere. Spectator is not billed; 
 
 ## Locked intent
 
-Spend Elenai feathers for jump, melee, bow, throwing, climb, ledge mantle, shield, mine, glider, grapple, and DSS skills. Gate those actions when the pool cannot pay. Do **not** replace Elenai regen, dodge, or HUD icons. Do **not** post `SpendFeatherEvent`.
+Spend Elenai feathers for jump, sprint, melee, bow, throwing, climb, ledge mantle, shield, mine, glider, grapple, and DSS skills. Gate those actions when the pool cannot pay. Do **not** replace Elenai regen, dodge, or HUD icons. Do **not** post `SpendFeatherEvent`.
 
 Optional parents: Grapple motor Ember, Open Glider undeploy, Reskillable Armor Mastery / Mining Efficiency (perk **ids only** — this jar does not register those unlockables; per-level drip is [reskillable.md](reskillable.md)), Simple Difficulty thirst on feather regen.
 
@@ -110,6 +110,7 @@ Tune in cfg unless noted. Interval `20` = once per second.
 | Action | Enable | Cost | Interval | Empty / fail |
 | --- | --- | --- | --- | --- |
 | Jump | `enableJumpCost` | 1 | per jump | If below `jumpThreshold` (1): `motionY = 0` |
+| Sprint | `enableSprintCost` | 1 | 20 | If below `sprintThreshold` (2): `setSprinting(false)` + sprint key up |
 | Melee light | `enableAttackCost` | 1 | connecting hit (and block-punch swing) | Drain remaining usable; next hurt × `0.8` |
 | Melee medium | | 2 | | remaining; × `0.5` |
 | Melee heavy | | 4 | | remaining; × `0.3` |
@@ -143,7 +144,7 @@ DSS default list is every stock skill `=0`. Change `Skill Costs` in cfg; no rebu
 | Event | Handler | What happens |
 | --- | --- | --- |
 | `EntityJoinWorldEvent` HIGHEST/LOWEST | `StaminaModule` | Clear/restore Elenai weight array. Thrown-entity intercept is a **no-op** (release is billed on `ItemUseStop`) |
-| `TickEvent.PlayerTickEvent` START | `StaminaModule` | Bow hold, throw hold, climb, grapple, glider, shield, mining fatigue, thirst-on-regen |
+| `TickEvent.PlayerTickEvent` START | `StaminaModule` | Bow hold, throw hold, climb, grapple, glider, sprint, shield, mining fatigue, thirst-on-regen |
 | `LivingJumpEvent` | | Spend jump or zero `motionY` |
 | `AttackEntityEvent` | | Melee spend or drain + `StaminaTweaksAttackPenalty` |
 | `PlayerInteractEvent.LeftClickBlock` | | Melee spend if enough (block punch). **No** remaining-drain / penalty |
@@ -154,7 +155,7 @@ DSS default list is every stock skill `=0`. Change `Skill Costs` in cfg; no rebu
 | `LivingEntityUseItemEvent.Stop` | | Throw release or cancel |
 | `BlockEvent.BreakEvent` | | Mining spend (break is not cancelled) |
 | `PlayerRespawnEvent` | | `increaseFeathers` to max (not `fillFeathers`) |
-| `TickEvent.PlayerTickEvent` START (client, local) | `StaminaModuleClient` | Weight restore; climb jump packet + client slide; ledge state machine |
+| `TickEvent.PlayerTickEvent` START (client, local) | `StaminaModuleClient` | Weight restore; climb jump packet + client slide; ledge state machine; sprint cancel |
 | `InputUpdateEvent` LOWEST (client) | | Grapple packet |
 | `InputUpdateEvent` NORMAL (client) | | Climb: clear jump/sneak when empty so vanilla doesn’t keep climbing |
 | `TickEvent.ClientTickEvent` END LOWEST | | Armor Mastery: sync reduced weight via Elenai `SWeightMessage` |
@@ -173,6 +174,10 @@ Toughness Bar overlay (armor column, LTR) is the [client module](client.md), not
 ### Jump
 
 `LivingJumpEvent`, server. Enough for `jumpThreshold` → spend `jumpCost`. Else `motionY = 0`. Threshold and cost can differ (defaults both 1).
+
+### Sprint
+
+Replaces Universal Tweaks `UTED2Sprinting`. Server: while `isSprinting`, NBT `StaminaTweaksSprintTicks`; at `sprintInterval` spend `sprintCost` if `hasEnoughStamina(cost)`, else cancel sprint. Below `sprintThreshold` cancel immediately (no spend). Timer resets when not sprinting. Client: same threshold → `setSprinting(false)` and sprint key up. Creative/spectator skipped. Armor Mastery / Endurance apply via `Reflect.getWeight`. Keep UT sprint consumption and requirement at 0 (leave UT interval at 20 so `% 0` cannot throw if their handler still runs).
 
 ### Melee
 
@@ -250,6 +255,10 @@ All live unless noted. Nested Forge categories.
 | Enable Jump Stamina Cost | true | |
 | Jump Feather Cost | 1 | |
 | Jump Threshold | 1 | Min to allow jump |
+| Enable Sprint Stamina Cost | true | Replaces Universal Tweaks Elenai sprint spend |
+| Sprint Feather Cost | 1 | Per interval while `isSprinting` |
+| Sprint Tick Interval | 20 | Per-player sprint ticks, not `ticksExisted % N` |
+| Sprint Threshold | 2 | `hasEnoughStamina` to start/keep (Tweaks weight + absorption) |
 | Enable Bow Stamina Cost | true | Draw + hold |
 | Bow Draw Cost | 2 | |
 | Bow Hold Tick Interval | 20 | |
@@ -372,12 +381,13 @@ Tweaks `ClientTickEvent` END LOWEST wrote `Reflect.getWeight` (armor + Lightweig
 - Do not treat pendulum upswing as climb. Hang↔swing must not reset the stamina timer.
 - Motor Ember on **both** sides (server consume + client mixin). Empty Ember must not unhook. Empty stamina must not unhook on descend or grounded-without-motor.
 - `hasEnoughStamina` must keep absorption-then-usable-after-weight. Armor Mastery must affect `getWeight` and the client `SWeightMessage` sync. Endurance `(amp+1)×4` must still apply with Mastery; Weight potion 200 must not be overwritten.
+- Sprint uses Tweaks `hasEnoughStamina` and a sprint-only interval. Keep Universal Tweaks **Sprinting Feather Consumption** and **Requirement** at **0** so feathers are not billed twice. Hunger sprint threshold is a different UT tweak.
 - Ledge grace / jump packet must keep `fallOnDepleted` from cancelling a mantle.
 - Mining break is never cancelled. Fatigue uses **regular** feathers.
 
 ## Verify
 
-**Combat / tools:** jump costs 1 and blocks at 0; sword 2, axe 4, dagger 1; empty-hand punch is light **on a hit**; short-stamina **hit** deals reduced damage once; bow 2 on draw + hold (hold may tick twice); throw hold slower than bow, 1 on release; shield 1/s then drops; break stone 1, ore 2; Fatigue III at ≤ 2 full feathers; glider 1/s then folds; DSS with cost > 0 spends and blocks when empty; hunger not also drained if replace exhaustion is on.
+**Combat / tools:** jump costs 1 and blocks at 0; sprint 1/s and stops below 2 usable (Tweaks weight); sword 2, axe 4, dagger 1; empty-hand punch is light **on a hit**; short-stamina **hit** deals reduced damage once; bow 2 on draw + hold (hold may tick twice); throw hold slower than bow, 1 on release; shield 1/s then drops; break stone 1, ore 2; Fatigue III at ≤ 2 full feathers; glider 1/s then folds; DSS with cost > 0 spends and blocks when empty; hunger not also drained if replace exhaustion is on.
 
 **Climb / ledge:** ladder 1/s up, cling half rate, slide free; empty slides; jump+forward mantle 2 and does not fight slide.
 

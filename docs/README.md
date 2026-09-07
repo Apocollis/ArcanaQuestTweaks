@@ -158,7 +158,7 @@ When hooking a new parent (or a new mixin on an existing one):
 ## Workflow (always)
 
 1. Investigate read-only.
-2. Write `implementation_plan.md`, also put the plan in chat.
+2. Write `.cursor/plans/YYYYMMDD-HHmm-<kebab-task>.md` (never repo-root `implementation_plan.md`), also put the plan in chat. Delete that file when the chat’s work is finished.
 3. Wait for explicit `proceed`.
 4. Implement, then `.\build_gradle.ps1` unless told not to rebuild. Portable compile: `.\gradlew.bat build`. That path already sets `--release 21`. Never drop that flag. Details: [build-and-release.md](build-and-release.md).
 

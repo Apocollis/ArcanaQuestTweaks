@@ -105,6 +105,21 @@ public class StaminaModuleClient {
             }
             handleClientClimbing((net.minecraft.client.entity.EntityPlayerSP) player);
             handleClientLedgeClimbing((net.minecraft.client.entity.EntityPlayerSP) player);
+            handleClientSprinting((net.minecraft.client.entity.EntityPlayerSP) player);
+        }
+    }
+
+    @SideOnly(Side.CLIENT)
+    private void handleClientSprinting(net.minecraft.client.entity.EntityPlayerSP player) {
+        if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.sprinting.enableSprintCost) return;
+
+        int threshold = ArcanaQuestTweaksConfig.StaminaModuleConfig.sprinting.sprintThreshold;
+        if (Reflect.hasEnoughStamina(player, threshold)) return;
+
+        Reflect.setSprinting(player, false);
+        Minecraft mc = Reflect.getMinecraft();
+        if (mc != null && mc.gameSettings != null) {
+            net.minecraft.client.settings.KeyBinding.setKeyBindState(mc.gameSettings.keyBindSprint.getKeyCode(), false);
         }
     }
 

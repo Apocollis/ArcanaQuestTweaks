@@ -188,6 +188,7 @@ public class StaminaModule {
             handleServerClimbing(playerMP);
             handleServerGrappling(playerMP);
             handleServerGliding(playerMP);
+            handleServerSprinting(playerMP);
             handleServerShieldBlocking(playerMP);
 
             // Mining Fatigue exhaustion check
@@ -531,6 +532,39 @@ public class StaminaModule {
                 Reflect.setInteger(pData, "StaminaTweaksGliderTicks", 0);
             }
         }
+    }
+
+    private void handleServerSprinting(EntityPlayerMP player) {
+        if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.sprinting.enableSprintCost) return;
+
+        NBTTagCompound pData = Reflect.getEntityData(player);
+        if (!Reflect.isSprinting(player)) {
+            if (Reflect.getInteger(pData, "StaminaTweaksSprintTicks") > 0) {
+                Reflect.setInteger(pData, "StaminaTweaksSprintTicks", 0);
+            }
+            return;
+        }
+
+        int threshold = ArcanaQuestTweaksConfig.StaminaModuleConfig.sprinting.sprintThreshold;
+        if (!Reflect.hasEnoughStamina(player, threshold)) {
+            Reflect.setSprinting(player, false);
+            Reflect.setInteger(pData, "StaminaTweaksSprintTicks", 0);
+            return;
+        }
+
+        int ticks = Reflect.getInteger(pData, "StaminaTweaksSprintTicks") + 1;
+        int interval = ArcanaQuestTweaksConfig.StaminaModuleConfig.sprinting.sprintInterval;
+        int cost = ArcanaQuestTweaksConfig.StaminaModuleConfig.sprinting.sprintCost;
+
+        if (ticks >= interval) {
+            if (cost > 0 && Reflect.hasEnoughStamina(player, cost)) {
+                FeathersHelper.decreaseFeathers(player, cost);
+            } else if (cost > 0) {
+                Reflect.setSprinting(player, false);
+            }
+            ticks = 0;
+        }
+        Reflect.setInteger(pData, "StaminaTweaksSprintTicks", ticks);
     }
 
     @SubscribeEvent

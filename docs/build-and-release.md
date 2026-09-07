@@ -75,7 +75,7 @@ In-game cfg change: `ConfigChangedEvent` → `ConfigManager.sync` + `DssSkillCos
 
 ## Agent / human workflow
 
-1. Plan in `implementation_plan.md`, wait for `proceed`.
+1. Plan in `.cursor/plans/YYYYMMDD-HHmm-<kebab-task>.md` (never repo-root `implementation_plan.md`), wait for `proceed`. Delete that file when the work is finished.
 2. Implement.
 3. Default: run `.\build_gradle.ps1` (deploy). Skip only if told not to rebuild (docs-only, etc.).
 4. Worldgen: test **new chunks**.

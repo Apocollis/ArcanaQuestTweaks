@@ -17,6 +17,10 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Configure jumping stamina consumption")
         public static final Jumping jumping = new Jumping();
 
+        @Config.Name("Sprinting")
+        @Config.Comment("Configure sprinting stamina consumption")
+        public static final Sprinting sprinting = new Sprinting();
+
         @Config.Name("Bow Drawing")
         @Config.Comment("Configure bow-drawing stamina consumption")
         public static final BowDrawing bowDrawing = new BowDrawing();
@@ -80,6 +84,27 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Minimum feathers required to jump. If below this, jump will be blocked/reduced.")
         @Config.RangeInt(min = 0)
         public int jumpThreshold = 1;
+    }
+
+    public static class Sprinting {
+        @Config.Name("Enable Sprint Stamina Cost")
+        @Config.Comment("Does sprinting consume stamina?")
+        public boolean enableSprintCost = true;
+
+        @Config.Name("Sprint Feather Cost")
+        @Config.Comment("Feather cost (in half-feathers) per sprint interval")
+        @Config.RangeInt(min = 0)
+        public int sprintCost = 1;
+
+        @Config.Name("Sprint Tick Interval")
+        @Config.Comment("Ticks between feather consumption while sprinting (20 ticks = 1 second)")
+        @Config.RangeInt(min = 1)
+        public int sprintInterval = 20;
+
+        @Config.Name("Sprint Threshold")
+        @Config.Comment("Minimum usable half-feathers (after weight, via hasEnoughStamina) to start or keep sprinting")
+        @Config.RangeInt(min = 0)
+        public int sprintThreshold = 2;
     }
 
     public static class BowDrawing {
