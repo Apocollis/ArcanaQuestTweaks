@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 import net.minecraft.entity.EntityList;
 import net.minecraft.entity.EntityLiving;
+import net.minecraft.entity.EnumCreatureType;
 import net.minecraft.entity.monster.IMob;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.World;
@@ -29,6 +30,29 @@ public final class SpawnGroupSizes {
 
     public static boolean fillPackSize() {
         return moduleEnabled() && SpawningModuleConfig.general.fillPackSize;
+    }
+
+    /**
+     * Value for {@code findChunksForSpawning} only. Must not call {@code getMaxNumberOfCreature()}
+     * (that invoke is redirected). Vanilla: MONSTER 70, CREATURE 10, AMBIENT 15, WATER 5.
+     */
+    public static int capForFindChunks(EnumCreatureType type) {
+        if (type == EnumCreatureType.MONSTER) {
+            if (!moduleEnabled()) {
+                return 70;
+            }
+            return Math.max(1, SpawningModuleConfig.general.hostileMobCap);
+        }
+        if (type == EnumCreatureType.CREATURE) {
+            return 10;
+        }
+        if (type == EnumCreatureType.AMBIENT) {
+            return 15;
+        }
+        if (type == EnumCreatureType.WATER_CREATURE) {
+            return 5;
+        }
+        return 15;
     }
 
     public static boolean appliesTo(World world, EntityLiving living) {

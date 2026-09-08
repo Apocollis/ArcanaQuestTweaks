@@ -17,6 +17,11 @@ import net.minecraftforge.fml.common.eventhandler.Event;
 
 public final class SpawnPackFiller {
 
+    @FunctionalInterface
+    public interface ExtraFactory {
+        EntityLiving create(World world) throws Exception;
+    }
+
     private SpawnPackFiller() {}
 
     public static boolean ownsVanillaRemainder(EntityLiving living) {
@@ -27,6 +32,19 @@ public final class SpawnPackFiller {
         if (living == null || SpawnPackContext.filling() || !SpawnPackContext.inSpawner()) {
             return;
         }
+        if (!SpawnGroupSizes.moduleEnabled()) {
+            return;
+        }
+        SpawnPackContext.setFilling(true);
+        try {
+            fillSameSpecies(living);
+            SpawnParties.tryAfterLeader(living);
+        } finally {
+            SpawnPackContext.setFilling(false);
+        }
+    }
+
+    private static void fillSameSpecies(EntityLiving living) {
         World world = living.world;
         if (!SpawnGroupSizes.appliesTo(world, living)) {
             return;
@@ -40,20 +58,24 @@ public final class SpawnPackFiller {
         if (target <= 1) {
             return;
         }
-        SpawnPackContext.setFilling(true);
-        try {
-            fill(world, entry, living, target - 1);
-        } finally {
-            SpawnPackContext.setFilling(false);
-        }
+        placeNearby(world, living, target - 1, entry.entityClass, w -> entry.newInstance(w), false);
     }
 
-    private static void fill(World world, Biome.SpawnListEntry entry, EntityLiving first, int need) {
+    /**
+     * @param skipIfLayerStrips when true, skip a candidate pos if {@link SpawnLayerFilter} would
+     *                          drop this id there (mixed-group companions).
+     */
+    public static int placeNearby(World world, EntityLiving first, int need,
+                                  Class<? extends net.minecraft.entity.Entity> spawnClass, ExtraFactory factory,
+                                  boolean skipIfLayerStrips) {
+        if (world == null || first == null || factory == null || spawnClass == null || need <= 0) {
+            return 0;
+        }
         var general = SpawningModuleConfig.general;
         int attempts = Math.max(1, general.maxExtraAttempts);
         int radius = Math.max(1, general.packRadius);
         int yRange = Math.max(0, general.yRange);
-        EntityLiving.SpawnPlacementType placement = EntitySpawnPlacementRegistry.getPlacementForEntity(entry.entityClass);
+        EntityLiving.SpawnPlacementType placement = EntitySpawnPlacementRegistry.getPlacementForEntity(spawnClass);
         EnumCreatureType type = first instanceof IMob ? EnumCreatureType.MONSTER : EnumCreatureType.CREATURE;
         double minPlayer = type == EnumCreatureType.MONSTER
                 ? GeneralConfiguration.MIN_PLAYER_MONSTER_SPAWN_DISTANCE
@@ -80,9 +102,16 @@ public final class SpawnPackFiller {
                 }
                 EntityLiving extra;
                 try {
-                    extra = entry.newInstance(world);
+                    extra = factory.create(world);
                 } catch (Exception e) {
-                    return;
+                    return spawned;
+                }
+                if (extra == null) {
+                    return spawned;
+                }
+                if (skipIfLayerStrips && SpawnLayerFilter.wouldStrip(world, pos, extra)) {
+                    extra.setDead();
+                    continue;
                 }
                 extra.setLocationAndAngles(px, y, pz, world.rand.nextFloat() * 360.0F, 0.0F);
                 Event.Result canSpawn = ForgeEventFactory.canEntitySpawn(extra, world, (float) px, y, (float) pz, false);
@@ -106,5 +135,6 @@ public final class SpawnPackFiller {
                 }
             }
         }
+        return spawned;
     }
 }

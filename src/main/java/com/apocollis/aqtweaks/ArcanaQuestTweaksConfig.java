@@ -926,7 +926,7 @@ public class ArcanaQuestTweaksConfig {
 
     public static class SpawningGeneral {
         @Config.Name("Enable Spawning Module")
-        @Config.Comment("Master switch. When false, PotentialSpawns is not filtered and pack fill is off.")
+        @Config.Comment("Master switch. When false, PotentialSpawns is not filtered, pack fill and mixed groups are off, and the hostile cap is vanilla 70.")
         public boolean enable = true;
 
         @Config.Name("Filter Potential Spawns")
@@ -984,6 +984,19 @@ public class ArcanaQuestTweaksConfig {
         public String[] groupSizeOverrides = new String[] {
             "grimoireofgaia:goblin_feral=3-5"
         };
+
+        @Config.Name("Enable Mixed Groups")
+        @Config.Comment("After a natural ticking spawn, place companions from pack JSON. Cage spawners and TC portals never trigger this.")
+        public boolean enableMixedGroups = true;
+
+        @Config.Name("Spawn Parties File")
+        @Config.Comment("Pack JSON under the Forge config directory. Tweaks does not ship or write this file. Missing file turns mixed groups off.")
+        public String spawnPartiesFile = "arcanaquest/mob_spawnparties.json";
+
+        @Config.Name("Hostile Mob Cap")
+        @Config.Comment("EnumCreatureType.MONSTER max used by findChunksForSpawning. Vanilla is 70. Does not affect animals, water, ambient, cage spawners, or TC portals.")
+        @Config.RangeInt(min = 1, max = 1000)
+        public int hostileMobCap = 200;
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_reskillable", category = "")
@@ -1143,6 +1156,7 @@ public class ArcanaQuestTweaksConfig {
                 ConfigManager.sync(ArcanaQuestTweaks.MODID, Config.Type.INSTANCE);
                 DssSkillCosts.invalidate();
                 com.apocollis.aqtweaks.spawning.SpawnTypeLists.reload();
+                com.apocollis.aqtweaks.spawning.SpawnParties.reload();
                 com.apocollis.aqtweaks.spawning.SpawnGroupSizes.invalidate();
                 if (net.minecraftforge.fml.common.Loader.isModLoaded("reskillable")) {
                     com.apocollis.aqtweaks.reskillable.ReskillableModule.restampOnlinePlayers();

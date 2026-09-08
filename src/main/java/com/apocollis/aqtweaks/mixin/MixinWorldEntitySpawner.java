@@ -2,6 +2,7 @@ package com.apocollis.aqtweaks.mixin;
 
 import com.apocollis.aqtweaks.spawning.SpawnPackContext;
 import com.apocollis.aqtweaks.spawning.SpawnPackFiller;
+import com.apocollis.aqtweaks.spawning.SpawnGroupSizes;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.EnumCreatureType;
@@ -56,5 +57,11 @@ public class MixinWorldEntitySpawner {
             return 1;
         }
         return ForgeEventFactory.getMaxSpawnPackSize(entity);
+    }
+
+    @Redirect(method = "findChunksForSpawning", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/entity/EnumCreatureType;getMaxNumberOfCreature()I"))
+    private int aqtweaks$hostileMobCap(EnumCreatureType type) {
+        return SpawnGroupSizes.capForFindChunks(type);
     }
 }

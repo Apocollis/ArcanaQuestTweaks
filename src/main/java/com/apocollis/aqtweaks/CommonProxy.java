@@ -33,6 +33,7 @@ public class CommonProxy {
         ComfortConfigLoader.load(event.getModConfigurationDirectory());
         GaiaDamageConfig.load(event.getModConfigurationDirectory());
         com.apocollis.aqtweaks.spawning.SpawnTypeLists.load(event.getModConfigurationDirectory());
+        com.apocollis.aqtweaks.spawning.SpawnParties.load(event.getModConfigurationDirectory());
         com.apocollis.aqtweaks.portal.PortalModule.preInit();
         if (net.minecraftforge.fml.common.Loader.isModLoaded("reskillable")) {
             com.apocollis.aqtweaks.reskillable.ReskillablePerkRegistry.preInit();

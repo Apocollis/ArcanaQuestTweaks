@@ -63,7 +63,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 **preInit**
 
 - Register SimpleNetworkWrapper messages 0–2 (stamina climb/grapple). See [stamina.md](stamina.md).
-- `ComfortConfigLoader.load`, `GaiaDamageConfig.load`, and `SpawnTypeLists.load` from the Forge config directory.
+- `ComfortConfigLoader.load`, `GaiaDamageConfig.load`, `SpawnTypeLists.load`, and `SpawnParties.load` from the Forge config directory.
 - `PortalModule.preInit` (`ForgeChunkManager` callback). Item/entity register via `RegistryEvent` (not init).
 - If `reskillable`: `ReskillablePerkRegistry` (Unlockable `RegistryEvent`).
 
@@ -137,9 +137,9 @@ Forge `@Config` on nested classes in `ArcanaQuestTweaksConfig`. Comfort is JSON,
 | `aqtweaks_comfort_settings.json` | `ComfortConfigLoader` (not `@Config`) |
 | `aqtweaks_comfort_blocks.json` | `ComfortConfigLoader` (not `@Config`) |
 
-`ConfigEventHandler` runs `ConfigManager.sync` on any `aqtweaks` cfg change, invalidates DSS skill-cost cache, reloads spawn-type JSON, rebuilds spawn group overrides, and restamps Reskillable attributes if that mod is loaded. Existing instance files keep old keys when Java defaults change.
+`ConfigEventHandler` runs `ConfigManager.sync` on any `aqtweaks` cfg change, invalidates DSS skill-cost cache, reloads spawn-type and spawn-party JSON, rebuilds spawn group overrides, and restamps Reskillable attributes if that mod is loaded. Existing instance files keep old keys when Java defaults change.
 
-Pack-owned (not Tweaks): `config/arcanaquest/mob_overworldspawntype.json` — surface/underground id lists for the [spawning](spawning.md) filter.
+Pack-owned (not Tweaks): `config/arcanaquest/mob_overworldspawntype.json` (surface/underground ids) and `config/arcanaquest/mob_spawnparties.json` (mixed groups) for the [spawning](spawning.md) module.
 
 ### `util/Reflect.java`
 
