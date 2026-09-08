@@ -8,7 +8,9 @@ Mod: `aqtweaks`. Minecraft 1.12.2 / CleanroomMC / Forge. Stay on **1.8** unless 
 
 **Always compile as Java 21.** Gradle toolchain may be JDK 25, but `JavaCompile` must keep `options.release = 21` (class major 65). Do not emit Java 22+ bytecode. Mixin/Fugue will refuse class version 66+. Details: [build-and-release.md](build-and-release.md).
 
-`aqtweaks` is a **tweak layer**. Parent mods still own their systems. Tweaks listens to Forge events, calls public APIs (`FeathersHelper`, Thaumcraft warp caps, Bewitchment `Ritual`), or mixins parent methods when events are not enough. Vanilla calls inside `remap = false` mixins go through `Reflect` — see below.
+`aqtweaks` is a **tweak layer** for the **Arcana Quest pack**, not a standalone optional-mod product. The pack is expected to ship required parents (DEVBOX + `libs/`). If you need a parent class or method, **compile-hard** (`import` + jar on the classpath). Do not add `Reflect` wrappers just to avoid a compile dependency. Mixin json `required: false` only skips that json at **load** if the jar is missing; it does not forbid compiling against it.
+
+Parent mods still own their systems. Tweaks listens to Forge events, calls public APIs (`FeathersHelper`, Thaumcraft warp caps, Bewitchment `Ritual`), or mixins parent methods when events are not enough. Vanilla calls inside `remap = false` mixins go through `Reflect` — see below.
 
 ## Module docs
 
@@ -41,7 +43,7 @@ Astral surface shrines, Bewitchment Cambion houses, and Mystical World thatch hu
 
 `ArcanaQuestTweaks` declares:
 
-`required-after:elenaidodge2;after:grimoireofgaia;after:thaumcraft;after:bewitchment;after:grapplemod;after:embers;after:reskillable;after:effortlessbuilding`
+`required-after:elenaidodge2;after:incontrol;after:grimoireofgaia;after:thaumcraft;after:bewitchment;after:grapplemod;after:embers;after:reskillable;after:effortlessbuilding`
 
 That is **not** the full parent list. Soft parents that Tweaks mixins or events against, without `after:` / `required-after:`:
 
@@ -54,7 +56,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 | Roguelike Dungeons Arcana | Thaumcraft dungeon warp via `isInsideStructure("RoguelikeDungeon")` | Dungeon exposure never matches |
 | Reskillable | Per-level bonuses + stamina perk id lookup | Module not registered; stamina `hasUnlockable` no-ops |
 | Effortless Building | Building skill place-reach / max blocks | Mixin json skipped; Building drip unused |
-| InControl | Spawning pool filter (event after InControl) | Filter still runs on vanilla+Gaia lists if JSON exists |
+| InControl | Spawning layer filter + pack fill (compile-hard min-distance) | Missing jar fails compile; pack always ships it |
 
 ### Init (`CommonProxy` / `ClientProxy`)
 
@@ -106,7 +108,7 @@ Vanilla `World` is already loaded when late mixins prepare. Portal glowstone lig
 `mixins.aqtweaks.json` contents (package `com.apocollis.aqtweaks.mixin`):
 
 - Client: `MixinRenderGlobal` (Depths hide sky)
-- Common: `MixinChunkProviderServer`, `depthsupdate.MixinDepthsCaveNoiseGenerator`, `cofh.MixinDistributionUniform`, `reccomplex.MixinRayMatcher`, `reccomplex.MixinGenericVillageCreationHandler`, Better Caves / RTG village mixins listed in [depths.md](depths.md) and [rtg.md](rtg.md), `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinWorldGenLakes`, `MixinMapGenVillageInside/Spawn/Start/World`, `MixinCraftingHelperFindFiles`. Charm paste: optional `mixins.aqtweaks.charm.json`. Portal `MixinWorldRiftLight` is in `mixins.aqtweaks.early.json`.
+- Common: `MixinChunkProviderServer`, `depthsupdate.MixinDepthsCaveNoiseGenerator`, `cofh.MixinDistributionUniform`, `reccomplex.MixinRayMatcher`, `reccomplex.MixinGenericVillageCreationHandler`, Better Caves / RTG village mixins listed in [depths.md](depths.md) and [rtg.md](rtg.md), `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinWorldGenLakes`, `MixinMapGenVillageInside/Spawn/Start/World`, `MixinCraftingHelperFindFiles`, `MixinWorldEntitySpawner`. Charm paste: optional `mixins.aqtweaks.charm.json`. Portal `MixinWorldRiftLight` is in `mixins.aqtweaks.early.json`.
 
 Two mixins target `ChunkGeneratorRTG` in that required json, in this order:
 
@@ -135,7 +137,7 @@ Forge `@Config` on nested classes in `ArcanaQuestTweaksConfig`. Comfort is JSON,
 | `aqtweaks_comfort_settings.json` | `ComfortConfigLoader` (not `@Config`) |
 | `aqtweaks_comfort_blocks.json` | `ComfortConfigLoader` (not `@Config`) |
 
-`ConfigEventHandler` runs `ConfigManager.sync` on any `aqtweaks` cfg change, invalidates DSS skill-cost cache, reloads spawn-type JSON, and restamps Reskillable attributes if that mod is loaded. Existing instance files keep old keys when Java defaults change.
+`ConfigEventHandler` runs `ConfigManager.sync` on any `aqtweaks` cfg change, invalidates DSS skill-cost cache, reloads spawn-type JSON, rebuilds spawn group overrides, and restamps Reskillable attributes if that mod is loaded. Existing instance files keep old keys when Java defaults change.
 
 Pack-owned (not Tweaks): `config/arcanaquest/mob_overworldspawntype.json` — surface/underground id lists for the [spawning](spawning.md) filter.
 
@@ -143,7 +145,7 @@ Pack-owned (not Tweaks): `config/arcanaquest/mob_overworldspawntype.json` — su
 
 Cached reflection for entity/world/block/NBT/sound/primer and soft-mod APIs (Elenai weight, Grapple, glider, thirst, Reskillable perk ids). Per-level Reskillable bonuses compile-hard the API in the [reskillable module](reskillable.md). Warp stays `ThaumcraftHelper` reflection; focus mixins compile-hard TC in [thaumcraft.md](thaumcraft.md).
 
-**Use Reflect** for vanilla member access inside **`remap = false` mixin bodies** (those strings are not remapped). Also use it for parent mods loaded only by reflection.
+**Use Reflect** for vanilla member access inside **`remap = false` mixin bodies** (those strings are not remapped). Pack parents: compile-hard their types when you need methods or classes.
 
 **Direct vanilla in Tweaks’ own classes is allowed.** Event handlers are remapped (`defaultRemapJar = true`). `DepthsFogHandler.entity.world` and `ThaumcraftModule` `getChunkProvider()` are not defects.
 
@@ -153,11 +155,11 @@ Do not add raw MCP names inside `remap = false` mixins.
 
 When hooking a new parent (or a new mixin on an existing one):
 
-1. **Classpath:** add the exact jar to `libs/` (and to `build_gradle.ps1` `$deps` if this machine should copy it). Update [compatibility-matrix.md](compatibility-matrix.md).
-2. **`@Mod`:** `required-after` only if Tweaks must not load without it. Otherwise `after:` or omit.
-3. **Mixin:** new json `required: false` unless the pack always ships the parent **and** missing it should crash. Register the json in `AQTweaksLateMixinLoader`. Mixin targets: SRG in vanilla, parent members as in that jar.
+1. **Classpath:** add the exact jar to `libs/` (and to `build_gradle.ps1` `$deps` if this machine should copy it). Update [compatibility-matrix.md](compatibility-matrix.md). **Compile-hard** that parent if you need its classes or methods.
+2. **`@Mod`:** `required-after` only if Tweaks must not load without it. Otherwise `after:` or omit. Pack mods can still be compile-hard without `required-after`.
+3. **Mixin:** new json `required: false` unless the pack always ships the parent **and** missing it should crash. Register the json in `AQTweaksLateMixinLoader`. Mixin targets: SRG in vanilla, parent members as in that jar. `required: false` is load-time skip, not “string-target only.”
 4. **Side:** client-only in the json `client` array or `@SideOnly`. Packets: `SimpleNetworkWrapper` side as today (stamina 0–2 are SERVER).
-5. **Absent parent:** `Loader.isModLoaded` or `required: false`. Do not `import` parent types from always-loaded classes if the mod is optional (Bewitchment `Ritual` is compile-hard because the handler only registers when loaded — still keep that class off the bus).
+5. **Absent parent:** `Loader.isModLoaded` or mixin json `required: false` so isolated boot can skip. Do not `import` parent types from **always-loaded** classes (Bewitchment `Ritual` is compile-hard on the handler that only registers when loaded — keep that class off the bus).
 6. **Config:** new `@Config` defaults; instance files **keep old keys**. Document live vs dead knobs in the module doc.
 7. **Verify:** add a row to [verification.md](verification.md). Worldgen → new chunks. Mixin vanilla calls → Reflect or remap.
 

@@ -27,6 +27,7 @@
     "MixinMapGenVillageSpawn",
     "MixinMapGenVillageStart",
     "MixinMapGenVillageWorld",
-    "MixinCraftingHelperFindFiles"
+    "MixinCraftingHelperFindFiles",
+    "MixinWorldEntitySpawner"
   ]
 }

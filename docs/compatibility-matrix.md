@@ -56,14 +56,14 @@ Jar names below are from the **Arcana Quest DEVBOX** instance on 2026-08-20 unle
 | `roguelike` / Arcana | DEVBOX `RoguelikeDungeons-Arcana-2.5.3.jar` | omitted | — | no | `isInsideStructure("RoguelikeDungeon")` | script lists **`RoguelikeDungeons-Arcana-1.12.2-2.5.0.jar`** (name mismatch → copy often skips) | thaumcraft | No Tweaks mixin on that method |
 | `biomesoplenty` | `BiomesOPlenty-1.12.2-7.0.1.2445-universal.jar` | omitted | optional `mixins.aqtweaks.biomesoplenty.json` | no (string target) | yes | **no** | comfort, rtg | Hot spring block; kelp/coral biome names; `MixinGeneratorLakes` skips village water/quicksand |
 | Forge | (Cleanroom) | — | **required** json | yes | always | — | [recipes.md](recipes.md) | `MixinCraftingHelperFindFiles`. Metallurgy/Spartan jars are runtime recipe trees, not Tweaks compile deps |
-| InControl | instance `incontrol-*.jar` | omitted | — | no | optional | **no** | [spawning.md](spawning.md) | No Tweaks mixin. `WorldEvent.PotentialSpawns` LOWEST after InControl. Lists from pack `config/arcanaquest/mob_overworldspawntype.json` |
+| InControl | `incontrol-1.12-3.10.4.jar` | **after** | vanilla spawner in **required** json | **yes** (`GeneralConfiguration`) | pack always | **yes** | [spawning.md](spawning.md) | Layer filter `PotentialSpawns` LOWEST. Pack fill: `MixinWorldEntitySpawner` only (not `WorldServer`). InControl’s own player-distance mixin stays |
 | `waystones` | `Waystones_1.12.2-4.1.0.jar` | omitted | — | no | village piece class name | **no** | rtg | Relocate same gazebo; Tweaks does not mixin Waystones |
 
-Vanilla `MapGenVillage` / `MapGenCaves` / `WorldGenLakes` / `ChunkProviderServer` / `RenderGlobal` are Forge/vanilla, not extra jars. `MixinWorldGenLakes` skips water (not lava) on the village pad.
+Vanilla `MapGenVillage` / `MapGenCaves` / `WorldGenLakes` / `ChunkProviderServer` / `RenderGlobal` / `WorldEntitySpawner` are Forge/vanilla, not extra jars. `MixinWorldGenLakes` skips water (not lava) on the village pad. `MixinWorldEntitySpawner` fills InControl pack sizes. Do not late-mixin `World` / `WorldServer`.
 
 ## `build_gradle.ps1` copy list vs contract
 
-**Copied if present:** Elenai Extended 1.1.3, Bewitchment, Roguelike **2.5.0 filename**, CoFH World, Better Caves, RC 2.0.0.9, IvToolkit, RTG 7.3.3.6, Astral 1.10.27, Mystical World 1.11.0, Grimoire of Gaia 1.7.2, Reskillable 1.13.1, Effortless Building 2.16, Thaumcraft 6.1 BETA26. Also **deletes** stale `ElenaiDodge2-1.12.2-1.1.0.jar` and `RecurrentComplexVolts-1.12.2-2.0.0.7.jar` from `libs/`.
+**Copied if present:** Elenai Extended 1.1.3, Bewitchment, Roguelike **2.5.0 filename**, CoFH World, Better Caves, RC 2.0.0.9, IvToolkit, RTG 7.3.3.6, Astral 1.10.27, Mystical World 1.11.0, Grimoire of Gaia 1.7.2, Reskillable 1.13.1, Effortless Building 2.16, Thaumcraft 6.1 BETA26, InControl **1.12-3.10.4**. Also **deletes** stale `ElenaiDodge2-1.12.2-1.1.0.jar` and `RecurrentComplexVolts-1.12.2-2.0.0.7.jar` from `libs/`.
 
 **Not copied (but needed to compile and/or mixin-apply):** Depths Update **a12**, Grapple, Embers, DSS, Simple Difficulty, BOP.
 

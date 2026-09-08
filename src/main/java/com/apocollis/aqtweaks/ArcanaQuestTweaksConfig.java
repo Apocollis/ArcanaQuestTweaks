@@ -926,7 +926,7 @@ public class ArcanaQuestTweaksConfig {
 
     public static class SpawningGeneral {
         @Config.Name("Enable Spawning Module")
-        @Config.Comment("Master switch. When false, PotentialSpawns is not filtered.")
+        @Config.Comment("Master switch. When false, PotentialSpawns is not filtered and pack fill is off.")
         public boolean enable = true;
 
         @Config.Name("Filter Potential Spawns")
@@ -954,6 +954,36 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Monster Only")
         @Config.Comment("Only EnumCreatureType.MONSTER. Animals, water, and ambient are unchanged.")
         public boolean monsterOnly = true;
+
+        @Config.Name("Fill Pack Size")
+        @Config.Comment("After the first ticking spawn, roll a pack size in [min, max] and place more of that mob nearby. Uses InControl group counts unless overridden.")
+        public boolean fillPackSize = true;
+
+        @Config.Name("Max Extra Attempts")
+        @Config.Comment("Placement tries (each with a Y scan) to finish a pack after the first mob.")
+        @Config.RangeInt(min = 1, max = 64)
+        public int maxExtraAttempts = 24;
+
+        @Config.Name("Pack Radius")
+        @Config.Comment("XZ radius around the first mob for extra members.")
+        @Config.RangeInt(min = 1, max = 16)
+        public int packRadius = 8;
+
+        @Config.Name("Y Range")
+        @Config.Comment("Vertical scan around the first mob so cave floors still fill when vanilla ΔY is 0.")
+        @Config.RangeInt(min = 0, max = 16)
+        public int yRange = 8;
+
+        @Config.Name("Group Size Cap")
+        @Config.Comment("Hard ceiling for rolled pack size and overrides.")
+        @Config.RangeInt(min = 1, max = 16)
+        public int groupSizeCap = 8;
+
+        @Config.Name("Group Size Overrides")
+        @Config.Comment("modid:path=min-max (or min,max). Overrides InControl group counts for that id. Delete a line to use InControl.")
+        public String[] groupSizeOverrides = new String[] {
+            "grimoireofgaia:goblin_feral=3-5"
+        };
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_reskillable", category = "")
@@ -1113,6 +1143,7 @@ public class ArcanaQuestTweaksConfig {
                 ConfigManager.sync(ArcanaQuestTweaks.MODID, Config.Type.INSTANCE);
                 DssSkillCosts.invalidate();
                 com.apocollis.aqtweaks.spawning.SpawnTypeLists.reload();
+                com.apocollis.aqtweaks.spawning.SpawnGroupSizes.invalidate();
                 if (net.minecraftforge.fml.common.Loader.isModLoaded("reskillable")) {
                     com.apocollis.aqtweaks.reskillable.ReskillableModule.restampOnlinePlayers();
                 }

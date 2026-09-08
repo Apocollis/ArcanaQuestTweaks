@@ -14,7 +14,7 @@ Worldgen applies to **new chunks only**.
 
 ## Boot
 
-- [ ] Client starts the full pack; no mixin apply crash from `mixins.aqtweaks.json` or `mixins.aqtweaks.early.json`. Log must not say `MixinWorldRiftLight` / `World was loaded too early`, or `MixinWorldGenLakes` / `field_150589_a was not located` / `WorldGenLakes in invalid classes`. Optional `mixins.aqtweaks.gaia.json` must not log `InvalidInjectionException` (vanilla INVOKEs must be MCP + `remap = true`; a miss boots anyway because `required: false`).
+- [ ] Client starts the full pack; no mixin apply crash from `mixins.aqtweaks.json` or `mixins.aqtweaks.early.json`. Log must not say `MixinWorldRiftLight` / `World was loaded too early`, `MixinWorldServerSpawnList` / `WorldServer was loaded too early`, or `MixinWorldGenLakes` / `field_150589_a was not located` / `WorldGenLakes in invalid classes`. Optional `mixins.aqtweaks.gaia.json` must not log `InvalidInjectionException` (vanilla INVOKEs must be MCP + `remap = true`; a miss boots anyway because `required: false`).
 - [ ] Mixin log does **not** say Tweaks mixins require class version 69 (Java 21 class files).
 - [ ] Wait through full JEI / ThaumicJEI / **TC6 Aspects 4 JEI** load. Title screen stays up. No `hs_err_pid*.log`.
 - [ ] Dedicated server: **not routinely tested** in this repo. If you ship a server, start one with the same mods and confirm it reaches “Done”.
@@ -39,7 +39,7 @@ These json files are `required: false`. Removing the parent should skip that jso
 
 ### Do not treat as optional
 
-Missing **RTG, Depths Update, Better Caves, CoFH World, Recurrent Complex, or IvToolkit** with the current required mixin json can **fail mixin apply** at boot. This pack always ships them. Elenai Extended is `@Mod` **required-after**.
+Missing **RTG, Depths Update, Better Caves, CoFH World, Recurrent Complex, or IvToolkit** with the current required mixin json can **fail mixin apply** at boot. This pack always ships them. Elenai Extended is `@Mod` **required-after**. InControl is `@Mod` **after** and compile-hard for pack fill.
 
 ## Config
 
@@ -104,7 +104,7 @@ Use the full list in [stamina.md](stamina.md) **Verify**. Minimum: jump costs/bl
 | Client | Toughness LTR above armor; iron pick shows Vanilla Tools stats; Metallurgy pick not duplicated |
 | Recipes | Pack boots without Metallurgy `generated/item/spartanweaponry` recipe spam |
 | Reskillable | Attack 16 → +2 damage; Mining Expert wood pick drops diamond ore; stamina perks on tree. Full list: [reskillable.md](reskillable.md) |
-| Spawning | Boot log loads `config/arcanaquest/mob_overworldspawntype.json`. Closed cave: dwarf/cave_spider/krake yes, Dryad/witch/Wildkin no, zombie/goblin still yes. Night surface: reverse exclusives; zombie still yes. Master off or JSON missing: no Tweaks strip. See [spawning.md](spawning.md) |
+| Spawning | Boot log loads `config/arcanaquest/mob_overworldspawntype.json`. Closed cave: dwarf/cave_spider/krake yes, Dryad/witch/Wildkin no, zombie/goblin still yes. Night surface: reverse exclusives; zombie still yes. InControl 2..4 packs are 2–4 together, not stuck at 1. Default `goblin_feral=3-5`. Fill Pack Size off: old singles. No mixin fail on `MixinWorldEntitySpawner`. See [spawning.md](spawning.md) |
 
 ## After mixin / parent bumps
 
