@@ -22,7 +22,7 @@ Do **not** put `seesky` / height on `potentialspawn.json`. Do **not** copy layer
 
 **Vanilla / Forge:** `getSpawnListEntryForTypeAt` → `getPossibleCreatures` → `PotentialSpawns` → `WeightedRandom`. Then 3 packs × 4 XZ tries (`ΔY` = 0). After a spawn, `ForgeEventFactory.getMaxSpawnPackSize` (`getMaxSpawnedInChunk()`, often 1) aborts the chunk. Hostile budget: `getMaxNumberOfCreature()` × eligible chunks / 289.
 
-**InControl:** writes `minGroupCount`/`maxGroupCount` on the entry; `spawn.json` deny does not reroll. Mixins player min-distance on the same spawner (`WorldEntitySpawnerMixin`). Tweaks uses `GeneralConfiguration.MIN_PLAYER_*_SPAWN_DISTANCE` for extra members. Per-mob `maxcount` is separate from the global MONSTER cap.
+**InControl:** **adds** `potentialspawn.json` rows onto the vanilla biome list (creeper 1–2, etc.) and does **not** delete vanilla 4–4. Tweaks then keeps the **last** row per entity class so fill and WeightedRandom use InControl group counts and weights. `spawn.json` deny does not reroll. Mixins player min-distance on the same spawner (`WorldEntitySpawnerMixin`). Tweaks uses `GeneralConfiguration.MIN_PLAYER_*_SPAWN_DISTANCE` for extra members. Per-mob `maxcount` is separate from the global MONSTER cap.
 
 **Pack JSON** `mob_overworldspawntype.json`: `{ "surface": [...], "underground": [...] }`.
 
@@ -37,13 +37,15 @@ Do **not** put `seesky` / height on `potentialspawn.json`. Do **not** copy layer
 
 ## How Tweaks hooks in
 
-**Layer filter:** `SpawnTypeLists.load` in preInit. `SpawnLayerFilter` on `PotentialSpawns` **LOWEST**. Cave pick: `Y < Cave Max Y` **and** sky light ≤ Max Cave Sky Light.
+**Layer filter:** `SpawnTypeLists.load` in preInit. `SpawnLayerFilter` on `PotentialSpawns` **LOWEST**: strip exclusive layer ids, then **one entry per entity class** (last wins = InControl append). Cave pick: `Y < Cave Max Y` **and** sky light ≤ Max Cave Sky Light.
 
 **Pack fill:** `MixinWorldEntitySpawner` only. ThreadLocal entry via Redirect of `getSpawnListEntryForTypeAt` while `findChunksForSpawning` runs. Redirect `spawnEntity`: after success, `SpawnPackFiller` extras then `SpawnParties`. Redirect `getMaxSpawnPackSize` → **1** when fill applies. Recursion guard while filling (`filling` also blocks companion parties from stacking).
 
 **Hostile cap:** Redirect `EnumCreatureType.getMaxNumberOfCreature()` in the same mixin. MONSTER → cfg (default 200). Other types stay vanilla 10 / 15 / 5. Do **not** call `getMaxNumberOfCreature()` from that redirect (recursion). Cage spawners and TC portals unused.
 
-Range: cfg override `modid:path=min-max`, else entry min/max, clamp to Group Size Cap. `1..1` skips filler (still pack-size 1). Mixed groups still run if fill is skipped.
+Range: cfg override `modid:path=min-max`, else the **picked** entry after last-per-class (InControl append). Clamp to Group Size Cap. `1..1` skips filler (still pack-size 1). Mixed groups still run if fill is skipped.
+
+(`PotentialSpawnRule` extends McJty `RuleBase`, which is not on the Tweaks compile classpath; group counts are taken from the list InControl already wrote, not by iterating `RulesManager`.)
 
 ## Live config (`aqtweaks_spawning.cfg`)
 
@@ -73,7 +75,7 @@ JSON layer / parties files: edit needs **restart** (or a Tweaks cfg save to trig
 | Piece | Role |
 | --- | --- |
 | `spawning/SpawnTypeLists.java` | Pack JSON exclusive sets |
-| `spawning/SpawnLayerFilter.java` | `PotentialSpawns` LOWEST; cave test + strip for companions |
+| `spawning/SpawnLayerFilter.java` | `PotentialSpawns` LOWEST; layer strip; last-per-class (drop vanilla 4–4) |
 | `spawning/SpawnGroupSizes.java` | Overrides + roll target + findChunks cap |
 | `spawning/SpawnPackContext.java` | ThreadLocal pack entry |
 | `spawning/SpawnPackFiller.java` | Extra placements; InControl min-distance |
@@ -83,7 +85,7 @@ JSON layer / parties files: edit needs **restart** (or a Tweaks cfg save to trig
 
 ## Do not regress
 
-- Intersection ids on **both** layers. Unknown ids not stripped.
+- Intersection ids on **both** layers. Unknown ids not stripped. Duplicate vanilla+InControl rows: last (InControl) kept.
 - Forest Y≥60 under leaves stays surface pool.
 - Nether/End / non-MONSTER unchanged when those flags are on (layer filter / pack fill). Hostile **cap** still applies in every dim for MONSTER.
 - Rare `1..1` stays singles. Feral goblin default override 3–5 until the cfg line is removed.
@@ -93,4 +95,4 @@ JSON layer / parties files: edit needs **restart** (or a Tweaks cfg save to trig
 
 ## Verify
 
-Boot: `Loaded spawn types from …`; `Loaded N spawn parties from …` when JSON present. No mixin fail on `MixinWorldEntitySpawner` / `findChunksForSpawning`. Closed cave: dwarf/cave_spider/krake yes, Dryad/witch/Wildkin no. Night plains: InControl 2..4 husk/zombie packs of 2–4, not stuck at 1, not 5+. `goblin_feral` 3–5 when the first lands. Fill Pack Size off: old singles. Master off or JSON missing: no layer strip. Missing parties JSON: mixed groups off, no crash. Natural Overworld `thaumcraft:cultistcleric`: 2–3 knights + 2–3 CR archers (CheckSpawn / crimsoncult stage can still deny). Portal / cage cleric: no party. Hostile cap 200 lets natural MONSTER count exceed the old 70-scaled ceiling; cfg 70 restores vanilla. Animals/water/ambient caps unchanged.
+Boot: `Loaded spawn types from …`; `Loaded N spawn parties from …` when JSON present. No mixin fail on `MixinWorldEntitySpawner` / `findChunksForSpawning`. Closed cave: dwarf/cave_spider/krake yes, Dryad/witch/Wildkin no. Night plains: creeper packs 1–2 (not 4); enderman 1; zombie/skeleton/spider 2–4 mixed not always 4. `goblin_feral` 3–5 when the first lands. Fill Pack Size off: old singles. Master off or JSON missing: no layer strip (last-per-class still runs if the module is on). Missing parties JSON: mixed groups off, no crash. Natural Overworld `thaumcraft:cultistcleric`: 2–3 knights + 2–3 CR archers (CheckSpawn / crimsoncult stage can still deny). Portal / cage cleric: no party. Hostile cap 200 lets natural MONSTER count exceed the old 70-scaled ceiling; cfg 70 restores vanilla. Animals/water/ambient caps unchanged.

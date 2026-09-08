@@ -1,7 +1,9 @@
 package com.apocollis.aqtweaks.spawning;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig.SpawningModuleConfig;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import net.minecraft.entity.EntityList;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.EnumCreatureType;
@@ -23,7 +25,7 @@ public class SpawnLayerFilter {
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void onPotentialSpawns(WorldEvent.PotentialSpawns event) {
         var general = SpawningModuleConfig.general;
-        if (!general.enable || !general.filterPotentialSpawns || !SpawnTypeLists.ready()) {
+        if (!general.enable) {
             return;
         }
         World world = event.getWorld();
@@ -41,11 +43,32 @@ public class SpawnLayerFilter {
             return;
         }
         BlockPos pos = event.getPos();
-        if (pos == null) {
+        if (general.filterPotentialSpawns && SpawnTypeLists.ready() && pos != null) {
+            boolean cave = isCavePick(world, pos);
+            list.removeIf(entry -> shouldStrip(entry, cave));
+        }
+        keepLastPerClass(list);
+    }
+
+    /**
+     * InControl appends group-count rows and leaves vanilla 4–4 in place. Keep the last row per class.
+     */
+    private static void keepLastPerClass(List<Biome.SpawnListEntry> list) {
+        if (list.size() < 2) {
             return;
         }
-        boolean cave = isCavePick(world, pos);
-        list.removeIf(entry -> shouldStrip(entry, cave));
+        Map<Class<?>, Biome.SpawnListEntry> last = new LinkedHashMap<>();
+        for (Biome.SpawnListEntry entry : list) {
+            if (entry == null || entry.entityClass == null) {
+                continue;
+            }
+            last.put(entry.entityClass, entry);
+        }
+        if (last.isEmpty()) {
+            return;
+        }
+        list.clear();
+        list.addAll(last.values());
     }
 
     public static boolean isCavePick(World world, BlockPos pos) {

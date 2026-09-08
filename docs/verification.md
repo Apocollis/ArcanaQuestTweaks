@@ -104,7 +104,7 @@ Use the full list in [stamina.md](stamina.md) **Verify**. Minimum: jump costs/bl
 | Client | Toughness LTR above armor; iron pick shows Vanilla Tools stats; Metallurgy pick not duplicated |
 | Recipes | Pack boots without Metallurgy `generated/item/spartanweaponry` recipe spam |
 | Reskillable | Attack 16 → +2 damage; Mining Expert wood pick drops diamond ore; stamina perks on tree. Full list: [reskillable.md](reskillable.md) |
-| Spawning | Boot log loads `config/arcanaquest/mob_overworldspawntype.json` and `mob_spawnparties.json` when present. Closed cave: dwarf/cave_spider/krake yes, Dryad/witch/Wildkin no, zombie/goblin still yes. Night surface: reverse exclusives; zombie still yes. InControl 2..4 packs are 2–4 together, not stuck at 1. Default `goblin_feral=3-5`. Fill Pack Size off: old singles. Natural Overworld cleric: knights + CR archers; cage/portal cleric: no party. Hostile cap default 200. No mixin fail on `MixinWorldEntitySpawner`. See [spawning.md](spawning.md) |
+| Spawning | Boot log loads `config/arcanaquest/mob_overworldspawntype.json` and `mob_spawnparties.json` when present. Closed cave: dwarf/cave_spider/krake yes, Dryad/witch/Wildkin no, zombie/goblin still yes. Night surface: reverse exclusives; zombie still yes. Creeper packs 1–2 not 4; zombie/skeleton/spider 2–4 mixed. Default `goblin_feral=3-5`. Fill Pack Size off: old singles. Natural Overworld cleric: knights + CR archers; cage/portal cleric: no party. Hostile cap default 200. No mixin fail on `MixinWorldEntitySpawner`. See [spawning.md](spawning.md) |
 
 ## After mixin / parent bumps
 
