@@ -1,6 +1,6 @@
 # RTG module (1.8)
 
-Last updated: 2026-08-28, `MixinWorldGenLakes` remap true (`generate`) + lake-block field walk.
+Last updated: 2026-09-09, village `generateStructure` snapshot iterator + ocean well drop at populate.
 
 This is the RTG module: village flatten/placement, then post-terrain structure skip/settle. Locked intent, current pipeline, and why earlier approaches were dropped. Read this before changing village flatten, spawn veto, piece retry, or shrine/house/hut land settle.
 
@@ -58,7 +58,7 @@ Keep **what** villages create (vanilla pieces + Recurrent Complex, plus at most 
 - Mixin targets use SRG names. Do not use DeferredRegister / 1.16-style registries.
 - Village mixins live in **required** `mixins.aqtweaks.json` (Forge, RTG, Recurrent Complex assumed present). Astral / Cambion / Mystical hut mixins are **optional** json (`required: false`).
 - Two mixins target `ChunkGeneratorRTG`: village flatten **before** `generateTerrain` and pad **seal before `new Chunk`**; Depths Deepslate fill at **TAIL** of `generateTerrain` (Y min..-1, not Y=0). See [depths.md](depths.md). Do not merge them.
-- Player/world/block/primer access goes through `util/Reflect.java`. Landscape samples and structure boxes are not raw `World.getChunkProvider()`.
+- Player/world/block access in remapped Tweaks classes is direct vanilla (same as Comfort). `util/Reflect.java` is for `remap = false` mixin bodies, MapGen `structureMap` internals, and soft-mod APIs. Landscape samples still must not use raw `World.getChunkProvider()` when looking up RTG — use the stashed generator.
 
 ## Design plan (placement vs flatten)
 
@@ -68,7 +68,7 @@ Keep **what** villages create. Change **where** they start and **how RTG land un
 2. Sample plate Y from the well via live `ChunkGeneratorRTG.getLandscape`.
 3. Flatten `landscape.noise` under land boxes (houses, well, mixed/dry roads). Never write ocean/river except 1-block pad notches. Flooded swamp/lake **inside the hard pad** is raised to plate Y.
 4. RTG carves from that noise. Caves and ravines then punch the primer. Tweaks reseals shore-mask columns solid up to plate Y before `new Chunk`. Production method `func_185932_a` (`remap = false`).
-5. Populate places the same pieces. Wet houses/RC/shrine/waystone/paths retry inland; leftover ocean/river or mostly-lake paths are omitted. If layout missed, paste skips the building when the surface is still liquid. Water lakes whose blob overlaps the 12-pad are skipped (lava lakes are not). After paste in a chunk, Tweaks re-checks light at torch/lamp sources so flag-2 placements actually flood.
+5. Populate places the same pieces. Wet houses/RC/shrine/waystone/paths retry inland; leftover ocean/river or mostly-lake paths are omitted. If layout missed, paste skips the building (including the well) when every clipped column is never-raise. Nested chunk loads during paste iterate a **snapshot** of `components` so adding pad children or a second `generateStructure` cannot CME vanilla’s `LinkedList`. Water lakes whose blob overlaps the 12-pad are skipped (lava lakes are not). After paste in a chunk, Tweaks re-checks light at torch/lamp sources so flag-2 placements actually flood.
 
 Do not recarve old chunks. Do not veto a whole village because one building was wet. Do not treat a puddle on a path as a water bridge.
 
@@ -91,7 +91,7 @@ If we wait until populate, the land is already carved. So we:
 
 Layout must be cheap. `layoutVillageGrid` runs **once per chunk** at **RETURN** of RTG `getNewerNoise` (noise already filled), or at flatten if noise never ran, for the current chunk plus the **vanilla well chunk** of each nearby village cell (spacing from the map gen, UT default 25, radius 8 chunks). Nested `getLandscape` during flatten/plate samples increments `SAMPLING` so `getNewerNoise` does not layout again. Flatten writes `landscape.noise` **once** before `generateTerrain` (no second `ModifyArg` pass). The well is `cellOrigin + random(0, spacing - minTown)` with seed `setRandomSeed(cellX, cellZ, 10387312)`, not the cell origin. Generating only origins almost never created the `Start`, so hill-side chunks flattened as raw RTG and buildings stepped. It does **not** call `generate()` on all 289 neighbors. Do not layout at `func_185932_a` HEAD — noise is empty there and unknown-as-wet omitted every road.
 
-Flatten looks up `VillagePlate` records by **land-box overlap** first. Hit → flatten that chunk (no `rememberNearby`, no start-AABB scan). Miss → `ensureStarts` only if Tweaks’ list is empty, then `rememberNearby` on that miss, then `mergeStartAabbHits` only if land boxes still miss. Seal uses land/shrine overlap only (flatten already ran this chunk). They do **not** walk every Start in `structureMap` on wilderness. Mixin well-walk **replaces** the Record for that **well chunk**. `forgetRejectedStarts` caches kept well chunks this session so inland towns are not re-vetted on every chunk. `rememberAll` never overwrites a walked well. A chunk inside the start AABB with no land-box hit is an empty corner or omitted dock — not a hull flatten. Public `isNeverRaiseAt` does **not** read the land-box landscape ThreadLocal (that cache is only for `landBoxesOf` / `wetFraction`). RTG already caches `getLandscape`. `landBoxesOf` still omits a road only when its full AABB is flooded (`isAabbFullyFlooded`).
+Flatten looks up `VillagePlate` records by **land-box overlap** first. Hit → flatten that chunk (no `rememberNearby`, no start-AABB scan). Miss → `ensureStarts` only if Tweaks’ list is empty, then `rememberNearby` on that miss, then `mergeStartAabbHits` only if land boxes still miss. Seal uses land/shrine overlap only (flatten already ran this chunk). They do **not** walk every Start in `structureMap` on wilderness. Mixin well-walk **replaces** the Record for that **well chunk**. `forgetRejectedStarts` does **not** cache kept wells while `layoutVillageGrid` is running (layout landscape can still look dry). Inland towns are cached on populate (`relocateOrDropWetWell`) or on a later non-layout forget pass. `rememberAll` never overwrites a walked well. A chunk inside the start AABB with no land-box hit is an empty corner or omitted dock — not a hull flatten. Public `isNeverRaiseAt` does **not** read the land-box landscape ThreadLocal (that cache is only for `landBoxesOf` / `wetFraction`). RTG already caches `getLandscape`. `landBoxesOf` still omits a road only when its full AABB is flooded (`isAabbFullyFlooded`).
 
 ## File map
 
@@ -112,7 +112,7 @@ Flatten looks up `VillagePlate` records by **land-box overlap** first. Hit → f
 | `rtg/CommandAqVillage.java` | OP `/aqvillage` (level 2): TP on generated ground ~6 off the well; prefers unexplored. Miss logs provider/generator to `latest.log` |
 | `mixin/MixinStructureVillagePieces.java` | House skip/retry inland on water; waystone relocates inland as the same piece; wet paths retry inland then omit |
 | `rtg/VillageRelight.java` | After village paste in a chunk, `checkLight` at emitting blocks in the clip |
-| `mixin/MixinStructureStartVillagePaste.java` | Populate abort on ocean/river floor; stamp `AQTVillagePlate`; relight clip |
+| `mixin/MixinStructureStartVillagePaste.java` | Snapshot `components` iterator; drop/walk ocean well at paste HEAD; populate abort on ocean/river floor (incl. well); stamp `AQTVillagePlate`; relight clip |
 | `mixin/charm/MixinASMHooksVillagePaste.java` | Same abort on Charm `ASMHooks.addComponentParts` (optional `mixins.aqtweaks.charm.json`) |
 | `mixin/reccomplex/MixinGenericVillageCreationHandler.java` | RC building skip/retry on water |
 | `rtg/VillagePieceAstralSmallShrine.java` | Village component that pastes Astral `smallShrine`; AABB from pattern; path overlap OK at layout; paste skips ocean/river **biome** only; liquid-only fill (no dirt collar) |
@@ -191,7 +191,7 @@ A dry land well below `villageMinWellHeight` is **not** rejected; the plate is `
 
 A dry land/beach well is rejected if **ocean-like** is closer than `villageCoastBuffer` (`coast_ocean`). Nearby river does **not** cancel (`coast_river` is gone). `0` = well column only.
 
-The veto always runs. After layout, `forgetRejectedStarts` removes only true rejects from the map and `VillagePlate`. Walked wells stay. `isRtgLandscapeLake` must not nested-`getLandscape` while already sampling.
+The veto always runs. After layout, `forgetRejectedStarts` removes only true rejects from the map and `VillagePlate`. Walked wells stay. Kept wells are **not** added to `VETTED_STARTS` during layout. At populate, `relocateOrDropWetWell` walks a still-wet remembered well inland or drops the Start (no ocean well paste, no `/locate`). `isRtgLandscapeLake` must not nested-`getLandscape` while already sampling.
 
 If an existing `aqtweaks_rtg.cfg` still has Coast Buffer **32**, Forge keeps that saved value.
 
@@ -199,7 +199,7 @@ If an existing `aqtweaks_rtg.cfg` still has Coast Buffer **32**, Forge keeps tha
 
 `isBuildingWet`: ocean/river biome or RTG river always wet (retry inland). Swamp-like and low dry land (noise below min well Y) are not building-wet; that land is raised to the plate. `isFloodedAt` still treats lakes as flooded so mostly-lake paths are omitted.
 
-Retry walks inland (`villageWaterRetryDistance`, default 20): street slots, then toward the well, then a spiral around the well. A path that touches ocean/river or is **at least half** wet retries inland the same way; if every slot still fails, it is omitted (no lake bridge). A forest path with a puddle stays. The Astral small-shrine village piece uses the same wet skip/retry. At populate, Charm `ASMHooks.addComponentParts` (and vanilla `MixinStructureStartVillagePaste` if Charm did not wrap the invoke) skips a non-road building only if **every** clipped column is never-raise. Leftover lakes still paste so a shrine/house that spans chunks is not sliced. Layout omission is the real drop.
+Retry walks inland (`villageWaterRetryDistance`, default 20): street slots, then toward the well, then a spiral around the well. A path that touches ocean/river or is **at least half** wet retries inland the same way; if every slot still fails, it is omitted (no lake bridge). A forest path with a puddle stays. The Astral small-shrine village piece uses the same wet skip/retry. At populate, Charm `ASMHooks.addComponentParts` (and vanilla `MixinStructureStartVillagePaste` if Charm did not wrap the invoke) skips a non-road building **or well** only if **every** clipped column is never-raise (return `true`, keep the piece). Roads stay exempt so a mixed land/water path chunk is not dropped. Leftover lakes still paste so a shrine/house that spans chunks is not sliced. Layout omission is the real drop.
 
 **Waystones:** `ComponentVillageWaystone` is not retried as a random house. A wet (never-raise) waystone is rebuilt inland (street, then toward the well, then a spiral around the well, all four facings). Failed wet retries are removed from the start lists. Ocean/river still never get a plate. Waystones’ own `villageChance` can still skip a village; this only keeps a rolled waystone from being deleted.
 

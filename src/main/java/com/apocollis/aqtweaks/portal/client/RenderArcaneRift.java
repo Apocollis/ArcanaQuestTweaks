@@ -24,6 +24,8 @@ public class RenderArcaneRift extends Render<EntityArcaneRift> {
     private static final int VSEGS = 4;
     private static final float HEIGHT = 2.4F;
 
+    private static TextureAtlasSprite portalSprite;
+
     public RenderArcaneRift(RenderManager renderManager) {
         super(renderManager);
         shadowSize = 0.0F;
@@ -37,8 +39,7 @@ public class RenderArcaneRift extends Render<EntityArcaneRift> {
         }
 
         bindTexture(TextureMap.LOCATION_BLOCKS_TEXTURE);
-        TextureAtlasSprite sprite = Minecraft.getMinecraft().getTextureMapBlocks()
-                .getAtlasSprite("minecraft:blocks/portal");
+        TextureAtlasSprite sprite = portalSprite();
         int remaining = entity.getRemainingTicks();
         float life = remaining > 100 ? 1.0F : Math.max(0.0F, remaining / 100.0F);
         float alpha = 0.25F + 0.50F * life;
@@ -134,6 +135,20 @@ public class RenderArcaneRift extends Render<EntityArcaneRift> {
 
     private static float wrapUnit(float value) {
         return value - (float) Math.floor(value);
+    }
+
+    private static TextureAtlasSprite portalSprite() {
+        TextureAtlasSprite sprite = portalSprite;
+        if (sprite == null) {
+            sprite = Minecraft.getMinecraft().getTextureMapBlocks().getAtlasSprite("minecraft:blocks/portal");
+            portalSprite = sprite;
+        }
+        return sprite;
+    }
+
+    /** A resource reload re-stitches the atlas, which replaces every sprite instance. */
+    public static void invalidatePortalSprite() {
+        portalSprite = null;
     }
 
     @Override

@@ -16,6 +16,7 @@ import net.minecraft.world.biome.Biome;
 import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.TickEvent;
 
 /**
  * After InControl {@code PotentialSpawns}, drop surface-only ids in caves and underground-only ids on the surface.
@@ -48,6 +49,19 @@ public class SpawnLayerFilter {
             list.removeIf(entry -> shouldStrip(entry, cave));
         }
         keepLastPerClass(list);
+    }
+
+    /**
+     * {@code MixinWorldEntitySpawner} clears the pack context at {@code RETURN}, which an exception
+     * thrown out of {@code findChunksForSpawning} would skip — leaving the spawner flag stuck true on
+     * this thread and mis-attributing later spawns. The spawner only ever runs inside a world tick,
+     * so clearing here bounds any leak to the tick it happened in.
+     */
+    @SubscribeEvent
+    public void onWorldTick(TickEvent.WorldTickEvent event) {
+        if (event.phase == TickEvent.Phase.END && SpawnPackContext.inSpawner()) {
+            SpawnPackContext.leaveSpawner();
+        }
     }
 
     /**

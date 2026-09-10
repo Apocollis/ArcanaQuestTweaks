@@ -14,15 +14,23 @@ if (!(Test-Path $libsDir)) { New-Item -ItemType Directory $libsDir | Out-Null }
 $localModsDir = "c:/Users/hughe/curseforge/minecraft/Instances/Arcana Quest DEVBOX/mods"
 
 Write-Output "Checking dependencies in libs..."
-$oldElenai = Join-Path $libsDir "ElenaiDodge2-1.12.2-1.1.0.jar"
-if (Test-Path $oldElenai) { Remove-Item $oldElenai -Force }
-$oldRc = Join-Path $libsDir "RecurrentComplexVolts-1.12.2-2.0.0.7.jar"
-if (Test-Path $oldRc) { Remove-Item $oldRc -Force }
+# Stale/unlisted jars. build.gradle puts EVERY jar in libs/ on the compile classpath,
+# so anything not in the compatibility matrix must not sit here.
+$stale = @(
+    "ElenaiDodge2-1.12.2-1.1.0.jar",
+    "RecurrentComplexVolts-1.12.2-2.0.0.7.jar",
+    "BaublesEX-1.12.2-2.3.5.jar",
+    "WearableBackpacks-RLCraft-1.12.2-3.2.7.jar",
+    "RoguelikeDungeons-Arcana-1.12.2-2.5.0.jar"
+)
+foreach ($old in $stale) {
+    $oldPath = Join-Path $libsDir $old
+    if (Test-Path $oldPath) { Remove-Item $oldPath -Force }
+}
 
 $deps = @(
     "ElenaiDodge2Extended-1.12.2-1.1.3.jar",
     "bewitchment-1.12.2-0.0.22.65.jar",
-    "RoguelikeDungeons-Arcana-1.12.2-2.5.0.jar",
     "CoFHWorld-1.12.2-1.4.0.1-universal.jar",
     "bettercaves-1.12.2-2.0.4.jar",
     "RecurrentComplexVolts-1.12.2-2.0.0.9.jar",

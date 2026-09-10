@@ -1,6 +1,6 @@
 # Stamina module (1.8)
 
-Last updated: 2026-09-07.
+Last updated: 2026-09-10.
 
 Config: `config/arcanaquesttweaks/aqtweaks_stamina.cfg`. Compile against **Elenai Dodge 2 Extended** (`ElenaiDodge2Extended-1.12.2-1.1.3.jar`). Forge modid is still `elenaidodge2`.
 
@@ -19,8 +19,8 @@ Optional parents: Grapple motor Ember, Open Glider undeploy, Reskillable stamina
 - Stay version **1.8**.
 - Hard `@Mod` dependency: `required-after:elenaidodge2`. Soft: `after:grapplemod;after:embers`.
 - Grapple mixin `mixins.aqtweaks.grapple.json` and DSS mixin `mixins.aqtweaks.dss.json` are late, **`required: false`**. Toughness Bar HUD is the [client module](client.md).
-- Packets 0–2 register on **SERVER** in `CommonProxy.preInit`. Client handlers live on `StaminaModuleClient`.
-- `FeathersHelper.decreaseFeathers(EntityPlayerMP, int)` is the **only** spend path.
+- Packets 0–2 register on **SERVER** in `CommonProxy.preInit`. Each handler is an inner class on its own packet type — `PacketSyncClimbingInput.Handler` (0), `PacketLedgeClimb.Handler` (1), `PacketSyncGrappleInput.Handler` (2) — all `Side.SERVER`. `StaminaModuleClient` only **sends**; there is no client-side handler.
+- Spend only via `Reflect.decreaseFeathers` (`FeathersHelper.decreaseFeathers` plus `CUpdateAbsorptionMessage`). Never post `SpendFeatherEvent` ourselves.
 - Compile jar is Extended **1.1.3**, not 1.1.0 (HUD internals differ).
 
 ## How the parent mods work
@@ -29,7 +29,7 @@ Optional parents: Grapple motor Ember, Open Glider undeploy, Reskillable stamina
 
 Feather pool (`getFeatherLevel`), absorption capability, regen, dodge trait, `DodgeGui`, armor weight list `ModConfig.common.weights.weights` (`item=value` per slot), Lightweight enchantment, `half` feather rounding. Join handlers apply weight from that list — Tweaks briefly empties the array so those handlers do not stamp weight before Tweaks’ Armor Mastery path.
 
-`SpendFeatherEvent` exists in Extended. Tweaks must **not** post it; spend only through `decreaseFeathers`.
+`SpendFeatherEvent` exists in Extended. Tweaks must **not** post it; spend only through `Reflect.decreaseFeathers`. That wrapper calls `FeathersHelper.decreaseFeathers` then sends `CUpdateAbsorptionMessage` so gold feathers (`elenaidodge2:feathers`) update on the HUD. The helper only syncs the regular bar.
 
 ### Grappling Hook Mod v13 (`grapplemod`)
 
@@ -100,7 +100,7 @@ Respawn: `PlayerRespawnEvent` → `FeathersHelper.increaseFeathers(player, getMa
 | `stamina/PacketSyncGrappleInput` | Channel **2** — mode, motor, grounded |
 | `stamina/EmberMotorHelper.java` | Reflect Ember total/remove; `hasEmber` true if Ember not required or Embers absent |
 | `stamina/DssSkillCosts.java` | `registry_name=N` map |
-| `util/Reflect.java` | Feathers, weight, Grapple attach/detach, glider, ropes, thirst, `hasEnoughStamina` |
+| `util/Reflect.java` | Feathers (including absorption HUD sync after spend), weight, Grapple attach/detach, glider, ropes, thirst, `hasEnoughStamina` |
 | `mixin/grapple/MixinGrappleController.java` | Redirect `GrappleCustomization.motor` GET in `updatePlayerPos` |
 | `mixin/dss/MixinSkillActive.java` | Gate/spend/exhaustion on `trigger` |
 
@@ -124,7 +124,7 @@ Tune in cfg unless noted. Interval `20` = once per second.
 | Rope climb | `enableRopeCost` | 3 | 20 | same; option off = free on ropes |
 | Climb cling | | same cost | interval × **2** | same |
 | Climb slide down | | 0 | — | attached |
-| Ledge mantle | `enableLedgeClimb` | 2 | per mantle | Server: no spend, no grace. Client may still animate |
+| Ledge mantle | `enableLedgeClimb` | 2 grab, +1 at 15/23/31 | while airborne | Empty extra: drop. Lip = collision-list maxY (fences 1.5) |
 | Shield hold | `enableShieldCost` | 1 | 20 after first tick | Lower shield |
 | Mine default | `enableMiningCost` | 1 | per break | Drain remaining usable; **block still breaks** |
 | Mine ore / obsidian | | 2 | | same; Mining Efficiency perk −1 |
@@ -145,7 +145,7 @@ DSS default list is every stock skill `=0`. Change `Skill Costs` in cfg; no rebu
 | Event | Handler | What happens |
 | --- | --- | --- |
 | `EntityJoinWorldEvent` HIGHEST/LOWEST | `StaminaModule` | Clear/restore Elenai weight array. Thrown-entity intercept is a **no-op** (release is billed on `ItemUseStop`) |
-| `TickEvent.PlayerTickEvent` START | `StaminaModule` | Bow hold, throw hold, climb, grapple, glider, sprint, shield, mining fatigue, thirst-on-regen |
+| `TickEvent.PlayerTickEvent` START | `StaminaModule` | Bow hold, throw hold, climb, ledge extras, grapple, glider, sprint, shield, mining fatigue, thirst-on-regen |
 | `LivingJumpEvent` | | Spend jump or zero `motionY` |
 | `AttackEntityEvent` | | Melee spend or drain + `StaminaTweaksAttackPenalty` |
 | `PlayerInteractEvent.LeftClickBlock` | | Melee spend if enough (block punch). **No** remaining-drain / penalty |
@@ -208,9 +208,11 @@ Client: while on a climbable, send `PacketSyncClimbingInput` (jump held). Slide 
 
 ### Ledge climb (Tweaks-owned)
 
-**Client FSM:** airborne, not water/lava/riding, hold jump + forward ≥ 5 ticks, `motionY ≤ 0`, solid wall 0.7 along look at heights 0.4/0.7/1.0/1.3/1.6, two air collision boxes above. Sends `PacketLedgeClimb`, sets state 1, motion Y `0.090625` and look × `0.005` until `posY ≥ targetY + 0.2`. Water/lava/ride or releasing jump/forward aborts.
+**Client FSM:** airborne, not water/lava/riding, hold jump + forward ≥ 5 ticks, `motionY ≤ 0`, wall 0.7 along look at heights 0.4/0.7/1.0/1.3/1.6. Lip is **`addCollisionBoxToList` maxY** (dirt 1.0, fence/wall **1.5** — not the 1.0 outline AABB), or the block **above** the wall if that has collision and two air blocks above it (fence on dirt). Rise with **Y only** (no XZ into the post). `fallDistance = 0`. When feet reach the lip (or Y stops increasing), set Y to `lipTop + 0.1` and XZ to the **nearest point on that collision** (near face, not block center). Then suppress jump + WASD for `ledgeClimbLandPauseTicks` (default 8) so held W+space does not hop or run off. Abort (keys / water / empty extra) does not pause.
 
-**Server packet:** if enough stamina, spend, set state 1 and grace `ticksExisted + 60`, play wall step sound. If not enough, **does nothing** (client may still be in state 1). Grace exists only after a paid mantle. Client motion is not fully replicated.
+**Server packet:** grab spend `ledgeClimbCost` (default **2**, Expert Climber). Sets state 1, grace `ticksExisted + 60`, mantle ticks 0. If not enough, **does nothing** (client may still animate).
+
+**Server tick** while state 1: `fallDistance = 0`. Extras +1 at ticks **15 / 23 / 31**. Empty extra: clear state, `motionY = -0.15`. Land/water/ride clears state (grace still blocks ladder slide).
 
 ### Shield / glider / mining
 
@@ -234,6 +236,16 @@ Client `InputUpdateEvent` **LOWEST** (after Grapple zeros forward) → `GrappleC
 | 1 `CLIMB` | Shift+W / bound climb-up; uses controller `playerforward` |
 | 2 `DESCEND` | Shift+S / bound climb-down |
 | 3 `SWING` | 3D speed ≥ `grappleSwingSpeedThreshold` (default **0.35**) |
+
+`GrappleLastCostMode` stores the **billed** mode, which is not the packet mode:
+
+| Value | Billed as |
+| --- | --- |
+| 0 | Hang |
+| 1 | Climb |
+| 3 | Swing |
+| **10** | Motor hang (`motorUsesHangCost`) |
+| −1 | Nothing billed — descend, grounded without motor, or grapple cost off |
 
 Swing is sticky **3 ticks in / 15 out**. Hang↔swing does **not** reset the 20-tick bill (`hangSwingSwap`). Climb/motor/descend **do** reset the timer when cost mode changes. Climb is never inferred from Y.
 
@@ -309,7 +321,12 @@ All live unless noted. Nested Forge categories.
 | Enable Thirst Cost | true | Regen → SD exhaustion |
 | Thirst Exhaustion Per Feather | 0.25 | Per half-feather gained |
 | Enable Ledge Climbing | true | Client FSM + packet |
-| Ledge Climb Cost | 2 | |
+| Ledge Climb Cost | 2 | Grab (short mantle) |
+| Ledge Climb Extra Cost | 1 | Each extra interval |
+| Ledge Climb Extra After Ticks | 7 | First extra at 15 |
+| Ledge Climb Extra Interval | 8 | Then 23, 31 |
+| Ledge Climb Max Extra Spends | 3 | Total 5 with grab 2 |
+| Ledge Climb Land Pause Ticks | 8 | After successful snap; 0 off |
 
 ## Entity NBT keys (`StaminaTweaks*`)
 
@@ -323,7 +340,8 @@ All live unless noted. Nested Forge categories.
 | `GliderTicks` | server | Glider bill |
 | `ShieldActive` / `ShieldTicks` | server | Shield bill |
 | `AdrenalineUntil` | server | Ticks-existed deadline for Adrenaline |
-| `LedgeClimbState` / `LedgeClimbGrace` / `LedgeClimbHeldTicks` / `LedgeClimbTargetY` / `LedgeClimbDx` / `LedgeClimbDz` | both | Mantle FSM; grace is server `ticksExisted` deadline |
+| `LedgeClimbState` / `LedgeClimbGrace` / `LedgeClimbHeldTicks` / `LedgeClimbTargetY` / `LedgeClimbLipX` / `LedgeClimbLipY` / `LedgeClimbLipZ` / `LedgeClimbLastY` / `LedgeMantleTicks` / `LedgeExtraSpends` | both | Mantle FSM; finish on nearest lip collision XZ; extras are server |
+| `LedgeClimbRecoverUntil` | client | `ticksExisted` deadline; suppress jump/WASD after snap |
 | `LastJumpInput` | client | Climb packet edge when leaving ladder |
 
 ## Tuning vs code
@@ -376,9 +394,25 @@ Empty-stamina slide cancelled the mantle. **Fix:** grace ticks + jump packet + c
 
 Tweaks `ClientTickEvent` END LOWEST wrote `Reflect.getWeight` (armor + Lightweight + Mastery, no Endurance) into `ClientStorage.weight` and `SWeightMessage`, after Elenai had already subtracted Endurance. **Fix:** Endurance in `getWeight` before half rounding and Mastery; do not overwrite while Weight potion owns 200.
 
+### 10. Absorption HUD stale after Tweaks spend
+
+`FeathersHelper.decreaseFeathers` spends gold feathers first but only sends `CUpdateDodgeMessage`. Native dodge also sends `CDodgeEffectsMessage` with absorption. Tweaks spends looked frozen until the potion snapped off. **Fix:** `Reflect.decreaseFeathers` sends `CUpdateAbsorptionMessage` after the helper.
+
+### 11. Ledge target was always +1.0; mantle was a flat cost
+
+Fence/wall collision is 1.5; stopping at `wallY+1.2` stuck inside. Dirt+fence failed the two-air check. **Fix:** lip = collision maxY, or the block above if it is the lip. Grab 2, extras at 15/23/31 (cap 5). Server clears mantle state on land so extras do not run for the whole grace window.
+
+### 12. Fence mantle never cleared the lip
+
+Sideways `dx/dz * 0.005` pushed the AABB into the 1.5-tall post before feet were above it, so `posY >= lipTop + 0.2` never fired. Airborne ticks still added `fallDistance`. **Fix:** rise on Y only; finish at `lipTop + 0.1` on the nearest collision XZ (not block center); `fallDistance = 0` on both sides while state is 1.
+
+### 13. Fence lip used the 1.0 outline AABB
+
+`getCollisionBoundingBox` on fences/walls is the selection box (1.0). Entity collision is `addCollisionBoxToList` at 1.5. Snap at `+1.1` stayed inside the post. **Fix:** lip = collision-list maxY. Dirt cubes still 1.0.
+
 ## Do not regress
 
-- Spend only via `FeathersHelper.decreaseFeathers`. Never `SpendFeatherEvent`.
+- Spend only via `Reflect.decreaseFeathers`. Never post `SpendFeatherEvent`. Gold HUD must update via `CUpdateAbsorptionMessage`.
 - HUD = Extended `DodgeGui`, not 1.1.0 icons. Respawn = `increaseFeathers` to max, never `fillFeathers`.
 - Compile jar **Extended 1.1.3**. Grapple, DSS, and Toughness Bar mixins stay `required: false`.
 - Do not move Elenai feathers off the hunger/thirst column. Toughness Bar (when the flag is on) uses `left_height + 10` so it clears Overloaded Armor Bar’s unreserved armor row, then PUT `+ 10`.
@@ -388,14 +422,14 @@ Tweaks `ClientTickEvent` END LOWEST wrote `Reflect.getWeight` (armor + Lightweig
 - Motor Ember on **both** sides (server consume + client mixin). Empty Ember must not unhook. Empty stamina must not unhook on descend or grounded-without-motor.
 - `hasEnoughStamina` must keep absorption-then-usable-after-weight. Armor Mastery must affect `getWeight` and the client `SWeightMessage` sync. Endurance `(amp+1)×4` must still apply with Mastery; Weight potion 200 must not be overwritten.
 - Sprint uses Tweaks `hasEnoughStamina` and a sprint-only interval. Keep Universal Tweaks **Sprinting Feather Consumption** and **Requirement** at **0** so feathers are not billed twice. Hunger sprint threshold is a different UT tweak.
-- Ledge grace / jump packet must keep `fallOnDepleted` from cancelling a mantle.
+- Ledge grace / jump packet must keep `fallOnDepleted` from cancelling a mantle. Mantle lip uses **collision-list** maxY (fence/wall 1.5, not the 1.0 outline). Grab 2 + extras cap 5. Server mantle state must clear on land. Fence/wall rise is Y-only then finish on the nearest lip collision XZ (not block center); `fallDistance` must stay 0 while climbing. Successful land pauses jump/WASD (`ledgeClimbLandPauseTicks`); abort does not.
 - Mining break is never cancelled. Fatigue uses **regular** feathers.
 
 ## Verify
 
-**Combat / tools:** jump costs 1 and blocks at 0; sprint 1/s and stops below 2 usable (Tweaks weight); sword 2, axe 4, dagger 1; empty-hand punch is light **on a hit**; short-stamina **hit** deals reduced damage once; bow 2 on draw + hold (hold may tick twice); throw hold slower than bow, 1 on release; shield 1/s then drops; break stone 1, ore 2; Fatigue III at ≤ 2 full feathers; glider 1/s then folds; DSS with cost > 0 spends and blocks when empty; hunger not also drained if replace exhaustion is on.
+**Combat / tools:** jump costs 1 and blocks at 0; sprint 1/s and stops below 2 usable (Tweaks weight); Feathers potion gold icons drop on Tweaks spend like a dodge; sword 2, axe 4, dagger 1; empty-hand punch is light **on a hit**; short-stamina **hit** deals reduced damage once; bow 2 on draw + hold (hold may tick twice); throw hold slower than bow, 1 on release; shield 1/s then drops; break stone 1, ore 2; Fatigue III at ≤ 2 full feathers; glider 1/s then folds; DSS with cost > 0 spends and blocks when empty; hunger not also drained if replace exhaustion is on.
 
-**Climb / ledge:** ladder 1/s up, cling half rate, slide free; empty slides; jump+forward mantle 2 and does not fight slide.
+**Climb / ledge:** ladder 1/s up, cling half rate, slide free; empty slides; jump+forward mantle 2 short / up to 5 long; fences/walls use 1.5-high lip and finish on the near collision (not block center); no fall-damage charge while holding; ~0.4s land pause so held W+space does not hop off; does not fight slide.
 
 **Grapple:** plant on ground = 0; Shift+W = 3/s; hang = 1/s; pendulum = 2/s through the apex; Shift+S = 0; motor = hang + 40 Ember/s from jar/cartridge/bulb; empty Ember = motor off, still hooked; empty feathers = unhook except descend / grounded.
 

@@ -1,9 +1,5 @@
 package com.apocollis.aqtweaks.stamina;
 
-import com.apocollis.aqtweaks.ArcanaQuestTweaks;
-
-import com.apocollis.aqtweaks.util.Reflect;
-
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
@@ -32,11 +28,14 @@ public class PacketSyncClimbingInput implements IMessage {
     public static class Handler implements IMessageHandler<PacketSyncClimbingInput, IMessage> {
         @Override
         public IMessage onMessage(PacketSyncClimbingInput message, MessageContext ctx) {
-            EntityPlayerMP player = Reflect.getServerPlayer(ctx);
-            net.minecraft.server.MinecraftServer server = Reflect.getServer(player);
+            EntityPlayerMP player = ctx.getServerHandler().player;
+            if (player == null) return null;
+            net.minecraft.server.MinecraftServer server = player.getServer();
             if (player != null && server != null) {
+                boolean jumpPressed = message.jumpPressed;
                 server.addScheduledTask(() -> {
-                    Reflect.setBoolean(Reflect.getEntityData(player), "StaminaTweaksClimbJumpInput", message.jumpPressed);
+                    if (player.capabilities.isCreativeMode || player.isSpectator()) return;
+                    player.getEntityData().setBoolean("StaminaTweaksClimbJumpInput", jumpPressed);
                 });
             }
             return null;

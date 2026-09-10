@@ -65,7 +65,7 @@ public final class StructureVillageOverlap {
         }
 
         ensureVillageStarts(world);
-        long seed = Reflect.getSeed(world);
+        long seed = world.getSeed();
         int heightAbove = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageBoxHeight);
 
         for (VillagePlate.Record rec : VillagePlate.starts(seed)) {

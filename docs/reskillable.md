@@ -1,6 +1,6 @@
 # Reskillable module (1.8)
 
-Last updated: 2026-09-06.
+Last updated: 2026-09-09.
 
 Config: `config/arcanaquesttweaks/aqtweaks_reskillable.cfg`. Handler registers only if `reskillable` is loaded (`CommonProxy.init`). Compile-hard CAD Reskillable **1.13.1** API; types live only in `com.apocollis.aqtweaks.reskillable`. Soft `@Mod` `after:reskillable` (not `required-after`).
 
@@ -40,9 +40,11 @@ Creative still uses EB’s creative limits (no Tweaks add).
 | Agility | `generic.movementSpeed` op 0 | `level × 0.0003125` |
 | Building | EB getters above | place `floor(level × 0.125)`; blocks `floor(level × 1)` |
 | Mining | `PlayerEvent.BreakSpeed` | `speed × (1 + level × 0.01)` |
-| Gathering | harvest / shear / fish | `level × 0.00625` chance of +1 |
+| Gathering | harvest / shear / fish | `min(1.0, level × 0.00625)` chance of +1 |
 | Farming | mature crop `HarvestDropsEvent` | same k as Gathering |
 | Magic | `LivingHurtEvent` NORMAL + TC Heal mixin | `± min(level × 0.0125, 0.4)` (heal is + only) |
+
+Mining is **server-authoritative**: `onBreakSpeed` returns early on `player.world.isRemote`, so the client never previews the bonus — the block just finishes at the server's rate.
 
 Attributes restamp: `LevelUpEvent.Post`, login, respawn, clone, dim change, Tweaks cfg change, every 20 server ticks. Skip `FakePlayer`. One Tweaks UUID per attribute; remove then apply; `setSaved(false)`.
 
@@ -78,7 +80,7 @@ Stock TC foci stamp `setMagicDamage()` in the [thaumcraft module](thaumcraft.md)
 | Attack damage / Defense armor / Agility speed per level | 0.125 / 0.25 / 0.0003125 | yes | Attribute add |
 | EB place reach / max blocks per level | 0.125 / 1 | yes | Mixin add on EB getters |
 | Mining break speed per level | 0.01 | yes | BreakSpeed |
-| Gathering / Farming extra chance per level | 0.00625 | yes | Proc chance |
+| Gathering / Farming extra chance per level | 0.00625 | yes | Proc chance, capped at `min(1.0, level × k)` |
 | Magic hurt per level | 0.0125 | yes | Cap 40% |
 | Log damage classify | true | yes | First-pass DEVBOX log |
 | Allow type prefixes | `fireball` | yes | Ghast/Lich if `isMagicDamage` is false; foci use the TC mixin |
@@ -131,7 +133,7 @@ Lang: `reskillable.unlock.aqtweaks.<path>` / `.desc`. Icons: `aqtweaks:textures/
 - Defense: armor bar up, max health unchanged
 - Agility: move speed up; Elenai dodge unchanged
 - Building: EB placement ray +2 / +4 at 16 / 32; max blocks +16 / +32 survival; creative unchanged; melee reach unchanged; EB jar absent → no mixin crash
-- Mining: faster break; stamina break cost unchanged (perk still does)
+- Mining: faster break; server-authoritative, so the client shows no bonus preview; stamina break cost unchanged (perk still does)
 - Farming: extra wheat on mature crop; not on stone or ore
 - Gathering: extra log/leaf/flint, extra wool, extra fish; **not** ore; silk touch no extra
 - Mining Expert: wood pick + perk drops diamond ore/obsidian; tooltip stars unchanged; fist does not

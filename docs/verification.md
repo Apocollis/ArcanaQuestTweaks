@@ -1,6 +1,6 @@
 # Verification (1.8)
 
-Last updated: 2026-09-07.
+Last updated: 2026-09-09.
 
 Manual release / smoke checklist. **No automated tests.** Harness: CurseForge **Arcana Quest DEVBOX**, remapped `ArcanaQuestTweaks-1.8.jar` in `mods/`. Algorithms and full checklists stay in module docs; this is the pack-level pass/fail.
 
@@ -66,6 +66,8 @@ Missing **RTG, Depths Update, Better Caves, CoFH World, Recurrent Complex, or Iv
 | Sea-level forest (`-524, 64, 5893`) | Path, lamps, houses **same Y** | rtg |
 | Beach ~16 from water | Village may start; buildings inland; **no** sand piers or plank bridges | rtg |
 | Coral reef / kelp / ocean well (`-3452, 63, -2191`) | No village start unless a dry slot exists in retry range (`veto` `ocean_well` / `coast_ocean`) | rtg |
+| Approach a new village from unloaded chunks | No `ConcurrentModificationException` in `StructureStart.generateStructure`. Relog not required. Well not sitting on ocean/river | rtg |
+| Stamina after G2 (sprint / climb / grapple) | Same costs and cancel behavior as before Comfort remap; no extra `Reflect` lag on the tick | stamina |
 | River well | Walks inland (`well-walk`); no plank dock; plate at land Y not riverbed | rtg |
 | Dry plains well below Y 64 | Kept; `plateSample … target=64`; not `flooded_well` | rtg |
 | Flooded plains well | Raised to min well height if not never-raise; `/locate Village` can find it | [villagegen_info.md](villagegen_info.md) |
@@ -105,6 +107,17 @@ Use the full list in [stamina.md](stamina.md) **Verify**. Minimum: jump costs/bl
 | Recipes | Pack boots without Metallurgy `generated/item/spartanweaponry` recipe spam |
 | Reskillable | Attack 16 → +2 damage; Mining Expert wood pick drops diamond ore; stamina perks on tree. Full list: [reskillable.md](reskillable.md) |
 | Spawning | Boot log loads `config/arcanaquest/mob_overworldspawntype.json` and `mob_spawnparties.json` when present. Closed cave: dwarf/cave_spider/krake yes, Dryad/witch/Wildkin no, zombie/goblin still yes. Night surface: reverse exclusives; zombie still yes. Creeper packs 1–2 not 4; zombie/skeleton/spider 2–4 mixed. Default `goblin_feral=3-5`. Fill Pack Size off: old singles. Natural Overworld cleric: knights + CR archers; cage/portal cleric: no party. Hostile cap default 200. No mixin fail on `MixinWorldEntitySpawner`. See [spawning.md](spawning.md) |
+
+## Edge cases
+
+| Check | Expect | Doc |
+| --- | --- | --- |
+| Empty-stamina melee against a **mob** | Short-stamina hit on a zombie takes the reduced multiplier once, same as a hit on a player, then the attacker tag clears. Mobs are not exempt | [stamina.md](stamina.md) |
+| Two players join on the same tick | Each ends with weight from their **own** armor. Neither is left on an emptied weight array or the other player's value | stamina |
+| Cross-dimension rift trip that fails | Entity stays in the origin dimension. No teleport loop, no entity stuck in the AABB re-firing every tick, no ghost copy at the destination | [portal.md](portal.md) |
+| Expert Climber with the perk unlocked, low feathers | Server permits the climb and the client does **not** slide. No rubber-band between a client-side `motionY = -0.15` and the server position | stamina, [reskillable.md](reskillable.md) |
+| World A → title screen → world B on a different seed | No village plate heights carried over from A. `getRawLight` is back on its no-rift fast path (no lit cells at B's spawn) | [rtg.md](rtg.md), portal |
+| `minWorldY` | Pinned at **-64**. No cfg knob to change it; bedrock floor, CoFH `Math.max` floor, and `RayMatcher.cast` all read that constant | [depths.md](depths.md) |
 
 ## After mixin / parent bumps
 

@@ -40,7 +40,7 @@ public abstract class MixinMapGenVillageWorld {
     private void aqtweaks$popVillageWorld(World world, int x, int z, ChunkPrimer primer, CallbackInfo ci) {
         if (!((Object) this instanceof MapGenVillage)) return;
         try {
-            if (!VillageLandHelper.isSamplingLandscape()) {
+            if (!VillageLandHelper.isSamplingLandscape() && !VillageLandHelper.isLayingOut()) {
                 VillageLandHelper.forgetRejectedStarts((MapGenVillage) (Object) this, world);
             }
         } finally {

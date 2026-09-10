@@ -1,6 +1,7 @@
 package com.apocollis.aqtweaks.reskillable;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
+import codersafterdark.reskillable.api.event.CacheInvalidatedEvent;
 import codersafterdark.reskillable.api.event.LevelUpEvent;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.Entity;
@@ -24,12 +25,13 @@ import net.minecraftforge.event.entity.player.ItemFishedEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.world.BlockEvent;
+import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerChangedDimensionEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedInEvent;
+import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedOutEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerRespawnEvent;
-import net.minecraftforge.fml.common.gameevent.TickEvent;
 
 import java.util.List;
 import java.util.UUID;
@@ -38,36 +40,49 @@ public class ReskillableModule {
 
     @SubscribeEvent
     public void onLevelUp(LevelUpEvent.Post event) {
-        applyAttributes(event.getEntityPlayer());
+        refresh(event.getEntityPlayer());
+    }
+
+    /**
+     * Reskillable posts this on both sides — the server after a level or unlockable change, the
+     * client when the matching invalidate packet lands — so it is the only signal that catches a
+     * client-side level change.
+     */
+    @SubscribeEvent
+    public void onCacheInvalidated(CacheInvalidatedEvent event) {
+        refresh(event.getPlayer());
     }
 
     @SubscribeEvent
     public void onLogin(PlayerLoggedInEvent event) {
-        applyAttributes(event.player);
+        refresh(event.player);
+    }
+
+    @SubscribeEvent
+    public void onLogout(PlayerLoggedOutEvent event) {
+        ReskillableBonuses.invalidateLevels(event.player);
     }
 
     @SubscribeEvent
     public void onRespawn(PlayerRespawnEvent event) {
-        applyAttributes(event.player);
+        refresh(event.player);
     }
 
     @SubscribeEvent
     public void onClone(PlayerEvent.Clone event) {
-        applyAttributes(event.getEntityPlayer());
+        refresh(event.getEntityPlayer());
     }
 
     @SubscribeEvent
     public void onDimChange(PlayerChangedDimensionEvent event) {
-        applyAttributes(event.player);
+        refresh(event.player);
     }
 
     @SubscribeEvent
-    public void onPlayerTick(TickEvent.PlayerTickEvent event) {
-        if (event.phase != TickEvent.Phase.END) return;
-        EntityPlayer player = event.player;
-        if (player == null || player.world == null || player.world.isRemote) return;
-        if (player.ticksExisted % 20 != 0) return;
-        applyAttributes(player);
+    public void onWorldUnload(WorldEvent.Unload event) {
+        World world = event.getWorld();
+        if (world == null) return;
+        ReskillableBonuses.invalidateLevels(world.isRemote);
     }
 
     @SubscribeEvent
@@ -186,6 +201,11 @@ public class ReskillableModule {
         event.setAmount(amount);
     }
 
+    private static void refresh(EntityPlayer player) {
+        ReskillableBonuses.invalidateLevels(player);
+        applyAttributes(player);
+    }
+
     public static void applyAttributes(EntityPlayer player) {
         if (player == null || player.world == null || player.world.isRemote) return;
         if (player instanceof FakePlayer) return;
@@ -214,10 +234,19 @@ public class ReskillableModule {
             String skill, double k) {
         IAttributeInstance instance = player.getEntityAttribute(attribute);
         if (instance == null) return;
+        double amount = k <= 0.0 ? 0.0 : ReskillableBonuses.skillLevel(player, skill) * k;
+        AttributeModifier existing = instance.getModifier(uuid);
+        if (amount == 0.0) {
+            if (existing != null) instance.removeModifier(uuid);
+            return;
+        }
+        // Re-applying an identical modifier still flags the attribute dirty, which resends
+        // SPacketEntityProperties, so only touch it when the stamped value actually moved.
+        if (existing != null && existing.getAmount() == amount && existing.getOperation() == 0
+                && !existing.isSaved()) {
+            return;
+        }
         instance.removeModifier(uuid);
-        if (k <= 0.0) return;
-        double amount = ReskillableBonuses.skillLevel(player, skill) * k;
-        if (amount == 0.0) return;
         instance.applyModifier(new AttributeModifier(uuid, name, amount, 0).setSaved(false));
     }
 

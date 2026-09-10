@@ -11,6 +11,9 @@ import net.minecraftforge.common.BiomeDictionary;
  */
 public final class DepthsBiomeUtil {
 
+    private static final ThreadLocal<BlockPos.MutableBlockPos> POS =
+            ThreadLocal.withInitial(BlockPos.MutableBlockPos::new);
+
     private DepthsBiomeUtil() {}
 
     public static boolean isWaterBiome(World world, int x, int z) {
@@ -19,7 +22,7 @@ public final class DepthsBiomeUtil {
             Biome biome = null;
             Biome fallback = Reflect.getPlainsBiome();
             if (world.getBiomeProvider() != null) {
-                biome = world.getBiomeProvider().getBiome(new BlockPos(x, 64, z), fallback);
+                biome = world.getBiomeProvider().getBiome(POS.get().setPos(x, 64, z), fallback);
             }
             return isWaterBiome(biome);
         } catch (Throwable ignored) {

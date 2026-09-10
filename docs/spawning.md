@@ -1,6 +1,6 @@
 # Spawning module (1.8)
 
-Last updated: 2026-09-08.
+Last updated: 2026-09-09.
 
 Config: `config/arcanaquesttweaks/aqtweaks_spawning.cfg`. Pack lists: `config/arcanaquest/mob_overworldspawntype.json` and `config/arcanaquest/mob_spawnparties.json` (Tweaks does **not** ship or write these files). Always registered. Vanilla spawner mixins in **required** `mixins.aqtweaks.json`. Compile-hard InControl `1.12-3.10.4` (`after:incontrol`).
 
@@ -34,6 +34,26 @@ Do **not** put `seesky` / height on `potentialspawn.json`. Do **not** copy layer
 | in neither | keep | keep |
 
 **Pack JSON** `mob_spawnparties.json`: `{ "parties": [ { "id", "leaders", "chance", "when", "companions" } ] }`. Missing file → mixed groups off. Omit `when` (or omit a key) → that check is ignored (any dim / biome / time / layer / height). `time`: `night` / `day` / `both` (omit = both). First matching party only. Companions via `EntityList.createEntityByIDFromName`.
+
+Keys are the `@SerializedName` values on `SpawnParties`:
+
+| Key | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `parties` | list | — | Absent array → mixed groups off |
+| `parties[].id` | string | `unnamed` | Log label only |
+| `parties[].leaders` | list of entity ids | — | Ids whose first ticking spawn triggers the party. Empty → party dropped at load |
+| `parties[].chance` | double 0.0–1.0 | 1.0 | Rolled after `when` matches. A failed roll stops the search — no later party runs. Outside 0..1 → party dropped |
+| `parties[].when` | object | omitted = always | Rows below |
+| `parties[].companions` | list | — | Empty (or all entries invalid) → party dropped at load |
+| `when.dimension` | list of ints | any | Dimension id must be in the list |
+| `when.layer` | `any` / `surface` / `cave` | `any` | `SpawnLayerFilter.isCavePick` at the leader pos. Unknown string → party dropped |
+| `when.time` | `both` / `day` / `night` | `both` | `world.isDaytime()`. Unknown string → party dropped |
+| `when.biomes` | list of biome registry ids | any | Leader-pos biome must be in the list |
+| `when.minheight` | int | none | Leader `y <` this → no match |
+| `when.maxheight` | int | none | Leader `y >` this → no match |
+| `companions[].mob` | entity id | — | Must resolve to an `EntityLiving` class; unknown or non-living logged once and skipped |
+| `companions[].min` | int | 0 | Negative clamps to 0 |
+| `companions[].max` | int | 0 | Negative, or `max < min`, skips that companion. Both keys omitted = 0–0, so nothing spawns |
 
 ## How Tweaks hooks in
 

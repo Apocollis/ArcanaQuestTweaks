@@ -3,6 +3,9 @@ package com.apocollis.aqtweaks.reskillable;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraftforge.fml.common.Loader;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.lang.reflect.Method;
 
 /**
@@ -11,9 +14,12 @@ import java.lang.reflect.Method;
  */
 public final class EffortlessBuildingHooks {
 
+    private static final Logger LOGGER = LogManager.getLogger("AQTweaks-Reskillable");
+
     private static Method placeReach;
     private static Method maxBlocks;
     private static boolean resolved;
+    private static boolean warnedInvoke;
 
     private EffortlessBuildingHooks() {}
 
@@ -30,7 +36,12 @@ public final class EffortlessBuildingHooks {
         try {
             Object out = method.invoke(null, player, base);
             return out instanceof Integer ? (Integer) out : base;
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            if (!warnedInvoke) {
+                warnedInvoke = true;
+                LOGGER.warn("[AQ-EB] Building bonus bridge threw; falling back to Effortless Building's "
+                        + "own values for this session", t);
+            }
             return base;
         }
     }
@@ -53,9 +64,11 @@ public final class EffortlessBuildingHooks {
             Class<?> bonuses = Class.forName("com.apocollis.aqtweaks.reskillable.ReskillableBonuses");
             placeReach = bonuses.getMethod("addBuildingPlaceReach", EntityPlayer.class, int.class);
             maxBlocks = bonuses.getMethod("addBuildingMaxBlocks", EntityPlayer.class, int.class);
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
             placeReach = null;
             maxBlocks = null;
+            LOGGER.warn("[AQ-EB] Reskillable is loaded but the Building bonus bridge could not be "
+                    + "resolved; place reach and max blocks will use Effortless Building's values", t);
         }
     }
 }

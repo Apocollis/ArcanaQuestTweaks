@@ -60,7 +60,7 @@ public final class StaminaPerks {
 
     public static void tryAdrenaline(EntityPlayer player, float damageAmount) {
         if (!(player instanceof EntityPlayerMP)) return;
-        if (Reflect.isCreative(player) || Reflect.isSpectator(player)) return;
+        if (player.capabilities.isCreativeMode || player.isSpectator()) return;
         if (damageAmount <= 0.0f) return;
         var cfg = ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable;
         if (!unlocked(player, cfg.adrenalinePerkId)) return;
@@ -69,15 +69,15 @@ public final class StaminaPerks {
         int current = FeathersHelper.getFeatherLevel(mp);
         if (current >= cfg.adrenalineThreshold) return;
 
-        NBTTagCompound data = Reflect.getEntityData(player);
-        int now = Reflect.getTicksExisted(player);
-        if (Reflect.getInteger(data, "StaminaTweaksAdrenalineUntil") > now) return;
+        NBTTagCompound data = player.getEntityData();
+        int now = player.ticksExisted;
+        if (data.getInteger("StaminaTweaksAdrenalineUntil") > now) return;
 
         int max = FeathersHelper.getMaxFeatherLevel(mp);
         int target = Math.min(cfg.adrenalineRestore, max);
         if (current >= target) return;
         FeathersHelper.increaseFeathers(mp, target - current);
-        Reflect.setInteger(data, "StaminaTweaksPrevFeathers", FeathersHelper.getFeatherLevel(mp));
-        Reflect.setInteger(data, "StaminaTweaksAdrenalineUntil", now + cfg.adrenalineCooldownTicks);
+        data.setInteger("StaminaTweaksPrevFeathers", FeathersHelper.getFeatherLevel(mp));
+        data.setInteger("StaminaTweaksAdrenalineUntil", now + cfg.adrenalineCooldownTicks);
     }
 }

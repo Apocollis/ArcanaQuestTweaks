@@ -16,7 +16,13 @@ import java.util.Random;
 
 /**
  * Charm ASM calls this instead of {@code StructureComponent.addComponentParts}.
- * Returning false matches Charm's Pre {@code DENY} path.
+ *
+ * <p>Charm passes this return value straight back into {@code StructureStart.generateStructure},
+ * where a {@code false} makes vanilla <em>drop the component from the start</em>. That is the same
+ * contract the vanilla path in {@code MixinStructureStartVillagePaste} sits on, so this returns
+ * {@code true} for the same reason: a wet veto has to skip the paste for this chunk while keeping
+ * the piece in the list, or a building spanning chunks is permanently lost the first time one of
+ * its chunks vetoes. Returning Charm's {@code DENY} value here diverged from the vanilla path.
  */
 @Mixin(targets = "svenhjol.charm.base.ASMHooks", remap = false)
 public abstract class MixinASMHooksVillagePaste {
@@ -31,6 +37,6 @@ public abstract class MixinASMHooksVillagePaste {
                 component.getClass().getSimpleName(),
                 xz != null ? xz[0] : 0,
                 xz != null ? xz[2] : 0);
-        cir.setReturnValue(Boolean.FALSE);
+        cir.setReturnValue(Boolean.TRUE);
     }
 }

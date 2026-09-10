@@ -86,6 +86,16 @@ public final class VillagePlate {
         return wellKey(seed, rec.startChunkX, rec.startChunkZ);
     }
 
+    /**
+     * Drops every remembered start and cached plate height for this seed. Called on overworld
+     * unload so a later world does not inherit a previous session's plates. Both caches are
+     * seed-keyed with a {@code seed + ":"} prefix.
+     */
+    public static void forgetSeed(long seed) {
+        STARTS.remove(seed);
+        HEIGHTS.keySet().removeIf(k -> k.startsWith(seed + ":"));
+    }
+
     public static void put(long seed, Record rec, float height) {
         if (rec == null) return;
         HEIGHTS.put(wellKey(seed, rec), height);
@@ -144,7 +154,7 @@ public final class VillagePlate {
         int startChunkZ = chunkZ > Integer.MIN_VALUE ? chunkZ : Reflect.getStructureStartChunkZ(start);
         if (startChunkX == Integer.MIN_VALUE) startChunkX = wellX >> 4;
         if (startChunkZ == Integer.MIN_VALUE) startChunkZ = wellZ >> 4;
-        long seed = world != null ? Reflect.getSeed(world) : 0L;
+        long seed = world != null ? world.getSeed() : 0L;
         List<Record> list = STARTS.computeIfAbsent(seed, k -> Collections.synchronizedList(new ArrayList<>()));
         synchronized (list) {
             for (int i = 0; i < list.size(); i++) {
@@ -173,7 +183,7 @@ public final class VillagePlate {
      */
     public static void ensureStarts(World world, Object mapGen) {
         if (world == null || mapGen == null) return;
-        if (!starts(Reflect.getSeed(world)).isEmpty()) return;
+        if (!starts(world.getSeed()).isEmpty()) return;
         rememberAll(world, mapGen);
     }
 
@@ -187,7 +197,7 @@ public final class VillagePlate {
         if (spacing < 9) spacing = 32;
         int minTown = Reflect.getVillageMinDistance(mapGen);
         if (minTown < 1 || minTown >= spacing) minTown = 8;
-        long seed = Reflect.getSeed(world);
+        long seed = world.getSeed();
         int minCellX = VillageLandHelper.villageCell(cx - VillageLandHelper.VILLAGE_LAYOUT_RADIUS, spacing);
         int maxCellX = VillageLandHelper.villageCell(cx + VillageLandHelper.VILLAGE_LAYOUT_RADIUS, spacing);
         int minCellZ = VillageLandHelper.villageCell(cz - VillageLandHelper.VILLAGE_LAYOUT_RADIUS, spacing);
@@ -226,7 +236,7 @@ public final class VillagePlate {
     }
 
     public static void forget(World world, Object start, int chunkX, int chunkZ) {
-        long seed = world != null ? Reflect.getSeed(world) : 0L;
+        long seed = world != null ? world.getSeed() : 0L;
         int startChunkX = chunkX > Integer.MIN_VALUE ? chunkX : Reflect.getStructureStartChunkX(start);
         int startChunkZ = chunkZ > Integer.MIN_VALUE ? chunkZ : Reflect.getStructureStartChunkZ(start);
         int[] xz = start != null ? Reflect.getStructureStartBoxXZ(start) : null;
@@ -296,7 +306,7 @@ public final class VillagePlate {
      */
     public static List<Record> mergeStartAabbHits(World world, List<Record> landHits,
                                                  int chunkMinX, int chunkMaxX, int chunkMinZ, int chunkMaxZ, int extra) {
-        long seed = world != null ? Reflect.getSeed(world) : 0L;
+        long seed = world != null ? world.getSeed() : 0L;
         List<Record> aabbHits = overlappingStartAabb(seed, chunkMinX, chunkMaxX, chunkMinZ, chunkMaxZ, extra);
         if ((landHits == null || landHits.isEmpty()) && aabbHits.isEmpty()) {
             return Collections.emptyList();
@@ -468,16 +478,22 @@ public final class VillagePlate {
         return false;
     }
 
-    /** Detection / saved pad pieces: AABB expand by component pad + Hermite falloff. */
+    /**
+     * Detection / saved pad pieces: component pad + Hermite falloff.
+     *
+     * <p>The point query is the degenerate case of {@link #aabbOverlapsVillagePad}, and both use the
+     * same Euclidean box distance as the flatten pad in {@link #inVillagePadXZ}. An axis-aligned
+     * expansion here instead reported the pad corners as inside when the flatten never touched them.
+     */
     public static boolean inVillagePlateXZ(int x, int z, Record rec) {
         if (rec == null) return false;
         int landR = detectionLandRadius();
         int shrineR = detectionShrineRadius();
         for (int[] box : rec.landBoxesOrEmpty()) {
-            if (inExpandedBoxXZ(x, z, box, landR)) return true;
+            if (distanceToBoxXZ(x, z, box) <= landR) return true;
         }
         for (int[] box : rec.shrineBoxesOrEmpty()) {
-            if (inExpandedBoxXZ(x, z, box, shrineR)) return true;
+            if (distanceToBoxXZ(x, z, box) <= shrineR) return true;
         }
         return false;
     }
@@ -505,12 +521,6 @@ public final class VillagePlate {
                 + Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageEdgeFalloff);
     }
 
-    private static boolean inExpandedBoxXZ(int x, int z, int[] box, int r) {
-        if (box == null) return false;
-        int pad = Math.max(0, r);
-        return x >= box[0] - pad && x <= box[1] + pad && z >= box[2] - pad && z <= box[3] + pad;
-    }
-
     public static Object startAt(World world, Object mapGen, int x, int y, int z) {
         if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.enableVillageBoxDetection) return null;
         if (world == null) return null;
@@ -519,7 +529,7 @@ public final class VillagePlate {
             rememberNearby(world, mapGen, x >> 4, z >> 4);
         }
         int heightAbove = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageBoxHeight);
-        long seed = Reflect.getSeed(world);
+        long seed = world.getSeed();
         for (Record rec : starts(seed)) {
             if (rec.start == null) continue;
             Record live = maybeRefreshLandBoxes(seed, rec);
@@ -538,7 +548,7 @@ public final class VillagePlate {
         if (world == null || rec == null) return Float.NaN;
         int minWell = VillageLandHelper.minWellHeight();
         float wellHeight = VillageLandHelper.sampleNoise(world, rec.wellX, rec.wellZ);
-        long seed = Reflect.getSeed(world);
+        long seed = world.getSeed();
         if (VillageLandHelper.isNeverRaiseAt(world, rec.wellX, rec.wellZ)
                 || !VillageLandHelper.isUsableHeight(wellHeight)) {
             try {
@@ -593,7 +603,7 @@ public final class VillagePlate {
         if (!any) return;
         Reflect.updateStructureStartBoundingBox(rec.start);
         Reflect.saveMapGenStructureStart(mapGen, world, rec.start);
-        if (VillageDebug.once("stampPlate:" + wellKey(Reflect.getSeed(world), rec))) {
+        if (VillageDebug.once("stampPlate:" + wellKey(world.getSeed(), rec))) {
             VillageDebug.log("stamp village plate well=%d,%d floor=%d maxY=%d landR=%d",
                     rec.wellX, rec.wellZ, floor, maxY, landR);
         }
@@ -658,14 +668,14 @@ public final class VillagePlate {
      * Cached plate height, or NaN if this village was never flattened this session.
      */
     public static float resolvePlate(World world, Record rec) {
-        long seed = world != null ? Reflect.getSeed(world) : 0L;
+        long seed = world != null ? world.getSeed() : 0L;
         Float cached = get(seed, rec);
         return cached != null ? cached : Float.NaN;
     }
 
     public static float resolvePlate(World world, int[] box) {
         if (box == null) return Float.NaN;
-        long seed = world != null ? Reflect.getSeed(world) : 0L;
+        long seed = world != null ? world.getSeed() : 0L;
         for (Record rec : starts(seed)) {
             if (rec.xz != null && key(seed, rec.xz).equals(key(seed, box))) {
                 return resolvePlate(world, rec);
@@ -684,7 +694,7 @@ public final class VillagePlate {
             int minY = Reflect.getStructureStartMinY(start);
             height = minY > Integer.MIN_VALUE ? minY : 64.0F;
         }
-        long seed = world != null ? Reflect.getSeed(world) : 0L;
+        long seed = world != null ? world.getSeed() : 0L;
         if (box != null) {
             for (Record rec : starts(seed)) {
                 if (rec.xz != null && key(seed, rec.xz).equals(key(seed, box))) {

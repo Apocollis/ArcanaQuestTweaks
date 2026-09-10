@@ -65,11 +65,12 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 - Register SimpleNetworkWrapper messages 0–2 (stamina climb/grapple). See [stamina.md](stamina.md).
 - `ComfortConfigLoader.load`, `GaiaDamageConfig.load`, `SpawnTypeLists.load`, and `SpawnParties.load` from the Forge config directory.
 - `PortalModule.preInit` (`ForgeChunkManager` callback). Item/entity register via `RegistryEvent` (not init).
+- `MapGenStructureIO.registerStructureComponent(VillagePieceVillagePlate.class, "AQTVillagePlate")` — **unconditional**. The Astral `AQTSmallShrine` piece is the conditional one (init, only if `astralsorcery`).
 - If `reskillable`: `ReskillablePerkRegistry` (Unlockable `RegistryEvent`).
 
 **init (common)**
 
-- Always: `StaminaModule`, `GaiaDamageHandler` (Gaia JSON bases), `ComfortSystemHandler`, `SpawnLayerFilter`.
+- Always: `StaminaModule`, `GaiaDamageHandler` (Gaia JSON bases), `ComfortSystemHandler`, `SpawnLayerFilter`, `VillageLandHelper.Events`.
 - If `thaumcraft`: `ThaumcraftModule`.
 - If `bewitchment`: `BewitchmentRegistryHandler` (ritual wrap still no-ops unless Thaumcraft is also loaded; see [bewitchment.md](bewitchment.md)).
 - If `astralsorcery`: `VillageAstralSmallShrineHandler.register()` (structure piece id `AQTSmallShrine`).
@@ -80,7 +81,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 - `StaminaModuleClient`, `DepthsFogHandler`, `ClientModule`.
 - Entity renderer for `EntityArcaneRift` in **client preInit**. Item models on `ModelRegistryEvent`.
 
-`postInit` is empty.
+`postInit` is empty. `ArcanaQuestTweaks.serverStarting` (`@Mod.EventHandler` on `FMLServerStartingEvent`) registers the `/aqvillage` server command (`CommandAqVillage`) — see [rtg.md](rtg.md).
 
 ### MixinBooter: early vs late
 
@@ -110,7 +111,7 @@ Vanilla `World` is already loaded when late mixins prepare. Portal glowstone lig
 - Client: `MixinRenderGlobal` (Depths hide sky)
 - Common: `MixinChunkProviderServer`, `depthsupdate.MixinDepthsCaveNoiseGenerator`, `cofh.MixinDistributionUniform`, `reccomplex.MixinRayMatcher`, `reccomplex.MixinGenericVillageCreationHandler`, Better Caves / RTG village mixins listed in [depths.md](depths.md) and [rtg.md](rtg.md), `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinWorldGenLakes`, `MixinMapGenVillageInside/Spawn/Start/World`, `MixinCraftingHelperFindFiles`, `MixinWorldEntitySpawner`. Charm paste: optional `mixins.aqtweaks.charm.json`. Portal `MixinWorldRiftLight` is in `mixins.aqtweaks.early.json`.
 
-Two mixins target `ChunkGeneratorRTG` in that required json, in this order:
+Two mixins target `ChunkGeneratorRTG` in that required json. Their order comes from injection points, not from this list:
 
 1. `MixinChunkGeneratorRTG` — Depths Deepslate fill at **TAIL** of `generateTerrain` (Y -64..-1, not Y=0).
 2. `MixinChunkGeneratorRTGVillage` — layout-first + flatten `landscape.noise` **before** `generateTerrain`.
@@ -138,6 +139,10 @@ Forge `@Config` on nested classes in `ArcanaQuestTweaksConfig`. Comfort is JSON,
 | `aqtweaks_comfort_blocks.json` | `ComfortConfigLoader` (not `@Config`) |
 
 `ConfigEventHandler` runs `ConfigManager.sync` on any `aqtweaks` cfg change, invalidates DSS skill-cost cache, reloads spawn-type and spawn-party JSON, rebuilds spawn group overrides, and restamps Reskillable attributes if that mod is loaded. Existing instance files keep old keys when Java defaults change.
+
+Its reach is narrower than it looks. It subscribes to `ConfigChangedEvent.OnConfigChangedEvent`, which Forge fires from the **client in-game config GUI only** — never on a dedicated server, and never from hand-editing a cfg file. The only JSON it reloads is spawn-type and spawn-party; comfort (`aqtweaks_comfort_settings.json`, `aqtweaks_comfort_blocks.json`) and `gaia_mob_damage.json` are preInit-only and need a **restart**.
+
+`aqtweaks_grimoireofgaia.cfg`, `aqtweaks_thaumcraft.cfg`, and `aqtweaks_bewitchment.cfg` wrap their keys in a `general { }` block because those three `@Config` annotations omit `category = ""`; the other seven set it and have no wrapper. That asymmetry is **intentional** — normalizing it would reset tuned values in existing instance files.
 
 Pack-owned (not Tweaks): `config/arcanaquest/mob_overworldspawntype.json` (surface/underground ids) and `config/arcanaquest/mob_spawnparties.json` (mixed groups) for the [spawning](spawning.md) module.
 

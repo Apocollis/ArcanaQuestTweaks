@@ -126,7 +126,7 @@ public final class GrappleClientInput {
 
     public static boolean isStandingOnGround(EntityPlayer player) {
         ensureInit();
-        if (Reflect.isOnGround(player)) return true;
+        if (player.onGround) return true;
         Object controller = Reflect.getGrappleController(player);
         if (controller == null || controllerOnGroundTimerField == null) return false;
         try {
@@ -158,7 +158,7 @@ public final class GrappleClientInput {
 
         if (climbup > 0.01D) return MODE_CLIMB;
         if (climbup < -0.01D) return MODE_DESCEND;
-        if (Reflect.getSpeed(player) >= ArcanaQuestTweaksConfig.StaminaModuleConfig.grapple.grappleSwingSpeedThreshold) {
+        if (Math.sqrt(player.motionX * player.motionX + player.motionY * player.motionY + player.motionZ * player.motionZ) >= ArcanaQuestTweaksConfig.StaminaModuleConfig.grapple.grappleSwingSpeedThreshold) {
             return MODE_SWING;
         }
         return MODE_NEUTRAL;
@@ -181,6 +181,6 @@ public final class GrappleClientInput {
                 return controllerSneakField.getBoolean(controller);
             } catch (Exception ignored) {}
         }
-        return Reflect.isSneaking(player);
+        return player.isSneaking();
     }
 }

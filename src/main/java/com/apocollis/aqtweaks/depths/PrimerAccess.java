@@ -4,6 +4,7 @@ import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
+import net.minecraft.world.World;
 import net.minecraft.world.chunk.ChunkPrimer;
 
 /**
@@ -29,6 +30,20 @@ public final class PrimerAccess {
             airState = state;
         }
         return state;
+    }
+
+    /**
+     * Dimension id of this world, or {@link Integer#MIN_VALUE} when it cannot be determined.
+     * {@code world.provider} is a vanilla field, so the {@code remap = false} Depths mixins cannot
+     * read it directly.
+     */
+    public static int dimensionOf(World world) {
+        if (world == null || world.provider == null) return Integer.MIN_VALUE;
+        try {
+            return world.provider.getDimension();
+        } catch (Throwable t) {
+            return Integer.MIN_VALUE;
+        }
     }
 
     public static IBlockState getBlockState(ChunkPrimer primer, int x, int y, int z) {
@@ -78,7 +93,7 @@ public final class PrimerAccess {
     public static int openSkySurfaceY(ChunkPrimer primer, int x, int z) {
         if (primer == null) return 64;
         if (isOpaque(primer, x, 255, z)) return 64;
-        for (int y = 254; y >= 1; --y) {
+        for (int y = 254; y >= 0; --y) {
             if (isOpaque(primer, x, y, z)) return y;
         }
         return 64;

@@ -13,15 +13,41 @@ import net.minecraft.world.gen.structure.StructureBoundingBox;
 import net.minecraft.world.gen.structure.StructureComponent;
 import net.minecraft.world.gen.structure.StructureStart;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.Iterator;
+import java.util.List;
 import java.util.Random;
 
 @Mixin(value = StructureStart.class, remap = false)
 public abstract class MixinStructureStartVillagePaste {
+
+    @Unique
+    private static final ThreadLocal<Boolean> AQTWEAKS$SKIP_STAMP = ThreadLocal.withInitial(() -> Boolean.FALSE);
+
+    @Redirect(
+            method = "func_75068_a",
+            at = @At(value = "INVOKE", target = "Ljava/util/List;iterator()Ljava/util/Iterator;")
+    )
+    private Iterator<?> aqtweaks$snapshotStructureComponents(List<?> list) {
+        return VillageLandHelper.snapshotStructureIterator(list);
+    }
+
+    @Inject(method = "func_75068_a", at = @At("HEAD"), cancellable = true)
+    private void aqtweaks$dropOceanWell(World world, Random rand, StructureBoundingBox box, CallbackInfo ci) {
+        AQTWEAKS$SKIP_STAMP.set(Boolean.FALSE);
+        if (!((Object) this instanceof MapGenVillage.Start) || world == null) return;
+        Object gen = StructureVillageOverlap.findVillageGenerator(world);
+        if (!(gen instanceof MapGenVillage)) return;
+        if (VillageLandHelper.relocateOrDropWetWell((MapGenVillage) gen, world, this)) {
+            AQTWEAKS$SKIP_STAMP.set(Boolean.TRUE);
+            ci.cancel();
+        }
+    }
 
     @Redirect(
             method = "func_75068_a",
@@ -46,24 +72,29 @@ public abstract class MixinStructureStartVillagePaste {
 
     @Inject(method = "func_75068_a", at = @At("RETURN"))
     private void aqtweaks$stampVillagePlate(World world, Random rand, StructureBoundingBox box, CallbackInfo ci) {
-        if (!((Object) this instanceof MapGenVillage.Start) || world == null) return;
-        Object gen = StructureVillageOverlap.findVillageGenerator(world);
-        VillagePlate.ensureStarts(world, gen);
-        long seed = Reflect.getSeed(world);
-        for (VillagePlate.Record rec : VillagePlate.starts(seed)) {
-            if (rec.start == this) {
-                VillagePlate.stampDetectionPieces(world, rec, gen);
-                VillageRelight.afterVillagePaste(world, box);
-                return;
+        try {
+            if (Boolean.TRUE.equals(AQTWEAKS$SKIP_STAMP.get())) return;
+            if (!((Object) this instanceof MapGenVillage.Start) || world == null) return;
+            Object gen = StructureVillageOverlap.findVillageGenerator(world);
+            VillagePlate.ensureStarts(world, gen);
+            long seed = Reflect.getSeed(world);
+            for (VillagePlate.Record rec : VillagePlate.starts(seed)) {
+                if (rec.start == this) {
+                    VillagePlate.stampDetectionPieces(world, rec, gen);
+                    VillageRelight.afterVillagePaste(world, box);
+                    return;
+                }
             }
-        }
-        VillagePlate.remember(world, this);
-        for (VillagePlate.Record rec : VillagePlate.starts(seed)) {
-            if (rec.start == this) {
-                VillagePlate.stampDetectionPieces(world, rec, gen);
-                break;
+            VillagePlate.remember(world, this);
+            for (VillagePlate.Record rec : VillagePlate.starts(seed)) {
+                if (rec.start == this) {
+                    VillagePlate.stampDetectionPieces(world, rec, gen);
+                    break;
+                }
             }
+            VillageRelight.afterVillagePaste(world, box);
+        } finally {
+            AQTWEAKS$SKIP_STAMP.set(Boolean.FALSE);
         }
-        VillageRelight.afterVillagePaste(world, box);
     }
 }

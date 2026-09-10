@@ -1,6 +1,10 @@
 build/
 .gradle/
+# Parent compile jars (copied from DEVBOX). Not Git source.
+lib/
 libs/
+lib/*.jar
+libs/*.jar
 mods/
 temp/
 run/

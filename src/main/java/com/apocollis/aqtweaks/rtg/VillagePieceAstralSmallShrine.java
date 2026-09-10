@@ -1,6 +1,5 @@
 package com.apocollis.aqtweaks.rtg;
 
-import com.apocollis.aqtweaks.util.Reflect;
 import hellfirepvp.astralsorcery.common.lib.MultiBlockArrays;
 import hellfirepvp.astralsorcery.common.structure.array.BlockArray;
 import hellfirepvp.astralsorcery.common.structure.array.StructureBlockArray;
@@ -89,7 +88,7 @@ public class VillagePieceAstralSmallShrine extends StructureVillagePieces.Villag
         for (Map.Entry<BlockPos, BlockArray.BlockInformation> entry : template.getPattern().entrySet()) {
             BlockPos at = origin.add(entry.getKey());
             if (!structurebb.isVecInside(at)) continue;
-            if (VillageLandHelper.isNeverRaiseBiome(Reflect.getBiome(world.getBiomeProvider(), at.getX(), at.getZ()))) continue;
+            if (VillageLandHelper.isNeverRaiseBiome(world.getBiome(at))) continue;
             IBlockState place = entry.getValue().state;
             boolean liquid = place != null && place.getMaterial().isLiquid();
             world.setBlockState(at, place, liquid ? 3 : 2);

@@ -27,6 +27,8 @@ import net.minecraftforge.fml.relauncher.Side;
 
 public class CommonProxy {
     public void preInit(FMLPreInitializationEvent event) {
+        // Forge has already read the cfg files by now; pin the keys that are not tunable.
+        com.apocollis.aqtweaks.ArcanaQuestTweaksConfig.normalizePinned();
         ArcanaQuestTweaks.NETWORK.registerMessage(PacketSyncClimbingInput.Handler.class, PacketSyncClimbingInput.class, 0, Side.SERVER);
         ArcanaQuestTweaks.NETWORK.registerMessage(PacketLedgeClimb.Handler.class, PacketLedgeClimb.class, 1, Side.SERVER);
         ArcanaQuestTweaks.NETWORK.registerMessage(PacketSyncGrappleInput.Handler.class, PacketSyncGrappleInput.class, 2, Side.SERVER);
@@ -67,5 +69,9 @@ public class CommonProxy {
         }
     }
 
-    public void postInit(FMLPostInitializationEvent event) {}
+    public void postInit(FMLPostInitializationEvent event) {
+        // Every optional-mod and vanilla handle has had its chance to resolve by now. Say which
+        // ones did not, so a mapping break is a log line instead of a module that quietly no-ops.
+        com.apocollis.aqtweaks.util.Reflect.auditUnresolved();
+    }
 }

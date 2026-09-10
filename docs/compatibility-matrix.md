@@ -1,10 +1,12 @@
 # Compatibility matrix (1.8)
 
-Last updated: 2026-09-07.
+Last updated: 2026-09-09.
 
 This is the compile / mixin-apply / runtime contract. Module behavior lives in the per-module docs. Do not treat “required vs optional” as one bit.
 
-Gradle compiles **every jar in `libs/`** (`fileTree`). There is **no hash pin** yet. `build_gradle.ps1` copies only a subset from DEVBOX and **skips missing files**. A green build can still be the wrong set. See [build-and-release.md](build-and-release.md).
+Gradle compiles **every jar in `libs/`** (`fileTree`). Those jars are **gitignored** (`lib/`, `libs/`, `*.jar` except `gradle/wrapper/gradle-wrapper.jar`). There is **no hash pin** yet. `build_gradle.ps1` copies only a subset from DEVBOX and **skips missing files**. A green build can still be the wrong set. See [build-and-release.md](build-and-release.md).
+
+`libs/` must hold **only** jars listed in the Parents table below. An unlisted jar silently joins the compile classpath and lets code import a parent this contract never promised. `build_gradle.ps1` deletes the stale names it knows about on every run; anything else that turns up in `libs/` has to be removed by hand.
 
 ## Role columns
 
@@ -53,8 +55,9 @@ Jar names below are from the **Arcana Quest DEVBOX** instance on 2026-08-20 unle
 | `reccomplex` | `RecurrentComplexVolts-1.12.2-2.0.0.9.jar` | omitted | **required** json | **yes** | pack always | **yes** | depths, rtg | `MixinRayMatcher` **@Overwrite**; `MixinGenericVillageCreationHandler`. Needs `IvToolkit-1.3.3-1.12.jar` (copied) |
 | `astralsorcery` | `astralsorcery-1.12.2-1.10.27.jar` | omitted | optional `mixins.aqtweaks.astral.json` | **yes** if that json compiles against AS | skip json if absent | **yes** | rtg | Shrine skip/settle; village piece only if loaded |
 | `mysticalworld` | `mysticalworld-1.12.2-1.11.0.jar` | omitted | optional `mixins.aqtweaks.mysticalworld.json` | **yes** (`StructureGenerator`) | skip json if absent | **yes** | rtg | Huts only, not barrows. Pack also has `mysticallib` |
-| `roguelike` / Arcana | DEVBOX `RoguelikeDungeons-Arcana-2.5.3.jar` | omitted | — | no | `isInsideStructure("RoguelikeDungeon")` | script lists **`RoguelikeDungeons-Arcana-1.12.2-2.5.0.jar`** (name mismatch → copy often skips) | thaumcraft | No Tweaks mixin on that method |
+| `roguelike` / Arcana | DEVBOX `RoguelikeDungeons-Arcana-2.5.3.jar` | omitted | — | no | `isInsideStructure("RoguelikeDungeon")` | **no** | thaumcraft | No Tweaks mixin on that method. Compile = no, so the jar must **not** sit in `libs/`; the script deletes `RoguelikeDungeons-Arcana-1.12.2-2.5.0.jar` there. That name never matched the DEVBOX file (`2.5.3`) anyway |
 | `biomesoplenty` | `BiomesOPlenty-1.12.2-7.0.1.2445-universal.jar` | omitted | optional `mixins.aqtweaks.biomesoplenty.json` | no (string target) | yes | **no** | comfort, rtg | Hot spring block; kelp/coral biome names; `MixinGeneratorLakes` skips village water/quicksand |
+| `charm` | pack jar; **not in `libs/`** | omitted | optional `mixins.aqtweaks.charm.json` | no (string target) | yes | **no** | rtg | `MixinASMHooksVillagePaste` → `svenhjol.charm.base.ASMHooks`; returning false is Charm's Pre `DENY` path, so a village piece over water is skipped. String target keeps it compile-optional with Charm off the classpath |
 | Forge | (Cleanroom) | — | **required** json | yes | always | — | [recipes.md](recipes.md) | `MixinCraftingHelperFindFiles`. Metallurgy/Spartan jars are runtime recipe trees, not Tweaks compile deps |
 | InControl | `incontrol-1.12-3.10.4.jar` | **after** | vanilla spawner in **required** json | **yes** (`GeneralConfiguration`) | pack always | **yes** | [spawning.md](spawning.md) | Layer filter `PotentialSpawns` LOWEST then last-per-class. Pack fill: `MixinWorldEntitySpawner` only (not `WorldServer`). Do not import `PotentialSpawnRule` (`RuleBase` not in `libs/`). InControl’s own player-distance mixin stays |
 | `waystones` | `Waystones_1.12.2-4.1.0.jar` | omitted | — | no | village piece class name | **no** | rtg | Relocate same gazebo; Tweaks does not mixin Waystones |
@@ -63,11 +66,11 @@ Vanilla `MapGenVillage` / `MapGenCaves` / `WorldGenLakes` / `ChunkProviderServer
 
 ## `build_gradle.ps1` copy list vs contract
 
-**Copied if present:** Elenai Extended 1.1.3, Bewitchment, Roguelike **2.5.0 filename**, CoFH World, Better Caves, RC 2.0.0.9, IvToolkit, RTG 7.3.3.6, Astral 1.10.27, Mystical World 1.11.0, Grimoire of Gaia 1.7.2, Reskillable 1.13.1, Effortless Building 2.16, Thaumcraft 6.1 BETA26, InControl **1.12-3.10.4**. Also **deletes** stale `ElenaiDodge2-1.12.2-1.1.0.jar` and `RecurrentComplexVolts-1.12.2-2.0.0.7.jar` from `libs/`.
+**Copied if present:** Elenai Extended 1.1.3, Bewitchment, CoFH World, Better Caves, RC 2.0.0.9, IvToolkit, RTG 7.3.3.6, Astral 1.10.27, Mystical World 1.11.0, Grimoire of Gaia 1.7.2, Reskillable 1.13.1, Effortless Building 2.16, Thaumcraft 6.1 BETA26, InControl **1.12-3.10.4**. Also **deletes** from `libs/`: `ElenaiDodge2-1.12.2-1.1.0.jar`, `RecurrentComplexVolts-1.12.2-2.0.0.7.jar`, `RoguelikeDungeons-Arcana-1.12.2-2.5.0.jar`, `BaublesEX-1.12.2-2.3.5.jar`, `WearableBackpacks-RLCraft-1.12.2-3.2.7.jar`.
 
-**Not copied (but needed to compile and/or mixin-apply):** Depths Update **a12**, Grapple, Embers, DSS, Simple Difficulty, BOP.
+**Not copied (but needed to compile and/or mixin-apply):** Depths Update **a12**, Grapple, Embers, DSS, Simple Difficulty, BOP. **Charm** is not copied either and is needed for neither — `MixinASMHooksVillagePaste` is a string target in a `required: false` json.
 
-**DEVBOX vs copy filename:** Roguelike on disk is `RoguelikeDungeons-Arcana-2.5.3.jar`; the script looks for `...-1.12.2-2.5.0.jar`.
+**DEVBOX vs copy filename:** Roguelike on disk is `RoguelikeDungeons-Arcana-2.5.3.jar`, while the script's name is `...-1.12.2-2.5.0.jar`. That mismatch used to make the copy silently skip; the same name is now on the **delete** list instead, so a `2.5.3` jar dropped into `libs/` by hand still has to be pulled out by hand.
 
 ## Upgrade check (every parent bump)
 

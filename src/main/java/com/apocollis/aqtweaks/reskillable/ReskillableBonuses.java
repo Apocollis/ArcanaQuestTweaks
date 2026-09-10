@@ -37,8 +37,10 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.HashSet;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Per-level math and classify helpers. Reskillable API types stay in this package.
@@ -58,6 +60,24 @@ public final class ReskillableBonuses {
     private static final Set<String> MAGIC_LOG_SEEN = new HashSet<>();
     private static final int MAGIC_LOG_CAP = 48;
 
+    private static final String[] SKILL_PATHS = {
+            "attack", "defense", "agility", "building", "mining", "gathering", "farming", "magic"
+    };
+    private static final ResourceLocation[] SKILL_IDS = new ResourceLocation[SKILL_PATHS.length];
+
+    /**
+     * EntityPlayer.equals/hashCode compare only the entity id, so one player-keyed map would let a
+     * client and a server player share a slot. The two logical sides get separate maps instead.
+     */
+    private static final Map<UUID, int[]> SERVER_LEVELS = new ConcurrentHashMap<>();
+    private static final Map<UUID, int[]> CLIENT_LEVELS = new ConcurrentHashMap<>();
+
+    static {
+        for (int i = 0; i < SKILL_PATHS.length; i++) {
+            SKILL_IDS[i] = new ResourceLocation("reskillable", SKILL_PATHS[i]);
+        }
+    }
+
     private ReskillableBonuses() {}
 
     public static boolean enabled() {
@@ -66,9 +86,53 @@ public final class ReskillableBonuses {
 
     public static int skillLevel(EntityPlayer player, String path) {
         if (player == null) return 0;
+        int index = skillIndex(path);
+        if (index < 0) return resolveLevel(player, new ResourceLocation("reskillable", path));
+        int[] row = levelCache(player).computeIfAbsent(player.getUniqueID(), key -> newLevelRow());
+        int level = row[index];
+        if (level < 0) {
+            level = resolveLevel(player, SKILL_IDS[index]);
+            row[index] = level;
+        }
+        return level;
+    }
+
+    static void invalidateLevels(EntityPlayer player) {
+        if (player == null) return;
+        levelCache(player).remove(player.getUniqueID());
+    }
+
+    static void invalidateLevels(boolean client) {
+        (client ? CLIENT_LEVELS : SERVER_LEVELS).clear();
+    }
+
+    static void invalidateAllLevels() {
+        SERVER_LEVELS.clear();
+        CLIENT_LEVELS.clear();
+    }
+
+    private static Map<UUID, int[]> levelCache(EntityPlayer player) {
+        World world = player.getEntityWorld();
+        return world != null && world.isRemote ? CLIENT_LEVELS : SERVER_LEVELS;
+    }
+
+    private static int[] newLevelRow() {
+        int[] row = new int[SKILL_PATHS.length];
+        java.util.Arrays.fill(row, -1);
+        return row;
+    }
+
+    private static int skillIndex(String path) {
+        for (int i = 0; i < SKILL_PATHS.length; i++) {
+            if (SKILL_PATHS[i].equals(path)) return i;
+        }
+        return -1;
+    }
+
+    private static int resolveLevel(EntityPlayer player, ResourceLocation skillId) {
         PlayerData data = PlayerDataHandler.get(player);
         if (data == null) return 0;
-        Skill skill = ReskillableRegistries.SKILLS.getValue(new ResourceLocation("reskillable", path));
+        Skill skill = ReskillableRegistries.SKILLS.getValue(skillId);
         if (skill == null) return 0;
         PlayerSkillInfo info = data.getSkillInfo(skill);
         if (info == null) return 0;
@@ -216,6 +280,7 @@ public final class ReskillableBonuses {
     }
 
     public static void restampOnlinePlayers() {
+        invalidateAllLevels();
         var server = FMLCommonHandler.instance().getMinecraftServerInstance();
         if (server == null) return;
         for (EntityPlayer player : server.getPlayerList().getPlayers()) {

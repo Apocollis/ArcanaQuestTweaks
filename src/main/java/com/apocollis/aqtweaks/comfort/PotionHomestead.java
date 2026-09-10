@@ -2,7 +2,6 @@ package com.apocollis.aqtweaks.comfort;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaks;
 
-import com.apocollis.aqtweaks.util.Reflect;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
@@ -50,7 +49,7 @@ public class PotionHomestead extends Potion {
     @SideOnly(Side.CLIENT)
     public void renderInventoryEffect(int x, int y, PotionEffect effect, Minecraft mc) {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        Reflect.bindTexture(mc, ICON_TEXTURE);
+        mc.getTextureManager().bindTexture(ICON_TEXTURE);
         Gui.drawModalRectWithCustomSizedTexture(x + 6, y + 7, 0, 0, 18, 18, 18, 18);
     }
 
@@ -58,7 +57,7 @@ public class PotionHomestead extends Potion {
     @SideOnly(Side.CLIENT)
     public void renderHUDEffect(int x, int y, PotionEffect effect, Minecraft mc, float alpha) {
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        Reflect.bindTexture(mc, ICON_TEXTURE);
+        mc.getTextureManager().bindTexture(ICON_TEXTURE);
         Gui.drawModalRectWithCustomSizedTexture(x + 3, y + 3, 0, 0, 18, 18, 18, 18);
     }
 }

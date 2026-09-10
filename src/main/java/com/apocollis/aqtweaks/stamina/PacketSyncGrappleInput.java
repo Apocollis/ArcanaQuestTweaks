@@ -1,6 +1,5 @@
 package com.apocollis.aqtweaks.stamina;
 
-import com.apocollis.aqtweaks.util.Reflect;
 
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -42,17 +41,19 @@ public class PacketSyncGrappleInput implements IMessage {
     public static class Handler implements IMessageHandler<PacketSyncGrappleInput, IMessage> {
         @Override
         public IMessage onMessage(PacketSyncGrappleInput message, MessageContext ctx) {
-            EntityPlayerMP player = Reflect.getServerPlayer(ctx);
-            net.minecraft.server.MinecraftServer server = Reflect.getServer(player);
+            EntityPlayerMP player = ctx.getServerHandler().player;
+            if (player == null) return null;
+            net.minecraft.server.MinecraftServer server = player.getServer();
             if (player != null && server != null) {
                 byte mode = message.mode;
                 boolean motorActive = message.motorActive;
                 boolean grounded = message.grounded;
                 server.addScheduledTask(() -> {
-                    net.minecraft.nbt.NBTTagCompound data = Reflect.getEntityData(player);
-                    Reflect.setInteger(data, "StaminaTweaksGrappleMode", mode);
-                    Reflect.setBoolean(data, "StaminaTweaksGrappleMotor", motorActive);
-                    Reflect.setBoolean(data, "StaminaTweaksGrappleGrounded", grounded);
+                    if (player.capabilities.isCreativeMode || player.isSpectator()) return;
+                    net.minecraft.nbt.NBTTagCompound data = player.getEntityData();
+                    data.setInteger("StaminaTweaksGrappleMode", mode);
+                    data.setBoolean("StaminaTweaksGrappleMotor", motorActive);
+                    data.setBoolean("StaminaTweaksGrappleGrounded", grounded);
                 });
             }
             return null;

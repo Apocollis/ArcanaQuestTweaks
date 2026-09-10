@@ -21,6 +21,9 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.ForgeChunkManager;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -29,6 +32,8 @@ import java.util.UUID;
 
 public class EntityArcaneRift extends Entity {
 
+    private static final Logger LOGGER = LogManager.getLogger("AQTweaks-Portal");
+
     private static final DataParameter<Integer> REMAINING =
             EntityDataManager.createKey(EntityArcaneRift.class, DataSerializers.VARINT);
     private static final DataParameter<Boolean> WILD =
@@ -36,6 +41,7 @@ public class EntityArcaneRift extends Entity {
 
     private UUID linkedId;
     private int linkedDim;
+    private EntityArcaneRift linkedCache;
     private ForgeChunkManager.Ticket chunkTicket;
     private boolean collapsing;
     public int lastClientFxTick = -1;
@@ -65,6 +71,7 @@ public class EntityArcaneRift extends Entity {
     public void setLinked(UUID id, int dim) {
         this.linkedId = id;
         this.linkedDim = dim;
+        this.linkedCache = null;
     }
 
     public void setChunkTicket(ForgeChunkManager.Ticket ticket) {
@@ -94,7 +101,9 @@ public class EntityArcaneRift extends Entity {
             if (remaining % 40 == 0) {
                 world.playSound(null, getPosition(), SoundEvents.BLOCK_PORTAL_AMBIENT, SoundCategory.BLOCKS, 0.35F, 0.9F);
             }
-            tryTeleportOverlapping();
+            if ((ticksExisted & 1) == 0) {
+                tryTeleportOverlapping();
+            }
         }
     }
 
@@ -221,13 +230,29 @@ public class EntityArcaneRift extends Entity {
             return entity;
         }
         Entity transferred = entity.changeDimension(destDim, new RiftTeleporter(x, y, z, yaw));
-        return transferred != null ? transferred : entity;
+        if (transferred != null) {
+            return transferred;
+        }
+        // Transfer failed (dimension not loaded, event cancelled, entity refused). The entity is
+        // still sitting in the rift's overlap box, so stamp the cooldown here or the next tick
+        // retries forever.
+        entity.timeUntilPortal = PortalModuleConfig.general.cooldownTicks;
+        LOGGER.warn("[AQ-PORTAL] changeDimension to dim {} returned null for {}; applied cooldown instead",
+                destDim, entity.getName());
+        return entity;
     }
 
     private EntityArcaneRift findLinked() {
         if (linkedId == null || world.isRemote) {
             return null;
         }
+        EntityArcaneRift cached = linkedCache;
+        if (cached != null && !cached.isDead && cached.world instanceof WorldServer cachedWorld
+                && linkedId.equals(cached.getUniqueID())
+                && cachedWorld.getEntityFromUuid(linkedId) == cached) {
+            return cached;
+        }
+        linkedCache = null;
         MinecraftServer server = world.getMinecraftServer();
         if (server == null) {
             return null;
@@ -236,12 +261,14 @@ public class EntityArcaneRift extends Entity {
         if (preferred != null) {
             Entity found = preferred.getEntityFromUuid(linkedId);
             if (found instanceof EntityArcaneRift rift) {
+                linkedCache = rift;
                 return rift;
             }
         }
         for (WorldServer other : server.worlds) {
             Entity found = other.getEntityFromUuid(linkedId);
             if (found instanceof EntityArcaneRift rift) {
+                linkedCache = rift;
                 return rift;
             }
         }

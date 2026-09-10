@@ -120,7 +120,7 @@ Charm ASM rewrites `StructureStart.generateStructure` so paste goes through `ASM
 2. Call the real `addComponentParts`.
 3. Post `Post` if paste returned true.
 
-Tweaks’ `@Redirect` on `StructureComponent.func_74875_a` inside `StructureStart.func_75068_a` often **never runs**. Layout omission (houses/paths/RC) is the reliable drop. Tweaks also injects `ASMHooks.addComponentParts` HEAD (`mixins.aqtweaks.charm.json`) and returns false for leftover ocean/river floors — the same skip Charm would do on Pre `DENY`.
+Tweaks’ `@Redirect` on `StructureComponent.func_74875_a` inside `StructureStart.func_75068_a` often **never runs**. Layout omission (houses/paths/RC) is the reliable drop. Tweaks also injects `ASMHooks.addComponentParts` HEAD (`mixins.aqtweaks.charm.json`) and returns **true** for leftover ocean/river floors so Charm does not drop the component from the start (a `false` would slice a multi-chunk building).
 
 `villageDoorsForBiome` / `BiomeEvent.GetVillageBlockID` only theme wood and doors.
 
@@ -129,7 +129,7 @@ Tweaks’ `@Redirect` on `StructureComponent.func_74875_a` inside `StructureStar
 | Hook | Role |
 | --- | --- |
 | `MixinMapGenVillageSpawn` | After vanilla `canSpawn`, veto never-raise wells with no dry slot; ocean coast buffer. Always runs. |
-| `forgetRejectedStarts` | Drops vetoed Starts from `structureMap` + `VillagePlate` so `/locate` cannot find them. Walked wells stay. |
+| `forgetRejectedStarts` | Drops vetoed Starts from `structureMap` + `VillagePlate` so `/locate` cannot find them. Walked wells stay. Does not cache kept wells during layout. |
 | `MixinMapGenVillageStart` | Offset walked wells; `VillagePlate.remember` **replaces** that AABB Record with actual well XZ. |
 | `layoutVillageGrid` | Dummy-primer `generate()` **once per chunk** after `getNewerNoise` so AABBs exist before flatten. Stash generators for `/aqvillage` (also at RTG construct + seed+dim). Nested landscape samples do not re-layout. |
 | `MixinChunkGeneratorRTGVillage` | Rewrite `landscape.noise` from **land boxes** + pad 12 + Hermite falloff. Never write ocean/river (including RTG river). Raise dry land to min well Y. Reseal pad after caves/ravines. Mud → loamy grass:2 only. `ensureStarts` if Tweaks cache empty; else `rememberNearby` well-grid only. |
@@ -138,7 +138,7 @@ Tweaks’ `@Redirect` on `StructureComponent.func_74875_a` inside `StructureStar
 | `MixinStructureVillagePieces` | House/waystone skip/retry inland on never-raise; wet paths retry inland then omit leftover ocean/river or mostly-wet docks. |
 | `MixinGenericVillageCreationHandler` | Same skip/retry for RC AABBs. |
 | `MixinASMHooksVillagePaste` | Charm populate abort on ocean/river floor (`mixins.aqtweaks.charm.json`). |
-| `MixinStructureStartVillagePaste` | Populate abort on ocean/river floor; stamp pad children; relight clip. |
+| `MixinStructureStartVillagePaste` | Snapshot component iterator; populate walk/drop if remembered well is never-raise; abort on ocean/river floor (incl. well); stamp pad children; relight clip. |
 | `MixinMapGenVillageInside` | Detection = pad + Hermite AABBs (also stamped into `Village.dat`). Well floor through plate + `villageBoxHeight`. |
 
 `isLandscapeLake`: a **null** sample (or nested sampling) is **not** wet. Load-time forget must not treat missing landscape as a flooded plains well. Layout must not treat missing landscape as a lake (that omitted every road).

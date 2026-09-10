@@ -3,7 +3,6 @@ package com.apocollis.aqtweaks.mixin.dss;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.stamina.DssSkillCosts;
 import com.apocollis.aqtweaks.util.Reflect;
-import com.elenai.elenaidodge2.api.FeathersHelper;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.ResourceLocation;
@@ -18,13 +17,17 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(targets = "dynamicswordskills.skills.SkillActive", remap = false)
 public abstract class MixinSkillActive {
 
+    @Unique
+    private int aqtweaks$triggerCost;
+
     @Inject(method = "trigger", at = @At("HEAD"), cancellable = true)
     private void aqtweaks$gateDssStamina(World world, EntityPlayer player, boolean wasTriggered,
                                         CallbackInfoReturnable<Boolean> cir) {
+        aqtweaks$triggerCost = 0;
         if (!aqtweaks$shouldHandle(world, player)) return;
-        int cost = DssSkillCosts.costFor(aqtweaks$registryName());
-        if (cost <= 0) return;
-        if (!Reflect.hasEnoughStamina(player, cost)) {
+        aqtweaks$triggerCost = DssSkillCosts.costFor(aqtweaks$registryName());
+        if (aqtweaks$triggerCost <= 0) return;
+        if (!Reflect.hasEnoughStamina(player, aqtweaks$triggerCost)) {
             cir.setReturnValue(false);
         }
     }
@@ -34,10 +37,10 @@ public abstract class MixinSkillActive {
                                          CallbackInfoReturnable<Boolean> cir) {
         if (!aqtweaks$shouldHandle(world, player)) return;
         if (cir.getReturnValue() == null || !cir.getReturnValue()) return;
-        int cost = DssSkillCosts.costFor(aqtweaks$registryName());
+        int cost = aqtweaks$triggerCost;
         if (cost <= 0) return;
         if (player instanceof EntityPlayerMP) {
-            FeathersHelper.decreaseFeathers((EntityPlayerMP) player, cost);
+            Reflect.decreaseFeathers((EntityPlayerMP) player, cost);
         }
     }
 

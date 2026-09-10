@@ -34,6 +34,11 @@ public final class VillageDebug {
         return key != null && ONCE.add(key);
     }
 
+    /** Clears the once-per-key set so it cannot grow for the life of the process. */
+    public static void reset() {
+        ONCE.clear();
+    }
+
     public static void log(String format, Object... args) {
         if (!enabled()) return;
         String message;

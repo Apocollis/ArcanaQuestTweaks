@@ -1,6 +1,6 @@
 # Comfort module (1.8)
 
-Last updated: 2026-09-03.
+Last updated: 2026-09-09.
 
 JSON (two files under `config/arcanaquesttweaks/`):
 
@@ -52,7 +52,7 @@ Server only. `TickEvent.PlayerTickEvent` **END**, every **300 ticks** (15s) on `
 
 ## Scoring
 
-Scan **24×5×24** from the player position: horizontal radius 12, **dy -2..+2**. Skip unloaded blocks. Look up each block’s registry id in `COZY_BLOCKS`.
+Scan **25×5×25** (3,125 cells) from the player position: horizontal radius **±12 inclusive**, **dy -2..+2**. Skip unloaded blocks. Look up each block’s registry id in `COZY_BLOCKS`.
 
 Pets: `EntityTameable` in AABB grown **16** from the player. Count if `isTamed()` and `ownerId` equals the player. Each pet adds `pet_comfort_value` under category `pets`.
 
@@ -102,6 +102,8 @@ Comfort drain is **temporary warp only**. Sleep drain is the Thaumcraft module (
 
 Gson. Unknown fields ignored. Failure of **one** file uses in-memory defaults for that file only.
 
+Both files load **once**, in `ComfortConfigLoader.load` from preInit. `ConfigEventHandler` does not reload them (it only reloads the spawn JSON), so an edit needs a **restart** — a cfg save in the in-game GUI will not pick it up.
+
 **Settings** (`aqtweaks_comfort_settings.json`):
 
 ```json
@@ -113,6 +115,23 @@ Gson. Unknown fields ignored. Failure of **one** file uses in-memory defaults fo
   "promote_ticks": 1200,
   "penalties": {
     "enabled": true,
+    "temperature": {
+      "enabled": true,
+      "comfort_min": 11,
+      "comfort_max": 14,
+      "per_point_outside": 1.5,
+      "heat_ignore_potions": [
+        "simpledifficulty:heat_protection",
+        "simpledifficulty:heat_resist"
+      ],
+      "cold_ignore_potions": [
+        "simpledifficulty:cold_protection",
+        "simpledifficulty:cold_resist"
+      ]
+    },
+    "thirst": { "enabled": true, "per_missing_point": 0.75 },
+    "hunger": { "enabled": true, "per_missing_point": 0.5 },
+    "health": { "enabled": true, "per_missing_fraction": 15.0 },
     "effects": [
       { "enabled": true, "potion": "somnia:sleepy", "amount": 10.0 },
       { "enabled": true, "potion": "somnia:exhausted", "amount": 25.0 },
@@ -127,6 +146,28 @@ Gson. Unknown fields ignored. Failure of **one** file uses in-memory defaults fo
   }
 }
 ```
+
+The four formula penalties are their own objects under `penalties`. A missing object uses the defaults below; `penalties.enabled` false skips all of them.
+
+| Object | Key | Default | Meaning |
+| --- | --- | --- | --- |
+| `penalties.temperature` | `enabled` | true | Off = body temp never costs |
+| `penalties.temperature` | `comfort_min` / `comfort_max` | 11 / 14 | Free band |
+| `penalties.temperature` | `per_point_outside` | 1.5 | Per body-temp point past the band |
+| `penalties.temperature` | `heat_ignore_potions` | SD `heat_protection`, `heat_resist` | Any active while **hot** → penalty 0 |
+| `penalties.temperature` | `cold_ignore_potions` | SD `cold_protection`, `cold_resist` | Any active while **cold** → penalty 0 |
+| `penalties.thirst` | `enabled` / `per_missing_point` | true / 0.75 | `(20 − thirst) × per_missing_point` |
+| `penalties.hunger` | `enabled` / `per_missing_point` | true / 0.5 | `(20 − food) × per_missing_point` |
+| `penalties.health` | `enabled` / `per_missing_fraction` | true / 15.0 | `(1 − hp/maxHp) × per_missing_fraction` |
+
+**Legacy aliases.** Read only when `effects` is absent on that object; `effects` always wins.
+
+| Legacy key | Shape | Replaced by |
+| --- | --- | --- |
+| `penalties.somnia` | `enabled`, `sleepy_potion` / `sleepy`, `exhausted_potion` / `exhausted`, `fading_potion` / `fading` | `penalties.effects` |
+| `bonuses.farmers_delight_comfort` | one `{ enabled, potion, amount }` | `bonuses.effects` |
+
+`penalties.somnia` with `enabled: false` and no `effects` yields **no** potion penalties. Neither `effects` nor the legacy key present → built-in defaults (the three Somnia rows / Farmer's Delight +10).
 
 **Blocks** (`aqtweaks_comfort_blocks.json`):
 

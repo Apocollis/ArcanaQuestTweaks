@@ -171,7 +171,7 @@ public final class CommandAqVillage extends CommandBase {
         int originCz = from.getZ() >> 4;
         int originCellX = VillageLandHelper.villageCell(originCx, spacing);
         int originCellZ = VillageLandHelper.villageCell(originCz, spacing);
-        long seed = Reflect.getSeed(world);
+        long seed = world.getSeed();
         Hit best = null;
         double bestDist = Double.MAX_VALUE;
         for (int cellX = originCellX - CELL_RADIUS; cellX <= originCellX + CELL_RADIUS; cellX++) {
@@ -206,7 +206,7 @@ public final class CommandAqVillage extends CommandBase {
             String reason = VillageLandHelper.startRejectReason(world, cx, cz);
             if (reason != null) continue;
             int[] wellXZ = VillageLandHelper.resolvedWellForChunk(world, cx, cz);
-            for (VillagePlate.Record rec : VillagePlate.starts(Reflect.getSeed(world))) {
+            for (VillagePlate.Record rec : VillagePlate.starts(world.getSeed())) {
                 if (rec.start == start) {
                     wellXZ = new int[] {rec.wellX, rec.wellZ};
                     break;

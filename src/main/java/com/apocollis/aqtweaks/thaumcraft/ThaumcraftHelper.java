@@ -3,9 +3,19 @@ package com.apocollis.aqtweaks.thaumcraft;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraftforge.fml.common.Loader;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.lang.reflect.Method;
 
 public class ThaumcraftHelper {
+
+    private static final Logger LOGGER = LogManager.getLogger("AQTweaks-Thaumcraft");
+
+    /** Set once if an invoke against the TC warp capability blows up, so we stop pretending it works. */
+    private static boolean apiBroken = false;
+    private static boolean warnedBroken = false;
 
     private static boolean initialized = false;
     private static Class enumWarpTypeClass = null;
@@ -49,13 +59,34 @@ public class ThaumcraftHelper {
             reduceWarpMethod = warpCapClass.getMethod("reduce", enumWarpTypeClass, int.class);
             syncMethod = warpCapClass.getMethod("sync", EntityPlayerMP.class);
         } catch (Exception e) {
-            e.printStackTrace();
+            apiBroken = true;
+            LOGGER.error("[AQ-TC] Could not bind the Thaumcraft warp capability; all Tweaks warp "
+                    + "sources and sinks are disabled for this session", e);
+        }
+    }
+
+    /**
+     * False when the warp capability could not be bound or has since thrown. Callers must check this
+     * before treating a {@code 0} return as "the player has no warp" — otherwise a broken API reads
+     * as a successful cleanse.
+     */
+    public static boolean available() {
+        init();
+        return !apiBroken && getWarpMethod != null && getWarpValueMethod != null;
+    }
+
+    private static void markBroken(String op, Throwable t) {
+        apiBroken = true;
+        if (!warnedBroken) {
+            warnedBroken = true;
+            LOGGER.error("[AQ-TC] Thaumcraft warp {} failed; disabling Tweaks warp integration "
+                    + "for this session", op, t);
         }
     }
 
     public static int getWarp(EntityPlayer player, int typeIndex) {
         init();
-        if (getWarpMethod == null || getWarpValueMethod == null) return 0;
+        if (apiBroken || getWarpMethod == null || getWarpValueMethod == null) return 0;
         try {
             Object warpCap = getWarpMethod.invoke(null, player);
             if (warpCap != null) {
@@ -63,14 +94,14 @@ public class ThaumcraftHelper {
                 return (Integer) getWarpValueMethod.invoke(warpCap, type);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            markBroken("get", e);
         }
         return 0;
     }
 
     public static int addWarp(EntityPlayer player, int typeIndex, int amount) {
         init();
-        if (getWarpMethod == null || addWarpMethod == null) return 0;
+        if (apiBroken || getWarpMethod == null || addWarpMethod == null) return 0;
         try {
             Object warpCap = getWarpMethod.invoke(null, player);
             if (warpCap != null) {
@@ -78,14 +109,14 @@ public class ThaumcraftHelper {
                 return (Integer) addWarpMethod.invoke(warpCap, type, amount);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            markBroken("add", e);
         }
         return 0;
     }
 
     public static int reduceWarp(EntityPlayer player, int typeIndex, int amount) {
         init();
-        if (getWarpMethod == null || reduceWarpMethod == null) return 0;
+        if (apiBroken || getWarpMethod == null || reduceWarpMethod == null) return 0;
         try {
             Object warpCap = getWarpMethod.invoke(null, player);
             if (warpCap != null) {
@@ -93,21 +124,21 @@ public class ThaumcraftHelper {
                 return (Integer) reduceWarpMethod.invoke(warpCap, type, amount);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            markBroken("reduce", e);
         }
         return 0;
     }
 
     public static void syncWarp(EntityPlayer player) {
         init();
-        if (getWarpMethod == null || syncMethod == null || !(player instanceof EntityPlayerMP)) return;
+        if (apiBroken || getWarpMethod == null || syncMethod == null || !(player instanceof EntityPlayerMP)) return;
         try {
             Object warpCap = getWarpMethod.invoke(null, player);
             if (warpCap != null) {
                 syncMethod.invoke(warpCap, (EntityPlayerMP) player);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            markBroken("sync", e);
         }
     }
 }

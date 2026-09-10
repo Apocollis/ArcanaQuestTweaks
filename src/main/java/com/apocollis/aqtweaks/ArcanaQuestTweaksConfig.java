@@ -492,9 +492,34 @@ public class ArcanaQuestTweaksConfig {
         public boolean enableLedgeClimb = true;
 
         @Config.Name("Ledge Climb Cost")
-        @Config.Comment("Stamina cost (in half-feathers) per ledge climb")
+        @Config.Comment("Half-feathers spent when the grab starts (short mantle). Expert Climber applies.")
         @Config.RangeInt(min = 0)
         public int ledgeClimbCost = 2;
+
+        @Config.Name("Ledge Climb Extra Cost")
+        @Config.Comment("Half-feathers added each extra interval after the short-mantle window")
+        @Config.RangeInt(min = 0)
+        public int ledgeClimbExtraCost = 1;
+
+        @Config.Name("Ledge Climb Extra After Ticks")
+        @Config.Comment("Mantle ticks before the first extra spend. Short catch is about 7 ticks at current speed.")
+        @Config.RangeInt(min = 1)
+        public int ledgeClimbExtraAfterTicks = 7;
+
+        @Config.Name("Ledge Climb Extra Interval")
+        @Config.Comment("Ticks between extra spends after the first extra window. 8 × 3 extras → max climb ≈ 5 with grab 2.")
+        @Config.RangeInt(min = 1)
+        public int ledgeClimbExtraInterval = 8;
+
+        @Config.Name("Ledge Climb Max Extra Spends")
+        @Config.Comment("Cap on extra spends after the grab (3 → total 5 when grab is 2 and extra is 1).")
+        @Config.RangeInt(min = 0, max = 20)
+        public int ledgeClimbMaxExtraSpends = 3;
+
+        @Config.Name("Ledge Climb Land Pause Ticks")
+        @Config.Comment("After a successful mantle, suppress jump and WASD so held W+space does not hop or run off. 0 disables.")
+        @Config.RangeInt(min = 0, max = 40)
+        public int ledgeClimbLandPauseTicks = 8;
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_client", category = "")
@@ -661,6 +686,12 @@ public class ArcanaQuestTweaksConfig {
         };
     }
 
+    /**
+     * The one supported Depths floor. {@code MixinCaveNoiseGenerator}'s vertical bands are hand
+     * calibrated to it, so this is a constant rather than a knob.
+     */
+    public static final int DEPTHS_FLOOR_Y = -64;
+
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_depths", category = "")
     public static class DepthsModuleConfig {
 
@@ -682,9 +713,14 @@ public class ArcanaQuestTweaksConfig {
             public boolean enableDepthsModule = true;
 
             @Config.Name("Minimum World Y Elevation")
-            @Config.Comment("The minimum Y coordinate boundary of the world (defaults to -64 for Depths Update).")
-            @Config.RangeInt(min = -256, max = 0)
-            public int minWorldY = -64;
+            @Config.Comment({
+                "The minimum Y coordinate boundary of the world. PINNED to -64 and not tunable.",
+                "The Depths cave bands (lower cavern, lava level, decor) are calibrated to a -64",
+                "floor, so any other value produces a mismatched or out-of-range carve. Edits to",
+                "this key are clamped back to -64 on load."
+            })
+            @Config.RangeInt(min = DEPTHS_FLOOR_Y, max = DEPTHS_FLOOR_Y)
+            public int minWorldY = DEPTHS_FLOOR_Y;
 
             @Config.Name("Better Depths Caves")
             @Config.Comment("Enable AQTweaks Depths cave generation (BC-style upper tunnels, chambers, lower deep, sparse shafts, Y0 mouths into +Y Better Caves). Affects new chunks only. When false, AQTweaks skips that carve path.")
@@ -711,7 +747,12 @@ public class ArcanaQuestTweaksConfig {
             public boolean enableBetterCavesNegativeY = true;
 
             @Config.Name("Adjust Better Caves Bedrock Height")
-            @Config.Comment("Should YUNG's Better Caves bedrock generation layer be shifted down to Minimum World Y?")
+            @Config.Comment({
+                "Should YUNG's Better Caves bedrock flattening pass be cancelled? Better Caves",
+                "flattens bedrock at Y 0-4, which would seal the Y0 breach mouths into the Depths.",
+                "Nothing is shifted down — the Depths bedrock floor is laid at Minimum World Y by",
+                "the Depths carve instead."
+            })
             public boolean adjustBetterCavesBedrock = true;
 
             @Config.Name("Enable Recurrent Complex Negative Y")
@@ -1148,12 +1189,22 @@ public class ArcanaQuestTweaksConfig {
         public String[] denyTypes = new String[] {"wither", "onFire", "lava", "hotFloor"};
     }
 
+    /**
+     * Forces values that are documented as non-tunable back to their pinned constants. Runs after
+     * every sync, so a hand-edited instance file is corrected rather than honoured. Readers can
+     * keep reading the fields directly.
+     */
+    public static void normalizePinned() {
+        DepthsModuleConfig.general.minWorldY = DEPTHS_FLOOR_Y;
+    }
+
     @Mod.EventBusSubscriber(modid = ArcanaQuestTweaks.MODID)
     public static class ConfigEventHandler {
         @SubscribeEvent
         public static void onConfigChanged(ConfigChangedEvent.OnConfigChangedEvent event) {
             if (event.getModID().equals(ArcanaQuestTweaks.MODID)) {
                 ConfigManager.sync(ArcanaQuestTweaks.MODID, Config.Type.INSTANCE);
+                normalizePinned();
                 DssSkillCosts.invalidate();
                 com.apocollis.aqtweaks.spawning.SpawnTypeLists.reload();
                 com.apocollis.aqtweaks.spawning.SpawnParties.reload();

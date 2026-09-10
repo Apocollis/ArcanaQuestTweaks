@@ -6,6 +6,9 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.DamageSource;
 import net.minecraftforge.fml.common.Loader;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.lang.reflect.Method;
 
 /**
@@ -14,8 +17,11 @@ import java.lang.reflect.Method;
  */
 public final class ThaumcraftFocusHooks {
 
+    private static final Logger LOGGER = LogManager.getLogger("AQTweaks-Thaumcraft");
+
     private static Method magicMultiplier;
     private static boolean resolved;
+    private static boolean warnedInvoke;
 
     private ThaumcraftFocusHooks() {}
 
@@ -39,7 +45,12 @@ public final class ThaumcraftFocusHooks {
             if (out instanceof Number) {
                 return amount * ((Number) out).floatValue();
             }
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            if (!warnedInvoke) {
+                warnedInvoke = true;
+                LOGGER.warn("[AQ-TC] Reskillable magic multiplier threw; focus output will not be "
+                        + "scaled for this session", t);
+            }
         }
         return amount;
     }
@@ -51,8 +62,10 @@ public final class ThaumcraftFocusHooks {
         try {
             Class<?> bonuses = Class.forName("com.apocollis.aqtweaks.reskillable.ReskillableBonuses");
             magicMultiplier = bonuses.getMethod("magicMultiplier", EntityPlayer.class, boolean.class);
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
             magicMultiplier = null;
+            LOGGER.warn("[AQ-TC] Reskillable is loaded but the magic multiplier bridge could not be "
+                    + "resolved; focus output will not be scaled", t);
         }
     }
 }

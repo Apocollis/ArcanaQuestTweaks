@@ -66,6 +66,8 @@ public final class UpperTunnelNetwork {
     private static FastNoise chamberShape;
     private static FastNoise chamberSize;
     private static boolean initialized = false;
+    /** Seed {@link #init} last built from, so a second world in the same process rebuilds. */
+    private static long initializedSeed;
 
     /** Bumped when the noise is (re)built so live per-thread caches drop stale entries. */
     private static volatile int noiseGeneration = 0;
@@ -75,7 +77,7 @@ public final class UpperTunnelNetwork {
     private UpperTunnelNetwork() {}
 
     public static synchronized void init(long worldSeed) {
-        if (initialized) return;
+        if (initialized && initializedSeed == worldSeed) return;
         int seed1 = (int) (worldSeed & 0xFFFF);
         int seed2 = (int) ((worldSeed >> 16) & 0xFFFF);
 
@@ -119,6 +121,7 @@ public final class UpperTunnelNetwork {
 
         noiseGeneration++;
         initialized = true;
+        initializedSeed = worldSeed;
     }
 
     private static int wormScanMask() {

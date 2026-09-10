@@ -2,6 +2,7 @@ package com.apocollis.aqtweaks.mixin.biomesoplenty;
 
 import com.apocollis.aqtweaks.rtg.StructureVillageOverlap;
 import com.apocollis.aqtweaks.rtg.VillageDebug;
+import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
@@ -52,7 +53,7 @@ public abstract class MixinGeneratorLakes {
         if (liquid == null) return false;
         Block block = liquid.getBlock();
         if (block == null) return false;
-        ResourceLocation name = block.getRegistryName();
+        ResourceLocation name = Reflect.getBlockRegistryName(block);
         if (name == null || !"biomesoplenty".equals(name.getNamespace())) return false;
         String path = name.getPath();
         return "sand".equals(path) || "sand_fluid".equals(path);

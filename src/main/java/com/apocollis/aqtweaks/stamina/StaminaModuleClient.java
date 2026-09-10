@@ -11,25 +11,37 @@ import com.elenai.elenaidodge2.gui.DodgeGui;
 import com.elenai.elenaidodge2.util.ClientStorage;
 import com.elenai.elenaidodge2.util.PatronRewardHandler;
 import com.elenai.elenaidodge2.util.Utils;
+import net.minecraft.block.Block;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.math.AxisAlignedBB;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.client.event.RenderGameOverlayEvent.ElementType;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class StaminaModuleClient {
+
+    /** Wall probe heights for the mantle scan. Read-only — never write into this array. */
+    private static final double[] LEDGE_CHECK_HEIGHTS = {0.4D, 0.7D, 1.0D, 1.3D, 1.6D};
 
     @SubscribeEvent
     @SideOnly(Side.CLIENT)
     public void onRenderDodgeGUI(RenderGameOverlayEvent.Post event) {
-        EntityPlayer player = Reflect.getClientPlayer();
+        EntityPlayer player = Minecraft.getMinecraft().player;
         if (player == null) return;
-        Minecraft mc = Reflect.getMinecraft();
+        Minecraft mc = Minecraft.getMinecraft();
 
         // Only render if the dodge trait is NOT unlocked
         // (if it is unlocked, Elenai Dodge 2's DodgeGui will render it)
@@ -39,7 +51,7 @@ public class StaminaModuleClient {
         if (ModConfig.client == null || ModConfig.client.hud == null) return;
         if (!ModConfig.client.hud.hud) return;
 
-        if (Reflect.isCreative(player) || Reflect.isSpectator(player)) return;
+        if (player.capabilities.isCreativeMode || player.isSpectator()) return;
 
         boolean compatHud = ModConfig.client.hud.compatHud;
         ElementType type = event.getType();
@@ -47,7 +59,7 @@ public class StaminaModuleClient {
         // Match Extended DodgeGui overlay events so locked-dodge HUD sits on the same pass
         if ((type == ElementType.ALL && compatHud) || (type == ElementType.FOOD && !compatHud)) {
             // Render
-            Reflect.bindTexture(mc, DodgeGui.DODGE_ICONS);
+            mc.getTextureManager().bindTexture(DodgeGui.DODGE_ICONS);
             GlStateManager.enableBlend();
             DodgeGui.enableAlpha(DodgeGui.alpha);
 
@@ -76,7 +88,7 @@ public class StaminaModuleClient {
             }
 
             DodgeGui.disableAlpha(DodgeGui.alpha);
-            Reflect.bindTexture(mc, Gui.ICONS);
+            mc.getTextureManager().bindTexture(Gui.ICONS);
             GlStateManager.disableBlend();
         }
     }
@@ -87,10 +99,10 @@ public class StaminaModuleClient {
         if (event.phase != net.minecraftforge.fml.common.gameevent.TickEvent.Phase.START) return;
 
         EntityPlayer player = event.player;
-        if (player == null || Reflect.isCreative(player) || Reflect.isSpectator(player)) return;
+        if (player == null || player.capabilities.isCreativeMode || player.isSpectator()) return;
 
         // Only run for the local player on the client side
-        EntityPlayer localPlayer = Reflect.getClientPlayer();
+        EntityPlayer localPlayer = Minecraft.getMinecraft().player;
         if (player == localPlayer) {
             // Restore ClientStorage.weightValues from local config if it was cleared/sync-bypassed
             if (ClientStorage.weightValues == null || ClientStorage.weightValues.isEmpty()) {
@@ -116,8 +128,8 @@ public class StaminaModuleClient {
         int threshold = ArcanaQuestTweaksConfig.StaminaModuleConfig.sprinting.sprintThreshold;
         if (Reflect.hasEnoughStamina(player, threshold)) return;
 
-        Reflect.setSprinting(player, false);
-        Minecraft mc = Reflect.getMinecraft();
+        player.setSprinting(false);
+        Minecraft mc = Minecraft.getMinecraft();
         if (mc != null && mc.gameSettings != null) {
             net.minecraft.client.settings.KeyBinding.setKeyBindState(mc.gameSettings.keyBindSprint.getKeyCode(), false);
         }
@@ -128,7 +140,7 @@ public class StaminaModuleClient {
     public void onClientTickLowest(net.minecraftforge.fml.common.gameevent.TickEvent.ClientTickEvent event) {
         if (event.phase != net.minecraftforge.fml.common.gameevent.TickEvent.Phase.END) return;
 
-        EntityPlayer player = Reflect.getClientPlayer();
+        EntityPlayer player = Minecraft.getMinecraft().player;
         if (player == null) return;
         if (player.isPotionActive(com.elenai.elenaidodge2.init.PotionInit.WEIGHT_EFFECT)) return;
 
@@ -145,47 +157,59 @@ public class StaminaModuleClient {
         }
     }
 
+    /**
+     * Perk-adjusted climb cost for the climbable the player is on, or -1 when this climbable is
+     * exempt. Must stay in step with the server's billing in {@code StaminaModule.handleServerClimbing}:
+     * using the raw config value here let Expert Climber slide the client while the server allowed
+     * the climb.
+     */
+    @SideOnly(Side.CLIENT)
+    private static int clientClimbCost(EntityPlayer player) {
+        int x = net.minecraft.util.math.MathHelper.floor(player.posX);
+        int y = net.minecraft.util.math.MathHelper.floor(player.getEntityBoundingBox().minY);
+        int z = net.minecraft.util.math.MathHelper.floor(player.posZ);
+        net.minecraft.util.math.BlockPos pos = new net.minecraft.util.math.BlockPos(x, y, z);
+        net.minecraft.world.World world = player.world;
+        net.minecraft.block.Block block = world != null ? world.getBlockState(pos).getBlock() : net.minecraft.init.Blocks.AIR;
+
+        boolean isRope = Reflect.isRopeBlock(block);
+        boolean isVine = !isRope && (block instanceof net.minecraft.block.BlockVine
+                || block.getClass().getSimpleName().toLowerCase().contains("vine"));
+
+        ArcanaQuestTweaksConfig.Climbing climbing = ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing;
+        if (isRope && !climbing.enableRopeCost) return -1;
+
+        int base = isRope ? climbing.ropeCost : (isVine ? climbing.vineCost : climbing.ladderCost);
+        return StaminaPerks.climbCost(player, base);
+    }
+
     @SideOnly(Side.CLIENT)
     private void handleClientClimbing(net.minecraft.client.entity.EntityPlayerSP player) {
         if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.enableClimbCost) return;
 
-        if (Reflect.isOnLadder(player)) {
+        if (player.isOnLadder()) {
             // Keep jump input synced (used by other climb edge cases / older servers)
             boolean isJumpPressed = Reflect.isJumpPressed(player);
             ArcanaQuestTweaks.NETWORK.sendToServer(new PacketSyncClimbingInput(isJumpPressed));
-            Reflect.setBoolean(Reflect.getEntityData(player), "StaminaTweaksLastJumpInput", isJumpPressed);
+            player.getEntityData().setBoolean("StaminaTweaksLastJumpInput", isJumpPressed);
 
             if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.fallOnDepleted) return;
 
-            int x = net.minecraft.util.math.MathHelper.floor(Reflect.getPosX(player));
-            int y = net.minecraft.util.math.MathHelper.floor(Reflect.getBoundingBoxMinY(player));
-            int z = net.minecraft.util.math.MathHelper.floor(Reflect.getPosZ(player));
-            net.minecraft.util.math.BlockPos pos = new net.minecraft.util.math.BlockPos(x, y, z);
-            net.minecraft.world.World world = Reflect.getWorld(player);
-            net.minecraft.block.Block block = world != null ? Reflect.getBlock(world, pos) : net.minecraft.init.Blocks.AIR;
+            int cost = clientClimbCost(player);
+            if (cost < 0) return;
 
-            boolean isRope = Reflect.isRopeBlock(block);
-            boolean isVine = !isRope && (block instanceof net.minecraft.block.BlockVine
-                    || block.getClass().getSimpleName().toLowerCase().contains("vine"));
-
-            if (isRope && !ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.enableRopeCost) return;
-
-            int cost = isRope ? ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.ropeCost
-                    : (isVine ? ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.vineCost
-                            : ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.ladderCost);
-
-            NBTTagCompound climbData = Reflect.getEntityData(player);
-            boolean ledgeActive = Reflect.getInteger(climbData, "StaminaTweaksLedgeClimbState") == 1;
+            NBTTagCompound climbData = player.getEntityData();
+            boolean ledgeActive = climbData.getInteger("StaminaTweaksLedgeClimbState") == 1;
             boolean mantleIntent = Reflect.isJumpPressed(player) && Reflect.getMoveForward(player) > 0.0F;
 
             if (!ledgeActive && !mantleIntent && cost > 0 && !Reflect.hasEnoughStamina(player, cost)) {
-                Reflect.setMotionY(player, -0.15);
+                player.motionY = -0.15;
             }
         } else {
-            NBTTagCompound clientData = Reflect.getEntityData(player);
-            if (Reflect.getBoolean(clientData, "StaminaTweaksLastJumpInput")) {
+            NBTTagCompound clientData = player.getEntityData();
+            if (clientData.getBoolean("StaminaTweaksLastJumpInput")) {
                 ArcanaQuestTweaks.NETWORK.sendToServer(new PacketSyncClimbingInput(false));
-                Reflect.setBoolean(clientData, "StaminaTweaksLastJumpInput", false);
+                clientData.setBoolean("StaminaTweaksLastJumpInput", false);
             }
         }
     }
@@ -196,10 +220,10 @@ public class StaminaModuleClient {
         if (!grapple.enableGrappleCost && !grapple.motorRequiresEmber) return;
         if (!Reflect.isGrappleLoaded()) return;
 
-        NBTTagCompound data = Reflect.getEntityData(player);
+        NBTTagCompound data = player.getEntityData();
         if (!Reflect.isGrappling(player)) {
-            if (Reflect.getInteger(data, "StaminaTweaksGrappleClientSentTick") > 0) {
-                Reflect.setInteger(data, "StaminaTweaksGrappleClientSentTick", 0);
+            if (data.getInteger("StaminaTweaksGrappleClientSentTick") > 0) {
+                data.setInteger("StaminaTweaksGrappleClientSentTick", 0);
             }
             return;
         }
@@ -207,19 +231,19 @@ public class StaminaModuleClient {
         int mode = GrappleClientInput.getMode(player);
         boolean motor = GrappleClientInput.isMotorPulling(player);
         boolean grounded = GrappleClientInput.isStandingOnGround(player);
-        int now = Reflect.getTicksExisted(player);
-        int lastTick = Reflect.getInteger(data, "StaminaTweaksGrappleClientSentTick");
-        int lastMode = Reflect.getInteger(data, "StaminaTweaksGrappleClientSentMode");
-        boolean lastMotor = Reflect.getBoolean(data, "StaminaTweaksGrappleClientSentMotor");
-        boolean lastGrounded = Reflect.getBoolean(data, "StaminaTweaksGrappleClientSentGrounded");
+        int now = player.ticksExisted;
+        int lastTick = data.getInteger("StaminaTweaksGrappleClientSentTick");
+        int lastMode = data.getInteger("StaminaTweaksGrappleClientSentMode");
+        boolean lastMotor = data.getBoolean("StaminaTweaksGrappleClientSentMotor");
+        boolean lastGrounded = data.getBoolean("StaminaTweaksGrappleClientSentGrounded");
         boolean sentOnce = lastTick > 0;
 
         if (!sentOnce || mode != lastMode || motor != lastMotor || grounded != lastGrounded || now - lastTick >= 10) {
             ArcanaQuestTweaks.NETWORK.sendToServer(new PacketSyncGrappleInput(mode, motor, grounded));
-            Reflect.setInteger(data, "StaminaTweaksGrappleClientSentTick", Math.max(now, 1));
-            Reflect.setInteger(data, "StaminaTweaksGrappleClientSentMode", mode);
-            Reflect.setBoolean(data, "StaminaTweaksGrappleClientSentMotor", motor);
-            Reflect.setBoolean(data, "StaminaTweaksGrappleClientSentGrounded", grounded);
+            data.setInteger("StaminaTweaksGrappleClientSentTick", Math.max(now, 1));
+            data.setInteger("StaminaTweaksGrappleClientSentMode", mode);
+            data.setBoolean("StaminaTweaksGrappleClientSentMotor", motor);
+            data.setBoolean("StaminaTweaksGrappleClientSentGrounded", grounded);
         }
     }
 
@@ -227,7 +251,7 @@ public class StaminaModuleClient {
     @SideOnly(Side.CLIENT)
     public void onGrappleInputUpdate(net.minecraftforge.client.event.InputUpdateEvent event) {
         EntityPlayer player = event.getEntityPlayer();
-        if (player == null || Reflect.isCreative(player) || Reflect.isSpectator(player)) return;
+        if (player == null || player.capabilities.isCreativeMode || player.isSpectator()) return;
         handleClientGrappling(player);
     }
 
@@ -235,32 +259,26 @@ public class StaminaModuleClient {
     @SideOnly(Side.CLIENT)
     public void onInputUpdate(net.minecraftforge.client.event.InputUpdateEvent event) {
         EntityPlayer player = event.getEntityPlayer();
-        if (player == null || Reflect.isCreative(player) || Reflect.isSpectator(player)) return;
+        if (player == null || player.capabilities.isCreativeMode || player.isSpectator()) return;
 
-        if (!Reflect.isOnLadder(player)) return;
+        if (isLedgeRecovering(player)) {
+            net.minecraft.util.MovementInput input = event.getMovementInput();
+            if (input != null) {
+                input.jump = false;
+                input.moveForward = 0.0F;
+                input.moveStrafe = 0.0F;
+            }
+        }
+
+        if (!player.isOnLadder()) return;
         if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.enableClimbCost) return;
         if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.fallOnDepleted) return;
 
-        int x = net.minecraft.util.math.MathHelper.floor(Reflect.getPosX(player));
-        int y = net.minecraft.util.math.MathHelper.floor(Reflect.getBoundingBoxMinY(player));
-        int z = net.minecraft.util.math.MathHelper.floor(Reflect.getPosZ(player));
-        net.minecraft.util.math.BlockPos pos = new net.minecraft.util.math.BlockPos(x, y, z);
-        net.minecraft.world.World world = Reflect.getWorld(player);
-        net.minecraft.block.Block block = world != null ? Reflect.getBlock(world, pos) : net.minecraft.init.Blocks.AIR;
-
-        boolean isRope = Reflect.isRopeBlock(block);
-        boolean isVine = !isRope && (block instanceof net.minecraft.block.BlockVine
-                || block.getClass().getSimpleName().toLowerCase().contains("vine"));
-
-        if (isRope && !ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.enableRopeCost) return;
-
-        int cost = isRope ? ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.ropeCost
-                : (isVine ? ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.vineCost
-                        : ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.ladderCost);
+        int cost = clientClimbCost(player);
 
         if (cost > 0 && !Reflect.hasEnoughStamina(player, cost)) {
-            NBTTagCompound climbData = Reflect.getEntityData(player);
-            boolean ledgeActive = Reflect.getInteger(climbData, "StaminaTweaksLedgeClimbState") == 1;
+            NBTTagCompound climbData = player.getEntityData();
+            boolean ledgeActive = climbData.getInteger("StaminaTweaksLedgeClimbState") == 1;
             boolean mantleIntent = Reflect.isJumpPressed(player) && Reflect.getMoveForward(player) > 0.0F;
             if (!ledgeActive && !mantleIntent) {
                 Reflect.setJumpPressed(player, false);
@@ -273,107 +291,241 @@ public class StaminaModuleClient {
     private void handleClientLedgeClimbing(net.minecraft.client.entity.EntityPlayerSP player) {
         if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.ledgeClimb.enableLedgeClimb) return;
 
-        NBTTagCompound clientData = Reflect.getEntityData(player);
-        int state = Reflect.getInteger(clientData, "StaminaTweaksLedgeClimbState");
+        NBTTagCompound clientData = player.getEntityData();
+        int state = clientData.getInteger("StaminaTweaksLedgeClimbState");
 
         if (state == 0) {
+            if (isLedgeRecovering(player)) {
+                clientData.setInteger("StaminaTweaksLedgeClimbHeldTicks", 0);
+                return;
+            }
+
             // Check target conditions (vines/ladders at the face must not block a 1-block mantle)
-            if (Reflect.isOnGround(player) || Reflect.isInWater(player) || Reflect.isInLava(player) || Reflect.isRiding(player)) {
-                Reflect.setInteger(clientData, "StaminaTweaksLedgeClimbHeldTicks", 0);
+            if (player.onGround || player.isInWater() || player.isInLava() || player.isRiding()) {
+                clientData.setInteger("StaminaTweaksLedgeClimbHeldTicks", 0);
                 return;
             }
 
             // Must hold forward and jump
             if (!Reflect.isJumpPressed(player) || Reflect.getMoveForward(player) <= 0.0F) {
-                Reflect.setInteger(clientData, "StaminaTweaksLedgeClimbHeldTicks", 0);
+                clientData.setInteger("StaminaTweaksLedgeClimbHeldTicks", 0);
                 return;
             }
 
             // Update consecutive held ticks
-            int heldTicks = Reflect.getInteger(clientData, "StaminaTweaksLedgeClimbHeldTicks") + 1;
-            Reflect.setInteger(clientData, "StaminaTweaksLedgeClimbHeldTicks", heldTicks);
+            int heldTicks = clientData.getInteger("StaminaTweaksLedgeClimbHeldTicks") + 1;
+            clientData.setInteger("StaminaTweaksLedgeClimbHeldTicks", heldTicks);
 
             // Must hold for at least 5 ticks
             if (heldTicks < 5) return;
 
             // Only attempt climb when falling or at peak of jump (motionY <= 0.0)
-            if (Reflect.getMotionY(player) > 0.0) return;
+            if (player.motionY > 0.0) return;
 
-            double yawRad = Math.toRadians(Reflect.getRotationYaw(player));
+            double yawRad = Math.toRadians(player.rotationYaw);
             double dx = -Math.sin(yawRad);
             double dz = Math.cos(yawRad);
 
-            net.minecraft.world.World world = Reflect.getWorld(player);
+            net.minecraft.world.World world = player.world;
             if (world == null) return;
 
-            double posX = Reflect.getPosX(player);
-            double posY = Reflect.getPosY(player);
-            double posZ = Reflect.getPosZ(player);
+            double posX = player.posX;
+            double posY = player.posY;
+            double posZ = player.posZ;
 
-            boolean foundLedge = false;
-            double foundLedgeY = 0.0D;
-            double[] checkHeights = new double[]{0.4D, 0.7D, 1.0D, 1.3D, 1.6D};
+            MantleLip lip = null;
 
             // Only the block the player is pressed against (look * 0.7 stays in the adjacent cell)
-            for (double h : checkHeights) {
+            for (double h : LEDGE_CHECK_HEIGHTS) {
                 int wallX = net.minecraft.util.math.MathHelper.floor(posX + dx * 0.7D);
                 int wallY = net.minecraft.util.math.MathHelper.floor(posY + h);
                 int wallZ = net.minecraft.util.math.MathHelper.floor(posZ + dz * 0.7D);
-                net.minecraft.util.math.BlockPos wallPos = new net.minecraft.util.math.BlockPos(wallX, wallY, wallZ);
-
-                net.minecraft.block.state.IBlockState wallState = Reflect.getBlockState(world, wallPos);
-                if (Reflect.getCollisionBoundingBox(wallState, world, wallPos) == net.minecraft.block.Block.NULL_AABB) {
+                BlockPos wallPos = new BlockPos(wallX, wallY, wallZ);
+                IBlockState wallState = world.getBlockState(wallPos);
+                if (isCollisionEmpty(world, wallPos, wallState)) {
                     continue;
                 }
 
-                net.minecraft.util.math.BlockPos space1 = Reflect.up(wallPos);
-                net.minecraft.util.math.BlockPos space2 = Reflect.up(wallPos, 2);
-                if (Reflect.getCollisionBoundingBox(Reflect.getBlockState(world, space1), world, space1) == net.minecraft.block.Block.NULL_AABB &&
-                    Reflect.getCollisionBoundingBox(Reflect.getBlockState(world, space2), world, space2) == net.minecraft.block.Block.NULL_AABB) {
-                    foundLedge = true;
-                    foundLedgeY = Reflect.getY(wallPos) + 1.0D;
+                lip = findMantleLip(world, wallPos, wallState);
+                if (lip != null) {
                     break;
                 }
             }
 
-            if (foundLedge) {
+            if (lip != null) {
                 ArcanaQuestTweaks.NETWORK.sendToServer(new PacketLedgeClimb());
 
-                Reflect.setInteger(clientData, "StaminaTweaksLedgeClimbState", 1);
-                Reflect.setDouble(clientData, "StaminaTweaksLedgeClimbTargetY", foundLedgeY);
-                Reflect.setDouble(clientData, "StaminaTweaksLedgeClimbDx", dx);
-                Reflect.setDouble(clientData, "StaminaTweaksLedgeClimbDz", dz);
-                Reflect.setInteger(clientData, "StaminaTweaksLedgeClimbHeldTicks", 0);
+                clientData.setInteger("StaminaTweaksLedgeClimbState", 1);
+                clientData.setDouble("StaminaTweaksLedgeClimbTargetY", lip.topY);
+                clientData.setInteger("StaminaTweaksLedgeClimbLipX", lip.pos.getX());
+                clientData.setInteger("StaminaTweaksLedgeClimbLipY", lip.pos.getY());
+                clientData.setInteger("StaminaTweaksLedgeClimbLipZ", lip.pos.getZ());
+                clientData.setInteger("StaminaTweaksLedgeClimbHeldTicks", 0);
+                clientData.setInteger("StaminaTweaksLedgeMantleTicks", 0);
+                clientData.setDouble("StaminaTweaksLedgeClimbLastY", player.posY);
 
-                Reflect.setMotionY(player, 0.090625D);
-                Reflect.setMotionX(player, dx * 0.005D);
-                Reflect.setMotionZ(player, dz * 0.005D);
+                player.fallDistance = 0.0F;
+                player.motionY = 0.090625D;
+                player.motionX = 0.0D;
+                player.motionZ = 0.0D;
             }
         } else if (state == 1) {
-            if (Reflect.isInWater(player) || Reflect.isInLava(player) || Reflect.isRiding(player)) {
-                Reflect.setInteger(clientData, "StaminaTweaksLedgeClimbState", 0);
+            if (player.isInWater() || player.isInLava() || player.isRiding()) {
+                clientData.setInteger("StaminaTweaksLedgeClimbState", 0);
+                clientData.setInteger("StaminaTweaksLedgeMantleTicks", 0);
+                player.fallDistance = 0.0F;
                 return;
             }
 
             if (!Reflect.isJumpPressed(player) || Reflect.getMoveForward(player) <= 0.0F) {
-                Reflect.setInteger(clientData, "StaminaTweaksLedgeClimbState", 0);
+                clientData.setInteger("StaminaTweaksLedgeClimbState", 0);
+                clientData.setInteger("StaminaTweaksLedgeMantleTicks", 0);
+                player.fallDistance = 0.0F;
                 return;
             }
 
-            double targetY = Reflect.getDouble(clientData, "StaminaTweaksLedgeClimbTargetY");
-            double dx = Reflect.getDouble(clientData, "StaminaTweaksLedgeClimbDx");
-            double dz = Reflect.getDouble(clientData, "StaminaTweaksLedgeClimbDz");
+            ArcanaQuestTweaksConfig.LedgeClimb ledge = ArcanaQuestTweaksConfig.StaminaModuleConfig.ledgeClimb;
+            int ticks = clientData.getInteger("StaminaTweaksLedgeMantleTicks") + 1;
+            clientData.setInteger("StaminaTweaksLedgeMantleTicks", ticks);
+            int extraCost = StaminaPerks.climbCost(player, ledge.ledgeClimbExtraCost);
+            if (extraCost > 0
+                    && ticks > ledge.ledgeClimbExtraAfterTicks
+                    && ticks <= ledge.ledgeClimbExtraAfterTicks + ledge.ledgeClimbExtraInterval * ledge.ledgeClimbMaxExtraSpends
+                    && (ticks - ledge.ledgeClimbExtraAfterTicks) % ledge.ledgeClimbExtraInterval == 0
+                    && !Reflect.hasEnoughStamina(player, extraCost)) {
+                clientData.setInteger("StaminaTweaksLedgeClimbState", 0);
+                clientData.setInteger("StaminaTweaksLedgeMantleTicks", 0);
+                player.motionY = -0.15D;
+                return;
+            }
 
-            if (Reflect.getPosY(player) >= targetY + 0.2D) {
-                Reflect.setMotionX(player, 0.0D);
-                Reflect.setMotionZ(player, 0.0D);
-                Reflect.setMotionY(player, 0.0D);
-                Reflect.setInteger(clientData, "StaminaTweaksLedgeClimbState", 0);
+            double targetY = clientData.getDouble("StaminaTweaksLedgeClimbTargetY");
+            player.fallDistance = 0.0F;
+
+            boolean stuck = ticks >= 4
+                    && player.posY < targetY
+                    && Math.abs(player.posY - clientData.getDouble("StaminaTweaksLedgeClimbLastY")) < 0.02D;
+            clientData.setDouble("StaminaTweaksLedgeClimbLastY", player.posY);
+
+            if (player.posY >= targetY || stuck) {
+                double landY = targetY + 0.1D;
+                BlockPos lipPos = new BlockPos(
+                        clientData.getInteger("StaminaTweaksLedgeClimbLipX"),
+                        clientData.getInteger("StaminaTweaksLedgeClimbLipY"),
+                        clientData.getInteger("StaminaTweaksLedgeClimbLipZ"));
+                double[] land = nearestLipXZ(player.world, lipPos, player.posX, player.posZ);
+                player.setPosition(land[0], landY, land[1]);
+                player.motionX = 0.0D;
+                player.motionZ = 0.0D;
+                player.motionY = 0.0D;
+                player.onGround = true;
+                player.fallDistance = 0.0F;
+                clientData.setInteger("StaminaTweaksLedgeClimbState", 0);
+                clientData.setInteger("StaminaTweaksLedgeMantleTicks", 0);
+                int pause = ledge.ledgeClimbLandPauseTicks;
+                if (pause > 0) {
+                    clientData.setInteger("StaminaTweaksLedgeClimbRecoverUntil", player.ticksExisted + pause);
+                }
             } else {
-                Reflect.setMotionY(player, 0.090625D);
-                Reflect.setMotionX(player, dx * 0.005D);
-                Reflect.setMotionZ(player, dz * 0.005D);
+                player.motionY = 0.090625D;
+                player.motionX = 0.0D;
+                player.motionZ = 0.0D;
             }
         }
+    }
+
+    @SideOnly(Side.CLIENT)
+    private static boolean isLedgeRecovering(EntityPlayer player) {
+        return player.ticksExisted < player.getEntityData().getInteger("StaminaTweaksLedgeClimbRecoverUntil");
+    }
+
+    @SideOnly(Side.CLIENT)
+    private record MantleLip(BlockPos pos, double topY) {}
+
+    /** Closest XZ on the lip's real collision to the player. No move if already over the solid. */
+    @SideOnly(Side.CLIENT)
+    private static double[] nearestLipXZ(World world, BlockPos lipPos, double x, double z) {
+        double bestX = x;
+        double bestZ = z;
+        double bestDist = Double.POSITIVE_INFINITY;
+        if (world == null) {
+            return new double[] { x, z };
+        }
+        IBlockState state = world.getBlockState(lipPos);
+        for (AxisAlignedBB box : collisionBoxes(world, lipPos, state)) {
+            if (box == null || box == Block.NULL_AABB) {
+                continue;
+            }
+            double cx = net.minecraft.util.math.MathHelper.clamp(x, box.minX, box.maxX);
+            double cz = net.minecraft.util.math.MathHelper.clamp(z, box.minZ, box.maxZ);
+            double dx = cx - x;
+            double dz = cz - z;
+            double dist = dx * dx + dz * dz;
+            if (dist < bestDist) {
+                bestDist = dist;
+                bestX = cx;
+                bestZ = cz;
+            }
+        }
+        return new double[] { bestX, bestZ };
+    }
+
+    @SideOnly(Side.CLIENT)
+    private static List<AxisAlignedBB> collisionBoxes(World world, BlockPos pos, IBlockState state) {
+        List<AxisAlignedBB> list = new ArrayList<>();
+        AxisAlignedBB probe = new AxisAlignedBB(pos).union(new AxisAlignedBB(pos.up()));
+        state.addCollisionBoxToList(world, pos, probe, list, (Entity) null, false);
+        return list;
+    }
+
+    @SideOnly(Side.CLIENT)
+    private static boolean isCollisionEmpty(World world, BlockPos pos, IBlockState state) {
+        if (!collisionBoxes(world, pos, state).isEmpty()) {
+            return false;
+        }
+        AxisAlignedBB box = state.getCollisionBoundingBox(world, pos);
+        return box == null || box == Block.NULL_AABB;
+    }
+
+    /** Standable lip, or null if there is no two-block air gap above it. */
+    @SideOnly(Side.CLIENT)
+    private static MantleLip findMantleLip(World world, BlockPos wallPos, IBlockState wallState) {
+        BlockPos above = wallPos.up();
+        BlockPos above2 = wallPos.up(2);
+        BlockPos above3 = wallPos.up(3);
+        IBlockState aboveState = world.getBlockState(above);
+        if (isCollisionEmpty(world, above, aboveState)
+                && isCollisionEmpty(world, above2, world.getBlockState(above2))) {
+            return new MantleLip(wallPos, collisionTopY(world, wallPos, wallState));
+        }
+        IBlockState above2State = world.getBlockState(above2);
+        if (!isCollisionEmpty(world, above, aboveState)
+                && isCollisionEmpty(world, above2, above2State)
+                && isCollisionEmpty(world, above3, world.getBlockState(above3))) {
+            return new MantleLip(above, collisionTopY(world, above, aboveState));
+        }
+        return null;
+    }
+
+    /** World Y of the standable lip. Fences/walls use addCollisionBoxToList (1.5), not the 1.0 outline. */
+    @SideOnly(Side.CLIENT)
+    private static double collisionTopY(World world, BlockPos pos, IBlockState state) {
+        double top = Double.NEGATIVE_INFINITY;
+        for (AxisAlignedBB box : collisionBoxes(world, pos, state)) {
+            if (box != null && box != Block.NULL_AABB) {
+                top = Math.max(top, box.maxY);
+            }
+        }
+        if (top != Double.NEGATIVE_INFINITY) {
+            return top;
+        }
+        AxisAlignedBB box = state.getCollisionBoundingBox(world, pos);
+        if (box == null || box == Block.NULL_AABB) {
+            return pos.getY() + 1.0D;
+        }
+        if (box.minY >= pos.getY() - 0.001D) {
+            return box.maxY;
+        }
+        return pos.getY() + box.maxY;
     }
 }

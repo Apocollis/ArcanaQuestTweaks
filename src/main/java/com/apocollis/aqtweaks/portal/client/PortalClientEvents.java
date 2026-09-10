@@ -6,6 +6,7 @@ import com.apocollis.aqtweaks.portal.PortalModule;
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.Item;
 import net.minecraftforge.client.event.ModelRegistryEvent;
+import net.minecraftforge.client.event.TextureStitchEvent;
 import net.minecraftforge.client.model.ModelLoader;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -20,6 +21,11 @@ public final class PortalClientEvents {
     public static void registerModels(ModelRegistryEvent event) {
         register(PortalModule.TEAR);
         register(PortalModule.WILD);
+    }
+
+    @SubscribeEvent
+    public static void onTextureStitch(TextureStitchEvent.Post event) {
+        RenderArcaneRift.invalidatePortalSprite();
     }
 
     private static void register(Item item) {

@@ -45,7 +45,7 @@ public abstract class MixinBetterCavesDepthsPass {
             return;
         }
         if (worldIn == null || primer == null) return;
-        if (worldIn.provider != null && worldIn.provider.getDimension() != 0) return;
+        if (PrimerAccess.dimensionOf(worldIn) != 0) return;
 
         int minY = ArcanaQuestTweaksConfig.DepthsModuleConfig.general.minWorldY;
         if (minY >= 0) return;

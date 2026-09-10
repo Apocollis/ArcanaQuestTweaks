@@ -2,17 +2,21 @@ package com.apocollis.aqtweaks.util;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 
-import com.apocollis.aqtweaks.stamina.StaminaModule;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import net.minecraft.block.Block;
 import net.minecraft.block.SoundType;
 import net.minecraft.block.material.Material;
@@ -50,6 +54,53 @@ import net.minecraft.world.gen.IChunkGenerator;
 import net.minecraft.world.storage.MapStorage;
 
 public class Reflect {
+
+    private static final Logger LOGGER = LogManager.getLogger("AQTweaks-Reflect");
+    private static final Set<String> WARNED = ConcurrentHashMap.newKeySet();
+
+    /**
+     * One WARN per distinct site, ever. These accessors are called from per-block and per-tick
+     * loops, so logging per invocation would be worse than the bug it reports.
+     */
+    public static void warnOnce(String site, Throwable cause) {
+        if (WARNED.add(site)) {
+            LOGGER.warn("[AQ-REFLECT] {} failed; falling back", site, cause);
+        }
+    }
+
+    /**
+     * Reports every {@link Method} or {@link Field} handle that did not resolve.
+     *
+     * <p>A handle that resolves to null makes its accessor return a default forever — a mapping
+     * break reads as "every block is AIR" with nothing in the log. Listing the unresolved handles
+     * once at startup turns that into something diagnosable.
+     *
+     * <p>Logged at INFO, not WARN: handles for optional pack mods are legitimately absent when the
+     * mod is not installed, so a warning here would cry wolf on every normal boot.
+     */
+    public static void auditUnresolved() {
+        List<String> missing = new ArrayList<>();
+        int total = 0;
+        for (Field field : Reflect.class.getDeclaredFields()) {
+            if (!Modifier.isStatic(field.getModifiers())) continue;
+            if (field.getType() != Method.class && field.getType() != Field.class) continue;
+            total++;
+            try {
+                field.setAccessible(true);
+                if (field.get(null) == null) {
+                    missing.add(field.getName());
+                }
+            } catch (Throwable ignored) {}
+        }
+        if (missing.isEmpty()) {
+            LOGGER.info("[AQ-REFLECT] all {} handles resolved", total);
+        } else {
+            LOGGER.info("[AQ-REFLECT] {} of {} handles unresolved (expected for absent optional mods; "
+                    + "their accessors return defaults silently): {}",
+                    missing.size(), total, String.join(", ", missing));
+        }
+    }
+
     private static Method isSprintingMethod;
     private static Method setSprintingMethod;
     private static Field capabilitiesField;
@@ -1493,6 +1544,14 @@ public class Reflect {
         return 0;
     }
 
+    public static void decreaseFeathers(EntityPlayerMP player, int amount) {
+        com.elenai.elenaidodge2.api.FeathersHelper.decreaseFeathers(player, amount);
+        com.elenai.elenaidodge2.network.PacketHandler.instance.sendTo(
+            new com.elenai.elenaidodge2.network.message.CUpdateAbsorptionMessage(getAbsorptionFeathers(player)),
+            player
+        );
+    }
+
     public static int getBaseWeight(EntityPlayer player) {
         String[] weights = com.elenai.elenaidodge2.ModConfig.common.weights.weights;
         if (weights == null || weights.length == 0) return 0;
@@ -2760,7 +2819,11 @@ public class Reflect {
         }
         try {
             return world.getBlockState(pos);
-        } catch (Throwable t) {}
+        } catch (Throwable t) {
+            // Both the reflective handle and the direct call failed. Every caller now sees AIR,
+            // which is indistinguishable from an empty world unless it is said out loud.
+            warnOnce("getBlockState(World, BlockPos)", t);
+        }
         return getDefaultState(net.minecraft.init.Blocks.AIR);
     }
 
@@ -3047,7 +3110,9 @@ public class Reflect {
         }
         try {
             return state.getBlock();
-        } catch (Throwable t) {}
+        } catch (Throwable t) {
+            warnOnce("getBlock(IBlockState)", t);
+        }
         return net.minecraft.init.Blocks.AIR;
     }
 
@@ -3485,6 +3550,123 @@ public class Reflect {
             }
         }
         return null;
+    }
+
+    /**
+     * SRG name first, MCP name second — same order as the static initializer above. Used by the
+     * accessors added for {@code remap = false} mixins, which cannot name vanilla members directly.
+     */
+    private static Method findMethod(Class<?> type, Class<?>[] params, String... names) {
+        if (type == null) return null;
+        for (String name : names) {
+            try {
+                Method m = type.getMethod(name, params);
+                m.setAccessible(true);
+                return m;
+            } catch (Throwable ignored) {}
+        }
+        return null;
+    }
+
+    private static final Class<?>[] NO_PARAMS = new Class<?>[0];
+
+    private static Method worldGetBiomeProviderMethod;
+    private static boolean worldGetBiomeProviderResolved;
+
+    /** {@code World.getBiomeProvider()}. */
+    public static BiomeProvider getBiomeProvider(World world) {
+        if (world == null) return null;
+        if (!worldGetBiomeProviderResolved) {
+            worldGetBiomeProviderResolved = true;
+            worldGetBiomeProviderMethod = findMethod(World.class, NO_PARAMS, "func_72959_q", "getBiomeProvider");
+        }
+        if (worldGetBiomeProviderMethod != null) {
+            try {
+                return (BiomeProvider) worldGetBiomeProviderMethod.invoke(world);
+            } catch (Exception e) {
+                warnOnce("getBiomeProvider(World)", e);
+            }
+        }
+        return null;
+    }
+
+    private static Method worldGetHeightMethod;
+    private static boolean worldGetHeightResolved;
+
+    /** {@code World.getHeight()} — the build height, not a column height. */
+    public static int getWorldHeight(World world, int fallback) {
+        if (world == null) return fallback;
+        if (!worldGetHeightResolved) {
+            worldGetHeightResolved = true;
+            worldGetHeightMethod = findMethod(World.class, NO_PARAMS, "func_72800_K", "getHeight");
+        }
+        if (worldGetHeightMethod != null) {
+            try {
+                return (Integer) worldGetHeightMethod.invoke(world);
+            } catch (Exception e) {
+                warnOnce("getWorldHeight(World)", e);
+            }
+        }
+        return fallback;
+    }
+
+    private static Method blockGetRegistryNameMethod;
+    private static boolean blockGetRegistryNameResolved;
+
+    /**
+     * {@code Block.getRegistryName()}. Forge adds this, so it is never obfuscated, but a
+     * {@code remap = false} mixin still cannot be trusted to name it — go through here.
+     */
+    public static ResourceLocation getBlockRegistryName(Block block) {
+        if (block == null) return null;
+        if (!blockGetRegistryNameResolved) {
+            blockGetRegistryNameResolved = true;
+            blockGetRegistryNameMethod = findMethod(Block.class, NO_PARAMS, "getRegistryName");
+        }
+        if (blockGetRegistryNameMethod != null) {
+            try {
+                return (ResourceLocation) blockGetRegistryNameMethod.invoke(block);
+            } catch (Exception e) {
+                warnOnce("getBlockRegistryName(Block)", e);
+            }
+        }
+        return null;
+    }
+
+    /** Lowercase registry id, or {@code ""} when unresolved. Convenience for name matching. */
+    public static String getBlockRegistryId(Block block) {
+        ResourceLocation name = getBlockRegistryName(block);
+        return name == null ? "" : name.toString();
+    }
+
+    private static Method worldGetWorldInfoMethod;
+    private static Method worldInfoMapFeaturesMethod;
+    private static boolean worldInfoResolved;
+
+    /**
+     * {@code World.getWorldInfo().isMapFeaturesEnabled()}. Returns {@code fallback} when either
+     * handle is missing, so a resolution failure cannot silently disable structure generation.
+     */
+    public static boolean isMapFeaturesEnabled(World world, boolean fallback) {
+        if (world == null) return fallback;
+        if (!worldInfoResolved) {
+            worldInfoResolved = true;
+            worldGetWorldInfoMethod = findMethod(World.class, NO_PARAMS, "func_72912_H", "getWorldInfo");
+            try {
+                Class<?> infoClass = Class.forName("net.minecraft.world.storage.WorldInfo");
+                worldInfoMapFeaturesMethod = findMethod(infoClass, NO_PARAMS,
+                        "func_76089_r", "isMapFeaturesEnabled");
+            } catch (Throwable ignored) {}
+        }
+        if (worldGetWorldInfoMethod == null || worldInfoMapFeaturesMethod == null) return fallback;
+        try {
+            Object info = worldGetWorldInfoMethod.invoke(world);
+            if (info == null) return fallback;
+            return (Boolean) worldInfoMapFeaturesMethod.invoke(info);
+        } catch (Exception e) {
+            warnOnce("isMapFeaturesEnabled(World)", e);
+            return fallback;
+        }
     }
 
     private static Field findDeclaredField(Class<?> type, String... names) {

@@ -44,7 +44,7 @@ public abstract class MixinCarverUtils {
                         }
 
                         // Also allow by block name fallback (terracotta, slate, granite, etc.)
-                        String name = b.getRegistryName() != null ? b.getRegistryName().toString().toLowerCase() : "";
+                        String name = Reflect.getBlockRegistryId(b).toLowerCase();
                         if (name.contains("stone")
                                 || name.contains("deepslate")
                                 || name.contains("clay")

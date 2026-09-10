@@ -10,7 +10,7 @@ There is **no CI**. The practical harness is the CurseForge **Arcana Quest DEVBO
 
 - **JDK 25** (Gradle toolchain `JavaLanguageVersion.of(25)`). Compile emits **Java 21** class files (`options.release = 21`). The deploy script assumes `C:\Program Files\Zulu\zulu-25`. The game still **runs** on Zulu 25.
 - Repo root `C:\dev\ArcanaQuestTweaks` (or a clone with `gradlew.bat`).
-- `libs/` containing the compile parents. Gradle is `modCompileOnly files(each jar in libs/)`. Missing Depths / RTG / BC / Bewitchment / Thaumcraft / … will fail compile or produce a jar that crashes on mixin apply.
+- `libs/` containing the compile parents (gitignored; `build_gradle.ps1` copies them from DEVBOX). Gradle is `modCompileOnly files(each jar in libs/)`. Missing Depths / RTG / BC / Bewitchment / Thaumcraft / … will fail compile or produce a jar that crashes on mixin apply. Do not commit those jars.
 - Pack mods folder for deploy (script only): `c:\Users\hughe\curseforge\minecraft\Instances\Arcana Quest DEVBOX\mods`
 
 No environment-variable overrides exist today. `JAVA_HOME` and the DEVBOX path are **hardcoded** in `build_gradle.ps1`.

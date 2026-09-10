@@ -8,7 +8,7 @@ import java.util.Map;
 
 public final class DssSkillCosts {
 
-    private static volatile Map<String, Integer> CACHE;
+    private static volatile Costs CACHE;
 
     private DssSkillCosts() {}
 
@@ -21,26 +21,43 @@ public final class DssSkillCosts {
                 ArcanaQuestTweaksConfig.StaminaModuleConfig.dynamicSwordSkills;
         if (cfg == null || !cfg.enableSkillCost) return 0;
 
-        Map<String, Integer> map = CACHE;
-        if (map == null) {
-            map = parse(cfg.skillCosts);
-            CACHE = map;
+        Costs costs = CACHE;
+        if (costs == null) {
+            costs = new Costs(parse(cfg.skillCosts));
+            CACHE = costs;
         }
         if (registryName != null) {
-            Integer exact = map.get(registryName);
+            Integer exact = costs.exact.get(registryName);
             if (exact != null) return Math.max(0, exact);
             if (registryName.indexOf(':') < 0) {
-                Integer prefixed = map.get("dynamicswordskills:" + registryName);
+                Integer prefixed = costs.exact.get("dynamicswordskills:" + registryName);
                 if (prefixed != null) return Math.max(0, prefixed);
             }
-            String compact = compact(registryName);
-            for (Map.Entry<String, Integer> entry : map.entrySet()) {
-                if (compact.equals(compact(entry.getKey()))) {
-                    return Math.max(0, entry.getValue());
-                }
-            }
+            Integer compacted = costs.compact.get(compact(registryName));
+            if (compacted != null) return Math.max(0, compacted);
         }
         return Math.max(0, cfg.defaultSkillCost);
+    }
+
+    /** Parsed cfg lines plus the compact-key index, rebuilt together whenever the cache is dropped. */
+    private static final class Costs {
+        final Map<String, Integer> exact;
+        final Map<String, Integer> compact;
+
+        Costs(Map<String, Integer> exact) {
+            this.exact = exact;
+            if (exact.isEmpty()) {
+                this.compact = Collections.emptyMap();
+            } else {
+                Map<String, Integer> index = new HashMap<>(exact.size());
+                // putIfAbsent over the same iteration order keeps the first-match-wins behaviour of
+                // the linear scan this index replaces.
+                for (Map.Entry<String, Integer> entry : exact.entrySet()) {
+                    index.putIfAbsent(compact(entry.getKey()), entry.getValue());
+                }
+                this.compact = index;
+            }
+        }
     }
 
     private static String compact(String name) {

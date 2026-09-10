@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -137,7 +138,7 @@ public final class VillageLandHelper {
     private static StashKey stashKey(World world) {
         if (world == null || world.provider == null) return null;
         try {
-            return new StashKey(Reflect.getSeed(world), world.provider.getDimension());
+            return new StashKey(world.getSeed(), world.provider.getDimension());
         } catch (Throwable t) {
             return null;
         }
@@ -148,8 +149,18 @@ public final class VillageLandHelper {
     public static final class Events {
         @SubscribeEvent
         public void onWorldUnload(WorldEvent.Unload event) {
-            if (event.getWorld() != null) {
-                dropStash(event.getWorld());
+            World world = event.getWorld();
+            if (world == null || world.isRemote) return;
+            dropStash(world);
+
+            // Village records and plate heights are keyed by seed, not by dimension, and villages
+            // are overworld-only. Only an overworld unload means the session is really over —
+            // clearing on a Nether unload would wipe plates for a still-loaded overworld.
+            if (world.provider != null && world.provider.getDimension() == 0) {
+                long seed = world.getSeed();
+                VillagePlate.forgetSeed(seed);
+                VETTED_STARTS.removeIf(k -> k.startsWith(seed + ":"));
+                VillageDebug.reset();
             }
         }
     }
@@ -164,6 +175,26 @@ public final class VillageLandHelper {
 
     public static void popSampling() {
         SAMPLING.set(Math.max(0, SAMPLING.get() - 1));
+    }
+
+    /**
+     * {@link #layoutVillageGrid} calls {@code gen.generate} once per nearby well chunk. Each of
+     * those returns through {@code MixinMapGenVillageWorld}, which would otherwise run
+     * {@link #forgetRejectedStarts} ~289 times per new chunk. Push this for the duration of one
+     * layout pass so the mixin skips, then forget once at the end of the grid walk.
+     */
+    private static final ThreadLocal<Integer> LAYING_OUT = ThreadLocal.withInitial(() -> 0);
+
+    public static boolean isLayingOut() {
+        return LAYING_OUT.get() > 0;
+    }
+
+    public static void pushLayout() {
+        LAYING_OUT.set(LAYING_OUT.get() + 1);
+    }
+
+    public static void popLayout() {
+        LAYING_OUT.set(Math.max(0, LAYING_OUT.get() - 1));
     }
 
     /**
@@ -341,7 +372,7 @@ public final class VillageLandHelper {
         for (Object start : Reflect.getMapGenStructureStarts(gen)) {
             snapshot.add(start);
         }
-        long seed = Reflect.getSeed(world);
+        long seed = world.getSeed();
         for (Object start : snapshot) {
             int cx = Reflect.getStructureStartChunkX(start);
             int cz = Reflect.getStructureStartChunkZ(start);
@@ -350,7 +381,9 @@ public final class VillageLandHelper {
             if (VETTED_STARTS.contains(key)) continue;
             String reason = startRejectReason(world, cx, cz);
             if (reason == null) {
-                VETTED_STARTS.add(key);
+                if (!isLayingOut()) {
+                    VETTED_STARTS.add(key);
+                }
                 continue;
             }
             Reflect.removeStructureStart(gen, cx, cz);
@@ -360,6 +393,90 @@ public final class VillageLandHelper {
                         cx, cz, cx * 16 + 2, cz * 16 + 2, reason);
             }
         }
+    }
+
+    /**
+     * Populate-time check on the remembered well column. Layout can treat a well as dry before
+     * RTG terrain exists; do not cache that in {@link #VETTED_STARTS}. If the well is still
+     * never-raise here, walk inland or drop the Start so {@code /locate} and paste cannot keep
+     * an ocean well. Returns {@code true} when the Start was removed (caller should skip paste).
+     */
+    public static boolean relocateOrDropWetWell(MapGenVillage gen, World world, Object start) {
+        if (gen == null || world == null || start == null) return false;
+        if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.rejectCoastalVillageStarts) return false;
+        int cx = Reflect.getStructureStartChunkX(start);
+        int cz = Reflect.getStructureStartChunkZ(start);
+        if (cx == Integer.MIN_VALUE || cz == Integer.MIN_VALUE) return false;
+        long seed = world.getSeed();
+        int wellX = cx * 16 + 2;
+        int wellZ = cz * 16 + 2;
+        for (VillagePlate.Record rec : VillagePlate.starts(seed)) {
+            if (rec.start == start) {
+                wellX = rec.wellX;
+                wellZ = rec.wellZ;
+                break;
+            }
+        }
+        String key = seed + ":" + cx + "," + cz;
+        if (!isNeverRaiseAt(world, wellX, wellZ)) {
+            VETTED_STARTS.add(key);
+            return false;
+        }
+        int[] dry = findDryWell(world, wellX, wellZ);
+        if (dry != null) {
+            int dx = dry[0] - wellX;
+            int dz = dry[1] - wellZ;
+            if (dx != 0 || dz != 0) {
+                offsetStructureStart(start, dx, dz);
+                VillagePlate.remember(world, start, cx, cz, dry[0], dry[1]);
+                VillageDebug.log("well-walk populate chunk=%d,%d from=%d,%d to=%d,%d",
+                        cx, cz, wellX, wellZ, dry[0], dry[1]);
+            }
+            VETTED_STARTS.add(key);
+            return false;
+        }
+        Reflect.removeStructureStart(gen, cx, cz);
+        VillagePlate.forget(world, start, cx, cz);
+        if (VillageDebug.once("forget-paste:" + seed + ":" + cx + "," + cz)) {
+            VillageDebug.log("forget paste chunk=%d,%d well=%d,%d ocean_well",
+                    cx, cz, wellX, wellZ);
+        }
+        return true;
+    }
+
+    /**
+     * Snapshot iterator for {@code StructureStart.generateStructure}. Nested populate (water ticks
+     * loading a neighbor chunk) must not CME the live {@code LinkedList}. {@code Iterator.remove()}
+     * still drops the piece from the live list.
+     */
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public static Iterator snapshotStructureIterator(List list) {
+        if (list == null) {
+            return Collections.emptyIterator();
+        }
+        List live = list;
+        Iterator snap = new ArrayList<>(list).iterator();
+        return new Iterator() {
+            private Object last;
+
+            @Override
+            public boolean hasNext() {
+                return snap.hasNext();
+            }
+
+            @Override
+            public Object next() {
+                last = snap.next();
+                return last;
+            }
+
+            @Override
+            public void remove() {
+                if (last != null) {
+                    live.remove(last);
+                }
+            }
+        };
     }
 
     /**
@@ -576,6 +693,15 @@ public final class VillageLandHelper {
      */
     public static void layoutVillageGrid(MapGenVillage gen, World world, int cx, int cz, ChunkPrimer primer) {
         if (gen == null || world == null) return;
+        pushLayout();
+        try {
+            layoutVillageGridBody(gen, world, cx, cz, primer);
+        } finally {
+            popLayout();
+        }
+    }
+
+    private static void layoutVillageGridBody(MapGenVillage gen, World world, int cx, int cz, ChunkPrimer primer) {
         gen.generate(world, cx, cz, primer);
         int spacing = Reflect.getVillageDistance(gen);
         if (spacing < 9) spacing = 32;
@@ -595,7 +721,7 @@ public final class VillageLandHelper {
             minCellZ = maxCellZ;
             maxCellZ = tmp;
         }
-        long seed = Reflect.getSeed(world);
+        long seed = world.getSeed();
         stashGenerators(world, gen, currentGenerator());
         for (int cellX = minCellX; cellX <= maxCellX; cellX++) {
             for (int cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
@@ -647,7 +773,7 @@ public final class VillageLandHelper {
         if (world == null) return false;
         int wellX = chunkX * 16 + 2;
         int wellZ = chunkZ * 16 + 2;
-        for (VillagePlate.Record rec : VillagePlate.starts(Reflect.getSeed(world))) {
+        for (VillagePlate.Record rec : VillagePlate.starts(world.getSeed())) {
             if (rec.wellX == wellX && rec.wellZ == wellZ) return true;
             int cx = Reflect.getStructureStartChunkX(rec.start);
             int cz = Reflect.getStructureStartChunkZ(rec.start);
@@ -675,10 +801,13 @@ public final class VillageLandHelper {
     /**
      * True if at least half the path columns are wet. Keeps a forest path with a puddle;
      * drops a plank bridge over a lake.
+     *
+     * <p>Counts flooded columns, so RTG landscape lakes are included. Counting only never-raise
+     * columns (biome ocean/river) let plank bridges span lakes, which is the case this test exists
+     * to catch. A fully flooded path scores 1.0 here, so no separate check is needed.
      */
     public static boolean isAabbMostlyWet(Object villageStart, Object component) {
-        return isAabbFullyFlooded(villageStart, component)
-                || wetFraction(villageStart, component, false) >= PATH_WET_FRACTION;
+        return wetFraction(villageStart, component, true) >= PATH_WET_FRACTION;
     }
 
     /**
@@ -723,7 +852,7 @@ public final class VillageLandHelper {
             Biome biome = box == null ? null : Reflect.getBiome(provider, box[0], box[2]);
             return "ocean_or_river " + biomeId(biome);
         }
-        return String.format("mostly_wet %.2f", wetFraction(villageStart, component, false));
+        return String.format("mostly_wet %.2f", wetFraction(villageStart, component, true));
     }
 
     private static boolean isAabbWet(Object villageStart, Object component, boolean flooded) {
@@ -755,7 +884,7 @@ public final class VillageLandHelper {
     public static boolean isOceanOrRiverFloor(World world, Object component, StructureBoundingBox clip) {
         if (world == null || world.isRemote || component == null) return false;
         if (!(component instanceof StructureVillagePieces.Village)) return false;
-        if (isVillageRoad(component) || isVillageWellOrStart(component)) return false;
+        if (isVillageRoad(component)) return false;
         int[] box = Reflect.getStructureComponentBoxXZ(component);
         if (box == null) return false;
         int minX = box[0];

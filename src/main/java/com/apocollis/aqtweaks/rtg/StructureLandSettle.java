@@ -1,7 +1,6 @@
 package com.apocollis.aqtweaks.rtg;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
-import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockBush;
 import net.minecraft.block.BlockReed;
@@ -31,7 +30,7 @@ public final class StructureLandSettle {
     }
 
     public static void settleAabb(World world, int minX, int maxX, int minZ, int maxZ, int floorY) {
-        if (!enabled() || world == null || Reflect.isRemote(world)) return;
+        if (!enabled() || world == null || world.isRemote) return;
         Map<Long, Integer> floors = new HashMap<>();
         for (int x = minX; x <= maxX; x++) {
             for (int z = minZ; z <= maxZ; z++) {
@@ -45,7 +44,7 @@ public final class StructureLandSettle {
      * Replace liquid only, inside an AABB, at {@code floorY}. Never ocean/river. No pad, no dirt collar.
      */
     public static void fillLiquidAt(World world, int minX, int maxX, int minZ, int maxZ, int floorY) {
-        if (world == null || Reflect.isRemote(world) || floorY < 1 || floorY > 255) return;
+        if (world == null || world.isRemote || floorY < 1 || floorY > 255) return;
         for (int x = minX; x <= maxX; x++) {
             for (int z = minZ; z <= maxZ; z++) {
                 if (VillageLandHelper.isNeverRaiseAt(world, x, z)) continue;
@@ -71,7 +70,7 @@ public final class StructureLandSettle {
      */
     public static void settlePadded(World world, int minX, int maxX, int minZ, int maxZ, int floorY,
                                     int pad, int falloff, boolean fillSwampLiquid) {
-        if (!enabled() || world == null || Reflect.isRemote(world)) return;
+        if (!enabled() || world == null || world.isRemote) return;
         int p = Math.max(0, pad);
         Map<Long, Integer> floors = new HashMap<>();
         for (int x = minX - p; x <= maxX + p; x++) {
@@ -105,7 +104,7 @@ public final class StructureLandSettle {
      */
     public static void fillHolesPadded(World world, int minX, int maxX, int minZ, int maxZ,
                                        int solidTopY, int pad, int falloff, boolean fillSwampLiquid) {
-        if (!enabled() || world == null || Reflect.isRemote(world)) return;
+        if (!enabled() || world == null || world.isRemote) return;
         if (solidTopY < 1 || solidTopY > 255) return;
         int p = Math.max(0, pad);
         int walkable = solidTopY + 1;
@@ -157,7 +156,7 @@ public final class StructureLandSettle {
 
     public static void settle(World world, Map<Long, Integer> floorByColumn, boolean fillSwampLiquid, int bank,
                               IBlockState underFill) {
-        if (!enabled() || world == null || Reflect.isRemote(world) || floorByColumn == null || floorByColumn.isEmpty()) {
+        if (!enabled() || world == null || world.isRemote || floorByColumn == null || floorByColumn.isEmpty()) {
             return;
         }
         int fillDepth = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.structureFillDepth);
@@ -206,7 +205,7 @@ public final class StructureLandSettle {
      * Remove clipped and floating trees in a volume. Does not touch marble, stone, or other solids.
      */
     public static void clearFoliage(World world, int minX, int maxX, int minZ, int maxZ, int minY, int maxY) {
-        if (world == null || Reflect.isRemote(world) || minX > maxX || minZ > maxZ || minY > maxY) return;
+        if (world == null || world.isRemote || minX > maxX || minZ > maxZ || minY > maxY) return;
         int y0 = Math.max(1, minY);
         int y1 = Math.min(255, maxY);
         for (int x = minX; x <= maxX; x++) {

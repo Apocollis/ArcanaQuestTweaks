@@ -20,7 +20,9 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -40,6 +42,9 @@ public class ClientModule {
             TextFormatting.AQUA,
             TextFormatting.LIGHT_PURPLE
     };
+
+    /** The loaded mod list is fixed for the session, so this never needs invalidating. */
+    private static final Map<String, String> MOD_NAMES = new HashMap<>();
 
     @SubscribeEvent
     public void onItemTooltip(ItemTooltipEvent event) {
@@ -101,11 +106,17 @@ public class ClientModule {
         if ("minecraft".equals(modid)) {
             return "Vanilla";
         }
+        String cached = MOD_NAMES.get(modid);
+        if (cached != null) {
+            return cached;
+        }
+        String name = modid;
         ModContainer container = Loader.instance().getIndexedModList().get(modid);
         if (container != null && container.getName() != null && !container.getName().isEmpty()) {
-            return container.getName();
+            name = container.getName();
         }
-        return modid;
+        MOD_NAMES.put(modid, name);
+        return name;
     }
 
     private static int maxHarvestLevel(Item item, ItemStack stack, EntityPlayer player) {

@@ -119,15 +119,19 @@ public class ThaumcraftModule {
 
         // Verify they successfully slept (it is morning)
         if (pWorld != null && Reflect.isDaytime(pWorld)) {
+            // A broken warp capability reads as 0 warp, which would otherwise look like a
+            // successful cleanse and print the chat line for nothing.
+            if (!ThaumcraftHelper.available()) return;
+
             boolean clearedNormal = false;
             boolean clearedTemp = false;
 
-            // Reduce Normal Warp
+            // Reduce Normal Warp. Confirm the value actually moved before claiming success.
             if (ArcanaQuestTweaksConfig.ThaumcraftConfig.clearNormalWarp) {
                 int currentNormal = ThaumcraftHelper.getWarp(player, 0);
                 if (currentNormal > 0) {
                     ThaumcraftHelper.reduceWarp(player, 0, ArcanaQuestTweaksConfig.ThaumcraftConfig.normalWarpReduction);
-                    clearedNormal = true;
+                    clearedNormal = ThaumcraftHelper.getWarp(player, 0) < currentNormal;
                 }
             }
 
@@ -136,7 +140,7 @@ public class ThaumcraftModule {
                 int currentTemp = ThaumcraftHelper.getWarp(player, 1);
                 if (currentTemp > 0) {
                     ThaumcraftHelper.reduceWarp(player, 1, ArcanaQuestTweaksConfig.ThaumcraftConfig.tempWarpReduction);
-                    clearedTemp = true;
+                    clearedTemp = ThaumcraftHelper.getWarp(player, 1) < currentTemp;
                 }
             }
 
@@ -187,7 +191,9 @@ public class ThaumcraftModule {
             shortestInterval = Math.min(shortestInterval, ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureUndergroundInterval);
         }
 
-        // 3. Check dungeon exposure (Roguelike mixin on ChunkProviderServer.isInsideStructure)
+        // 3. Check dungeon exposure. This is the vanilla ChunkProviderServer.isInsideStructure API —
+        // there is no Tweaks mixin here. Roguelike Dungeons Arcana must register "RoguelikeDungeon"
+        // for this to ever match.
         net.minecraft.world.World pWorld = Reflect.getWorld(player);
         if (ArcanaQuestTweaksConfig.ThaumcraftConfig.enableDungeonExposure && pWorld != null) {
             net.minecraft.world.chunk.IChunkProvider provider = pWorld.getChunkProvider();

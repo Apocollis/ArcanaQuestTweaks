@@ -7,6 +7,7 @@ import com.apocollis.aqtweaks.rtg.VillagePlate;
 import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
+import net.minecraft.world.biome.BiomeProvider;
 import net.minecraft.world.gen.structure.MapGenVillage;
 import net.minecraft.world.gen.structure.StructureStart;
 import org.spongepowered.asm.mixin.Mixin;
@@ -44,13 +45,19 @@ public abstract class MixinMapGenVillageStart {
             wellX = resolved[0];
             wellZ = resolved[1];
         }
+        if (world != null && VillageLandHelper.isNeverRaiseAt(world, wellX, wellZ)) {
+            VillageDebug.log("reject-start chunk=%d,%d well=%d,%d ocean_well after-walk",
+                    chunkX, chunkZ, wellX, wellZ);
+            Reflect.removeStructureStart(this, chunkX, chunkZ);
+            return;
+        }
         VillagePlate.remember(world, start, chunkX, chunkZ, wellX, wellZ);
         if (!VillageDebug.enabled()) return;
         int[] xz = Reflect.getStructureStartBoxXZ(start);
         List<int[]> landBoxes = VillagePlate.landBoxesOf(start);
         int[] land = VillagePlate.union(landBoxes);
-        Biome wellBiome = world != null && world.getBiomeProvider() != null
-                ? Reflect.getBiome(world.getBiomeProvider(), wellX, wellZ) : null;
+        BiomeProvider provider = world != null ? Reflect.getBiomeProvider(world) : null;
+        Biome wellBiome = provider != null ? Reflect.getBiome(provider, wellX, wellZ) : null;
         VillageDebug.log("register chunk=%d,%d well=%d,%d biome=%s aabb=[%d,%d]x[%d,%d] landBoxes=%d buildings=%d land=[%d,%d]x[%d,%d] minY=%d maxY=%d",
                 chunkX, chunkZ, wellX, wellZ, VillageLandHelper.biomeId(wellBiome),
                 xz != null ? xz[0] : 0, xz != null ? xz[1] : 0,

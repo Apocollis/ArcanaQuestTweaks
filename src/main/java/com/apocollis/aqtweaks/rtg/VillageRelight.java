@@ -1,7 +1,6 @@
 package com.apocollis.aqtweaks.rtg;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
-import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -17,8 +16,8 @@ public final class VillageRelight {
 
     public static void afterVillagePaste(World world, StructureBoundingBox clip) {
         if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.enableVillageRelight) return;
-        if (world == null || clip == null || Reflect.isRemote(world)) return;
-        int[] box = Reflect.getStructureBoundingBox(clip);
+        if (world == null || clip == null || world.isRemote) return;
+        int[] box = new int[] {clip.minX, clip.maxX, clip.minY, clip.maxY, clip.minZ, clip.maxZ};
         if (box == null) return;
         int minX = box[0];
         int maxX = box[1];
@@ -34,16 +33,16 @@ public final class VillageRelight {
             for (int z = minZ; z <= maxZ; z++) {
                 for (int y = minY; y <= maxY; y++) {
                     pos.setPos(x, y, z);
-                    if (!Reflect.isBlockLoaded(world, pos)) continue;
-                    IBlockState state = Reflect.getBlockState(world, pos);
+                    if (!world.isBlockLoaded(pos)) continue;
+                    IBlockState state = world.getBlockState(pos);
                     if (state == null || lightValue(state, world, pos) <= 0) continue;
-                    Reflect.checkLight(world, pos);
+                    world.checkLight(pos);
                     lit++;
                 }
             }
         }
         if (lit > 0) {
-            Reflect.markBlockRangeForRenderUpdate(world, minX, minY, minZ, maxX, maxY, maxZ);
+            world.markBlockRangeForRenderUpdate(minX, minY, minZ, maxX, maxY, maxZ);
             if (VillageDebug.enabled()) {
                 VillageDebug.log("relight clip=[%d,%d]x[%d,%d] y=%d..%d sources=%d",
                         minX, maxX, minZ, maxZ, minY, maxY, lit);

@@ -1,6 +1,6 @@
 # Depths module (1.8)
 
-Last updated: 2026-08-20.
+Last updated: 2026-09-09.
 
 Config: `config/arcanaquesttweaks/aqtweaks_depths.cfg`. **New chunks only** for carve/fill. Client fog/sky apply immediately.
 
@@ -51,6 +51,8 @@ Two mixins, one target class:
 `generateTerrain` only fills 0–255. Below is void. `MixinChunkGeneratorRTG` TAIL-fills minY..-1 with Deepslate and bedrock at minY. **Do not write Y=0** — that sealed Better Caves mouths.
 
 Village flatten is `MixinChunkGeneratorRTGVillage` on the same class; it rewrites noise **before** `generateTerrain`. See [rtg.md](rtg.md).
+
+The two run in the right order because of their **injection points**, not because of any declared priority: the village mixin injects at `generateTerrain` HEAD (plus earlier `func_185932_a` / `getNewerNoise` points), the Deepslate fill at `generateTerrain` TAIL. Neither sets `@Mixin(priority = ...)`, and their adjacency in `mixins.aqtweaks.json` is coincidental. Reordering that list changes nothing; needing it to change something means the injection points are wrong.
 
 ### CoFH World
 
@@ -158,7 +160,7 @@ Same `UpperTunnelNetwork` as -Y upper worms. Overworld only (`dimension == 0`).
 | Name | Default | Live? | Meaning |
 | --- | --- | --- | --- |
 | Enable Depths Module | true | yes | Master. Off: fill/carve/fog/sky/CoFH/RC/BC hooks that check it skip. **Exception:** Depths `ICaveGenerator.sample` y&lt;0 is still redirected off. |
-| Minimum World Y Elevation | -64 | yes | Bedrock floor and ray/CoFH clamp |
+| Minimum World Y Elevation | -64 | — | **Pinned.** Bedrock floor and ray/CoFH clamp read the constant; not a tunable knob |
 | Better Depths Caves | true | yes | AQTweaks primer carve + BC mouths + chunk seam. Off: those skip; Depths still has no -Y samples |
 | Deep Cave Fog | true | yes | Client fog below Y0 |
 | Hide Skybox Below Y 0 | true | yes | Client skip `renderSky` |
@@ -234,6 +236,7 @@ A Spark profile put Tweaks at ~56% of chunk generation: 34s primer carve, 18s su
 - Primer owns **-Y**. Chunk writes below 0 are not trusted.
 - Do not cancel `MapGenBetterCaves`.
 - Do not fill Y=0 solid in the RTG terrain mixin.
+- The two `ChunkGeneratorRTG` mixins are ordered by injection point (village HEAD, fill TAIL). Never by `mixins.aqtweaks.json` list order or `@Mixin(priority)`.
 - Water/beach/river/ocean/coral/kelp columns: no Y0 mouths into the sea.
 - Keep `UpperTunnelNetwork` as the single path for primer, BC mouths, and chunk seam.
 - `UpperTunnelNetwork` caches are **per thread** and bounded. Never a shared map; never unbounded.

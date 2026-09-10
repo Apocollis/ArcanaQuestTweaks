@@ -1,7 +1,6 @@
 package com.apocollis.aqtweaks.rtg;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
-import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.BiomeProvider;
 
@@ -48,7 +47,7 @@ public final class VillageShoreMask {
             for (int ix = 0; ix < dim; ix++) {
                 int wx = originX + ix;
                 int i = ix + iz * dim;
-                Biome biome = Reflect.getBiome(provider, wx, wz);
+                Biome biome = provider.getBiome(new net.minecraft.util.math.BlockPos(wx, 64, wz));
                 never[i] = VillageLandHelper.isNeverRaiseBiome(biome);
                 double landDist = nearestDist(wx, wz, land);
                 double shrineDist = nearestDist(wx, wz, shrine);

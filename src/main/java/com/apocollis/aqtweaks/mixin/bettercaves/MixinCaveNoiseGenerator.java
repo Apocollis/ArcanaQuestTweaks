@@ -50,6 +50,10 @@ public abstract class MixinCaveNoiseGenerator {
     private static final int LOWER_MAX_Y = -26;
     private static final int MAX_PRIMER_LOOP_Y = 4;
 
+    private static final ThreadLocal<float[]> LOWER1 = ThreadLocal.withInitial(() -> new float[64]);
+    private static final ThreadLocal<float[]> LOWER2 = ThreadLocal.withInitial(() -> new float[64]);
+    private static final ThreadLocal<int[]> BRIDGE = ThreadLocal.withInitial(() -> new int[2]);
+
     /** Short floor spikes — rarer than stalactites */
     private static final float FLOOR_SPIKE_THR = 0.52f;
 
@@ -67,7 +71,12 @@ public abstract class MixinCaveNoiseGenerator {
     private static FastNoise bridgeEdgeNoise;
     private static FastNoise spikeNoise;
 
-    private static boolean noiseInitialized = false;
+    /**
+     * Seed the static noise was built from, or null before first build. Keyed on the seed rather
+     * than a boolean so a second world in the same process rebuilds instead of inheriting the
+     * first world's caves.
+     */
+    private static Long initializedSeed = null;
     private static boolean loggedOnce = false;
 
     private World capturedWorld;
@@ -81,7 +90,7 @@ public abstract class MixinCaveNoiseGenerator {
     }
 
     private static synchronized void initNoiseIfNeeded(long worldSeed) {
-        if (!noiseInitialized) {
+        if (initializedSeed == null || initializedSeed != worldSeed) {
             int seed1 = (int) (worldSeed & 0xFFFF);
             int seed2 = (int) ((worldSeed >> 16) & 0xFFFF);
 
@@ -141,7 +150,7 @@ public abstract class MixinCaveNoiseGenerator {
             spikeNoise.SetNoiseType(FastNoise.NoiseType.Simplex);
             spikeNoise.SetFrequency(0.07f);
 
-            noiseInitialized = true;
+            initializedSeed = worldSeed;
         }
     }
 
@@ -265,7 +274,10 @@ public abstract class MixinCaveNoiseGenerator {
         int underside = bestDeck - thickness - Math.round((1.0f - arch) * Math.max(0, bestDeck - (lavaLevel + 3)) * 0.85f);
         underside += Math.round(bridgeEdgeNoise.GetNoise(worldX * 0.9f, worldZ * 0.9f) * 0.6f);
         int fillBottom = MathHelper.clamp(underside, lavaLevel + 1, bestDeck - 2);
-        return new int[]{bestDeck, fillBottom};
+        int[] out = BRIDGE.get();
+        out[0] = bestDeck;
+        out[1] = fillBottom;
+        return out;
     }
 
     private static int ceilingYAt(int worldX, int worldZ) {
@@ -282,10 +294,15 @@ public abstract class MixinCaveNoiseGenerator {
         }
         if (primer == null) return;
 
+        // Depths terrain only exists in the Overworld. Better Caves can be configured for other
+        // dimensions, and carving there would punch a -64..0 hole into a generator that never
+        // filled that range.
+        if (PrimerAccess.dimensionOf(this.capturedWorld) != 0) return;
+
         int minY = ArcanaQuestTweaksConfig.DepthsModuleConfig.general.minWorldY;
         if (minY >= 0) return;
 
-        long seed = this.capturedWorld != null ? Reflect.getSeed(this.capturedWorld) : 1337L;
+        long seed = Reflect.getSeed(this.capturedWorld);
         initNoiseIfNeeded(seed);
         UpperTunnelNetwork.init(seed);
 
@@ -343,8 +360,8 @@ public abstract class MixinCaveNoiseGenerator {
                 int archDeckY = bridge != null ? bridge[0] : Integer.MIN_VALUE;
                 int archFillBottom = bridge != null ? bridge[1] : Integer.MIN_VALUE;
 
-                float[] lower1 = new float[Math.max(1, lowerHeight)];
-                float[] lower2 = new float[Math.max(1, lowerHeight)];
+                float[] lower1 = LOWER1.get();
+                float[] lower2 = LOWER2.get();
                 if (lowerHeight > 0) {
                     sampleDual(lowerCavern1, lowerCavern2, worldX, worldZ, lowerBottom, LOWER_MAX_Y, 0.55f, 0.45f, lower1, lower2);
                 }
