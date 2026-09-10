@@ -61,12 +61,13 @@ Jar names below are from the **Arcana Quest DEVBOX** instance on 2026-08-20 unle
 | Forge | (Cleanroom) | — | **required** json | yes | always | — | [recipes.md](recipes.md) | `MixinCraftingHelperFindFiles`. Metallurgy/Spartan jars are runtime recipe trees, not Tweaks compile deps |
 | InControl | `incontrol-1.12-3.10.4.jar` | **after** | vanilla spawner in **required** json | **yes** (`GeneralConfiguration`) | pack always | **yes** | [spawning.md](spawning.md) | Layer filter `PotentialSpawns` LOWEST then last-per-class. Pack fill: `MixinWorldEntitySpawner` only (not `WorldServer`). Do not import `PotentialSpawnRule` (`RuleBase` not in `libs/`). InControl’s own player-distance mixin stays |
 | `waystones` | `Waystones_1.12.2-4.1.0.jar` | omitted | — | no | village piece class name | **no** | rtg | Relocate same gazebo; Tweaks does not mixin Waystones |
+| `animania` | `animania-1.12.2-base-2.0.3.28.jar` | omitted | optional `mixins.aqtweaks.animania.json` | **yes** (`AddonHandler`) | yes | **yes** | [advancement.md](advancement.md) | `MixinAddonHandler` cancels `onWorldLoad` (Forge reload + Farm/Extra inject). Farm/Extra jars are non-mods; not compile, not mixin targets |
 
 Vanilla `MapGenVillage` / `MapGenCaves` / `WorldGenLakes` / `ChunkProviderServer` / `RenderGlobal` / `WorldEntitySpawner` are Forge/vanilla, not extra jars. `MixinWorldGenLakes` skips water (not lava) on the village pad. `MixinWorldEntitySpawner` fills InControl pack sizes. Do not late-mixin `World` / `WorldServer`.
 
 ## `build_gradle.ps1` copy list vs contract
 
-**Copied if present:** Elenai Extended 1.1.3, Bewitchment, CoFH World, Better Caves, RC 2.0.0.9, IvToolkit, RTG 7.3.3.6, Astral 1.10.27, Mystical World 1.11.0, Grimoire of Gaia 1.7.2, Reskillable 1.13.1, Effortless Building 2.16, Thaumcraft 6.1 BETA26, InControl **1.12-3.10.4**. Also **deletes** from `libs/`: `ElenaiDodge2-1.12.2-1.1.0.jar`, `RecurrentComplexVolts-1.12.2-2.0.0.7.jar`, `RoguelikeDungeons-Arcana-1.12.2-2.5.0.jar`, `BaublesEX-1.12.2-2.3.5.jar`, `WearableBackpacks-RLCraft-1.12.2-3.2.7.jar`.
+**Copied if present:** Elenai Extended 1.1.3, Bewitchment, CoFH World, Better Caves, RC 2.0.0.9, IvToolkit, RTG 7.3.3.6, Astral 1.10.27, Mystical World 1.11.0, Grimoire of Gaia 1.7.2, Reskillable 1.13.1, Effortless Building 2.16, Thaumcraft 6.1 BETA26, InControl **1.12-3.10.4**, Animania Base **2.0.3.28**. Also **deletes** from `libs/`: `ElenaiDodge2-1.12.2-1.1.0.jar`, `RecurrentComplexVolts-1.12.2-2.0.0.7.jar`, `RoguelikeDungeons-Arcana-1.12.2-2.5.0.jar`, `BaublesEX-1.12.2-2.3.5.jar`, `WearableBackpacks-RLCraft-1.12.2-3.2.7.jar`.
 
 **Not copied (but needed to compile and/or mixin-apply):** Depths Update **a12**, Grapple, Embers, DSS, Simple Difficulty, BOP. **Charm** is not copied either and is needed for neither — `MixinASMHooksVillagePaste` is a string target in a `required: false` json.
 

@@ -1,6 +1,6 @@
 # Verification (1.8)
 
-Last updated: 2026-09-09.
+Last updated: 2026-09-10.
 
 Manual release / smoke checklist. **No automated tests.** Harness: CurseForge **Arcana Quest DEVBOX**, remapped `ArcanaQuestTweaks-1.8.jar` in `mods/`. Algorithms and full checklists stay in module docs; this is the pack-level pass/fail.
 
@@ -14,7 +14,7 @@ Worldgen applies to **new chunks only**.
 
 ## Boot
 
-- [ ] Client starts the full pack; no mixin apply crash from `mixins.aqtweaks.json` or `mixins.aqtweaks.early.json`. Log must not say `MixinWorldRiftLight` / `World was loaded too early`, `MixinWorldServerSpawnList` / `WorldServer was loaded too early`, or `MixinWorldGenLakes` / `field_150589_a was not located` / `WorldGenLakes in invalid classes`. Optional `mixins.aqtweaks.gaia.json` must not log `InvalidInjectionException` (vanilla INVOKEs must be MCP + `remap = true`; a miss boots anyway because `required: false`).
+- [ ] Client starts the full pack; no mixin apply crash from `mixins.aqtweaks.json` or `mixins.aqtweaks.early.json`. Log must not say `MixinWorldRiftLight` / `World was loaded too early`, `MixinASMHooksVillagePaste` / `ASMHooks was loaded too early`, or `MixinWorldGenLakes` / `field_150589_a was not located` / `WorldGenLakes in invalid classes`. Optional `mixins.aqtweaks.gaia.json` must not log `InvalidInjectionException` (vanilla INVOKEs must be MCP + `remap = true`; a miss boots anyway because `required: false`).
 - [ ] Mixin log does **not** say Tweaks mixins require class version 69 (Java 21 class files).
 - [ ] Wait through full JEI / ThaumicJEI / **TC6 Aspects 4 JEI** load. Title screen stays up. No `hs_err_pid*.log`.
 - [ ] Dedicated server: **not routinely tested** in this repo. If you ship a server, start one with the same mods and confirm it reaches “Done”.
@@ -36,6 +36,7 @@ These json files are `required: false`. Removing the parent should skip that jso
 | Reskillable | No per-level bonuses; stamina perk lookups no-op |
 | Effortless Building | No Building place-reach / max-blocks mixin |
 | Thaumcraft | No focus mixins; frost stays `thrown` / not Magic; warp handler not registered |
+| Animania | No `MixinAddonHandler`; stock world-load advancement reload + Farm/Extra inject |
 
 ### Do not treat as optional
 
@@ -106,7 +107,8 @@ Use the full list in [stamina.md](stamina.md) **Verify**. Minimum: jump costs/bl
 | Client | Toughness LTR above armor; iron pick shows Vanilla Tools stats; Metallurgy pick not duplicated |
 | Recipes | Pack boots without Metallurgy `generated/item/spartanweaponry` recipe spam |
 | Reskillable | Attack 16 → +2 damage; Mining Expert wood pick drops diamond ore; stamina perks on tree. Full list: [reskillable.md](reskillable.md) |
-| Spawning | Boot log loads `config/arcanaquest/mob_overworldspawntype.json` and `mob_spawnparties.json` when present. Closed cave: dwarf/cave_spider/krake yes, Dryad/witch/Wildkin no, zombie/goblin still yes. Night surface: reverse exclusives; zombie still yes. Creeper packs 1–2 not 4; zombie/skeleton/spider 2–4 mixed. Default `goblin_feral=3-5`. Fill Pack Size off: old singles. Natural Overworld cleric: knights + CR archers; cage/portal cleric: no party. Hostile cap default 200. No mixin fail on `MixinWorldEntitySpawner`. See [spawning.md](spawning.md) |
+| Spawning | Boot log loads spawn types, parties, and pack group sizes (`mob_tier.json` + `mob_spawnrules.cfg`). Closed cave: dwarf/cave_spider/krake yes, Dryad/witch/Wildkin no, zombie/goblin still yes. Night surface: reverse exclusives; zombie still yes. Creeper packs 1–2 not 4; enderman 1; zombie/skeleton/spider 2–4 mixed. Default `goblin_feral=3-5`. Fill Pack Size off: old singles. Natural Overworld cleric: knights + CR archers; cage/portal cleric: no party. Hostile cap default 200. No mixin fail on `MixinWorldEntitySpawner`. See [spawning.md](spawning.md) |
+| Advancement | Join log: no `AddonHandler.onWorldLoad` → `ForgeHooks.loadAdvancements`. Mixin json applied. Animania animals still spawn/register. No Farm/Extra Animania advancement trees. See [advancement.md](advancement.md) |
 
 ## Edge cases
 

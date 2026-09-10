@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -20,6 +21,8 @@ public final class VillagePlate {
 
     private static final Map<String, Float> HEIGHTS = new ConcurrentHashMap<>();
     private static final Map<Long, List<Record>> STARTS = new ConcurrentHashMap<>();
+    /** {@code rememberNearby} at most once per query chunk (spawn/{@code isInsideStructure}). */
+    private static final Set<String> NEARBY_RECOVERED = ConcurrentHashMap.newKeySet();
 
     public static final class Record {
         public final Object start;
@@ -35,6 +38,10 @@ public final class VillagePlate {
         public final int startChunkZ;
         /** Mixin well-walk or an AABB-miss refresh already rebuilt boxes from the live Start. */
         public final boolean landBoxesLocked;
+        /** Well-piece Y after first {@link #wellFloorY} walk; {@code wellMinY == Integer.MIN_VALUE} means none. */
+        private boolean wellYResolved;
+        private int wellMinY = Integer.MIN_VALUE;
+        private int wellMaxY = Integer.MIN_VALUE;
 
         private Record(Object start, int[] xz, List<int[]> landBoxes, List<int[]> buildingBoxes,
                        List<int[]> shrineBoxes, int wellX, int wellZ, int minY, int maxY,
@@ -93,7 +100,9 @@ public final class VillagePlate {
      */
     public static void forgetSeed(long seed) {
         STARTS.remove(seed);
-        HEIGHTS.keySet().removeIf(k -> k.startsWith(seed + ":"));
+        String prefix = seed + ":";
+        HEIGHTS.keySet().removeIf(k -> k.startsWith(prefix));
+        NEARBY_RECOVERED.removeIf(k -> k.startsWith(prefix));
     }
 
     public static void put(long seed, Record rec, float height) {
@@ -525,21 +534,63 @@ public final class VillagePlate {
         if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.enableVillageBoxDetection) return null;
         if (world == null) return null;
         ensureStarts(world, mapGen);
-        if (mapGen != null) {
-            rememberNearby(world, mapGen, x >> 4, z >> 4);
-        }
+        recoverNearbyOnce(world, mapGen, x >> 4, z >> 4);
         int heightAbove = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageBoxHeight);
         long seed = world.getSeed();
         for (Record rec : starts(seed)) {
             if (rec.start == null) continue;
+            if (!inDetectionHullXZ(x, z, rec)) continue;
             Record live = maybeRefreshLandBoxes(seed, rec);
+            if (live != rec && !inDetectionHullXZ(x, z, live)) continue;
+            if (!inVillagePlateXZ(x, z, live)) continue;
             float plate = resolvePlateOrSample(world, live);
             if (Float.isNaN(plate)) continue;
             if (!yInVillageVolume(y, plate, heightAbove, live)) continue;
-            if (!inVillagePlateXZ(x, z, live)) continue;
             return live.start;
         }
         return null;
+    }
+
+    /**
+     * Pull nearby {@code structureMap} Starts at most once per query chunk when Tweaks already
+     * has some records (so {@link #ensureStarts} will not {@link #rememberAll}). Empty list
+     * already backfilled every loaded Start.
+     */
+    private static void recoverNearbyOnce(World world, Object mapGen, int cx, int cz) {
+        if (world == null || mapGen == null) return;
+        long seed = world.getSeed();
+        if (starts(seed).isEmpty()) return;
+        if (!NEARBY_RECOVERED.add(seed + ":" + cx + "," + cz)) return;
+        rememberNearby(world, mapGen, cx, cz);
+    }
+
+    /**
+     * Axis-aligned expand of land/shrine boxes (or the start AABB) by the live detection radius.
+     * Superset of {@link #inVillagePlateXZ}; rejects wilderness without sampling or piece walks.
+     */
+    private static boolean inDetectionHullXZ(int x, int z, Record rec) {
+        if (rec == null) return false;
+        int landR = detectionLandRadius();
+        int shrineR = detectionShrineRadius();
+        boolean any = false;
+        for (int[] box : rec.landBoxesOrEmpty()) {
+            any = true;
+            if (inExpandedAabbXZ(x, z, box, landR)) return true;
+        }
+        for (int[] box : rec.shrineBoxesOrEmpty()) {
+            any = true;
+            if (inExpandedAabbXZ(x, z, box, shrineR)) return true;
+        }
+        if (!any) {
+            return inExpandedAabbXZ(x, z, rec.xz, landR);
+        }
+        return false;
+    }
+
+    private static boolean inExpandedAabbXZ(int x, int z, int[] box, int radius) {
+        if (box == null) return false;
+        int r = Math.max(0, radius);
+        return x >= box[0] - r && x <= box[1] + r && z >= box[2] - r && z <= box[3] + r;
     }
 
     public static float resolvePlateOrSample(World world, Record rec) {
@@ -641,12 +692,32 @@ public final class VillagePlate {
      * unsnapped template box (64..78).
      */
     public static int wellFloorY(Record rec, int plateY) {
-        int[] wellY = wellPieceMinMaxY(rec != null ? rec.start : null);
-        if (wellY == null) {
-            return plateY - 14;
+        int minY;
+        int maxY;
+        if (rec != null && rec.wellYResolved) {
+            if (rec.wellMinY == Integer.MIN_VALUE) {
+                return plateY - 14;
+            }
+            minY = rec.wellMinY;
+            maxY = rec.wellMaxY;
+        } else {
+            int[] wellY = wellPieceMinMaxY(rec != null ? rec.start : null);
+            if (rec != null) {
+                rec.wellYResolved = true;
+                if (wellY == null) {
+                    rec.wellMinY = Integer.MIN_VALUE;
+                    rec.wellMaxY = Integer.MIN_VALUE;
+                } else {
+                    rec.wellMinY = wellY[0];
+                    rec.wellMaxY = wellY[1];
+                }
+            }
+            if (wellY == null) {
+                return plateY - 14;
+            }
+            minY = wellY[0];
+            maxY = wellY[1];
         }
-        int minY = wellY[0];
-        int maxY = wellY[1];
         if (minY == 64 && maxY == 78) {
             return plateY - (maxY - minY);
         }

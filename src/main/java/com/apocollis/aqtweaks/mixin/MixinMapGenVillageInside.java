@@ -18,11 +18,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(value = MapGenStructure.class, remap = false)
 public abstract class MixinMapGenVillageInside {
 
-    @Inject(method = "func_175797_c", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "func_175797_c", at = @At("RETURN"), cancellable = true)
     private void aqtweaks$villageBoxContains(BlockPos pos, CallbackInfoReturnable<StructureStart> cir) {
         if (!((Object) this instanceof MapGenVillage)) return;
         if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.enableVillageBoxDetection) return;
         if (pos == null) return;
+        if (cir.getReturnValue() != null) return;
 
         World world = Reflect.getMapGenWorld(this);
         if (world == null) world = VillageLandHelper.currentWorld();

@@ -702,6 +702,7 @@ public final class VillageLandHelper {
     }
 
     private static void layoutVillageGridBody(MapGenVillage gen, World world, int cx, int cz, ChunkPrimer primer) {
+        int startsBefore = structureStartCount(gen);
         gen.generate(world, cx, cz, primer);
         int spacing = Reflect.getVillageDistance(gen);
         if (spacing < 9) spacing = 32;
@@ -737,7 +738,17 @@ public final class VillageLandHelper {
                 }
             }
         }
-        forgetRejectedStarts(gen, world);
+        if (structureStartCount(gen) != startsBefore) {
+            forgetRejectedStarts(gen, world);
+        }
+    }
+
+    private static int structureStartCount(MapGenVillage gen) {
+        int n = 0;
+        for (Object ignored : Reflect.getMapGenStructureStarts(gen)) {
+            n++;
+        }
+        return n;
     }
 
     /**

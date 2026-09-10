@@ -1,6 +1,6 @@
 # Portal module (1.8)
 
-Last updated: 2026-09-09.
+Last updated: 2026-09-10.
 
 Config: `config/arcanaquesttweaks/aqtweaks_portal.cfg`. Tweaks-owned. No parent portal mod.
 
@@ -31,7 +31,7 @@ Lifespan is read from cfg in `entityInit` into the synced `REMAINING` value (def
 
 Block light **15** at the mid cell (`RiftLighting` + `MixinWorldRiftLight` on `World.getRawLight`); `checkLight` on spawn/move/death. That mixin is in `mixins.aqtweaks.early.json` (jar `MixinConfigs`), not the late Tweaks json — late prepare hits `World` after it is already loaded and crashes boot.
 
-Teleport: AABB overlap. Skip other rifts and **sitting** tamed pets. Players still dismount, companion-pull (radius), remount, re-leash. Everything else in the box (`EntityItem`, villagers, hostiles, standing tames, XP orbs, etc.) `moveToExit`. Then `timeUntilPortal` = cooldown (default 80). Exit XZ is dest + horizontal look × **Exit Offset** (cfg, default 1.5), then the same stand search as wild (solid + 1, two body cells). If that heading is a wall/trunk/hole, try 8 headings at the same radius, then dest feet.
+Teleport: AABB overlap. Skip other rifts and **sitting** tamed pets. Players still dismount, companion-pull (radius), remount, re-leash. Everything else in the box (`EntityItem`, villagers, hostiles, standing tames, XP orbs, etc.) `moveToExit`. Then `timeUntilPortal` = cooldown (default 80). Exit XZ is dest + horizontal look × **Exit Offset** (cfg, default 1.5), then `findStandFromY` (solid + 1, two body cells) — **not** wild `findStandPos`, which also rejects liquids and `Type.OCEAN`. If that heading is a wall/trunk/hole, try 8 headings at the same radius, then dest feet.
 
 Do **not** `untrack`/`track` dest on arrival. That destroy packet plus Dynamic Stealth **Entity Specific Full Bypass** leaves dest with a server hitbox and light but **no cylinder**. Keep `aqtweaks:arcane_rift` on DS full bypass so dest is not sense-gated. If the client entity drops, baked block light can stay; that is expected. No Tweaks light packet.
 

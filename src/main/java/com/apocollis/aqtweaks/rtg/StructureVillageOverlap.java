@@ -5,7 +5,6 @@ import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.chunk.IChunkProvider;
-import net.minecraft.world.gen.ChunkProviderServer;
 import net.minecraft.world.gen.IChunkGenerator;
 import net.minecraft.world.gen.structure.MapGenVillage;
 import net.minecraft.world.gen.structure.template.PlacementSettings;
@@ -69,7 +68,8 @@ public final class StructureVillageOverlap {
         int heightAbove = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageBoxHeight);
 
         for (VillagePlate.Record rec : VillagePlate.starts(seed)) {
-            float plate = VillagePlate.resolvePlate(world, rec);
+            if (!VillagePlate.aabbOverlapsVillagePad(minX, maxX, minZ, maxZ, rec)) continue;
+            float plate = VillagePlate.resolvePlateOrSample(world, rec);
             if (Float.isNaN(plate)) continue;
             int midY = minY + (maxY - minY) / 2;
             if (!VillagePlate.yInVillageVolume(minY, plate, heightAbove, rec)
@@ -77,28 +77,7 @@ public final class StructureVillageOverlap {
                     && !VillagePlate.yInVillageVolume(midY, plate, heightAbove, rec)) {
                 continue;
             }
-            if (VillagePlate.aabbOverlapsVillagePad(minX, maxX, minZ, maxZ, rec)) return true;
-        }
-
-        IChunkProvider provider;
-        try {
-            provider = world.getChunkProvider();
-        } catch (Throwable t) {
-            return false;
-        }
-        if (!(provider instanceof ChunkProviderServer)) return false;
-        ChunkProviderServer server = (ChunkProviderServer) provider;
-        int midY = Math.max(1, minY + (maxY - minY) / 2);
-        int[] xs = new int[] {minX, maxX, (minX + maxX) >> 1};
-        int[] zs = new int[] {minZ, maxZ, (minZ + maxZ) >> 1};
-        for (int x : xs) {
-            for (int z : zs) {
-                try {
-                    if (server.isInsideStructure(world, "Village", new BlockPos(x, midY, z))) {
-                        return true;
-                    }
-                } catch (Throwable ignored) {}
-            }
+            return true;
         }
         return false;
     }

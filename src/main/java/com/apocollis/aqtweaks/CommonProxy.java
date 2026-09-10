@@ -36,6 +36,7 @@ public class CommonProxy {
         GaiaDamageConfig.load(event.getModConfigurationDirectory());
         com.apocollis.aqtweaks.spawning.SpawnTypeLists.load(event.getModConfigurationDirectory());
         com.apocollis.aqtweaks.spawning.SpawnParties.load(event.getModConfigurationDirectory());
+        com.apocollis.aqtweaks.spawning.SpawnGroupCounts.load(event.getModConfigurationDirectory());
         com.apocollis.aqtweaks.portal.PortalModule.preInit();
         if (net.minecraftforge.fml.common.Loader.isModLoaded("reskillable")) {
             com.apocollis.aqtweaks.reskillable.ReskillablePerkRegistry.preInit();
@@ -57,7 +58,6 @@ public class CommonProxy {
         }
 
         MinecraftForge.EVENT_BUS.register(new ComfortSystemHandler());
-        MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.spawning.SpawnLayerFilter());
         MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.rtg.VillageLandHelper.Events());
 
         if (net.minecraftforge.fml.common.Loader.isModLoaded("astralsorcery")) {
@@ -70,6 +70,8 @@ public class CommonProxy {
     }
 
     public void postInit(FMLPostInitializationEvent event) {
+        // After InControl so PotentialSpawns last-per-class runs after it appends group-count rows.
+        MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.spawning.SpawnLayerFilter());
         // Every optional-mod and vanilla handle has had its chance to resolve by now. Say which
         // ones did not, so a mapping break is a log line instead of a module that quietly no-ops.
         com.apocollis.aqtweaks.util.Reflect.auditUnresolved();

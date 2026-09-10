@@ -31,6 +31,7 @@ Each file covers: what Tweaks changes, how the **parent mod** implements the fea
 | Client | Toughness Bar (optional), tooltip lines for non-Metallurgy tools | [client.md](client.md) |
 | Spawning | Vanilla `PotentialSpawns` + pack `mob_overworldspawntype.json` (InControl still owns deny) | [spawning.md](spawning.md) |
 | Recipes | Forge `CraftingHelper` (Metallurgy / Spartan JSON) | [recipes.md](recipes.md) |
+| Advancement | Animania Base (Farm / Extra addon JSON via Base handler) | [advancement.md](advancement.md) |
 | Compatibility / jars | Compile vs mixin vs runtime vs copy script | [compatibility-matrix.md](compatibility-matrix.md) |
 | Build / deploy | `gradlew build` vs `build_gradle.ps1` | [build-and-release.md](build-and-release.md) |
 | Release smoke | Boot, optional absences, worldgen, stamina | [verification.md](verification.md) |
@@ -57,20 +58,22 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 | Reskillable | Per-level bonuses + stamina perk id lookup | Module not registered; stamina `hasUnlockable` no-ops |
 | Effortless Building | Building skill place-reach / max blocks | Mixin json skipped; Building drip unused |
 | InControl | Spawning layer filter + pack fill (compile-hard min-distance) | Missing jar fails compile; pack always ships it |
+| Animania | Advancement: skip Base world-load reload + Farm/Extra inject | Mixin json skipped; Animania advancements load as stock |
 
 ### Init (`CommonProxy` / `ClientProxy`)
 
 **preInit**
 
 - Register SimpleNetworkWrapper messages 0–2 (stamina climb/grapple). See [stamina.md](stamina.md).
-- `ComfortConfigLoader.load`, `GaiaDamageConfig.load`, `SpawnTypeLists.load`, and `SpawnParties.load` from the Forge config directory.
+- `ArcanaQuestTweaksConfig.normalizePinned()` — forces `DepthsModuleConfig.general.minWorldY` to `DEPTHS_FLOOR_Y` (−64) even if an instance cfg was hand-edited.
+- `ComfortConfigLoader.load`, `GaiaDamageConfig.load`, `SpawnTypeLists.load`, `SpawnParties.load`, and `SpawnGroupCounts.load` from the Forge config directory.
 - `PortalModule.preInit` (`ForgeChunkManager` callback). Item/entity register via `RegistryEvent` (not init).
 - `MapGenStructureIO.registerStructureComponent(VillagePieceVillagePlate.class, "AQTVillagePlate")` — **unconditional**. The Astral `AQTSmallShrine` piece is the conditional one (init, only if `astralsorcery`).
 - If `reskillable`: `ReskillablePerkRegistry` (Unlockable `RegistryEvent`).
 
 **init (common)**
 
-- Always: `StaminaModule`, `GaiaDamageHandler` (Gaia JSON bases), `ComfortSystemHandler`, `SpawnLayerFilter`, `VillageLandHelper.Events`.
+- Always: `StaminaModule`, `GaiaDamageHandler` (Gaia JSON bases), `ComfortSystemHandler`, `VillageLandHelper.Events`.
 - If `thaumcraft`: `ThaumcraftModule`.
 - If `bewitchment`: `BewitchmentRegistryHandler` (ritual wrap still no-ops unless Thaumcraft is also loaded; see [bewitchment.md](bewitchment.md)).
 - If `astralsorcery`: `VillageAstralSmallShrineHandler.register()` (structure piece id `AQTSmallShrine`).
@@ -81,7 +84,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 - `StaminaModuleClient`, `DepthsFogHandler`, `ClientModule`.
 - Entity renderer for `EntityArcaneRift` in **client preInit**. Item models on `ModelRegistryEvent`.
 
-`postInit` is empty. `ArcanaQuestTweaks.serverStarting` (`@Mod.EventHandler` on `FMLServerStartingEvent`) registers the `/aqvillage` server command (`CommandAqVillage`) — see [rtg.md](rtg.md).
+`postInit` registers `SpawnLayerFilter` (after InControl `PotentialSpawns`) and runs `Reflect.auditUnresolved()`. `ArcanaQuestTweaks.serverStarting` (`@Mod.EventHandler` on `FMLServerStartingEvent`) registers the `/aqvillage` server command (`CommandAqVillage`) — see [rtg.md](rtg.md).
 
 ### MixinBooter: early vs late
 
@@ -89,22 +92,23 @@ Vanilla `World` is already loaded when late mixins prepare. Portal glowstone lig
 
 ### MixinBooter late loader
 
-`AQTweaksLateMixinLoader` always returns these configs (MixinBooter / Fugue).
+`AQTweaksLateMixinLoader` always returns these configs (MixinBooter / Fugue). **`mixins.aqtweaks.charm.json` is first** so Charm `ASMHooks` is mixed before `mixins.aqtweaks.json` prepares `StructureStart` (Charm ASM would otherwise define `ASMHooks` too early). Do not put the Charm json on jar `MixinConfigs`.
 
 | File | `required` | Module | If parent jar missing |
 | --- | --- | --- | --- |
+| `mixins.aqtweaks.charm.json` | false | RTG Charm village paste skip (listed **first**) | Skip |
 | `mixins.aqtweaks.json` | **true** | Depths, RTG villages, Recipes | Load fails |
 | `mixins.aqtweaks.grapple.json` | false | Stamina | Skip |
 | `mixins.aqtweaks.dss.json` | false | Stamina | Skip |
 | `mixins.aqtweaks.toughnessbar.json` | false | Client HUD | Skip |
 | `mixins.aqtweaks.astral.json` | false | RTG post-terrain shrines | Skip |
-| `mixins.aqtweaks.charm.json` | false | RTG Charm village paste skip | Skip |
 | `mixins.aqtweaks.bewitchment.json` | false | RTG Cambion + circle/menhir/wickerman | Skip |
 | `mixins.aqtweaks.mysticalworld.json` | false | RTG Mystical huts | Skip |
 | `mixins.aqtweaks.biomesoplenty.json` | false | RTG BOP water/quicksand village skip | Skip |
 | `mixins.aqtweaks.gaia.json` | false | Grimoire of Gaia drop pierce + recast bolts/bombs | Skip |
 | `mixins.aqtweaks.effortlessbuilding.json` | false | Reskillable Building EB place reach + max blocks | Skip |
 | `mixins.aqtweaks.thaumcraft.json` | false | Thaumcraft focus HP magic flag + Heal scale | Skip |
+| `mixins.aqtweaks.animania.json` | false | Advancement: cancel Animania `onWorldLoad` | Skip |
 
 `mixins.aqtweaks.json` contents (package `com.apocollis.aqtweaks.mixin`):
 
@@ -138,13 +142,13 @@ Forge `@Config` on nested classes in `ArcanaQuestTweaksConfig`. Comfort is JSON,
 | `aqtweaks_comfort_settings.json` | `ComfortConfigLoader` (not `@Config`) |
 | `aqtweaks_comfort_blocks.json` | `ComfortConfigLoader` (not `@Config`) |
 
-`ConfigEventHandler` runs `ConfigManager.sync` on any `aqtweaks` cfg change, invalidates DSS skill-cost cache, reloads spawn-type and spawn-party JSON, rebuilds spawn group overrides, and restamps Reskillable attributes if that mod is loaded. Existing instance files keep old keys when Java defaults change.
+`ConfigEventHandler` runs `ConfigManager.sync` on any `aqtweaks` cfg change, then `normalizePinned()`, invalidates DSS skill-cost cache, reloads spawn-type, spawn-party, and spawn-tier JSON plus spawn-rules cfg, rebuilds spawn group overrides, and restamps Reskillable attributes if that mod is loaded. Existing instance files keep old keys when Java defaults change.
 
-Its reach is narrower than it looks. It subscribes to `ConfigChangedEvent.OnConfigChangedEvent`, which Forge fires from the **client in-game config GUI only** — never on a dedicated server, and never from hand-editing a cfg file. The only JSON it reloads is spawn-type and spawn-party; comfort (`aqtweaks_comfort_settings.json`, `aqtweaks_comfort_blocks.json`) and `gaia_mob_damage.json` are preInit-only and need a **restart**.
+Its reach is narrower than it looks. It subscribes to `ConfigChangedEvent.OnConfigChangedEvent`, which Forge fires from the **client in-game config GUI only** — never on a dedicated server, and never from hand-editing a cfg file. The only JSON it reloads is spawn-type, spawn-party, and spawn-tier (plus `mob_spawnrules.cfg`); comfort (`aqtweaks_comfort_settings.json`, `aqtweaks_comfort_blocks.json`) and `gaia_mob_damage.json` are preInit-only and need a **restart**.
 
 `aqtweaks_grimoireofgaia.cfg`, `aqtweaks_thaumcraft.cfg`, and `aqtweaks_bewitchment.cfg` wrap their keys in a `general { }` block because those three `@Config` annotations omit `category = ""`; the other seven set it and have no wrapper. That asymmetry is **intentional** — normalizing it would reset tuned values in existing instance files.
 
-Pack-owned (not Tweaks): `config/arcanaquest/mob_overworldspawntype.json` (surface/underground ids) and `config/arcanaquest/mob_spawnparties.json` (mixed groups) for the [spawning](spawning.md) module.
+Pack-owned (not Tweaks): `config/arcanaquest/mob_overworldspawntype.json`, `mob_spawnparties.json`, `mob_tier.json`, and `mob_spawnrules.cfg` for the [spawning](spawning.md) module.
 
 ### `util/Reflect.java`
 

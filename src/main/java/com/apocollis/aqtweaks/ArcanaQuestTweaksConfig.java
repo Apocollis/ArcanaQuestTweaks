@@ -997,7 +997,7 @@ public class ArcanaQuestTweaksConfig {
         public boolean monsterOnly = true;
 
         @Config.Name("Fill Pack Size")
-        @Config.Comment("After the first ticking spawn, roll a pack size in [min, max] and place more of that mob nearby. Uses InControl group counts unless overridden.")
+        @Config.Comment("After the first ticking spawn, roll a pack size in [min, max] from pack mob_tier + mob_spawnrules unless overridden.")
         public boolean fillPackSize = true;
 
         @Config.Name("Max Extra Attempts")
@@ -1021,10 +1021,18 @@ public class ArcanaQuestTweaksConfig {
         public int groupSizeCap = 8;
 
         @Config.Name("Group Size Overrides")
-        @Config.Comment("modid:path=min-max (or min,max). Overrides InControl group counts for that id. Delete a line to use InControl.")
+        @Config.Comment("modid:path=min-max (or min,max). Overrides pack tier group counts for that id. Delete a line to use the tier table.")
         public String[] groupSizeOverrides = new String[] {
             "grimoireofgaia:goblin_feral=3-5"
         };
+
+        @Config.Name("Spawn Tier File")
+        @Config.Comment("Pack JSON under the Forge config directory. Maps entity ids to common/uncommon/rare/…. Tweaks does not ship or write this file.")
+        public String spawnTierFile = "arcanaquest/mob_tier.json";
+
+        @Config.Name("Spawn Rules File")
+        @Config.Comment("Pack Forge cfg under the Forge config directory. *_group_min / *_group_max per tier. Tweaks does not ship or write this file.")
+        public String spawnRulesFile = "arcanaquest/mob_spawnrules.cfg";
 
         @Config.Name("Enable Mixed Groups")
         @Config.Comment("After a natural ticking spawn, place companions from pack JSON. Cage spawners and TC portals never trigger this.")
@@ -1208,6 +1216,7 @@ public class ArcanaQuestTweaksConfig {
                 DssSkillCosts.invalidate();
                 com.apocollis.aqtweaks.spawning.SpawnTypeLists.reload();
                 com.apocollis.aqtweaks.spawning.SpawnParties.reload();
+                com.apocollis.aqtweaks.spawning.SpawnGroupCounts.reload();
                 com.apocollis.aqtweaks.spawning.SpawnGroupSizes.invalidate();
                 if (net.minecraftforge.fml.common.Loader.isModLoaded("reskillable")) {
                     com.apocollis.aqtweaks.reskillable.ReskillableModule.restampOnlinePlayers();

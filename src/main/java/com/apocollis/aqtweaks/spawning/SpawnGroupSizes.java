@@ -78,6 +78,12 @@ public final class SpawnGroupSizes {
         if (override != null) {
             min = override.min();
             max = override.max();
+        } else {
+            Range tier = id != null ? SpawnGroupCounts.rangeOf(id) : null;
+            if (tier != null) {
+                min = tier.min();
+                max = tier.max();
+            }
         }
         int cap = Math.max(1, SpawningModuleConfig.general.groupSizeCap);
         min = Math.max(1, min);

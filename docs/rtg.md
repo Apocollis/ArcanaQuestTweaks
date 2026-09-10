@@ -1,6 +1,6 @@
 # RTG module (1.8)
 
-Last updated: 2026-09-09, village `generateStructure` snapshot iterator + ocean well drop at populate.
+Last updated: 2026-09-10.
 
 This is the RTG module: village flatten/placement, then post-terrain structure skip/settle. Locked intent, current pipeline, and why earlier approaches were dropped. Read this before changing village flatten, spawn veto, piece retry, or shrine/house/hut land settle.
 
@@ -91,7 +91,7 @@ If we wait until populate, the land is already carved. So we:
 
 Layout must be cheap. `layoutVillageGrid` runs **once per chunk** at **RETURN** of RTG `getNewerNoise` (noise already filled), or at flatten if noise never ran, for the current chunk plus the **vanilla well chunk** of each nearby village cell (spacing from the map gen, UT default 25, radius 8 chunks). Nested `getLandscape` during flatten/plate samples increments `SAMPLING` so `getNewerNoise` does not layout again. Flatten writes `landscape.noise` **once** before `generateTerrain` (no second `ModifyArg` pass). The well is `cellOrigin + random(0, spacing - minTown)` with seed `setRandomSeed(cellX, cellZ, 10387312)`, not the cell origin. Generating only origins almost never created the `Start`, so hill-side chunks flattened as raw RTG and buildings stepped. It does **not** call `generate()` on all 289 neighbors. Do not layout at `func_185932_a` HEAD — noise is empty there and unknown-as-wet omitted every road.
 
-Flatten looks up `VillagePlate` records by **land-box overlap** first. Hit → flatten that chunk (no `rememberNearby`, no start-AABB scan). Miss → `ensureStarts` only if Tweaks’ list is empty, then `rememberNearby` on that miss, then `mergeStartAabbHits` only if land boxes still miss. Seal uses land/shrine overlap only (flatten already ran this chunk). They do **not** walk every Start in `structureMap` on wilderness. Mixin well-walk **replaces** the Record for that **well chunk**. `forgetRejectedStarts` does **not** cache kept wells while `layoutVillageGrid` is running (layout landscape can still look dry). Inland towns are cached on populate (`relocateOrDropWetWell`) or on a later non-layout forget pass. `rememberAll` never overwrites a walked well. A chunk inside the start AABB with no land-box hit is an empty corner or omitted dock — not a hull flatten. Public `isNeverRaiseAt` does **not** read the land-box landscape ThreadLocal (that cache is only for `landBoxesOf` / `wetFraction`). RTG already caches `getLandscape`. `landBoxesOf` still omits a road only when its full AABB is flooded (`isAabbFullyFlooded`).
+Flatten looks up `VillagePlate` records by **land-box overlap** first. Hit → flatten that chunk (no `rememberNearby`, no start-AABB scan). Miss → `ensureStarts` only if Tweaks’ list is empty, then `rememberNearby` on that miss, then `mergeStartAabbHits` only if land boxes still miss. Seal uses land/shrine overlap only (flatten already ran this chunk). They do **not** walk every Start in `structureMap` on wilderness. Mixin well-walk **replaces** the Record for that **well chunk**. `forgetRejectedStarts` does **not** cache kept wells while `layoutVillageGrid` is running (layout landscape can still look dry). Layout skips that full-map forget when the grid walk added no new Starts. Inland towns are cached on populate (`relocateOrDropWetWell`) or on a later non-layout forget pass. `rememberAll` never overwrites a walked well. A chunk inside the start AABB with no land-box hit is an empty corner or omitted dock — not a hull flatten. Public `isNeverRaiseAt` does **not** read the land-box landscape ThreadLocal (that cache is only for `landBoxesOf` / `wetFraction`). RTG already caches `getLandscape`. `landBoxesOf` still omits a road only when its full AABB is flooded (`isAabbFullyFlooded`).
 
 ## File map
 
@@ -101,19 +101,20 @@ Flatten looks up `VillagePlate` records by **land-box overlap** first. Hit → f
 | `rtg/VillageShoreMask.java` | Hard-pad occupancy: 1-block ocean notch fill, opening (trim jetties), 8-connected rim for brick |
 | `rtg/StructureLandSettle.java` | Post-terrain fill + rim. Large Astral under-fill is raw marble; Cambion uses pad 6 + falloff 12 |
 | `rtg/VillageDebug.java` | `logs/villagepatch.log` in the instance folder (not `latest.log`) |
-| `rtg/StructureVillageOverlap.java` | Village AABB/Y test for post-terrain schematics (not Y=0). BFS unwrap of wrapped providers/generators for `MapGenVillage` / RTG |
+| `rtg/StructureVillageOverlap.java` | Village pad XZ then Y for post-terrain schematics (not Y=0). No `isInsideStructure` re-entry. BFS unwrap for `MapGenVillage` / RTG |
 | `rtg/StructureLandSettle.java` | Fill under a placed schematic + rim slope; swamp-liquid fill; overwrite plant-like blocks |
 | `mixin/bettercaves/MixinChunkGeneratorRTGVillage.java` | Stash gens on RTG construct; layout once per chunk after `getNewerNoise` RETURN + flatten noise once + seal pad after caves/ravines |
 | `mixin/MixinMapGenVillageSpawn.java` | Well veto (`func_75047_a`) |
 | `mixin/MixinMapGenVillageStart.java` | Remember start after create (`func_75049_b`) |
 | `mixin/MixinMapGenVillageWorld.java` | Push/pop `World` around village `generate`; unwrap RTG from wrapped chunk gens |
 | `rtg/VillagePieceVillagePlate.java` | Non-placing pad children saved on the Start (`AQTVillagePlate`). Houses/paths/RC stay separate |
-| `mixin/MixinMapGenVillageInside.java` | Flatten plate as “inside village”; fallback if `Village.dat` has no pad children yet |
+| `mixin/MixinMapGenVillageInside.java` | Flatten plate as “inside village” on vanilla miss; hull/XZ before sample |
 | `rtg/CommandAqVillage.java` | OP `/aqvillage` (level 2): TP on generated ground ~6 off the well; prefers unexplored. Miss logs provider/generator to `latest.log` |
 | `mixin/MixinStructureVillagePieces.java` | House skip/retry inland on water; waystone relocates inland as the same piece; wet paths retry inland then omit |
 | `rtg/VillageRelight.java` | After village paste in a chunk, `checkLight` at emitting blocks in the clip |
 | `mixin/MixinStructureStartVillagePaste.java` | Snapshot `components` iterator; drop/walk ocean well at paste HEAD; populate abort on ocean/river floor (incl. well); stamp `AQTVillagePlate`; relight clip |
-| `mixin/charm/MixinASMHooksVillagePaste.java` | Same abort on Charm `ASMHooks.addComponentParts` (optional `mixins.aqtweaks.charm.json`) |
+| `mixin/charm/MixinASMHooksVillagePaste.java` | Charm `ASMHooks.addComponentParts` HEAD; thin class (no `VillageLandHelper` import). Json listed first in the late loader |
+| `rtg/VillageCharmPaste.java` | Wet-paste skip body; loaded on first Charm paste, not mixin prepare |
 | `mixin/reccomplex/MixinGenericVillageCreationHandler.java` | RC building skip/retry on water |
 | `rtg/VillagePieceAstralSmallShrine.java` | Village component that pastes Astral `smallShrine`; AABB from pattern; path overlap OK at layout; paste skips ocean/river **biome** only; liquid-only fill (no dirt collar) |
 | `rtg/VillageAstralSmallShrineHandler.java` | Forge village handler, weight 5, limit 1. Inland retry on building collision or ocean/river biome. `CommonProxy` registers only if `astralsorcery` is loaded. Piece id `AQTSmallShrine` |
@@ -129,7 +130,7 @@ Flatten looks up `VillagePlate` records by **land-box overlap** first. Hit → f
 | `mixin/biomesoplenty/MixinGeneratorLakes.java` | Skip BOP water and quicksand lakes on village overlap. Optional `mixins.aqtweaks.biomesoplenty.json` |
 | `ArcanaQuestTweaksConfig.RtgModuleConfig.surface` | `config/arcanaquesttweaks/aqtweaks_rtg.cfg` |
 | `mixins.aqtweaks.json` | Required: village spawn/start/world/inside, `MixinWorldGenLakes`, `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinChunkGeneratorRTGVillage`, `MixinGenericVillageCreationHandler` |
-| `mixins.aqtweaks.charm.json` | Optional: Charm ASM village paste skip |
+| `mixins.aqtweaks.charm.json` | Optional: Charm ASM village paste skip (late loader **first**; not jar `MixinConfigs`) |
 
 Related but separate: `MixinChunkGeneratorRTG.java` fills Deepslate below Y=0 for Depths. Do not conflate with village flatten. See [depths.md](depths.md).
 
@@ -223,7 +224,7 @@ Flooded for paths = never-raise **or** RTG lake (`noise < villageMinWellHeight`,
 
 ## Structure detection
 
-`MixinMapGenVillageInside` treats the **flatten plate** as village for `isInsideStructure`: AABB expand of each land box by `villageComponentPad + villageEdgeFalloff` (and shrine pad + falloff). Y is **well shaft floor through plate + villageBoxHeight**. After generation, Tweaks also appends non-placing `AQTVillagePlate` children to the Start so `Village.dat` stores those boxes next to houses/paths; vanilla `isVecInside` then matches after relog. Mixin still covers towns generated before the stamp. Unsnapped well template `64..78` uses `plate - 14`. Template start Y (`minY=64 maxY=151`) is not used as the only test.
+`MixinMapGenVillageInside` treats the **flatten plate** as village for `isInsideStructure`: Euclidean pad + Hermite (`villageComponentPad + villageEdgeFalloff`, shrine pad + falloff). Y is **well shaft floor through plate + villageBoxHeight**. Inject is **RETURN** of `func_175797_c`: vanilla child boxes (houses, paths, stamped `AQTVillagePlate` AABBs) win first; `VillagePlate.startAt` runs only on a miss (unstamped yards). `startAt` cheap-rejects XZ (AABB hull, then Euclidean) before plate sample / well-floor Y, caches well-piece Y, and `rememberNearby`s at most once per query chunk. `StructureVillageOverlap` uses the same pad XZ then Y (no 9-point `isInsideStructure` fallback). After generation, Tweaks appends non-placing `AQTVillagePlate` children so `Village.dat` matches after relog. Mixin still covers towns generated before the stamp. Unsnapped well template `64..78` uses `plate - 14`. Template start Y (`minY=64 maxY=151`) is not used as the only test.
 
 Flatten does **not** use `villageBoxXZPad` as extra 100% plate or as detection; flatten uses per-component distance (`villageComponentPad`, default 12). `villageBoxXZPad` is swamp dock-approach only. Live `villageEdgeFalloff` may still be **48** (Forge keeps saved cfg); code default is 12. `written=256 pad=0` is falloff-only blend, not a missing component pad.
 
@@ -262,7 +263,7 @@ Teleport is **on the generated ground** at that column (`world.getHeight`, skip 
 | Village Box Height | 30 | yes | Detection Y above plate. Floor is the well shaft (~11–14 below plate). Live cfg may still be **32** |
 | Enable Village Relight | true | yes | After populate paste, re-check light at torches/lamps in that chunk clip |
 | Village Flatten Debug | false | yes | `logs/villagepatch.log`. Live DEVBOX must be edited off; old true is kept until changed |
-| Skip Structures On Village | true | yes | Cancel AS surface shrines and Cambion houses on village AABB. MW hut/barrow and Bewitchment circle/menhir/wickerman skip that spot and retry nearby. Vanilla water lakes and BOP water/quicksand on the village pad are skipped |
+| Skip Structures On Village | true | yes | Master village-AABB skip via `StructureVillageOverlap.enabled()`. Lakes, MW barrows, and Bewitchment circle/menhir/wickerman skip/retry on this flag alone. Astral shrines, Cambion houses, and MW huts also need the matching `Enable * Settle` flag |
 | Enable Structure Land Settle | true | yes | Fill under those structures and ramp the rim |
 | Enable Astral Shrine Settle | true | yes | Village-skip + land settle for surface shrines |
 | Enable Cambion House Settle | true | yes | Village-skip; house +1 (cobble on grass); skip air; pad at plains Y hole-fill only |
@@ -494,6 +495,12 @@ Pad/height mixin needed this-session flatten cache, so yards missed after relog.
 Populate placed lamps with flag 2; block light did not flood (1-block puddles, dark houses).
 
 **Fix:** after `MapGenVillage.Start` paste for a chunk clip, `checkLight` every emitting block in that AABB. No flatten or detection changes.
+
+### 29. Exploration TPS: plate-as-village on every spawn check
+
+Bewitchment `isInsideStructure("Village")` (and InControl) ran `VillagePlate.startAt` at mixin HEAD for every query: `rememberNearby` plus plate sample and well-piece walk **before** XZ, for every remembered town. Wilderness misses paid that cost, then vanilla still ran. Layout also re-walked `forgetRejectedStarts` every new chunk.
+
+**Fix:** mixin RETURN (vanilla pad/house hit first); `startAt` XZ hull then Euclidean then Y/sample; well-floor Y cached; nearby recover once per query chunk; overlap helper does not re-enter `isInsideStructure`; layout forgets rejected starts only when the grid added a Start. Detection volume unchanged.
 
 ## Playtest reference (this line)
 

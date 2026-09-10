@@ -1,6 +1,6 @@
 # Build and release (1.8)
 
-Last updated: 2026-08-22.
+Last updated: 2026-09-10.
 
 How to compile and deploy `aqtweaks`. Parent jar contract: [compatibility-matrix.md](compatibility-matrix.md). In-game smoke: [verification.md](verification.md).
 
@@ -45,7 +45,7 @@ If `libs/` is empty or incomplete, this still “works” only insofar as Gradle
 What it does:
 
 1. Ensures `libs/`.
-2. Deletes known-stale jars (`ElenaiDodge2-1.12.2-1.1.0`, `RecurrentComplexVolts-1.12.2-2.0.0.7`).
+2. Deletes known-stale jars (`ElenaiDodge2-1.12.2-1.1.0`, `RecurrentComplexVolts-1.12.2-2.0.0.7`, `BaublesEX-1.12.2-2.3.5`, `WearableBackpacks-RLCraft-1.12.2-3.2.7`, `RoguelikeDungeons-Arcana-1.12.2-2.5.0`).
 3. For each name in `$deps`, copies DEVBOX `mods\<name>` → `libs\` **only if the file exists** (silent skip).
 4. Sets `JAVA_HOME` to Zulu 25.
 5. Runs `.\gradlew.bat build`.
@@ -71,7 +71,7 @@ Keep Zulu 25. Do **not** use `-XX:+UseCompactObjectHeaders`. `build_gradle.ps1` 
 
 Forge `@Config` files under `config/arcanaquesttweaks/` **keep saved values** when Java defaults change. Comfort is two JSON files (`aqtweaks_comfort_settings.json`, `aqtweaks_comfort_blocks.json`) loaded in preInit. After a default change (example: RTG coast buffer 32 → 16), edit or delete the old key in the instance cfg.
 
-In-game cfg change: `ConfigChangedEvent` → `ConfigManager.sync` + `DssSkillCosts.invalidate()` + Reskillable attribute restamp if loaded.
+In-game cfg change: `ConfigChangedEvent` → `ConfigManager.sync` + `normalizePinned()` + `DssSkillCosts.invalidate()` + spawn-type / party / tier JSON reload + spawn-rules and group-size invalidate + Reskillable attribute restamp if loaded.
 
 ## Agent / human workflow
 

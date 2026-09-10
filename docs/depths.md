@@ -1,6 +1,6 @@
 # Depths module (1.8)
 
-Last updated: 2026-09-09.
+Last updated: 2026-09-10.
 
 Config: `config/arcanaquesttweaks/aqtweaks_depths.cfg`. **New chunks only** for carve/fill. Client fog/sky apply immediately.
 
@@ -80,7 +80,7 @@ Shared path math: `UpperTunnelNetwork` (world seed). Primer, BC companion, and c
 
 ## Current cave algorithm
 
-Hardcoded in `MixinCaveNoiseGenerator` + `UpperTunnelNetwork`. Noise is Better Caves `FastNoise`. Seed splits: low 16 bits / next 16 bits plus fixed offsets. `init` is once per process; changing seed mid-session will not re-init (same as most of this pack’s noise).
+Hardcoded in `MixinCaveNoiseGenerator` + `UpperTunnelNetwork`. Noise is Better Caves `FastNoise`. Seed splits: low 16 bits / next 16 bits plus fixed offsets. `init` rebuilds when the world seed changes (`initializedSeed`); a mid-session seed change re-inits both the mixin noise and `UpperTunnelNetwork`.
 
 Vertical bands (defaults, `minWorldY` = -64):
 
@@ -197,7 +197,7 @@ Same `UpperTunnelNetwork` as -Y upper worms. Overworld only (`dimension == 0`).
 
 ### 1. Fill Y=0 in the RTG terrain mixin
 
-Solid Deepslate at Y=0 capped every Better Caves mouth. **Fix:** fill minY+1 .. -1 only.
+Solid Deepslate at Y=0 capped every Better Caves mouth. **Fix:** fill minY .. −1 (bedrock at `minY`, Deepslate above), never Y=0.
 
 ### 2. Cancel `MapGenCaves` for all subclasses
 

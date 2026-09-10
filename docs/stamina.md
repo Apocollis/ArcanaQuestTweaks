@@ -100,7 +100,7 @@ Respawn: `PlayerRespawnEvent` → `FeathersHelper.increaseFeathers(player, getMa
 | `stamina/PacketSyncGrappleInput` | Channel **2** — mode, motor, grounded |
 | `stamina/EmberMotorHelper.java` | Reflect Ember total/remove; `hasEmber` true if Ember not required or Embers absent |
 | `stamina/DssSkillCosts.java` | `registry_name=N` map |
-| `util/Reflect.java` | Feathers (including absorption HUD sync after spend), weight, Grapple attach/detach, glider, ropes, thirst, `hasEnoughStamina` |
+| `util/Reflect.java` | Feathers (including absorption HUD sync after spend), weight, Grapple query/detach, glider, ropes, thirst, `hasEnoughStamina` |
 | `mixin/grapple/MixinGrappleController.java` | Redirect `GrappleCustomization.motor` GET in `updatePlayerPos` |
 | `mixin/dss/MixinSkillActive.java` | Gate/spend/exhaustion on `trigger` |
 
@@ -128,7 +128,7 @@ Tune in cfg unless noted. Interval `20` = once per second.
 | Shield hold | `enableShieldCost` | 1 | 20 after first tick | Lower shield |
 | Mine default | `enableMiningCost` | 1 | per break | Drain remaining usable; **block still breaks** |
 | Mine ore / obsidian | | 2 | | same; Mining Efficiency perk −1 |
-| Mining Fatigue III | | — | while **regular** feathers ≤ **4** | 40-tick refresh, amp 2, ambient |
+| Mining Fatigue III | | — | while **regular** feathers ≤ **4** | Duration **40**, amp 2, ambient; re-apply when remaining ≤ **20** |
 | Glider | `enableGliderCost` | 1 | 20 | Undeploy |
 | Grapple climb | `enableGrappleCost` | 3 | 20 | Detach |
 | Grapple swing | | 2 | 20 | Detach |
@@ -144,13 +144,13 @@ DSS default list is every stock skill `=0`. Change `Skill Costs` in cfg; no rebu
 
 | Event | Handler | What happens |
 | --- | --- | --- |
-| `EntityJoinWorldEvent` HIGHEST/LOWEST | `StaminaModule` | Clear/restore Elenai weight array. Thrown-entity intercept is a **no-op** (release is billed on `ItemUseStop`) |
+| `EntityJoinWorldEvent` HIGHEST/LOWEST | `StaminaModule` | Clear/restore Elenai weight array for `EntityPlayerMP` (nested-join depth). Throw release is billed on `ItemUseStop`, not join |
 | `TickEvent.PlayerTickEvent` START | `StaminaModule` | Bow hold, throw hold, climb, ledge extras, grapple, glider, sprint, shield, mining fatigue, thirst-on-regen |
 | `LivingJumpEvent` | | Spend jump or zero `motionY` |
 | `AttackEntityEvent` | | Melee spend or drain + `StaminaTweaksAttackPenalty` |
 | `PlayerInteractEvent.LeftClickBlock` | | Melee spend if enough (block punch). **No** remaining-drain / penalty |
 | `PlayerInteractEvent.LeftClickEmpty` | | Intended air-swing spend; Forge fires this **client-side**, and the handler returns on `isRemote` → **air swings do not spend** |
-| `LivingHurtEvent` | | If **attacker** has penalty NBT, multiply damage then clear tag |
+| `LivingHurtEvent` | | If **attacker** has penalty NBT, multiply damage then clear tag. If **victim** is a player, `StaminaPerks.tryAdrenaline` (below threshold → restore feathers, cooldown NBT) |
 | `LivingEntityUseItemEvent.Start` | | Bow (`ItemBow`) draw cost or cancel. Throwing weapons are not billed here unless they are `ItemBow` |
 | `LivingEntityUseItemEvent.Tick` | | Extra bow-hold spend on use-duration cadence (independent of player-tick timer) |
 | `LivingEntityUseItemEvent.Stop` | | Throw release or cancel |
@@ -158,7 +158,7 @@ DSS default list is every stock skill `=0`. Change `Skill Costs` in cfg; no rebu
 | `PlayerRespawnEvent` | | `increaseFeathers` to max (not `fillFeathers`) |
 | `TickEvent.PlayerTickEvent` START (client, local) | `StaminaModuleClient` | Weight restore; climb jump packet + client slide; ledge state machine; sprint cancel |
 | `InputUpdateEvent` LOWEST (client) | | Grapple packet |
-| `InputUpdateEvent` NORMAL (client) | | Climb: clear jump/sneak when empty so vanilla doesn’t keep climbing |
+| `InputUpdateEvent` NORMAL (client) | | Ledge land-pause: clear jump/forward/strafe while `LedgeClimbRecoverUntil`. Climb: clear jump/sneak when empty so vanilla doesn’t keep climbing |
 | `TickEvent.ClientTickEvent` END LOWEST | | Armor Mastery: sync reduced weight via Elenai `SWeightMessage` |
 | `RenderGameOverlayEvent.Post` | | Feather HUD if dodge trait locked |
 
@@ -196,7 +196,7 @@ A player who punches a block and also hits a mob in the same sequence can pay tw
 
 Bow: draw on `Start` if `ItemBow`. Hold on **both** `PlayerTick` `StaminaTweaksBowTicks` and `UseItemEvent.Tick` (`ticksUsed % interval == 0`). Those counters are independent, so hold can bill **twice per interval**. Empty hold cancels the use / resets the hand.
 
-Throwing weapons: class/registry keywords (`throwingweapon`, javelin, throwing_knife/axe, dagger). Aiming hold uses **bow hold cost** at `bowHoldInterval × throwingHoldIntervalMultiplier` (default half rate), **player tick only**. Release spends `throwingReleaseCost` or cancels. Entity-join intercept for thrown projectiles is unused.
+Throwing weapons: class/registry keywords (`throwingweapon`, javelin, throwing_knife/axe, dagger). Aiming hold uses **bow hold cost** at `bowHoldInterval × throwingHoldIntervalMultiplier` (default half rate), **player tick only**. Release spends `throwingReleaseCost` or cancels.
 
 ### Climbing (ladders / vines / ropes)
 
@@ -308,7 +308,7 @@ All live unless noted. Nested Forge categories.
 | Enable Mining Stamina Cost | true | Break + fatigue |
 | Ore/Obsidian / default break | 2 / 1 | |
 | Mining Fatigue Feather Threshold | 4 | Regular feathers, not usable |
-| Enable Reskillable Perks | true | Both perk lookups |
+| Enable Reskillable Perks | true | Gates **all** stamina perk lookups (`StaminaPerks.unlocked`, Armor Mastery in `getWeight`, Mining Efficiency on break) |
 | Armor Mastery Perk ID | `aqtweaks:armor_mastery` | Pack must register |
 | Armor Mastery Reduction | 1.0 | Per armor piece |
 | Mining Efficiency Perk ID | `aqtweaks:mining_efficiency` | Pack must register |
@@ -333,6 +333,8 @@ All live unless noted. Nested Forge categories.
 | Key | Side | Use |
 | --- | --- | --- |
 | `PrevFeathers` | server | Thirst-on-regen |
+| `SprintTicks` | server | Sprint interval counter |
+| `AttackPenalty` | server | Empty-stamina melee damage multiplier until next hurt |
 | `BowTicks` / `ThrowTicks` | server | Hold timers |
 | `ClimbPrevY` / `LadderTicks` / `ClimbJumpInput` | server | Climb dy + cling timer; jump from packet 0 |
 | `GrappleTicks` / `GrappleEmberTicks` / `GrappleMode` / `GrappleMotor` / `GrappleGrounded` / `GrappleLastCostMode` / `GrappleSwingStreak` / `GrappleIsSwing` | server | Grapple bill |

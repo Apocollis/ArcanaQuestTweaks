@@ -1,6 +1,6 @@
 # Reskillable module (1.8)
 
-Last updated: 2026-09-09.
+Last updated: 2026-09-10.
 
 Config: `config/arcanaquesttweaks/aqtweaks_reskillable.cfg`. Handler registers only if `reskillable` is loaded (`CommonProxy.init`). Compile-hard CAD Reskillable **1.13.1** API; types live only in `com.apocollis.aqtweaks.reskillable`. Soft `@Mod` `after:reskillable` (not `required-after`).
 
@@ -46,7 +46,7 @@ Creative still uses EB’s creative limits (no Tweaks add).
 
 Mining is **server-authoritative**: `onBreakSpeed` returns early on `player.world.isRemote`, so the client never previews the bonus — the block just finishes at the server's rate.
 
-Attributes restamp: `LevelUpEvent.Post`, login, respawn, clone, dim change, Tweaks cfg change, every 20 server ticks. Skip `FakePlayer`. One Tweaks UUID per attribute; remove then apply; `setSaved(false)`.
+Attributes restamp: `LevelUpEvent.Post`, `CacheInvalidatedEvent`, login, respawn, clone, dim change, Tweaks cfg change. Logout and world unload only invalidate the level cache. Skip `FakePlayer`. One Tweaks UUID per attribute; `setSaved(false)`. Skip remove/apply when an identical unsaved modifier is already present (re-applying still dirties the attribute and resends `SPacketEntityProperties`).
 
 **Do not** also multiply Attack/Defense in hurt. Magic has no vanilla attribute.
 

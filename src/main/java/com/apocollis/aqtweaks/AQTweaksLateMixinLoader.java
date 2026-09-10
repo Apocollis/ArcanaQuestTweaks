@@ -9,17 +9,18 @@ public class AQTweaksLateMixinLoader implements ILateMixinLoader {
     @Override
     public List<String> getMixinConfigs() {
         return Arrays.asList(
+                "mixins.aqtweaks.charm.json",
                 "mixins.aqtweaks.json",
                 "mixins.aqtweaks.grapple.json",
                 "mixins.aqtweaks.dss.json",
                 "mixins.aqtweaks.toughnessbar.json",
                 "mixins.aqtweaks.astral.json",
-                "mixins.aqtweaks.charm.json",
                 "mixins.aqtweaks.bewitchment.json",
                 "mixins.aqtweaks.mysticalworld.json",
                 "mixins.aqtweaks.biomesoplenty.json",
                 "mixins.aqtweaks.gaia.json",
                 "mixins.aqtweaks.effortlessbuilding.json",
-                "mixins.aqtweaks.thaumcraft.json");
+                "mixins.aqtweaks.thaumcraft.json",
+                "mixins.aqtweaks.animania.json");
     }
 }

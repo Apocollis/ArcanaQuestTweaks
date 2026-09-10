@@ -1,14 +1,14 @@
 # Spawning module (1.8)
 
-Last updated: 2026-09-09.
+Last updated: 2026-09-10.
 
-Config: `config/arcanaquesttweaks/aqtweaks_spawning.cfg`. Pack lists: `config/arcanaquest/mob_overworldspawntype.json` and `config/arcanaquest/mob_spawnparties.json` (Tweaks does **not** ship or write these files). Always registered. Vanilla spawner mixins in **required** `mixins.aqtweaks.json`. Compile-hard InControl `1.12-3.10.4` (`after:incontrol`).
+Config: `config/arcanaquesttweaks/aqtweaks_spawning.cfg`. Pack lists: `config/arcanaquest/mob_overworldspawntype.json`, `mob_spawnparties.json`, `mob_tier.json`, and `mob_spawnrules.cfg` (Tweaks does **not** ship or write these files). Always registered. Vanilla spawner mixins in **required** `mixins.aqtweaks.json`. Compile-hard InControl `1.12-3.10.4` (`after:incontrol`).
 
 ## Locked intent
 
 InControl `potentialspawn.json` keeps one biome pool for surface and cave hostiles. Vanilla `WorldEntitySpawner` picks **one** `SpawnListEntry` at `WorldServer.getSpawnListEntryForTypeAt` and does **not** reroll when `spawn.json` denies that pick. Tweaks strips **surface-only** ids from cave picks and **underground-only** ids from surface picks at the **exact pick pos**.
 
-1.12 does not loop `groupcountmin`/`groupcountmax`. After the first ticking spawn of a pack, Tweaks rolls **target ∈ [min, max]** and places more of that entry nearby until target (bounded attempts, Y scan). Per-id cfg overrides replace InControl min/max (e.g. feral goblin 3–5). `spawn.json` stays the safety net.
+1.12 does not loop `groupcountmin`/`groupcountmax`. After the first ticking spawn of a pack, Tweaks rolls **target ∈ [min, max]** from pack **tier** (`mob_tier.json` + `mob_spawnrules.cfg` `*_group_min`/`*_group_max`), not the vanilla 4–4 row. Per-id cfg overrides still win (e.g. feral goblin 3–5). `spawn.json` stays the safety net. Do **not** scan `potentialspawn.json` for group sizes.
 
 After same-species fill, the first matching **spawn party** in pack JSON may place other species nearby. Cage spawners and TC portal summons never enter this path.
 
@@ -57,15 +57,15 @@ Keys are the `@SerializedName` values on `SpawnParties`:
 
 ## How Tweaks hooks in
 
-**Layer filter:** `SpawnTypeLists.load` in preInit. `SpawnLayerFilter` on `PotentialSpawns` **LOWEST**: strip exclusive layer ids, then **one entry per entity class** (last wins = InControl append). Cave pick: `Y < Cave Max Y` **and** sky light ≤ Max Cave Sky Light.
+**Layer filter:** `SpawnTypeLists.load` in preInit. `SpawnLayerFilter` on `PotentialSpawns` **LOWEST**, registered in **postInit** (after InControl): strip exclusive layer ids, then **one entry per entity class** (last wins). Cave pick: `Y < Cave Max Y` **and** sky light ≤ Max Cave Sky Light.
 
 **Pack fill:** `MixinWorldEntitySpawner` only. ThreadLocal entry via Redirect of `getSpawnListEntryForTypeAt` while `findChunksForSpawning` runs. Redirect `spawnEntity`: after success, `SpawnPackFiller` extras then `SpawnParties`. Redirect `getMaxSpawnPackSize` → **1** when fill applies. Recursion guard while filling (`filling` also blocks companion parties from stacking).
 
 **Hostile cap:** Redirect `EnumCreatureType.getMaxNumberOfCreature()` in the same mixin. MONSTER → cfg (default 200). Other types stay vanilla 10 / 15 / 5. Do **not** call `getMaxNumberOfCreature()` from that redirect (recursion). Cage spawners and TC portals unused.
 
-Range: cfg override `modid:path=min-max`, else the **picked** entry after last-per-class (InControl append). Clamp to Group Size Cap. `1..1` skips filler (still pack-size 1). Mixed groups still run if fill is skipped.
+Range: cfg override `modid:path=min-max`, else pack **tier** for that entity id (common 2–4, uncommon 1–2, rare/elite 1, …), else the picked entry. Clamp to Group Size Cap. `1..1` skips filler (still pack-size 1). Mixed groups still run if fill is skipped.
 
-(`PotentialSpawnRule` extends McJty `RuleBase`, which is not on the Tweaks compile classpath; group counts are taken from the list InControl already wrote, not by iterating `RulesManager`.)
+Ids missing from `mob_tier.json` keep the picked entry (vanilla 4–4 possible).
 
 ## Live config (`aqtweaks_spawning.cfg`)
 
@@ -84,6 +84,8 @@ Range: cfg override `modid:path=min-max`, else the **picked** entry after last-p
 | Y Range | 8 | yes |
 | Group Size Cap | 8 | yes |
 | Group Size Overrides | `grimoireofgaia:goblin_feral=3-5` | yes |
+| Spawn Tier File | `arcanaquest/mob_tier.json` | reload on Tweaks cfg change |
+| Spawn Rules File | `arcanaquest/mob_spawnrules.cfg` | reload on Tweaks cfg change |
 | Enable Mixed Groups | true | yes |
 | Spawn Parties File | `arcanaquest/mob_spawnparties.json` | reload on Tweaks cfg change |
 | Hostile Mob Cap | 200 | yes |
@@ -96,7 +98,8 @@ JSON layer / parties files: edit needs **restart** (or a Tweaks cfg save to trig
 | --- | --- |
 | `spawning/SpawnTypeLists.java` | Pack JSON exclusive sets |
 | `spawning/SpawnLayerFilter.java` | `PotentialSpawns` LOWEST; layer strip; last-per-class (drop vanilla 4–4) |
-| `spawning/SpawnGroupSizes.java` | Overrides + roll target + findChunks cap |
+| `spawning/SpawnGroupCounts.java` | Pack tier id → group min/max |
+| `spawning/SpawnGroupSizes.java` | Overrides + tier range + roll target + findChunks cap |
 | `spawning/SpawnPackContext.java` | ThreadLocal pack entry |
 | `spawning/SpawnPackFiller.java` | Extra placements; InControl min-distance |
 | `spawning/SpawnParties.java` | Mixed groups from pack JSON |
@@ -115,4 +118,4 @@ JSON layer / parties files: edit needs **restart** (or a Tweaks cfg save to trig
 
 ## Verify
 
-Boot: `Loaded spawn types from …`; `Loaded N spawn parties from …` when JSON present. No mixin fail on `MixinWorldEntitySpawner` / `findChunksForSpawning`. Closed cave: dwarf/cave_spider/krake yes, Dryad/witch/Wildkin no. Night plains: creeper packs 1–2 (not 4); enderman 1; zombie/skeleton/spider 2–4 mixed not always 4. `goblin_feral` 3–5 when the first lands. Fill Pack Size off: old singles. Master off or JSON missing: no layer strip (last-per-class still runs if the module is on). Missing parties JSON: mixed groups off, no crash. Natural Overworld `thaumcraft:cultistcleric`: 2–3 knights + 2–3 CR archers (CheckSpawn / crimsoncult stage can still deny). Portal / cage cleric: no party. Hostile cap 200 lets natural MONSTER count exceed the old 70-scaled ceiling; cfg 70 restores vanilla. Animals/water/ambient caps unchanged.
+Boot: `Loaded spawn types from …`; `Loaded N spawn parties from …`; `Loaded pack spawn group sizes for N mobs.` when pack files present. No mixin fail on `MixinWorldEntitySpawner` / `findChunksForSpawning`. Closed cave: dwarf/cave_spider/krake yes, Dryad/witch/Wildkin no. Night plains: creeper packs 1–2 (not 4); enderman 1; zombie/skeleton/spider 2–4 mixed not always 4. `goblin_feral` 3–5 when the first lands. Fill Pack Size off: old singles. Master off or JSON missing: no layer strip (last-per-class still runs if the module is on). Missing parties JSON: mixed groups off, no crash. Natural Overworld `thaumcraft:cultistcleric`: 2–3 knights + 2–3 CR archers (CheckSpawn / crimsoncult stage can still deny). Portal / cage cleric: no party. Hostile cap 200 lets natural MONSTER count exceed the old 70-scaled ceiling; cfg 70 restores vanilla. Animals/water/ambient caps unchanged.

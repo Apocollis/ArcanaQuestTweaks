@@ -1,6 +1,6 @@
 # Comfort module (1.8)
 
-Last updated: 2026-09-09.
+Last updated: 2026-09-10.
 
 JSON (two files under `config/arcanaquesttweaks/`):
 
@@ -36,7 +36,7 @@ Category caps are the design. Uncapped sums turn a chandelier farm into Homestea
 
 ## Design plan (rest loop)
 
-Server only. `TickEvent.PlayerTickEvent` **END**, every **300 ticks** (15s) on `ticksExisted % 300 == 0`.
+Server only. `TickEvent.PlayerTickEvent` **END**, every **300 ticks** (15s) on `(ticksExisted + entityId) % 300 == 0` so a full login wave does not scan on the same tick. Homestead duration is interval + 40, so the phase shift cannot open a gap.
 
 1. If NBT `AQTComfortResting` is false: player must pass `isPlayerResting`; **effective** score ≥ Homestead I → set tag, granted band **I**, stamp `AQTComfortBandSince`, apply I benefits.
 2. If already resting: **do not** require sneak/sleep/still. Rescan effective score. Below I → clear tag, ladder NBT, and Homestead (XP/Elenai potions are **not** stripped).
@@ -54,7 +54,7 @@ Server only. `TickEvent.PlayerTickEvent` **END**, every **300 ticks** (15s) on `
 
 Scan **25×5×25** (3,125 cells) from the player position: horizontal radius **±12 inclusive**, **dy -2..+2**. Skip unloaded blocks. Look up each block’s registry id in `COZY_BLOCKS`.
 
-Pets: `EntityTameable` in AABB grown **16** from the player. Count if `isTamed()` and `ownerId` equals the player. Each pet adds `pet_comfort_value` under category `pets`.
+Pets: `EntityTameable` in a ±16 box around the player **block** (`getPosition()`, inclusive +1 on the far edge). Count if `isTamed()` and `ownerId` equals the player. Each pet adds `pet_comfort_value` under category `pets`.
 
 Per category: sort weights descending, sum only the top **N** (`category_limits`, default 1 if missing). Same block id in two categories cannot happen; last apply wins if the JSON repeats an id.
 

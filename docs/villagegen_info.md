@@ -1,6 +1,6 @@
 # Village generation in this pack
 
-Last updated: 2026-08-22.
+Last updated: 2026-09-10.
 
 How Minecraft 1.12.2 **marks** a village, how it **pastes** buildings, and what RTG, Geographicraft, Recurrent Complex, Charm, and Tweaks each change. Tweaks locked intent and flatten knobs stay in [rtg.md](rtg.md). This file is the pipeline reference.
 
@@ -120,7 +120,7 @@ Charm ASM rewrites `StructureStart.generateStructure` so paste goes through `ASM
 2. Call the real `addComponentParts`.
 3. Post `Post` if paste returned true.
 
-Tweaks’ `@Redirect` on `StructureComponent.func_74875_a` inside `StructureStart.func_75068_a` often **never runs**. Layout omission (houses/paths/RC) is the reliable drop. Tweaks also injects `ASMHooks.addComponentParts` HEAD (`mixins.aqtweaks.charm.json`) and returns **true** for leftover ocean/river floors so Charm does not drop the component from the start (a `false` would slice a multi-chunk building).
+Tweaks’ `@Redirect` on `StructureComponent.func_74875_a` inside `StructureStart.func_75068_a` often **never runs**. Layout omission (houses/paths/RC) is the reliable drop. Tweaks also injects `ASMHooks.addComponentParts` HEAD (`mixins.aqtweaks.charm.json`, prepared **before** `mixins.aqtweaks.json` so Charm does not define `ASMHooks` first) and returns **true** for leftover ocean/river floors so Charm does not drop the component from the start (a `false` would slice a multi-chunk building). Skip body lives in `VillageCharmPaste` so mixin prepare does not load `VillageLandHelper`.
 
 `villageDoorsForBiome` / `BiomeEvent.GetVillageBlockID` only theme wood and doors.
 
@@ -132,14 +132,14 @@ Tweaks’ `@Redirect` on `StructureComponent.func_74875_a` inside `StructureStar
 | `forgetRejectedStarts` | Drops vetoed Starts from `structureMap` + `VillagePlate` so `/locate` cannot find them. Walked wells stay. Does not cache kept wells during layout. |
 | `MixinMapGenVillageStart` | Offset walked wells; `VillagePlate.remember` **replaces** that AABB Record with actual well XZ. |
 | `layoutVillageGrid` | Dummy-primer `generate()` **once per chunk** after `getNewerNoise` so AABBs exist before flatten. Stash generators for `/aqvillage` (also at RTG construct + seed+dim). Nested landscape samples do not re-layout. |
-| `MixinChunkGeneratorRTGVillage` | Rewrite `landscape.noise` from **land boxes** + pad 12 + Hermite falloff. Never write ocean/river (including RTG river). Raise dry land to min well Y. Reseal pad after caves/ravines. Mud → loamy grass:2 only. `ensureStarts` if Tweaks cache empty; else `rememberNearby` well-grid only. |
+| `MixinChunkGeneratorRTGVillage` | Rewrite `landscape.noise` from **land boxes** + pad 12 + Hermite falloff. Inside the hard pad, skip only ocean/river **biome** (except 1-block close); dry RTG river **noise** on land still plates. Outside the pad, `landscape.river > 0.4` still never-raise. Raise dry land to min well Y. Reseal pad after caves/ravines. Mud → loamy grass:2 only. `ensureStarts` if Tweaks cache empty; else `rememberNearby` well-grid only. |
 | `VillagePlate.ensureStarts` | Backfill from vanilla `structureMap` once after world load when Tweaks’ list is empty. |
 | `VillagePlate.rememberNearby` | `rememberIfAbsent` for well chunks in layout radius. Does not walk every Start. |
 | `MixinStructureVillagePieces` | House/waystone skip/retry inland on never-raise; wet paths retry inland then omit leftover ocean/river or mostly-wet docks. |
 | `MixinGenericVillageCreationHandler` | Same skip/retry for RC AABBs. |
-| `MixinASMHooksVillagePaste` | Charm populate abort on ocean/river floor (`mixins.aqtweaks.charm.json`). |
+| `MixinASMHooksVillagePaste` | Charm populate abort on ocean/river floor. Late json first; `VillageCharmPaste` at paste time. |
 | `MixinStructureStartVillagePaste` | Snapshot component iterator; populate walk/drop if remembered well is never-raise; abort on ocean/river floor (incl. well); stamp pad children; relight clip. |
-| `MixinMapGenVillageInside` | Detection = pad + Hermite AABBs (also stamped into `Village.dat`). Well floor through plate + `villageBoxHeight`. |
+| `MixinMapGenVillageInside` | Detection = pad + Hermite (vanilla child hit first, then `startAt` XZ/Y). Also stamped into `Village.dat`. Well floor through plate + `villageBoxHeight`. |
 
 `isLandscapeLake`: a **null** sample (or nested sampling) is **not** wet. Load-time forget must not treat missing landscape as a flooded plains well. Layout must not treat missing landscape as a lake (that omitted every road).
 
