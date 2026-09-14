@@ -6,8 +6,10 @@ import com.apocollis.aqtweaks.util.Reflect;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.passive.EntityTameable;
@@ -30,22 +32,24 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
  * Core comfort system event handler.
  *
  * Activation Flow:
- * 1. Every 15 seconds, check if the player is resting (sleeping, sitting, sneaking, or stationary).
+ * 1. Every 30 seconds, check if the player is resting (sleeping, sitting, sneaking, or stationary).
  * 2. If resting, scan a 25x5x25 area for cozy blocks and nearby pets.
  * 3. Calculate a category-limited comfort score using the top-X highest values per category,
  *    then add bonuses and subtract player-state penalties.
- * 4. If effective score >= Homestead I, set the "Resting" tag and apply silent benefits.
- * 5. Granted band starts at I and promotes after promote_ticks while score still supports the next band.
- * 6. While the tag is active, continue scanning even if the player moves.
- * 7. Cancel the tag immediately on taking damage, attacking, or dropping below Homestead I.
+ * 4. Entry also needs a hearth, bedding, or seating block in that scan, and must be outside
+ *    the hurt (30s) and attack (15s) cooldowns.
+ * 5. If effective score >= Homestead I, set the "Resting" tag and apply silent benefits.
+ * 6. Granted band starts at I and promotes after promote_ticks while score still supports the next band.
+ * 7. While the tag is active, continue scanning even if the player moves; furniture must stay in range.
+ * 8. Cancel the tag immediately on taking damage, attacking, dropping below Homestead I, or losing furniture.
  *
  * <p>Everything here is server-side: every entry point returns early on {@code world.isRemote}.
  * The caches below rely on that for thread confinement.
  */
 public class ComfortSystemHandler {
 
-    private static final int CHECK_INTERVAL_TICKS = 300; // 15 seconds
-    private static final int HOMESTEAD_DURATION_TICKS = CHECK_INTERVAL_TICKS + 40;
+    private static final int CHECK_INTERVAL_TICKS = 600; // 30 seconds
+    private static final int HOMESTEAD_DURATION_TICKS = 900; // 45 seconds; overlaps scans by 15s
     private static final int EIGHT_MINUTES_TICKS = 9600;
     private static final int FOUR_MINUTES_TICKS = 4800;
     private static final double DETECT_RADIUS = 12.0;
@@ -53,9 +57,14 @@ public class ComfortSystemHandler {
     private static final String RESTING_TAG = "AQTComfortResting";
     private static final String GRANTED_BAND_TAG = "AQTComfortGrantedBand";
     private static final String BAND_SINCE_TAG = "AQTComfortBandSince";
+    private static final String HURT_AT_TAG = "AQTComfortHurtAt";
+    private static final String ATTACK_AT_TAG = "AQTComfortAttackAt";
 
     static final Map<String, CozyConfig> COZY_BLOCKS = new HashMap<>();
     static final Map<String, Integer> CATEGORY_LIMITS = new HashMap<>();
+    static final Set<String> ENTRY_REQUIRE_CATEGORIES = new HashSet<>();
+    static long DAMAGE_COOLDOWN_TICKS = 600L;
+    static long ATTACK_COOLDOWN_TICKS = 300L;
     static float PET_COMFORT_VALUE = 3.0f;
     public static float THRESHOLD_HOMESTEAD_1 = 15.0f;
     public static float THRESHOLD_HOMESTEAD_2 = 40.0f;
@@ -88,18 +97,26 @@ public class ComfortSystemHandler {
         if (world == null || world.isRemote) return;
 
         // Offset by entity id so a server full of players that logged in together does not run
-        // every scan on the same tick. Homestead lasts CHECK_INTERVAL + 40, so shifting the phase
-        // cannot open a gap.
+        // every scan on the same tick. Homestead lasts 45s against a 30s interval, so shifting
+        // the phase cannot open a gap.
         if ((player.ticksExisted + player.getEntityId()) % CHECK_INTERVAL_TICKS != 0) return;
 
         boolean currentlyResting = isComfortResting(player);
 
-        // The cozy scan is 3,125 block lookups. A player who is neither on the ladder already nor
-        // currently resting cannot gain a band this tick and had no effect below either, so bail
-        // before paying for the scan.
-        if (!currentlyResting && !isPlayerResting(player)) return;
+        // The cozy scan is 3,125 block lookups. Skip it when this tick cannot start or refresh.
+        if (!currentlyResting) {
+            if (!isPlayerResting(player) || isEntryOnCooldown(player, world)) return;
+        }
 
-        float score = calculateComfortScore(player);
+        CozyScan cozy = calculateCozyScan(player);
+        if (!cozy.meetsEntryFurniture()) {
+            if (currentlyResting) {
+                setComfortResting(player, false);
+            }
+            return;
+        }
+
+        float score = Math.max(0.0f, cozy.score + calculateBonuses(player) - calculatePenalties(player));
         int scoreBand = scoreBand(score);
 
         if (scoreBand <= 0) {
@@ -153,18 +170,34 @@ public class ComfortSystemHandler {
 
     @SubscribeEvent
     public void onPlayerHurt(LivingHurtEvent event) {
-        if (event.getEntityLiving() instanceof EntityPlayer player
-                && player.world != null && !player.world.isRemote) {
-            setComfortResting(player, false);
+        if (!(event.getEntityLiving() instanceof EntityPlayer player)) return;
+        if (player.world == null || player.world.isRemote) return;
+        setComfortResting(player, false);
+        if (event.getAmount() > 0.0f) {
+            player.getEntityData().setLong(HURT_AT_TAG, player.world.getTotalWorldTime());
         }
     }
 
     @SubscribeEvent
     public void onPlayerAttack(AttackEntityEvent event) {
         EntityPlayer player = event.getEntityPlayer();
-        if (player != null && player.world != null && !player.world.isRemote) {
-            setComfortResting(player, false);
+        if (player == null || player.world == null || player.world.isRemote) return;
+        setComfortResting(player, false);
+        player.getEntityData().setLong(ATTACK_AT_TAG, player.world.getTotalWorldTime());
+    }
+
+    private static boolean isEntryOnCooldown(EntityPlayer player, World world) {
+        long now = world.getTotalWorldTime();
+        NBTTagCompound data = player.getEntityData();
+        if (DAMAGE_COOLDOWN_TICKS > 0L && data.hasKey(HURT_AT_TAG)
+                && now - data.getLong(HURT_AT_TAG) < DAMAGE_COOLDOWN_TICKS) {
+            return true;
         }
+        if (ATTACK_COOLDOWN_TICKS > 0L && data.hasKey(ATTACK_AT_TAG)
+                && now - data.getLong(ATTACK_AT_TAG) < ATTACK_COOLDOWN_TICKS) {
+            return true;
+        }
+        return false;
     }
 
     private static boolean isPlayerResting(EntityPlayer player) {
@@ -219,21 +252,15 @@ public class ComfortSystemHandler {
     }
 
     /**
-     * Cozy blocks + pets, then bonuses, then penalties. Result is never negative.
+     * Cozy blocks + pets. Furniture gate is whether any required category appeared in the scan.
      */
-    private static float calculateComfortScore(EntityPlayer player) {
-        float cozy = calculateCozyScore(player);
-        float bonuses = calculateBonuses(player);
-        float penalties = calculatePenalties(player);
-        return Math.max(0.0f, cozy + bonuses - penalties);
-    }
-
-    private static float calculateCozyScore(EntityPlayer player) {
+    private static CozyScan calculateCozyScan(EntityPlayer player) {
         World world = player.world;
-        if (world == null) return 0.0f;
+        if (world == null) return CozyScan.EMPTY;
 
         BlockPos center = player.getPosition();
         Map<String, List<Float>> categoryScores = new HashMap<>();
+        boolean hasEntryFurniture = ENTRY_REQUIRE_CATEGORIES.isEmpty();
 
         int rX = (int) DETECT_RADIUS;
         int rY = 2;
@@ -255,6 +282,9 @@ public class ComfortSystemHandler {
                     CozyConfig config = COZY_BLOCKS.get(name.toString());
                     if (config != null) {
                         categoryScores.computeIfAbsent(config.category, k -> new ArrayList<>()).add(config.weight);
+                        if (!hasEntryFurniture && ENTRY_REQUIRE_CATEGORIES.contains(config.category)) {
+                            hasEntryFurniture = true;
+                        }
                     }
                 }
             }
@@ -279,7 +309,7 @@ public class ComfortSystemHandler {
                 totalScore += weights.get(i);
             }
         }
-        return totalScore;
+        return new CozyScan(totalScore, hasEntryFurniture);
     }
 
     /** The block-centred box {@code Reflect.grow(BlockPos, double)} built: one block plus radius. */
@@ -402,15 +432,15 @@ public class ComfortSystemHandler {
         int xpAmp;
 
         if (grantedBand == 1) {
-            progressToAdd = 9;
+            progressToAdd = 18;
             homesteadAmplifier = 0;
             xpAmp = 0;
         } else if (grantedBand == 2) {
-            progressToAdd = 13;
+            progressToAdd = 26;
             homesteadAmplifier = 1;
             xpAmp = 1;
         } else if (grantedBand >= 3) {
-            progressToAdd = 25;
+            progressToAdd = 50;
             homesteadAmplifier = 2;
             xpAmp = 2;
         } else {
@@ -447,6 +477,22 @@ public class ComfortSystemHandler {
                 currentProgress = 0;
             }
             persisted.setInteger("WarpCleansingProgress", currentProgress);
+        }
+    }
+
+    static final class CozyScan {
+        static final CozyScan EMPTY = new CozyScan(0.0f, false);
+
+        final float score;
+        final boolean hasEntryFurniture;
+
+        CozyScan(float score, boolean hasEntryFurniture) {
+            this.score = score;
+            this.hasEntryFurniture = hasEntryFurniture;
+        }
+
+        boolean meetsEntryFurniture() {
+            return hasEntryFurniture;
         }
     }
 

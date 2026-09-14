@@ -32,6 +32,7 @@ Each file covers: what Tweaks changes, how the **parent mod** implements the fea
 | Spawning | Vanilla `PotentialSpawns` + pack `mob_overworldspawntype.json` (InControl still owns deny) | [spawning.md](spawning.md) |
 | Recipes | Forge `CraftingHelper` (Metallurgy / Spartan JSON) | [recipes.md](recipes.md) |
 | Advancement | Animania Base (Farm / Extra addon JSON via Base handler) | [advancement.md](advancement.md) |
+| Somnia | Somnia Refreshed | [somnia.md](somnia.md) |
 | Compatibility / jars | Compile vs mixin vs runtime vs copy script | [compatibility-matrix.md](compatibility-matrix.md) |
 | Build / deploy | `gradlew build` vs `build_gradle.ps1` | [build-and-release.md](build-and-release.md) |
 | Release smoke | Boot, optional absences, worldgen, stamina | [verification.md](verification.md) |
@@ -78,17 +79,18 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 - If `bewitchment`: `BewitchmentRegistryHandler` (ritual wrap still no-ops unless Thaumcraft is also loaded; see [bewitchment.md](bewitchment.md)).
 - If `astralsorcery`: `VillageAstralSmallShrineHandler.register()` (structure piece id `AQTSmallShrine`).
 - If `reskillable`: `ReskillableModule`.
+- If `somnia`: `SomniaSleepHandler.init()`.
 
 **init (client)**
 
 - `StaminaModuleClient`, `DepthsFogHandler`, `ClientModule`.
-- Entity renderer for `EntityArcaneRift` in **client preInit**. Item models on `ModelRegistryEvent`.
+- Entity renderer for `EntityArcaneRift` in **client preInit**. If `grimoireofgaia` and Deep Dwarf enabled: `RenderDeepDwarf`. Item models on `ModelRegistryEvent`.
 
 `postInit` registers `SpawnLayerFilter` (after InControl `PotentialSpawns`) and runs `Reflect.auditUnresolved()`. `ArcanaQuestTweaks.serverStarting` (`@Mod.EventHandler` on `FMLServerStartingEvent`) registers the `/aqvillage` server command (`CommandAqVillage`) — see [rtg.md](rtg.md).
 
 ### MixinBooter: early vs late
 
-Vanilla `World` is already loaded when late mixins prepare. Portal glowstone light (`MixinWorldRiftLight` on `World.getRawLight`) is in **`mixins.aqtweaks.early.json`** (`required: true`). MixinBooter 11 reads that name from the jar manifest attribute `MixinConfigs` (set in `build.gradle`). Do not register this json from `AQTweaksLateMixinLoader`. Missing it fails load.
+Vanilla `World` and `MobSpawnerBaseLogic` are already loaded when late mixins prepare. Portal glowstone light (`MixinWorldRiftLight` on `World.getRawLight`) and cage fail delay (`MixinMobSpawnerBaseLogic` on `updateSpawner`) are in **`mixins.aqtweaks.early.json`** (`required: true`). MixinBooter 11 reads that name from the jar manifest attribute `MixinConfigs` (set in `build.gradle`). Do not register this json from `AQTweaksLateMixinLoader`. Missing it fails load.
 
 ### MixinBooter late loader
 
@@ -109,11 +111,12 @@ Vanilla `World` is already loaded when late mixins prepare. Portal glowstone lig
 | `mixins.aqtweaks.effortlessbuilding.json` | false | Reskillable Building EB place reach + max blocks | Skip |
 | `mixins.aqtweaks.thaumcraft.json` | false | Thaumcraft focus HP magic flag + Heal scale | Skip |
 | `mixins.aqtweaks.animania.json` | false | Advancement: cancel Animania `onWorldLoad` | Skip |
+| `mixins.aqtweaks.somnia.json` | false | Somnia: chunk light fix, 3-tier SMP sleep (Case A/B/C), Case B 2x time, fatigue tuning & chat notifications | Skip |
 
 `mixins.aqtweaks.json` contents (package `com.apocollis.aqtweaks.mixin`):
 
 - Client: `MixinRenderGlobal` (Depths hide sky)
-- Common: `MixinChunkProviderServer`, `depthsupdate.MixinDepthsCaveNoiseGenerator`, `cofh.MixinDistributionUniform`, `reccomplex.MixinRayMatcher`, `reccomplex.MixinGenericVillageCreationHandler`, Better Caves / RTG village mixins listed in [depths.md](depths.md) and [rtg.md](rtg.md), `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinWorldGenLakes`, `MixinMapGenVillageInside/Spawn/Start/World`, `MixinCraftingHelperFindFiles`, `MixinWorldEntitySpawner`. Charm paste: optional `mixins.aqtweaks.charm.json`. Portal `MixinWorldRiftLight` is in `mixins.aqtweaks.early.json`.
+- Common: `MixinChunkProviderServer`, `depthsupdate.MixinDepthsCaveNoiseGenerator`, `cofh.MixinDistributionUniform`, `reccomplex.MixinRayMatcher`, `reccomplex.MixinGenericVillageCreationHandler`, Better Caves / RTG village mixins listed in [depths.md](depths.md) and [rtg.md](rtg.md), `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinWorldGenLakes`, `MixinMapGenVillageInside/Spawn/Start/World`, `MixinCraftingHelperFindFiles`, `MixinWorldEntitySpawner`. Charm paste: optional `mixins.aqtweaks.charm.json`. Portal `MixinWorldRiftLight` and cage `MixinMobSpawnerBaseLogic` are in `mixins.aqtweaks.early.json`.
 
 Two mixins target `ChunkGeneratorRTG` in that required json. Their order comes from injection points, not from this list:
 

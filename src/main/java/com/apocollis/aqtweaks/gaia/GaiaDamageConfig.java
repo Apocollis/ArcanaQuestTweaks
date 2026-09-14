@@ -10,7 +10,8 @@ import java.util.Map;
 
 /**
  * Instance JSON {@code config/arcanaquesttweaks/gaia_mob_damage.json}. Loaded once in preInit.
- * {@code mobs[id]} is {@code ATTACK_DAMAGE} base; held weapons and Strength still stack.
+ * {@code mobs[id]} is {@code ATTACK_DAMAGE} base; {@code health}/{@code armor} are max health and
+ * armor bases. Held weapons and Strength still stack on attack.
  */
 public final class GaiaDamageConfig {
 
@@ -19,6 +20,8 @@ public final class GaiaDamageConfig {
     public float spellMultiplier = 1.0f;
     public float bombMultiplier = 1.0f;
     public Map<String, Float> mobs = new LinkedHashMap<>();
+    public Map<String, Float> health = new LinkedHashMap<>();
+    public Map<String, Float> armor = new LinkedHashMap<>();
 
     private static GaiaDamageConfig loaded = new GaiaDamageConfig();
 
@@ -50,6 +53,12 @@ public final class GaiaDamageConfig {
                         if (parsed.mobs == null) {
                             parsed.mobs = new LinkedHashMap<>();
                         }
+                        if (parsed.health == null) {
+                            parsed.health = new LinkedHashMap<>();
+                        }
+                        if (parsed.armor == null) {
+                            parsed.armor = new LinkedHashMap<>();
+                        }
                         if (mergeMissingMobs(parsed)) {
                             try (FileWriter writer = new FileWriter(configFile)) {
                                 gson.toJson(parsed, writer);
@@ -67,8 +76,22 @@ public final class GaiaDamageConfig {
     }
 
     public Float damageFor(String registryId) {
-        if (registryId == null || mobs == null) return null;
-        return mobs.get(registryId);
+        return lookup(mobs, registryId);
+    }
+
+    public Float healthFor(String registryId) {
+        return lookup(health, registryId);
+    }
+
+    public Float armorFor(String registryId) {
+        return lookup(armor, registryId);
+    }
+
+    private static Float lookup(Map<String, Float> map, String registryId) {
+        if (registryId == null || map == null) {
+            return null;
+        }
+        return map.get(registryId);
     }
 
     private static boolean mergeMissingMobs(GaiaDamageConfig parsed) {
@@ -82,9 +105,17 @@ public final class GaiaDamageConfig {
             parsed.bombMultiplier = defaults.bombMultiplier;
             changed = true;
         }
-        for (Map.Entry<String, Float> e : defaults.mobs.entrySet()) {
-            if (!parsed.mobs.containsKey(e.getKey())) {
-                parsed.mobs.put(e.getKey(), e.getValue());
+        changed |= mergeMap(parsed.mobs, defaults.mobs);
+        changed |= mergeMap(parsed.health, defaults.health);
+        changed |= mergeMap(parsed.armor, defaults.armor);
+        return changed;
+    }
+
+    private static boolean mergeMap(Map<String, Float> dest, Map<String, Float> defaults) {
+        boolean changed = false;
+        for (Map.Entry<String, Float> e : defaults.entrySet()) {
+            if (!dest.containsKey(e.getKey())) {
+                dest.put(e.getKey(), e.getValue());
                 changed = true;
             }
         }
@@ -95,24 +126,50 @@ public final class GaiaDamageConfig {
         GaiaDamageConfig c = new GaiaDamageConfig();
         c.spellMultiplier = 1.0f;
         c.bombMultiplier = 1.0f;
-        // Gaia 1.7.2 100% tier constants: T1=4, T2=8, T3=12
-        putAll(c, 4f,
+        // Gaia 1.7.2 100% attack constants: T1=4, T2=8, T3=12
+        putDamage(c, 4f,
                 "ant", "ant_ranger", "arachne", "bee", "cecaelia", "centaur", "cobble_golem", "creep",
                 "deathword", "dryad", "dullahan", "ender_eye", "goblin", "goblin_feral", "gryphon",
                 "harpy", "harpy_wizard", "hunter", "butler", "illager_inquisitor", "kikimora", "kobold",
                 "matango", "cyclops", "mummy", "oni", "orc", "satyress", "selkie", "siren", "sludge_girl",
                 "sporeling", "succubus", "toad", "werecat", "wither_cow");
-        putAll(c, 8f,
+        putDamage(c, 8f,
                 "anubis", "banshee", "baphomet", "beholder", "bone_knight", "cobblestone_golem", "dhampir",
                 "dwarf", "ender_dragon_girl", "flesh_lich", "gelatinous_slime", "illager_fire", "mermaid",
                 "minotaurus", "naga", "nine_tails", "shaman", "sharko", "spriggan", "witch", "yeti", "yuki-onna");
-        putAll(c, 12f, "minotaur", "sphinx", "valkyrie", "vampire");
+        putDamage(c, 12f, "minotaur", "sphinx", "valkyrie", "vampire");
+        c.mobs.put("aqtweaks:deep_dwarf", 10f);
+
+        // Pack Gaia tierNmaxHealth=75 → 30/60/120. Armor unscaled 4/8/12.
+        putStats(c, 30f, 4f,
+                "ant", "ant_ranger", "arachne", "bee", "cecaelia", "centaur", "cobble_golem", "creep",
+                "deathword", "dryad", "dullahan", "ender_eye", "goblin", "gryphon",
+                "harpy", "harpy_wizard", "hunter", "kikimora", "kobold",
+                "matango", "cyclops", "mummy", "oni", "orc", "satyress", "selkie", "siren", "sludge_girl",
+                "succubus", "toad", "werecat", "wither_cow");
+        putStats(c, 15f, 4f, "goblin_feral", "butler", "illager_inquisitor");
+        putStats(c, 15f, 2f, "sporeling");
+        putStats(c, 60f, 8f,
+                "anubis", "banshee", "baphomet", "beholder", "bone_knight", "cobblestone_golem", "dhampir",
+                "dwarf", "ender_dragon_girl", "flesh_lich", "gelatinous_slime", "illager_fire", "mermaid",
+                "minotaurus", "naga", "nine_tails", "shaman", "sharko", "spriggan", "witch", "yeti", "yuki-onna");
+        putStats(c, 120f, 12f, "minotaur", "sphinx", "valkyrie", "vampire");
+        c.health.put("aqtweaks:deep_dwarf", 60f);
+        c.armor.put("aqtweaks:deep_dwarf", 8f);
         return c;
     }
 
-    private static void putAll(GaiaDamageConfig c, float dmg, String... paths) {
+    private static void putDamage(GaiaDamageConfig c, float dmg, String... paths) {
         for (String path : paths) {
             c.mobs.put("grimoireofgaia:" + path, dmg);
+        }
+    }
+
+    private static void putStats(GaiaDamageConfig c, float hp, float armor, String... paths) {
+        for (String path : paths) {
+            String id = "grimoireofgaia:" + path;
+            c.health.put(id, hp);
+            c.armor.put(id, armor);
         }
     }
 }

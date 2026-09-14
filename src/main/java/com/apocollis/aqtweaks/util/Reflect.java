@@ -275,6 +275,7 @@ public class Reflect {
     private static Method mapGenStructureDataWriteInstanceMethod;
     private static Method biomeProviderGetBiomeMethod;
     private static Method biomeProviderGetBiomeFallbackMethod;
+    private static Field chunkQueuedLightChecksField;
 
     // Open Glider reflection
     private static boolean isGliderLoaded = false;
@@ -900,6 +901,10 @@ public class Reflect {
             }
             try { chunkSetBlockStateMethod = chunkClass.getMethod("func_177436_a", BlockPos.class, IBlockState.class); } catch (Throwable t) {
                 try { chunkSetBlockStateMethod = chunkClass.getMethod("setBlockState", BlockPos.class, IBlockState.class); } catch (Throwable ignored) {}
+            }
+            chunkQueuedLightChecksField = findDeclaredField(chunkClass, "field_76649_t", "queuedLightChecks");
+            if (chunkQueuedLightChecksField != null) {
+                chunkQueuedLightChecksField.setAccessible(true);
             }
         } catch (Throwable ignored) {}
 
@@ -2924,6 +2929,18 @@ public class Reflect {
             return chunk.setBlockState(pos, state);
         } catch (Throwable t) {}
         return null;
+    }
+
+    public static int getQueuedLightChecks(Chunk chunk) {
+        if (chunk == null) return 4096;
+        if (chunkQueuedLightChecksField != null) {
+            try {
+                return chunkQueuedLightChecksField.getInt(chunk);
+            } catch (Throwable t) {
+                warnOnce("Chunk.queuedLightChecks", t);
+            }
+        }
+        return 4096;
     }
 
     public static BlockPos.MutableBlockPos setPos(BlockPos.MutableBlockPos pos, int x, int y, int z) {

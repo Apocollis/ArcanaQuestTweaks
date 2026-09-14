@@ -178,6 +178,17 @@ public class ComfortConfigLoader {
         ComfortSystemHandler.THRESHOLD_HOMESTEAD_2 = settings.threshold_homestead_2;
         ComfortSystemHandler.THRESHOLD_HOMESTEAD_3 = settings.threshold_homestead_3;
         ComfortSystemHandler.PROMOTE_TICKS = settings.promote_ticks > 0 ? settings.promote_ticks : 1200L;
+        ComfortSystemHandler.DAMAGE_COOLDOWN_TICKS = Math.max(0L, settings.damage_cooldown_ticks);
+        ComfortSystemHandler.ATTACK_COOLDOWN_TICKS = Math.max(0L, settings.attack_cooldown_ticks);
+        ComfortSystemHandler.ENTRY_REQUIRE_CATEGORIES.clear();
+        List<String> entryCategories = settings.entry_require_categories != null
+            ? settings.entry_require_categories
+            : ComfortSettings.defaultEntryCategories();
+        for (String category : entryCategories) {
+            if (category != null && !category.isEmpty()) {
+                ComfortSystemHandler.ENTRY_REQUIRE_CATEGORIES.add(category);
+            }
+        }
 
         ComfortSettings.PenaltiesConfig penalties = settings.penalties != null
             ? settings.penalties : ComfortSettings.PenaltiesConfig.defaults();

@@ -1,10 +1,10 @@
 # Comfort module (1.8)
 
-Last updated: 2026-09-10.
+Last updated: 2026-09-13.
 
 JSON (two files under `config/arcanaquesttweaks/`):
 
-- `aqtweaks_comfort_settings.json` — thresholds, promote, pet value, penalties, bonuses
+- `aqtweaks_comfort_settings.json` — thresholds, promote, pet value, entry furniture, combat cooldowns, penalties, bonuses
 - `aqtweaks_comfort_blocks.json` — `category_limits` and `categories`
 
 Always registered. No parent “Comfort mod” — Tweaks-owned, with optional hooks into other mods’ potions and warp.
@@ -36,12 +36,13 @@ Category caps are the design. Uncapped sums turn a chandelier farm into Homestea
 
 ## Design plan (rest loop)
 
-Server only. `TickEvent.PlayerTickEvent` **END**, every **300 ticks** (15s) on `(ticksExisted + entityId) % 300 == 0` so a full login wave does not scan on the same tick. Homestead duration is interval + 40, so the phase shift cannot open a gap.
+Server only. `TickEvent.PlayerTickEvent` **END**, every **600 ticks** (30s) on `(ticksExisted + entityId) % 600 == 0` so a full login wave does not scan on the same tick. Homestead potion lasts **900 ticks** (45s), so the phase shift cannot open a gap. Hurt, attack, lost furniture, or score below I still strip Homestead immediately.
 
-1. If NBT `AQTComfortResting` is false: player must pass `isPlayerResting`; **effective** score ≥ Homestead I → set tag, granted band **I**, stamp `AQTComfortBandSince`, apply I benefits.
-2. If already resting: **do not** require sneak/sleep/still. Rescan effective score. Below I → clear tag, ladder NBT, and Homestead (XP/Elenai potions are **not** stripped).
+1. If NBT `AQTComfortResting` is false: player must pass `isPlayerResting`; not be inside the hurt or attack cooldown; the scan must include a block in `entry_require_categories` (default hearth / bedding / seating); **effective** score ≥ Homestead I → set tag, granted band **I**, stamp `AQTComfortBandSince`, apply I benefits.
+2. If already resting: **do not** require sneak/sleep/still. Rescan. Below I, or no required furniture in range → clear tag, ladder NBT, and Homestead (XP/Elenai potions are **not** stripped).
 3. Granted band promotes **one step** after `promote_ticks` (default 1200 / 60s) while score still supports the next band. Demote **immediately** if score cannot support the granted band.
-4. `LivingHurtEvent` on a player, or `AttackEntityEvent`, clears the tag and ladder immediately (any hurt, not “damage after armor”).
+4. `LivingHurtEvent` on a player (amount **> 0**) clears the tag and stamps `AQTComfortHurtAt`. Re-entry is blocked for `damage_cooldown_ticks` (default **600** / 30s). Amount 0 does not stamp. Missing tag is eligible (do not treat `0` as a stamp).
+5. `AttackEntityEvent` clears the tag and stamps `AQTComfortAttackAt`. Re-entry is blocked for `attack_cooldown_ticks` (default **300** / 15s). Melee attack event only, not projectiles. Entry waits until **both** cooldowns expire.
 
 `isPlayerResting` (entry only):
 
@@ -76,21 +77,21 @@ Thresholds are floats in JSON (defaults 15 / 40 / 60). They set the **maximum** 
 
 | Granted | After | HUD | Other |
 | --- | --- | --- | --- |
-| I | immediately when score ≥ I | Homestead I (amp 0) | +9 warp / 15s; `soot:experience_boost` amp 0, 8:00 |
-| II | 60s at I while score ≥ II | Homestead II (amp 1) | +13 warp; XP boost amp 1, 8:00; `elenaidodge2:endurance` amp 0, 8:00; `elenaidodge2:replenishment` 4:00 |
-| III | 60s at II while score ≥ III | Homestead III (amp 2) | +25 warp; XP boost amp 2, 8:00; endurance amp 1, 8:00; replenishment 8:00 |
+| I | immediately when score ≥ I | Homestead I (amp 0) | +18 warp / 30s; `soot:experience_boost` amp 0, 8:00 |
+| II | 60s at I while score ≥ II | Homestead II (amp 1) | +26 warp; XP boost amp 1, 8:00; `elenaidodge2:endurance` amp 0, 8:00; `elenaidodge2:replenishment` 4:00 |
+| III | 60s at II while score ≥ III | Homestead III (amp 2) | +50 warp; XP boost amp 2, 8:00; endurance amp 1, 8:00; replenishment 8:00 |
 
-Homestead potion duration is **340** ticks. XP / endurance / replenishment are **re-applied** each scan while that band is held; when Homestead ends they **count down** (not stripped). All `PotionEffect`s use ambient **true**, particles **false**. No regen, saturation, or SD thermals from Homestead.
+Homestead potion duration is **900** ticks (45s). XP / endurance / replenishment are **re-applied** each scan while that band is held; when Homestead ends they **count down** (not stripped). All `PotionEffect`s use ambient **true**, particles **false**. No regen, saturation, or SD thermals from Homestead.
 
 ### Warp cleanse math
 
 Only if `thaumcraft` is loaded. Progress is persisted NBT `WarpCleansingProgress`. At **100**, if temporary warp (`ThaumcraftHelper` type **1**) is &gt; 0, reduce 1 and `syncWarp`. Progress then **resets to 0** even if warp was already 0 (progress is spent).
 
-Approximate time to 1 temp warp at the interval:
+Approximate time to 1 temp warp at the 30s interval:
 
-- I: +9 / 15s → ~167s
-- II: +13 / 15s → ~115s
-- III: +25 / 15s → **60s** (the “1 warp / 60s” figure is III only)
+- I: +18 / 30s → ~167s
+- II: +26 / 30s → ~115s
+- III: +50 / 30s → **60s** (III still clears about 1 temp warp per 60s)
 
 Comfort drain is **temporary warp only**. Sleep drain is the Thaumcraft module ([thaumcraft.md](thaumcraft.md)).
 
@@ -113,6 +114,9 @@ Both files load **once**, in `ComfortConfigLoader.load` from preInit. `ConfigEve
   "threshold_homestead_2": 40.0,
   "threshold_homestead_3": 60.0,
   "promote_ticks": 1200,
+  "damage_cooldown_ticks": 600,
+  "attack_cooldown_ticks": 300,
+  "entry_require_categories": ["hearth", "bedding", "seating"],
   "penalties": {
     "enabled": true,
     "temperature": {
@@ -151,6 +155,9 @@ The four formula penalties are their own objects under `penalties`. A missing ob
 
 | Object | Key | Default | Meaning |
 | --- | --- | --- | --- |
+| (root) | `damage_cooldown_ticks` | 600 | After amount > 0 hurt, skip Homestead **entry** this many ticks |
+| (root) | `attack_cooldown_ticks` | 300 | After `AttackEntityEvent`, skip Homestead **entry** this many ticks |
+| (root) | `entry_require_categories` | `hearth`, `bedding`, `seating` | Scan must include a cozy block in one of these; empty list = no furniture gate |
 | `penalties.temperature` | `enabled` | true | Off = body temp never costs |
 | `penalties.temperature` | `comfort_min` / `comfort_max` | 11 / 14 | Free band |
 | `penalties.temperature` | `per_point_outside` | 1.5 | Per body-temp point past the band |
@@ -230,7 +237,7 @@ Missing pack blocks simply never match; they do not crash.
 
 ## Files
 
-- `comfort/ComfortSystemHandler.java` — tick, effective score, band ladder, benefits, hot springs, cancel on hurt/attack
+- `comfort/ComfortSystemHandler.java` — tick (30s), effective score, furniture gate, band ladder, benefits (45s Homestead), hot springs, cancel + cooldowns on hurt/attack
 - `comfort/ComfortSettings.java` — settings JSON DTO
 - `comfort/ComfortBlocks.java` — blocks JSON DTO
 - `comfort/ComfortConfigLoader.java` — generate/load two files; merge missing `crafting` on blocks only
@@ -248,7 +255,8 @@ Missing pack blocks simply never match; they do not crash.
 - Comfort warp NBT is `WarpCleansingProgress`, not Thaumcraft exposure `WarpExposureProgress`.
 - Homestead cleanse calls `ThaumcraftHelper` (raw `Class` only). Generic `Class<?>` on that helper made Forge `SideTransformer` drop the class and crash the server tick.
 - Thermals and cold resist look up potions by name so Simple Difficulty absence never classloads SD.
-- Entry requires rest pose/stillness; **continuing** rest allows walking inside the scored area.
+- Entry requires rest pose/stillness **and** a hearth, bed/hammock/sleeping-bag, or seat (or whatever ids sit in `entry_require_categories`). **Continuing** rest allows walking inside the scored area **only while that furniture stays in the scan**.
+- Homestead HUD lasts 45s against a 30s scan so the icon does not drop between scans. Hurt, attack, lost furniture, and score below I still strip it immediately.
 - `isRiding()` is the sit check. Do not switch to a missing “isSitting” API and drop chair/boat rest.
 
 ## Out of scope unless asked

@@ -1,12 +1,14 @@
 # Recipes (Forge CraftingHelper) (1.8)
 
-Last updated: 2026-08-22.
+Last updated: 2026-09-10.
 
 No dedicated cfg. Small loader fix, not a gameplay module. Mixin lives in **required** `mixins.aqtweaks.json` (`MixinCraftingHelperFindFiles`). Forge is always present; this is not optional. Mixin json `compatibilityLevel` is **JAVA_21**.
 
 ## Locked intent
 
-Skip broken recipe JSON under paths containing `generated/item/spartanweaponry` so Forge does not fail or spam while loading Metallurgy-generated Spartan Weaponry files. Do not parse those files. Do not mixin extra Forge internals unless a new dead tree appears. Do not inject a lambda into `CraftingHelper`.
+Skip broken recipe JSON under paths containing `generated/item/spartanweaponry` and `draugr_ingot_from_block`, as well as recipes referencing any of the 40 known-missing item IDs from pack boot logs (Bibliocraft, Reliquary, Depths Update, DA, AutoOreDictConv, HammerX, Lycanites Mobs, Nether's Delight Legacy) so Forge does not dump 197 `Parsing error loading recipe` stack traces.
+
+Do not blanket-skip unknown items via registry lookups (new unknown items must still dump so pack changes stay visible). Do not mixin extra Forge internals. Do not inject a lambda into `CraftingHelper`.
 
 ## How the parent works
 
@@ -14,7 +16,7 @@ Forge `CraftingHelper.findFiles(ModContainer, base, preprocessor, processor, def
 
 `findFiles(Lnet/minecraftforge/fml/common/ModContainer;Ljava/lang/String;Ljava/util/function/Function;Ljava/util/function/BiFunction;ZZ)Z`
 
-A single invalid JSON can spam errors or break load order.
+Forge logs errors inside its own processor (`CraftingHelper.java:726`), so wrapping `processor.apply` in try/catch cannot prevent error spam. Files must be skipped before invoking the processor.
 
 ## Design plan
 
@@ -26,13 +28,17 @@ If `processor` is null, or `base` is null, or `base` does **not** contain `/reci
 
 Otherwise wrap (lambda lives in Tweaks, not Forge): if `file` is a `Path` and `shouldSkip(path)` → return `Boolean.TRUE` (Forge treats that as handled) **without** calling the real processor. Else `processor.apply(root, file)`.
 
-`RecipeJsonSkip.SKIP_CONTAINS` currently:
+`RecipeJsonSkip.shouldSkip`:
 
-- `generated/item/spartanweaponry`
+1. `SKIP_CONTAINS`:
+   - `generated/item/spartanweaponry` (logs once per JVM at INFO: `Skipping Metallurgy recipe JSON under {needle}`)
+   - `draugr_ingot_from_block` (skips `da:draugr_ingot_from_block` with unknown type `da:crafting_shaped` without IO)
+2. If the file ends with `.json`:
+   - Reads UTF-8 content via `Files.readString(file, StandardCharsets.UTF_8)`. IO failure returns `false` (delegated to Forge).
+   - Checks for `"<id>"` for any entry in `SKIP_ITEMS` (40 known missing items).
+   - If matched, logs once per missing item ID at INFO (`Skipping recipe JSON with known-missing item {}`) via a thread-safe set and returns `true`.
 
-Path matching uses `Path.toString()` with `\` → `/`. First skip logs once per JVM (`AtomicBoolean`) at INFO: `Skipping Metallurgy recipe JSON under {needle}`.
-
-Add more needles in that array later. Keep the `/recipes` gate so unrelated `findFiles` walks are untouched.
+Keep the `/recipes` gate so unrelated `findFiles` walks are untouched.
 
 ## Files
 
@@ -45,8 +51,9 @@ Add more needles in that array later. Keep the `/recipes` gate so unrelated `fin
 - Do not drop the `/recipes` `base` check.
 - Do not put a lambda in the mixin body.
 - Do not make this mixin `required: false`; it targets Forge.
+- Do not skip all unknown items dynamically via registry lookup; keep the explicit allowlist so unexpected broken recipes remain visible.
 
 ## Out of scope unless asked
 
 - Fixing the Metallurgy generator itself
-- Skipping by recipe serializer / JSON parse errors instead of path
+- Modifying Forge `CraftingHelper` bytecode directly

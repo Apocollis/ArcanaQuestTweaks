@@ -12,8 +12,19 @@ public class ComfortSettings {
     public float threshold_homestead_2 = 40.0f;
     public float threshold_homestead_3 = 60.0f;
     public long promote_ticks = 1200;
+    public long damage_cooldown_ticks = 600;
+    public long attack_cooldown_ticks = 300;
+    public List<String> entry_require_categories = defaultEntryCategories();
     public PenaltiesConfig penalties = PenaltiesConfig.defaults();
     public BonusesConfig bonuses = BonusesConfig.defaults();
+
+    public static List<String> defaultEntryCategories() {
+        List<String> list = new ArrayList<>();
+        list.add("hearth");
+        list.add("bedding");
+        list.add("seating");
+        return list;
+    }
 
     public static PotionModifier modifier(String potion, float amount) {
         PotionModifier m = new PotionModifier();

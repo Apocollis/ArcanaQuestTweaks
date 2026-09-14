@@ -1,6 +1,6 @@
 # Spawning module (1.8)
 
-Last updated: 2026-09-10.
+Last updated: 2026-09-13. Cage `MixinMobSpawnerBaseLogic` is in `mixins.aqtweaks.early.json` (late prepare loads `MobSpawnerBaseLogic` too early).
 
 Config: `config/arcanaquesttweaks/aqtweaks_spawning.cfg`. Pack lists: `config/arcanaquest/mob_overworldspawntype.json`, `mob_spawnparties.json`, `mob_tier.json`, and `mob_spawnrules.cfg` (Tweaks does **not** ship or write these files). Always registered. Vanilla spawner mixins in **required** `mixins.aqtweaks.json`. Compile-hard InControl `1.12-3.10.4` (`after:incontrol`).
 
@@ -21,6 +21,8 @@ Do **not** put `seesky` / height on `potentialspawn.json`. Do **not** copy layer
 ## How parents work
 
 **Vanilla / Forge:** `getSpawnListEntryForTypeAt` → `getPossibleCreatures` → `PotentialSpawns` → `WeightedRandom`. Then 3 packs × 4 XZ tries (`ΔY` = 0). After a spawn, `ForgeEventFactory.getMaxSpawnPackSize` (`getMaxSpawnedInChunk()`, often 1) aborts the chunk. Hostile budget: `getMaxNumberOfCreature()` × eligible chunks / 289.
+
+**Cage spawners:** `MobSpawnerBaseLogic.updateSpawner` decrements delay; at 0 it tries to spawn. `resetTimer()` (200–800) runs only on success or max nearby. A failed `canEntitySpawnSpawner` leaves delay at 0, so the cage retries every tick. Tweaks sets a short fail-recheck delay on that path only (HEAD started-at-zero + RETURN still zero). Decrement 1→0 returns without spawning and must not reset.
 
 **InControl:** **adds** `potentialspawn.json` rows onto the vanilla biome list (creeper 1–2, etc.) and does **not** delete vanilla 4–4. Tweaks then keeps the **last** row per entity class so fill and WeightedRandom use InControl group counts and weights. `spawn.json` deny does not reroll. Mixins player min-distance on the same spawner (`WorldEntitySpawnerMixin`). Tweaks uses `GeneralConfiguration.MIN_PLAYER_*_SPAWN_DISTANCE` for extra members. Per-mob `maxcount` is separate from the global MONSTER cap.
 
@@ -63,6 +65,8 @@ Keys are the `@SerializedName` values on `SpawnParties`:
 
 **Hostile cap:** Redirect `EnumCreatureType.getMaxNumberOfCreature()` in the same mixin. MONSTER → cfg (default 200). Other types stay vanilla 10 / 15 / 5. Do **not** call `getMaxNumberOfCreature()` from that redirect (recursion). Cage spawners and TC portals unused.
 
+**Cage delay:** `MixinMobSpawnerBaseLogic` on `updateSpawner` in **`mixins.aqtweaks.early.json`** (jar `MixinConfigs`), not the late Tweaks json — late prepare hits `MobSpawnerBaseLogic` after it is already loaded and crashes boot. HEAD records whether delay started at 0; RETURN on the **server** sets `spawnDelay` to **Cage Fail Recheck Delay** (default 20) if it is still 0 (failed attempt). Does not call `resetTimer()` on fail. Does not reset after vanilla decrements 1→0 without spawning. Success / max nearby stay vanilla 200–800. Master off → delay can stick at 0. Does not make cultists/blazes spawn, and does not run pack fill/parties.
+
 Range: cfg override `modid:path=min-max`, else pack **tier** for that entity id (common 2–4, uncommon 1–2, rare/elite 1, …), else the picked entry. Clamp to Group Size Cap. `1..1` skips filler (still pack-size 1). Mixed groups still run if fill is skipped.
 
 Ids missing from `mob_tier.json` keep the picked entry (vanilla 4–4 possible).
@@ -89,8 +93,9 @@ Ids missing from `mob_tier.json` keep the picked entry (vanilla 4–4 possible).
 | Enable Mixed Groups | true | yes |
 | Spawn Parties File | `arcanaquest/mob_spawnparties.json` | reload on Tweaks cfg change |
 | Hostile Mob Cap | 200 | yes |
+| Cage Fail Recheck Delay | 20 | yes |
 
-JSON layer / parties files: edit needs **restart** (or a Tweaks cfg save to trigger reload). Override map rebuilds on Tweaks cfg change. Master off → vanilla 70 cap, no filter, no fill, no parties.
+JSON layer / parties files: edit needs **restart** (or a Tweaks cfg save to trigger reload). Override map rebuilds on Tweaks cfg change. Master off → vanilla 70 cap, no filter, no fill, no parties, no cage fail delay.
 
 ## Files
 
@@ -103,7 +108,9 @@ JSON layer / parties files: edit needs **restart** (or a Tweaks cfg save to trig
 | `spawning/SpawnPackContext.java` | ThreadLocal pack entry |
 | `spawning/SpawnPackFiller.java` | Extra placements; InControl min-distance |
 | `spawning/SpawnParties.java` | Mixed groups from pack JSON |
+| `spawning/CageSpawnerHooks.java` | Cage fail-path delay (HEAD/RETURN) |
 | `mixin/MixinWorldEntitySpawner.java` | Capture entry, fill pack, pack-size 1, hostile cap. Do **not** mixin `WorldServer`. |
+| `mixin/MixinMobSpawnerBaseLogic.java` | Cage `updateSpawner` fail delay. Remap true. `mixins.aqtweaks.early.json` |
 | `ArcanaQuestTweaksConfig.SpawningModuleConfig` | `aqtweaks_spawning.cfg` |
 
 ## Do not regress
@@ -112,10 +119,10 @@ JSON layer / parties files: edit needs **restart** (or a Tweaks cfg save to trig
 - Forest Y≥60 under leaves stays surface pool.
 - Nether/End / non-MONSTER unchanged when those flags are on (layer filter / pack fill). Hostile **cap** still applies in every dim for MONSTER.
 - Rare `1..1` stays singles. Feral goblin default override 3–5 until the cfg line is removed.
-- Cage spawner / TC lesser portal: no pack fill, no party, unchanged cap formula (they do not use `findChunksForSpawning`).
+- Cage spawner / TC lesser portal: no pack fill, no party, unchanged cap formula (they do not use `findChunksForSpawning`). Failed cage attempts wait **Cage Fail Recheck Delay** (default 20), not 0 and not vanilla 200–800. Success still 200–800.
 - Depths `getRandomChunkPosition` mixin untouched. InControl player-distance mixin still applies to vanilla tries.
 - Java 21 `--release`. Stamina packets stay 0–2.
 
 ## Verify
 
-Boot: `Loaded spawn types from …`; `Loaded N spawn parties from …`; `Loaded pack spawn group sizes for N mobs.` when pack files present. No mixin fail on `MixinWorldEntitySpawner` / `findChunksForSpawning`. Closed cave: dwarf/cave_spider/krake yes, Dryad/witch/Wildkin no. Night plains: creeper packs 1–2 (not 4); enderman 1; zombie/skeleton/spider 2–4 mixed not always 4. `goblin_feral` 3–5 when the first lands. Fill Pack Size off: old singles. Master off or JSON missing: no layer strip (last-per-class still runs if the module is on). Missing parties JSON: mixed groups off, no crash. Natural Overworld `thaumcraft:cultistcleric`: 2–3 knights + 2–3 CR archers (CheckSpawn / crimsoncult stage can still deny). Portal / cage cleric: no party. Hostile cap 200 lets natural MONSTER count exceed the old 70-scaled ceiling; cfg 70 restores vanilla. Animals/water/ambient caps unchanged.
+Boot: `Loaded spawn types from …`; `Loaded N spawn parties from …`; `Loaded pack spawn group sizes for N mobs.` when pack files present. No mixin fail on `MixinWorldEntitySpawner` / `findChunksForSpawning` or `MixinMobSpawnerBaseLogic` / `updateSpawner`. Closed cave: dwarf/cave_spider/krake yes, Dryad/witch/Wildkin no. Night plains: creeper packs 1–2 (not 4); enderman 1; zombie/skeleton/spider 2–4 mixed not always 4. `goblin_feral` 3–5 when the first lands. Fill Pack Size off: old singles. Master off or JSON missing: no layer strip (last-per-class still runs if the module is on). Missing parties JSON: mixed groups off, no crash. Natural Overworld `thaumcraft:cultistcleric`: 2–3 knights + 2–3 CR archers (CheckSpawn / crimsoncult stage can still deny). Portal / cage cleric: no party. Failed cultist/blaze cage: Delay ≈ 20 (cfg), not 0, not 200–800. Legal zombie cage still attempts after delay 1→0; success still 200–800. Hostile cap 200 lets natural MONSTER count exceed the old 70-scaled ceiling; cfg 70 restores vanilla. Animals/water/ambient caps unchanged.

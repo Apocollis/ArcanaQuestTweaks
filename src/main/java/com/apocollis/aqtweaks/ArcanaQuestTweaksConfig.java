@@ -545,11 +545,46 @@ public class ArcanaQuestTweaksConfig {
         public boolean metallurgyTooltipCompat = true;
     }
 
+    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_somnia")
+    public static class SomniaModuleConfig {
+        @Config.Name("Enable Somnia Module")
+        @Config.Comment("Master toggle for AQTweaks Somnia enhancements. When enabled, AQTweaks controls sleep threshold, time multipliers, and fatigue rates, overriding Somnia's corresponding config keys.")
+        public static boolean enableSomniaModule = true;
+
+        @Config.Name("Sleep Percentage Threshold")
+        @Config.Comment("Percentage of non-spectator players required to activate time fast-forward (0.50 = 50%). Below this is Case C.")
+        @Config.RangeDouble(min = 0.01, max = 1.0)
+        public static double sleepPercentage = 0.50;
+
+        @Config.Name("Case B Partial Sleep Time Multiplier")
+        @Config.Comment("Total world-time and sleeper-fatigue rate vs one vanilla world tick during Case B (>=50% and <100%). Default 2.0 = double (vanilla +1 already ran; Tweaks adds multiplier-1). Mobs and awake players remain at 1x tick rate.")
+        @Config.RangeDouble(min = 1.0, max = 100.0)
+        public static double caseBTimeMultiplier = 2.0;
+
+        @Config.Name("Fatigue Recovered Per In-Game Hour")
+        @Config.Comment("Points of Somnia fatigue recovered per in-game hour spent sleeping in bed (1 in-game hour = 1000 ticks). Default: 10.0.")
+        @Config.RangeDouble(min = 0.0, max = 100.0)
+        public static double fatigueRecoveredPerHour = 10.0;
+
+        @Config.Name("Enable Sleep Notifications")
+        @Config.Comment("Broadcast Morpheus-style chat notifications when players enter/leave bed and when fast-forward sleep begins.")
+        public static boolean enableSleepNotifications = true;
+    }
+
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_grimoireofgaia")
     public static class GrimoireOfGaiaConfig {
         @Config.Name("Disable Piercing Damage")
         @Config.Comment("When true, drop Gaia melee/archer extra MAGIC pierce, retype bolts/bombs, and apply per-mob attack JSON. When false, Gaia vanilla.")
         public static boolean disablePiercingDamage = true;
+
+        @Config.Name("Enable Deep Dwarf")
+        @Config.Comment("Register aqtweaks:deep_dwarf, a hostile Gaia dwarf clone. Requires Grimoire of Gaia.")
+        public static boolean enableDeepDwarf = true;
+
+        @Config.Name("Deep Dwarf Attack Damage")
+        @Config.Comment("ATTACK_DAMAGE base for aqtweaks:deep_dwarf. Weapons and Strength still stack. Wins over gaia_mob_damage.json for this id.")
+        @Config.RangeDouble(min = 0.0, max = 40.0)
+        public static double deepDwarfAttackDamage = 10.0;
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_thaumcraft")
@@ -967,7 +1002,7 @@ public class ArcanaQuestTweaksConfig {
 
     public static class SpawningGeneral {
         @Config.Name("Enable Spawning Module")
-        @Config.Comment("Master switch. When false, PotentialSpawns is not filtered, pack fill and mixed groups are off, and the hostile cap is vanilla 70.")
+        @Config.Comment("Master switch. When false, PotentialSpawns is not filtered, pack fill and mixed groups are off, the hostile cap is vanilla 70, and cage fail delay is not applied.")
         public boolean enable = true;
 
         @Config.Name("Filter Potential Spawns")
@@ -1046,6 +1081,11 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("EnumCreatureType.MONSTER max used by findChunksForSpawning. Vanilla is 70. Does not affect animals, water, ambient, cage spawners, or TC portals.")
         @Config.RangeInt(min = 1, max = 1000)
         public int hostileMobCap = 200;
+
+        @Config.Name("Cage Fail Recheck Delay")
+        @Config.Comment("Ticks to wait after a failed cage spawn attempt. Does not change successful spawn delay (vanilla 200-800). 1 is the minimum to avoid every-tick retry.")
+        @Config.RangeInt(min = 1, max = 200)
+        public int cageFailRecheckDelay = 20;
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_reskillable", category = "")
@@ -1220,6 +1260,9 @@ public class ArcanaQuestTweaksConfig {
                 com.apocollis.aqtweaks.spawning.SpawnGroupSizes.invalidate();
                 if (net.minecraftforge.fml.common.Loader.isModLoaded("reskillable")) {
                     com.apocollis.aqtweaks.reskillable.ReskillableModule.restampOnlinePlayers();
+                }
+                if (net.minecraftforge.fml.common.Loader.isModLoaded("somnia")) {
+                    com.apocollis.aqtweaks.somnia.SomniaSleepHandler.applyConfigOverrides();
                 }
             }
         }

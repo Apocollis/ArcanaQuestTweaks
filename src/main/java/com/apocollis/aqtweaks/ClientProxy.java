@@ -16,6 +16,10 @@ public class ClientProxy extends CommonProxy {
     public void preInit(FMLPreInitializationEvent event) {
         super.preInit(event);
         RenderingRegistry.registerEntityRenderingHandler(EntityArcaneRift.class, RenderArcaneRift::new);
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("grimoireofgaia")
+                && com.apocollis.aqtweaks.ArcanaQuestTweaksConfig.GrimoireOfGaiaConfig.enableDeepDwarf) {
+            com.apocollis.aqtweaks.gaia.client.GaiaDeepDwarfClient.preInit();
+        }
     }
 
     @Override

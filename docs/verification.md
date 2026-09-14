@@ -1,6 +1,6 @@
 # Verification (1.8)
 
-Last updated: 2026-09-10.
+Last updated: 2026-09-13.
 
 Manual release / smoke checklist. **No automated tests.** Harness: CurseForge **Arcana Quest DEVBOX**, remapped `ArcanaQuestTweaks-1.8.jar` in `mods/`. Algorithms and full checklists stay in module docs; this is the pack-level pass/fail.
 
@@ -14,7 +14,7 @@ Worldgen applies to **new chunks only**.
 
 ## Boot
 
-- [ ] Client starts the full pack; no mixin apply crash from `mixins.aqtweaks.json` or `mixins.aqtweaks.early.json`. Log must not say `MixinWorldRiftLight` / `World was loaded too early`, `MixinASMHooksVillagePaste` / `ASMHooks was loaded too early`, or `MixinWorldGenLakes` / `field_150589_a was not located` / `WorldGenLakes in invalid classes`. Optional `mixins.aqtweaks.gaia.json` must not log `InvalidInjectionException` (vanilla INVOKEs must be MCP + `remap = true`; a miss boots anyway because `required: false`).
+- [ ] Client starts the full pack; no mixin apply crash from `mixins.aqtweaks.json` or `mixins.aqtweaks.early.json`. Log must not say `MixinWorldRiftLight` / `World was loaded too early`, `MixinMobSpawnerBaseLogic` / `MobSpawnerBaseLogic was loaded too early`, `MixinASMHooksVillagePaste` / `ASMHooks was loaded too early`, or `MixinWorldGenLakes` / `field_150589_a was not located` / `WorldGenLakes in invalid classes`. Optional `mixins.aqtweaks.gaia.json` must not log `InvalidInjectionException` (vanilla INVOKEs must be MCP + `remap = true`; a miss boots anyway because `required: false`).
 - [ ] Mixin log does **not** say Tweaks mixins require class version 69 (Java 21 class files).
 - [ ] Wait through full JEI / ThaumicJEI / **TC6 Aspects 4 JEI** load. Title screen stays up. No `hs_err_pid*.log`.
 - [ ] Dedicated server: **not routinely tested** in this repo. If you ship a server, start one with the same mods and confirm it reaches “Done”.
@@ -37,6 +37,7 @@ These json files are `required: false`. Removing the parent should skip that jso
 | Effortless Building | No Building place-reach / max-blocks mixin |
 | Thaumcraft | No focus mixins; frost stays `thrown` / not Magic; warp handler not registered |
 | Animania | No `MixinAddonHandler`; stock world-load advancement reload + Farm/Extra inject |
+| Somnia Refreshed | No `MixinSomniaUtil`; stock Somnia light check behavior |
 
 ### Do not treat as optional
 
@@ -99,15 +100,15 @@ Use the full list in [stamina.md](stamina.md) **Verify**. Minimum: jump costs/bl
 
 | Module | Smoke |
 | --- | --- |
-| Gaia | Melee: one physical hit, names the mob, **no MAGIC 6** (diamond must not take a flat ~3 hearts of magic). Unarmored may exceed JSON if the mob holds a sword. Hard archer: no MAGIC tip. Bolts: armor skip, Magic Protection works, death names shooter. Bomb: armor + Blast Protection, no extra 2.0, facing shield zeroes. Log: no `mixins.aqtweaks.gaia.json` injection failure. JSON `grimoireofgaia:orc` changes orc melee and bolts after restart. |
+| Gaia | Melee: one physical hit, names the mob, **no MAGIC 6** (diamond must not take a flat ~3 hearts of magic). Unarmored may exceed JSON if the mob holds a sword. Hard archer: no MAGIC tip. Bolts: armor skip, Magic Protection works, death names shooter. Bomb: armor + Blast Protection, no extra 2.0, facing shield zeroes. Log: no `mixins.aqtweaks.gaia.json` injection failure. JSON `grimoireofgaia:orc` changes orc melee and bolts after restart. Default JSON HP/armor: orc 30/4, dwarf 60/8, feral goblin 15/4, sporeling 15/2. Deep Dwarf: `/summon aqtweaks:deep_dwarf` hostile, purple face, red eyes, stock gear; cfg 10 attack; JSON 60 HP / 8 armor. |
 | Thaumcraft | First Nether visit warps after ~2s; sleep at dawn reduces warp; whispers underground on interval. Log: no `mixins.aqtweaks.thaumcraft.json` injection failure. Fire/frost foci `isMagic=true classified=true`; Heal on self scales with Magic; snowball does not |
 | Bewitchment | Listed ritual **finish** grants warp; halt does not |
-| Comfort | Homestead I in a scored room while healthy; penalties (hungry/thirsty/hurt/sleepy) can deny it; II after ~1:00 if score ≥40, III after another 1:00 if ≥60. No regen/saturation/SD thermals from Homestead. XP boost refreshes 8:00 while held, counts down after cancel. Hot spring → cold resist if SD+BOP |
+| Comfort | Homestead I in a scored room that also has a hearth, bed, or seat, while healthy; lanterns/structure alone do not start it. Penalties (hungry/thirsty/hurt/sleepy) can deny it. Scan every 30s; Homestead potion 45s (does not drop between scans). Hurt: clear + 30s before re-entry. Attack entity: clear + 15s before re-entry. II after ~1:00 if score ≥40, III after another 1:00 if ≥60. No regen/saturation/SD thermals from Homestead. XP boost refreshes 8:00 while held, counts down after cancel. Hot spring → cold resist if SD+BOP |
 | Portal | Arcane Tunnel binds then opens a 60s two-way rift (cross-dim if bound elsewhere); Unstable Arcane Tunnel lands ~4000–6000 same dim; villagers/mobs in the box teleport; sitting pet stays; lead follows. Dark cave mid-cell lights like glowstone. See [portal.md](portal.md) |
 | Client | Toughness LTR above armor; iron pick shows Vanilla Tools stats; Metallurgy pick not duplicated |
-| Recipes | Pack boots without Metallurgy `generated/item/spartanweaponry` recipe spam |
+| Recipes | Pack boots without Metallurgy `generated/item/spartanweaponry` recipe spam or `Parsing error loading recipe` stacks for the 40 known-missing items and `draugr_ingot_from_block`; one-shot skip lines logged per missing item ID; new/unexpected missing items still dump |
 | Reskillable | Attack 16 → +2 damage; Mining Expert wood pick drops diamond ore; stamina perks on tree. Full list: [reskillable.md](reskillable.md) |
-| Spawning | Boot log loads spawn types, parties, and pack group sizes (`mob_tier.json` + `mob_spawnrules.cfg`). Closed cave: dwarf/cave_spider/krake yes, Dryad/witch/Wildkin no, zombie/goblin still yes. Night surface: reverse exclusives; zombie still yes. Creeper packs 1–2 not 4; enderman 1; zombie/skeleton/spider 2–4 mixed. Default `goblin_feral=3-5`. Fill Pack Size off: old singles. Natural Overworld cleric: knights + CR archers; cage/portal cleric: no party. Hostile cap default 200. No mixin fail on `MixinWorldEntitySpawner`. See [spawning.md](spawning.md) |
+| Spawning | Boot log loads spawn types, parties, and pack group sizes (`mob_tier.json` + `mob_spawnrules.cfg`). Closed cave: dwarf/cave_spider/krake yes, Dryad/witch/Wildkin no, zombie/goblin still yes. Night surface: reverse exclusives; zombie still yes. Creeper packs 1–2 not 4; enderman 1; zombie/skeleton/spider 2–4 mixed. Default `goblin_feral=3-5`. Fill Pack Size off: old singles. Natural Overworld cleric: knights + CR archers; cage/portal cleric: no party. Failed cultist/blaze cage Delay ≈ 20 (cfg) not 0 and not 200–800; zombie cage still attempts after 1→0; success still 200–800. Hostile cap default 200. No mixin fail on `MixinWorldEntitySpawner` or `MixinMobSpawnerBaseLogic`. See [spawning.md](spawning.md) |
 | Advancement | Join log: no `AddonHandler.onWorldLoad` → `ForgeHooks.loadAdvancements`. Mixin json applied. Animania animals still spawn/register. No Farm/Extra Animania advancement trees. See [advancement.md](advancement.md) |
 
 ## Edge cases

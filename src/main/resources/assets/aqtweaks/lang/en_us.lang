@@ -15,6 +15,7 @@ item.aqtweaks.spatial_rift_wild.shift=§8Air-use opens a red rift pair 4000-6000
 item.aqtweaks.spatial_rift_wild.shift_hint=§8Hold Shift for details.
 item.aqtweaks.spatial_rift_wild.no_land=§5[Arcana]§r No safe land was found.
 entity.arcane_rift.name=Arcane Rift
+entity.deep_dwarf.name=Deep Dwarf
 effect.aqtweaks.homestead=Homestead
 reskillable.unlock.aqtweaks.melee_efficiency=Melee Efficiency
 reskillable.unlock.aqtweaks.melee_efficiency.desc=Melee attacks cost 1 less stamina. Light attacks may be free.

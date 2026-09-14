@@ -67,6 +67,10 @@ public class CommonProxy {
         if (net.minecraftforge.fml.common.Loader.isModLoaded("reskillable")) {
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.reskillable.ReskillableModule());
         }
+
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("somnia")) {
+            com.apocollis.aqtweaks.somnia.SomniaSleepHandler.init();
+        }
     }
 
     public void postInit(FMLPostInitializationEvent event) {

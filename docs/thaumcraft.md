@@ -4,7 +4,7 @@ Last updated: 2026-09-06.
 
 Config: `config/arcanaquesttweaks/aqtweaks_thaumcraft.cfg`. Event handler registers only if `thaumcraft` is loaded (`CommonProxy.init`). Warp API is reflection (`ThaumcraftHelper`, raw `Class`) so Comfort can call it without importing TC types. Focus mixins **compile-hard** TC **6.1 BETA26** (`libs/`); missing that jar fails compile. Optional `mixins.aqtweaks.thaumcraft.json` (`required: false`) skips at runtime if TC is absent.
 
-Comfort homestead drain is a **different** NBT key and module ([comfort.md](comfort.md)). Bewitchment ritual warp is [bewitchment.md](bewitchment.md). Village `isInsideStructure` padding is [rtg.md](rtg.md) — not this dungeon check.
+Comfort homestead drain is a **different** NBT key and module ([comfort.md](comfort.md)). Bewitchment ritual warp is [bewitchment.md](bewitchment.md). Village `isInsideStructure` padding is [rtg.md](rtg.md) — not this dungeon check. Cultist cage fail delay is [spawning.md](spawning.md) (`MobSpawnerBaseLogic`), not a Thaumcraft entity mixin.
 
 ## Locked intent
 
