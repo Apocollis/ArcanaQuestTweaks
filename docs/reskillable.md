@@ -1,6 +1,6 @@
 # Reskillable module (1.8)
 
-Last updated: 2026-09-10.
+Last updated: 2026-09-14.
 
 Config: `config/arcanaquesttweaks/aqtweaks_reskillable.cfg`. Handler registers only if `reskillable` is loaded (`CommonProxy.init`). Compile-hard CAD Reskillable **1.13.1** API; types live only in `com.apocollis.aqtweaks.reskillable`. Soft `@Mod` `after:reskillable` (not `required-after`).
 
@@ -94,13 +94,13 @@ Register in **preInit** (`ReskillablePerkRegistry`). CAD `getTraitConfig` still 
 
 | Id | Skill | Default cell | Cost | Req |
 | --- | --- | --- | --- | --- |
-| `aqtweaks:melee_efficiency` | attack | 2,2 | 6 | attack 16, agility 12 |
-| `aqtweaks:ranged_efficiency` | attack | 2,3 | 6 | attack 16, agility 12 |
-| `aqtweaks:shield_efficiency` | defense | 2,2 | 6 | defense 16 |
-| `aqtweaks:adrenaline` | agility | 2,1 | 6 | agility 16, defense 12 |
-| `aqtweaks:expert_climber` | agility | 1,2 | 6 | agility 20 |
-| `aqtweaks:cardio_master` | agility | 3,3 | 6 | agility 20 |
-| `aqtweaks:mining_expert` | mining | 3,3 | 6 | mining 24 |
+| `aqtweaks:melee_efficiency` | attack | 2,2 | 4 | attack 16, agility 12 |
+| `aqtweaks:ranged_efficiency` | attack | 2,3 | 4 | attack 16, agility 12 |
+| `aqtweaks:shield_efficiency` | defense | 2,2 | 4 | defense 16 |
+| `aqtweaks:adrenaline` | agility | 2,1 | 4 | agility 16, defense 12 |
+| `aqtweaks:expert_climber` | agility | 1,2 | 4 | agility 20 |
+| `aqtweaks:cardio_master` | agility | 3,3 | 4 | agility 20 |
+| `aqtweaks:mining_expert` | mining | 3,3 | 4 | mining 24 |
 
 Mining Expert: `PlayerEvent.HarvestCheck` client+server. Pickaxe tool class, block pickaxe or null tool, harvest ≤ floor. Does not change `Item.getHarvestLevel`.
 

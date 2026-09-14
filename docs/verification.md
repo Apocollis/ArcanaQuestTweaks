@@ -1,6 +1,6 @@
 # Verification (1.8)
 
-Last updated: 2026-09-13.
+Last updated: 2026-09-14.
 
 Manual release / smoke checklist. **No automated tests.** Harness: CurseForge **Arcana Quest DEVBOX**, remapped `ArcanaQuestTweaks-1.8.jar` in `mods/`. Algorithms and full checklists stay in module docs; this is the pack-level pass/fail.
 
@@ -38,6 +38,8 @@ These json files are `required: false`. Removing the parent should skip that jso
 | Thaumcraft | No focus mixins; frost stays `thrown` / not Magic; warp handler not registered |
 | Animania | No `MixinAddonHandler`; stock world-load advancement reload + Farm/Extra inject |
 | Somnia Refreshed | No `MixinSomniaUtil`; stock Somnia light check behavior |
+| InControl | No `MixinStructureCache`; stock origin-chunk `isInStructure` (Tweaks still loads) |
+| YUNG’s Better Mineshafts | No locate/stub mixins; stock BM Y=64 `/locate Mineshaft` |
 
 ### Do not treat as optional
 
@@ -89,6 +91,7 @@ Missing **RTG, Depths Update, Better Caves, CoFH World, Recurrent Complex, or Iv
 | -Y caves after a perf change (new chunks) | Same seed, same chunks: tunnels, chambers, pillars, bridges, stalactites and floater cleanup unchanged. Perf work here is exact-equivalence, so any visible difference is a bug | depths |
 | Spark while flying new terrain | `UpperTunnelNetwork.forColumn`, `columnStrength`, `getSurfaceAltitudeForColumn` and `Reflect.getBlockState` all well down; chunk gen no longer ~half Tweaks | depths |
 | Fog / sky below Y0 | Dark fog ~32–52; no skybox | depths |
+| New `/locate Mineshaft` | Pin at tunnel/shaft Y (not ~136 or empty Y=64 air); `isInsideStructure("Mineshaft")` true at the pin; plains still have tunnels | [bettermineshafts.md](bettermineshafts.md) |
 
 Log snippets if debug on: `veto chunk=`, `forget chunk=`, `flatten chunk=`, `seal chunk=`, `waystone relocate`, `village piece skip water floor charm`, `astral small shrine village piece`.
 
@@ -108,8 +111,9 @@ Use the full list in [stamina.md](stamina.md) **Verify**. Minimum: jump costs/bl
 | Client | Toughness LTR above armor; iron pick shows Vanilla Tools stats; Metallurgy pick not duplicated |
 | Recipes | Pack boots without Metallurgy `generated/item/spartanweaponry` recipe spam or `Parsing error loading recipe` stacks for the 40 known-missing items and `draugr_ingot_from_block`; one-shot skip lines logged per missing item ID; new/unexpected missing items still dump |
 | Reskillable | Attack 16 → +2 damage; Mining Expert wood pick drops diamond ore; stamina perks on tree. Full list: [reskillable.md](reskillable.md) |
-| Spawning | Boot log loads spawn types, parties, and pack group sizes (`mob_tier.json` + `mob_spawnrules.cfg`). Closed cave: dwarf/cave_spider/krake yes, Dryad/witch/Wildkin no, zombie/goblin still yes. Night surface: reverse exclusives; zombie still yes. Creeper packs 1–2 not 4; enderman 1; zombie/skeleton/spider 2–4 mixed. Default `goblin_feral=3-5`. Fill Pack Size off: old singles. Natural Overworld cleric: knights + CR archers; cage/portal cleric: no party. Failed cultist/blaze cage Delay ≈ 20 (cfg) not 0 and not 200–800; zombie cage still attempts after 1→0; success still 200–800. Hostile cap default 200. No mixin fail on `MixinWorldEntitySpawner` or `MixinMobSpawnerBaseLogic`. See [spawning.md](spawning.md) |
+| Spawning | Boot log loads spawn types, structure spawns, parties, and pack group sizes. Closed cave: dwarf/cave_spider/krake yes, Dryad/witch/Wildkin no, zombie/goblin still yes. Mineshaft non-origin chunk: witch/illager/pillager can appear; ordinary cave still no. Night surface: reverse exclusives; zombie still yes. Creeper packs 1–2 not 4; enderman 1; zombie/skeleton/spider 2–4 mixed. Default `goblin_feral=3-5`. Fill Pack Size off: old singles. Natural Overworld cleric: knights + CR archers; cage/portal cleric: no party. Failed cultist/blaze cage Delay ≈ 20 (cfg) not 0 and not 200–800; zombie cage still attempts after 1→0; success still 200–800. Hostile cap default 200. No mixin fail on `MixinWorldEntitySpawner`, `MixinMobSpawnerBaseLogic`, or `MixinStructureCache`. See [spawning.md](spawning.md) |
 | Advancement | Join log: no `AddonHandler.onWorldLoad` → `ForgeHooks.loadAdvancements`. Mixin json applied. Animania animals still spawn/register. No Farm/Extra Animania advancement trees. See [advancement.md](advancement.md) |
+| Better Mineshafts | `/locate Mineshaft` TPs to tunnels; log: no `mixins.aqtweaks.bettermineshafts.json` injection failure. See [bettermineshafts.md](bettermineshafts.md) |
 
 ## Edge cases
 

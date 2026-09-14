@@ -17,7 +17,7 @@ public class ReskillablePerkLayout {
 
     @Config.Name("Skill Point Cost")
     @Config.RangeInt(min = 0, max = 32)
-    public int cost = 6;
+    public int cost = 4;
 
     @Config.Name("Parent Skill")
     @Config.Comment("Registry id, e.g. reskillable:attack")

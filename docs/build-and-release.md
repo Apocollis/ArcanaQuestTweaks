@@ -46,7 +46,7 @@ What it does:
 
 1. Ensures `libs/`.
 2. Deletes known-stale jars (`ElenaiDodge2-1.12.2-1.1.0`, `RecurrentComplexVolts-1.12.2-2.0.0.7`, `BaublesEX-1.12.2-2.3.5`, `WearableBackpacks-RLCraft-1.12.2-3.2.7`, `RoguelikeDungeons-Arcana-1.12.2-2.5.0`).
-3. For each name in `$deps`, copies DEVBOX `mods\<name>` → `libs\` **only if the file exists** (silent skip).
+3. For each name in `$deps`, copies DEVBOX `mods\<name>` → `libs\` **only if the file exists** (silent skip). Then extracts nested McJtyTools from InControl into `libs/mcjtytools-1.12-0.0.21.jar`.
 4. Sets `JAVA_HOME` to Zulu 25.
 5. Runs `.\gradlew.bat build`.
 6. Picks the newest `ArcanaQuestTweaks-*.jar` in `build/libs` whose name does **not** match `sources|javadoc|dev`.
@@ -71,7 +71,7 @@ Keep Zulu 25. Do **not** use `-XX:+UseCompactObjectHeaders`. `build_gradle.ps1` 
 
 Forge `@Config` files under `config/arcanaquesttweaks/` **keep saved values** when Java defaults change. Comfort is two JSON files (`aqtweaks_comfort_settings.json`, `aqtweaks_comfort_blocks.json`) loaded in preInit. After a default change (example: RTG coast buffer 32 → 16), edit or delete the old key in the instance cfg.
 
-In-game cfg change: `ConfigChangedEvent` → `ConfigManager.sync` + `normalizePinned()` + `DssSkillCosts.invalidate()` + spawn-type / party / tier JSON reload + spawn-rules and group-size invalidate + Reskillable attribute restamp if loaded.
+In-game cfg change: `ConfigChangedEvent` → `ConfigManager.sync` + `normalizePinned()` + `DssSkillCosts.invalidate()` + spawn-type / structure-spawn / party / tier JSON reload + spawn-rules and group-size invalidate + Reskillable attribute restamp if loaded.
 
 ## Agent / human workflow
 

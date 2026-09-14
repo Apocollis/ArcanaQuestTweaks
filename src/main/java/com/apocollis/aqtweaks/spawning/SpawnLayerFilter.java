@@ -1,9 +1,11 @@
 package com.apocollis.aqtweaks.spawning;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig.SpawningModuleConfig;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import net.minecraft.entity.EntityList;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.EnumCreatureType;
@@ -22,6 +24,12 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
  * After InControl {@code PotentialSpawns}, drop surface-only ids in caves and underground-only ids on the surface.
  */
 public class SpawnLayerFilter {
+
+    private static volatile boolean structureExemption;
+
+    public static void enableStructureExemption() {
+        structureExemption = true;
+    }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void onPotentialSpawns(WorldEvent.PotentialSpawns event) {
@@ -46,7 +54,10 @@ public class SpawnLayerFilter {
         BlockPos pos = event.getPos();
         if (general.filterPotentialSpawns && SpawnTypeLists.ready() && pos != null) {
             boolean cave = isCavePick(world, pos);
-            list.removeIf(entry -> shouldStrip(entry, cave));
+            Set<String> structuresHere = cave && structureExemption
+                    ? SpawnStructureExemption.structuresAt(world, pos)
+                    : Collections.emptySet();
+            list.removeIf(entry -> shouldStrip(entry, cave, structuresHere));
         }
         keepLastPerClass(list);
     }
@@ -111,10 +122,14 @@ public class SpawnLayerFilter {
         if (key == null) {
             return false;
         }
-        return shouldStripId(key.toString(), isCavePick(world, pos));
+        boolean cave = isCavePick(world, pos);
+        Set<String> structuresHere = cave && structureExemption
+                ? SpawnStructureExemption.structuresAt(world, pos)
+                : Collections.emptySet();
+        return shouldStripId(key.toString(), cave, structuresHere);
     }
 
-    private static boolean shouldStrip(Biome.SpawnListEntry entry, boolean cave) {
+    private static boolean shouldStrip(Biome.SpawnListEntry entry, boolean cave, Set<String> structuresHere) {
         if (entry == null || entry.entityClass == null) {
             return false;
         }
@@ -122,13 +137,15 @@ public class SpawnLayerFilter {
         if (key == null) {
             return false;
         }
-        String id = key.toString();
-        return shouldStripId(id, cave);
+        return shouldStripId(key.toString(), cave, structuresHere);
     }
 
-    private static boolean shouldStripId(String id, boolean cave) {
+    private static boolean shouldStripId(String id, boolean cave, Set<String> structuresHere) {
         if (cave) {
-            return SpawnTypeLists.surfaceOnly().contains(id);
+            if (!SpawnTypeLists.surfaceOnly().contains(id)) {
+                return false;
+            }
+            return !(structureExemption && SpawnStructureExemption.keepSurfaceMob(id, structuresHere));
         }
         return SpawnTypeLists.undergroundOnly().contains(id);
     }

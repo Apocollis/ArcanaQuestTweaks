@@ -33,6 +33,7 @@ Each file covers: what Tweaks changes, how the **parent mod** implements the fea
 | Recipes | Forge `CraftingHelper` (Metallurgy / Spartan JSON) | [recipes.md](recipes.md) |
 | Advancement | Animania Base (Farm / Extra addon JSON via Base handler) | [advancement.md](advancement.md) |
 | Somnia | Somnia Refreshed | [somnia.md](somnia.md) |
+| Better Mineshafts | YUNG’s Better Mineshafts + RTG locate | [bettermineshafts.md](bettermineshafts.md) |
 | Compatibility / jars | Compile vs mixin vs runtime vs copy script | [compatibility-matrix.md](compatibility-matrix.md) |
 | Build / deploy | `gradlew build` vs `build_gradle.ps1` | [build-and-release.md](build-and-release.md) |
 | Release smoke | Boot, optional absences, worldgen, stamina | [verification.md](verification.md) |
@@ -58,8 +59,9 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 | Roguelike Dungeons Arcana | Thaumcraft dungeon warp via `isInsideStructure("RoguelikeDungeon")` | Dungeon exposure never matches |
 | Reskillable | Per-level bonuses + stamina perk id lookup | Module not registered; stamina `hasUnlockable` no-ops |
 | Effortless Building | Building skill place-reach / max blocks | Mixin json skipped; Building drip unused |
-| InControl | Spawning layer filter + pack fill (compile-hard min-distance) | Missing jar fails compile; pack always ships it |
+| InControl | Spawning layer filter + pack fill + structure BB cache (compile-hard min-distance and `StructureCache`) | Missing jar fails compile; pack always ships it |
 | Animania | Advancement: skip Base world-load reload + Farm/Extra inject | Mixin json skipped; Animania advancements load as stock |
+| YUNG’s Better Mineshafts | Locate pin + failed-entrance stub | Mixin json skipped; stock BM Y=64 locate |
 
 ### Init (`CommonProxy` / `ClientProxy`)
 
@@ -67,7 +69,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 
 - Register SimpleNetworkWrapper messages 0–2 (stamina climb/grapple). See [stamina.md](stamina.md).
 - `ArcanaQuestTweaksConfig.normalizePinned()` — forces `DepthsModuleConfig.general.minWorldY` to `DEPTHS_FLOOR_Y` (−64) even if an instance cfg was hand-edited.
-- `ComfortConfigLoader.load`, `GaiaDamageConfig.load`, `SpawnTypeLists.load`, `SpawnParties.load`, and `SpawnGroupCounts.load` from the Forge config directory.
+- `ComfortConfigLoader.load`, `GaiaDamageConfig.load`, `SpawnTypeLists.load`, `SpawnStructureLists.load`, `SpawnParties.load`, and `SpawnGroupCounts.load` from the Forge config directory.
 - `PortalModule.preInit` (`ForgeChunkManager` callback). Item/entity register via `RegistryEvent` (not init).
 - `MapGenStructureIO.registerStructureComponent(VillagePieceVillagePlate.class, "AQTVillagePlate")` — **unconditional**. The Astral `AQTSmallShrine` piece is the conditional one (init, only if `astralsorcery`).
 - If `reskillable`: `ReskillablePerkRegistry` (Unlockable `RegistryEvent`).
@@ -86,7 +88,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 - `StaminaModuleClient`, `DepthsFogHandler`, `ClientModule`.
 - Entity renderer for `EntityArcaneRift` in **client preInit**. If `grimoireofgaia` and Deep Dwarf enabled: `RenderDeepDwarf`. Item models on `ModelRegistryEvent`.
 
-`postInit` registers `SpawnLayerFilter` (after InControl `PotentialSpawns`) and runs `Reflect.auditUnresolved()`. `ArcanaQuestTweaks.serverStarting` (`@Mod.EventHandler` on `FMLServerStartingEvent`) registers the `/aqvillage` server command (`CommandAqVillage`) — see [rtg.md](rtg.md).
+`postInit` registers `SpawnLayerFilter` (after InControl `PotentialSpawns`), enables structure cave exemption if `incontrol` is loaded, and runs `Reflect.auditUnresolved()`. `ArcanaQuestTweaks.serverStarting` (`@Mod.EventHandler` on `FMLServerStartingEvent`) registers the `/aqvillage` server command (`CommandAqVillage`) — see [rtg.md](rtg.md).
 
 ### MixinBooter: early vs late
 
@@ -112,11 +114,13 @@ Vanilla `World` and `MobSpawnerBaseLogic` are already loaded when late mixins pr
 | `mixins.aqtweaks.thaumcraft.json` | false | Thaumcraft focus HP magic flag + Heal scale | Skip |
 | `mixins.aqtweaks.animania.json` | false | Advancement: cancel Animania `onWorldLoad` | Skip |
 | `mixins.aqtweaks.somnia.json` | false | Somnia: chunk light fix, 3-tier SMP sleep (Case A/B/C), Case B 2x time, fatigue tuning & chat notifications | Skip |
+| `mixins.aqtweaks.incontrol.json` | false | Spawning: `StructureCache.parseStructureData` BB chunk expand | Skip |
+| `mixins.aqtweaks.bettermineshafts.json` | false | Better Mineshafts locate pin + entrance stub | Skip |
 
 `mixins.aqtweaks.json` contents (package `com.apocollis.aqtweaks.mixin`):
 
 - Client: `MixinRenderGlobal` (Depths hide sky)
-- Common: `MixinChunkProviderServer`, `depthsupdate.MixinDepthsCaveNoiseGenerator`, `cofh.MixinDistributionUniform`, `reccomplex.MixinRayMatcher`, `reccomplex.MixinGenericVillageCreationHandler`, Better Caves / RTG village mixins listed in [depths.md](depths.md) and [rtg.md](rtg.md), `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinWorldGenLakes`, `MixinMapGenVillageInside/Spawn/Start/World`, `MixinCraftingHelperFindFiles`, `MixinWorldEntitySpawner`. Charm paste: optional `mixins.aqtweaks.charm.json`. Portal `MixinWorldRiftLight` and cage `MixinMobSpawnerBaseLogic` are in `mixins.aqtweaks.early.json`.
+- Common: `MixinChunkProviderServer`, `depthsupdate.MixinDepthsCaveNoiseGenerator`, `cofh.MixinDistributionUniform`, `reccomplex.MixinRayMatcher`, `reccomplex.MixinGenericVillageCreationHandler`, Better Caves / RTG village mixins listed in [depths.md](depths.md) and [rtg.md](rtg.md), `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinWorldGenLakes`, `MixinMapGenVillageInside/Spawn/Start/World`, `MixinCraftingHelperFindFiles`, `MixinWorldEntitySpawner`. Charm paste: optional `mixins.aqtweaks.charm.json`. Portal `MixinWorldRiftLight` and cage `MixinMobSpawnerBaseLogic` are in `mixins.aqtweaks.early.json`. InControl `MixinStructureCache` is in `mixins.aqtweaks.incontrol.json`. Better Mineshafts locate mixins are in `mixins.aqtweaks.bettermineshafts.json`.
 
 Two mixins target `ChunkGeneratorRTG` in that required json. Their order comes from injection points, not from this list:
 

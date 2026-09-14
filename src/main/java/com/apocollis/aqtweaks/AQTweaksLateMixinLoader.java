@@ -22,6 +22,8 @@ public class AQTweaksLateMixinLoader implements ILateMixinLoader {
                 "mixins.aqtweaks.effortlessbuilding.json",
                 "mixins.aqtweaks.thaumcraft.json",
                 "mixins.aqtweaks.animania.json",
-                "mixins.aqtweaks.somnia.json");
+                "mixins.aqtweaks.somnia.json",
+                "mixins.aqtweaks.incontrol.json",
+                "mixins.aqtweaks.bettermineshafts.json");
     }
 }

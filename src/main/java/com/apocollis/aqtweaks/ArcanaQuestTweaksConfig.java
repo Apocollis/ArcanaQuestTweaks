@@ -1013,6 +1013,10 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Pack JSON under the Forge config directory. Default is DEVBOX config/arcanaquest/mob_overworldspawntype.json. Tweaks does not ship or write this file.")
         public String spawnTypeFile = "arcanaquest/mob_overworldspawntype.json";
 
+        @Config.Name("Spawn Structure File")
+        @Config.Comment("Pack JSON under the Forge config directory. Structure name to entity ids for cave layer exemption. Tweaks does not ship or write this file.")
+        public String spawnStructureFile = "arcanaquest/mob_structurespawns.json";
+
         @Config.Name("Cave Max Y")
         @Config.Comment("Cave pick when Y is strictly below this and sky light is at or below Max Cave Sky Light.")
         @Config.RangeInt(min = -64, max = 256)
@@ -1126,31 +1130,31 @@ public class ArcanaQuestTweaksConfig {
     public static class ReskillablePerks {
         @Config.Name("Melee Efficiency")
         public ReskillablePerkLayout meleeEfficiency = new ReskillablePerkLayout(
-                2, 2, 6, "reskillable:attack", "reskillable:attack|16", "reskillable:agility|12");
+                2, 2, 4, "reskillable:attack", "reskillable:attack|16", "reskillable:agility|12");
 
         @Config.Name("Ranged Efficiency")
         public ReskillablePerkLayout rangedEfficiency = new ReskillablePerkLayout(
-                2, 3, 6, "reskillable:attack", "reskillable:attack|16", "reskillable:agility|12");
+                2, 3, 4, "reskillable:attack", "reskillable:attack|16", "reskillable:agility|12");
 
         @Config.Name("Shield Efficiency")
         public ReskillablePerkLayout shieldEfficiency = new ReskillablePerkLayout(
-                2, 2, 6, "reskillable:defense", "reskillable:defense|16");
+                2, 2, 4, "reskillable:defense", "reskillable:defense|16");
 
         @Config.Name("Adrenaline")
         public ReskillablePerkLayout adrenaline = new ReskillablePerkLayout(
-                2, 1, 6, "reskillable:agility", "reskillable:agility|16", "reskillable:defense|12");
+                2, 1, 4, "reskillable:agility", "reskillable:agility|16", "reskillable:defense|12");
 
         @Config.Name("Expert Climber")
         public ReskillablePerkLayout expertClimber = new ReskillablePerkLayout(
-                1, 2, 6, "reskillable:agility", "reskillable:agility|20");
+                1, 2, 4, "reskillable:agility", "reskillable:agility|20");
 
         @Config.Name("Cardio Master")
         public ReskillablePerkLayout cardioMaster = new ReskillablePerkLayout(
-                3, 3, 6, "reskillable:agility", "reskillable:agility|20");
+                3, 3, 4, "reskillable:agility", "reskillable:agility|20");
 
         @Config.Name("Mining Expert")
         public ReskillablePerkLayout miningExpert = new ReskillablePerkLayout(
-                3, 3, 6, "reskillable:mining", "reskillable:mining|24");
+                3, 3, 4, "reskillable:mining", "reskillable:mining|24");
     }
 
     public static class ReskillableGeneral {
@@ -1255,6 +1259,7 @@ public class ArcanaQuestTweaksConfig {
                 normalizePinned();
                 DssSkillCosts.invalidate();
                 com.apocollis.aqtweaks.spawning.SpawnTypeLists.reload();
+                com.apocollis.aqtweaks.spawning.SpawnStructureLists.reload();
                 com.apocollis.aqtweaks.spawning.SpawnParties.reload();
                 com.apocollis.aqtweaks.spawning.SpawnGroupCounts.reload();
                 com.apocollis.aqtweaks.spawning.SpawnGroupSizes.invalidate();

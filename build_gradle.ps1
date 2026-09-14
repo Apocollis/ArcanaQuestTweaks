@@ -44,13 +44,34 @@ $deps = @(
     "Thaumcraft-1.12.2-6.1.BETA26.jar",
     "incontrol-1.12-3.10.4.jar",
     "animania-1.12.2-base-2.0.3.28.jar",
-    "Somnia-1.0.1.jar"
+    "Somnia-1.0.1.jar",
+    "BetterMineshaftsForge-1.12.2-2.2.1.jar"
 )
 foreach ($dep in $deps) {
     $src = "$localModsDir/$dep"
     $dest = "$libsDir/$dep"
     if (Test-Path $src) {
         Copy-Item -Path $src -Destination $dest -Force
+    }
+}
+
+$incontrolJar = Join-Path $libsDir "incontrol-1.12-3.10.4.jar"
+$mcjtyToolsJar = Join-Path $libsDir "mcjtytools-1.12-0.0.21.jar"
+if (Test-Path $incontrolJar) {
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $zip = [System.IO.Compression.ZipFile]::OpenRead($incontrolJar)
+    try {
+        $entry = $zip.GetEntry("META-INF/libraries/mcjtytools-1.12-0.0.21.jar")
+        if ($entry -ne $null) {
+            $out = [System.IO.File]::Create($mcjtyToolsJar)
+            try {
+                $entry.Open().CopyTo($out)
+            } finally {
+                $out.Dispose()
+            }
+        }
+    } finally {
+        $zip.Dispose()
     }
 }
 

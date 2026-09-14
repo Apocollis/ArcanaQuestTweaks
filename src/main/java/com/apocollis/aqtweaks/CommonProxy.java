@@ -35,6 +35,7 @@ public class CommonProxy {
         ComfortConfigLoader.load(event.getModConfigurationDirectory());
         GaiaDamageConfig.load(event.getModConfigurationDirectory());
         com.apocollis.aqtweaks.spawning.SpawnTypeLists.load(event.getModConfigurationDirectory());
+        com.apocollis.aqtweaks.spawning.SpawnStructureLists.load(event.getModConfigurationDirectory());
         com.apocollis.aqtweaks.spawning.SpawnParties.load(event.getModConfigurationDirectory());
         com.apocollis.aqtweaks.spawning.SpawnGroupCounts.load(event.getModConfigurationDirectory());
         com.apocollis.aqtweaks.portal.PortalModule.preInit();
@@ -75,6 +76,9 @@ public class CommonProxy {
 
     public void postInit(FMLPostInitializationEvent event) {
         // After InControl so PotentialSpawns last-per-class runs after it appends group-count rows.
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("incontrol")) {
+            com.apocollis.aqtweaks.spawning.SpawnLayerFilter.enableStructureExemption();
+        }
         MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.spawning.SpawnLayerFilter());
         // Every optional-mod and vanilla handle has had its chance to resolve by now. Say which
         // ones did not, so a mapping break is a log line instead of a module that quietly no-ops.
