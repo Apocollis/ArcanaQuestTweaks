@@ -22,6 +22,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraftforge.event.entity.EntityJoinWorldEvent;
 import net.minecraftforge.event.entity.living.LivingEvent.LivingJumpEvent;
+import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.living.LivingEntityUseItemEvent;
 import net.minecraftforge.event.entity.player.AttackEntityEvent;
@@ -643,6 +644,11 @@ public class StaminaModule {
         int cost = (type == WeaponType.LIGHT) ? ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.lightCost : 
                    (type == WeaponType.HEAVY ? ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.heavyCost : ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.mediumCost);
         cost = StaminaPerks.meleeCost(playerMP, cost);
+
+        if (StaminaPerks.tryPowerAttack(playerMP, type, cost)) {
+            return;
+        }
+
         double multiplier = (type == WeaponType.LIGHT) ? ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.lightDamageMultiplier : 
                              (type == WeaponType.HEAVY ? ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.heavyDamageMultiplier : ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.mediumDamageMultiplier);
 
@@ -765,27 +771,22 @@ public class StaminaModule {
         }
     }
 
+    @SubscribeEvent(priority = EventPriority.HIGH)
+    public void onLivingAttack(LivingAttackEvent event) {
+        StaminaPerks.tryEvasion(event);
+    }
+
     @SubscribeEvent
     public void onLivingHurt(LivingHurtEvent event) {
         EntityLivingBase hurt = event.getEntityLiving();
         if (hurt == null || hurt.world.isRemote) return;
 
-        // Adrenaline only fires when the victim is a player.
         if (hurt instanceof EntityPlayer victim) {
             StaminaPerks.tryAdrenaline(victim, event.getAmount());
         }
 
-        // The empty-stamina attack penalty is charged to the attacker, so it applies to any
-        // victim. Gating this on a player victim made it PvP-only.
         Entity attacker = event.getSource().getTrueSource();
-        if (!(attacker instanceof EntityPlayer)) return;
-
-        NBTTagCompound attackerData = attacker.getEntityData();
-        if (attackerData.hasKey("StaminaTweaksAttackPenalty")) {
-            double penalty = attackerData.getDouble("StaminaTweaksAttackPenalty");
-            event.setAmount((float) (event.getAmount() * penalty));
-            attackerData.removeTag("StaminaTweaksAttackPenalty");
-        }
+        StaminaPerks.applyOutgoingMeleeModifiers(attacker, event);
     }
 
     private void handleServerShieldBlocking(EntityPlayerMP player, NBTTagCompound data) {

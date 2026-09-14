@@ -473,6 +473,30 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Subtracted from jump and sprint costs (half-feathers). Floor 0.")
         @Config.RangeInt(min = 0, max = 20)
         public int cardioMasterReduction = 1;
+
+        @Config.Name("Evasion Perk ID")
+        public String evasionPerkId = "aqtweaks:evasion";
+
+        @Config.Name("Evasion Cooldown Ticks")
+        @Config.Comment("Ticks after a successful evade. 600 = 30 seconds. Feather cost is Elenai dodge cost.")
+        @Config.RangeInt(min = 0, max = 12000)
+        public int evasionCooldownTicks = 600;
+
+        @Config.Name("Power Attack Perk ID")
+        public String powerAttackPerkId = "aqtweaks:power_attack";
+
+        @Config.Name("Power Attack Extra Spend")
+        @Config.Comment("Extra half-feathers on a full-bar medium/heavy hit. Not reduced by Melee Efficiency.")
+        @Config.RangeInt(min = 0, max = 40)
+        public int powerAttackExtraSpend = 2;
+
+        @Config.Name("Power Attack Medium Multiplier")
+        @Config.RangeDouble(min = 1.0, max = 8.0)
+        public double powerAttackMediumMultiplier = 1.5;
+
+        @Config.Name("Power Attack Heavy Multiplier")
+        @Config.RangeDouble(min = 1.0, max = 8.0)
+        public double powerAttackHeavyMultiplier = 2.0;
     }
 
     public static class SimpleDifficulty {
@@ -1125,6 +1149,10 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Perks")
         @Config.Comment("Tree layout for Tweaks-registered traits. Restart after edit. Does not hot-reload.")
         public static final ReskillablePerks perks = new ReskillablePerks();
+
+        @Config.Name("Respite")
+        @Config.Comment("Lethal-save effect knobs. Layout/cost stay under Perks.")
+        public static final ReskillableRespite respite = new ReskillableRespite();
     }
 
     public static class ReskillablePerks {
@@ -1155,6 +1183,53 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Mining Expert")
         public ReskillablePerkLayout miningExpert = new ReskillablePerkLayout(
                 3, 3, 4, "reskillable:mining", "reskillable:mining|24");
+
+        @Config.Name("Evasion")
+        public ReskillablePerkLayout evasion = new ReskillablePerkLayout(
+                3, 2, 3, "reskillable:agility", "reskillable:agility|16");
+
+        @Config.Name("Respite")
+        public ReskillablePerkLayout respite = new ReskillablePerkLayout(
+                2, 1, 4, "reskillable:defense", "reskillable:defense|16", "reskillable:magic|16");
+
+        @Config.Name("Power Attack")
+        public ReskillablePerkLayout powerAttack = new ReskillablePerkLayout(
+                2, 1, 3, "reskillable:attack", "reskillable:attack|12");
+
+        @Config.Name("Armor Mastery")
+        public ReskillablePerkLayout armorMastery = new ReskillablePerkLayout(
+                2, 3, 6, "reskillable:defense", "reskillable:defense|8", "reskillable:agility|16");
+
+        @Config.Name("Mining Efficiency")
+        public ReskillablePerkLayout miningEfficiency = new ReskillablePerkLayout(
+                2, 3, 6, "reskillable:mining", "reskillable:mining|20");
+    }
+
+    public static class ReskillableRespite {
+        @Config.Name("Perk ID")
+        public String perkId = "aqtweaks:respite";
+
+        @Config.Name("Cooldown Ticks")
+        @Config.Comment("Ticks after a save before it can fire again. 1200 = 60 seconds.")
+        @Config.RangeInt(min = 0, max = 12000)
+        public int cooldownTicks = 1200;
+
+        @Config.Name("Effect Duration Ticks")
+        @Config.Comment("Regen II and Tea Story defence duration. 100 = 5 seconds.")
+        @Config.RangeInt(min = 1, max = 12000)
+        public int effectDurationTicks = 100;
+
+        @Config.Name("Regen Amplifier")
+        @Config.Comment("0 = Regeneration I, 1 = Regeneration II.")
+        @Config.RangeInt(min = 0, max = 10)
+        public int regenAmplifier = 1;
+
+        @Config.Name("Defence Potion ID")
+        public String defencePotionId = "teastory:defence";
+
+        @Config.Name("Defence Amplifier")
+        @Config.RangeInt(min = 0, max = 10)
+        public int defenceAmplifier = 0;
     }
 
     public static class ReskillableGeneral {

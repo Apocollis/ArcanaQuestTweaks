@@ -22,5 +22,10 @@ public class ReskillablePerkRegistry {
         event.getRegistry().register(new AqtweaksTrait("expert_climber", perks.expertClimber));
         event.getRegistry().register(new AqtweaksTrait("cardio_master", perks.cardioMaster));
         event.getRegistry().register(new AqtweaksTrait("mining_expert", perks.miningExpert));
+        event.getRegistry().register(new AqtweaksTrait("evasion", perks.evasion));
+        event.getRegistry().register(new AqtweaksTrait("respite", perks.respite));
+        event.getRegistry().register(new AqtweaksTrait("power_attack", perks.powerAttack));
+        event.getRegistry().register(new AqtweaksTrait("armor_mastery", perks.armorMastery));
+        event.getRegistry().register(new AqtweaksTrait("mining_efficiency", perks.miningEfficiency));
     }
 }

@@ -1,6 +1,6 @@
 # Stamina module (1.8)
 
-Last updated: 2026-09-10.
+Last updated: 2026-09-14.
 
 Config: `config/arcanaquesttweaks/aqtweaks_stamina.cfg`. Compile against **Elenai Dodge 2 Extended** (`ElenaiDodge2Extended-1.12.2-1.1.3.jar`). Forge modid is still `elenaidodge2`.
 
@@ -12,7 +12,7 @@ Creative and spectator players are skipped everywhere. Spectator is not billed; 
 
 Spend Elenai feathers for jump, sprint, melee, bow, throwing, climb, ledge mantle, shield, mine, glider, grapple, and DSS skills. Gate those actions when the pool cannot pay. Do **not** replace Elenai regen, dodge, or HUD icons. Do **not** post `SpendFeatherEvent`.
 
-Optional parents: Grapple motor Ember, Open Glider undeploy, Reskillable stamina perks (ids in stamina cfg; Tweaks **registers** Melee/Ranged/Shield/Adrenaline/Climber/Cardio; **does not** register Armor Mastery / Mining Efficiency — pack CrT), Simple Difficulty thirst on feather regen.
+Optional parents: Grapple motor Ember, Open Glider undeploy, Reskillable stamina perks (ids in stamina cfg; Tweaks **registers** Melee/Ranged/Shield/Adrenaline/Climber/Cardio/Evasion/Power Attack/Armor Mastery/Mining Efficiency), Simple Difficulty thirst on feather regen.
 
 ## Hard constraints
 
@@ -80,7 +80,7 @@ Perk lookup is `Reflect.hasUnlockable`. Thirst is `addThirstExhaustion` on SD’
 
 Mastery stacks **after** Endurance. Client `SWeightMessage` uses this combined value; skip that overwrite while Weight potion is active so crushing weight stays 200.
 
-This jar does **not** register `aqtweaks:armor_mastery` or `aqtweaks:mining_efficiency`. The pack’s Reskillable content must provide those ids or the perks never apply. Tweaks **does** register the other stamina-tree traits in [reskillable.md](reskillable.md).
+This jar **registers** `aqtweaks:armor_mastery` and `aqtweaks:mining_efficiency` with the other stamina-tree traits in [reskillable.md](reskillable.md). Delete pack `scripts/crafttweaker/stamina_perks.zs` so CompatSkills does not register the same ids twice.
 
 On join (`EntityJoinWorldEvent`): **HIGHEST** backup + clear Elenai’s weight array for `EntityPlayerMP`; **LOWEST** restore. That window is so Elenai’s join handler does not apply weight first. Client tick restores `ClientStorage.weightValues` if emptied and clears `ArmorTickEventListener.previousArmor` so weight re-evaluates. Armor Mastery also sends Elenai `SWeightMessage` when `ClientStorage.weight` disagrees (`ClientTickEvent` END LOWEST).
 
@@ -147,10 +147,11 @@ DSS default list is every stock skill `=0`. Change `Skill Costs` in cfg; no rebu
 | `EntityJoinWorldEvent` HIGHEST/LOWEST | `StaminaModule` | Clear/restore Elenai weight array for `EntityPlayerMP` (nested-join depth). Throw release is billed on `ItemUseStop`, not join |
 | `TickEvent.PlayerTickEvent` START | `StaminaModule` | Bow hold, throw hold, climb, ledge extras, grapple, glider, sprint, shield, mining fatigue, thirst-on-regen |
 | `LivingJumpEvent` | | Spend jump or zero `motionY` |
-| `AttackEntityEvent` | | Melee spend or drain + `StaminaTweaksAttackPenalty` |
+| `AttackEntityEvent` | | Melee spend or drain + `StaminaTweaksAttackPenalty`; full-bar Power Attack on medium/heavy |
 | `PlayerInteractEvent.LeftClickBlock` | | Melee spend if enough (block punch). **No** remaining-drain / penalty |
 | `PlayerInteractEvent.LeftClickEmpty` | | Intended air-swing spend; Forge fires this **client-side**, and the handler returns on `isRemote` → **air swings do not spend** |
-| `LivingHurtEvent` | | If **attacker** has penalty NBT, multiply damage then clear tag. If **victim** is a player, `StaminaPerks.tryAdrenaline` (below threshold → restore feathers, cooldown NBT) |
+| `LivingAttackEvent` HIGH | | Evasion: living attacker, dodge-cost spend, cancel, dodge sound, 30s CD |
+| `LivingHurtEvent` | | If **attacker** has Power Attack or empty-stamina penalty NBT, multiply damage then clear. If **victim** is a player, `StaminaPerks.tryAdrenaline` |
 | `LivingEntityUseItemEvent.Start` | | Bow (`ItemBow`) draw cost or cancel. Throwing weapons are not billed here unless they are `ItemBow` |
 | `LivingEntityUseItemEvent.Tick` | | Extra bow-hold spend on use-duration cadence (independent of player-tick timer) |
 | `LivingEntityUseItemEvent.Stop` | | Throw release or cancel |
@@ -309,15 +310,17 @@ All live unless noted. Nested Forge categories.
 | Ore/Obsidian / default break | 2 / 1 | |
 | Mining Fatigue Feather Threshold | 4 | Regular feathers, not usable |
 | Enable Reskillable Perks | true | Gates **all** stamina perk lookups (`StaminaPerks.unlocked`, Armor Mastery in `getWeight`, Mining Efficiency on break) |
-| Armor Mastery Perk ID | `aqtweaks:armor_mastery` | Pack must register |
+| Armor Mastery Perk ID | `aqtweaks:armor_mastery` | Tweaks registers |
 | Armor Mastery Reduction | 1.0 | Per armor piece |
-| Mining Efficiency Perk ID | `aqtweaks:mining_efficiency` | Pack must register |
+| Mining Efficiency Perk ID | `aqtweaks:mining_efficiency` | Tweaks registers |
 | Mining Efficiency Reduction | 1 | Subtracted from break cost |
-| Melee / Ranged / Shield / Adrenaline / Climber / Cardio perk ids | `aqtweaks:…` | Tweaks registers these |
+| Melee / Ranged / Shield / Adrenaline / Climber / Cardio / Evasion / Power Attack perk ids | `aqtweaks:…` | Tweaks registers these |
 | Melee / Climber / Cardio reduction | 1 | Half-feathers, floor 0 |
 | Ranged draw reduction / hold interval × | 1 / 1.5 | Draw 2→1; hold 20→30 |
 | Shield hold interval × | 2 | 20→40 |
-| Adrenaline threshold / restore / cooldown | 3 / 20 / 400 ticks | Half-feathers; 20s |
+| Adrenaline threshold / restore / cooldown | 3 / 20 / 400 ticks | Half-feathers; 20s; CD potion |
+| Evasion cooldown | 600 ticks | 30s; spend is Elenai dodge cost |
+| Power Attack extra / medium × / heavy × | 2 / 1.5 / 2.0 | Full bar; not light |
 | Enable Thirst Cost | true | Regen → SD exhaustion |
 | Thirst Exhaustion Per Feather | 0.25 | Per half-feather gained |
 | Enable Ledge Climbing | true | Client FSM + packet |
@@ -342,6 +345,8 @@ All live unless noted. Nested Forge categories.
 | `GliderTicks` | server | Glider bill |
 | `ShieldActive` / `ShieldTicks` | server | Shield bill |
 | `AdrenalineUntil` | server | Ticks-existed deadline for Adrenaline |
+| `EvasionUntil` | server | Ticks-existed deadline for Evasion |
+| `PowerAttack` | server | Full-bar melee damage multiplier until next hurt |
 | `LedgeClimbState` / `LedgeClimbGrace` / `LedgeClimbHeldTicks` / `LedgeClimbTargetY` / `LedgeClimbLipX` / `LedgeClimbLipY` / `LedgeClimbLipZ` / `LedgeClimbLastY` / `LedgeMantleTicks` / `LedgeExtraSpends` | both | Mantle FSM; finish on nearest lip collision XZ; extras are server |
 | `LedgeClimbRecoverUntil` | client | `ticksExisted` deadline; suppress jump/WASD after snap |
 | `LastJumpInput` | client | Climb packet edge when leaving ladder |
@@ -441,5 +446,4 @@ Sideways `dx/dz * 0.005` pushed the AABB into the 1.5-tall post before feet were
 
 - Billing air swings (would need a server-bound swing packet)
 - Deduplicating bow hold (player tick vs `UseItem.Tick`)
-- Registering Armor Mastery / Mining Efficiency inside this jar (still pack CrT)
 - Recarving / worldgen (stamina has none)

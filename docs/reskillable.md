@@ -4,7 +4,7 @@ Last updated: 2026-09-14.
 
 Config: `config/arcanaquesttweaks/aqtweaks_reskillable.cfg`. Handler registers only if `reskillable` is loaded (`CommonProxy.init`). Compile-hard CAD Reskillable **1.13.1** API; types live only in `com.apocollis.aqtweaks.reskillable`. Soft `@Mod` `after:reskillable` (not `required-after`).
 
-Stamina Armor Mastery / Mining Efficiency **perk id lookups** stay in [stamina.md](stamina.md) (`Reflect.hasUnlockable`, `aqtweaks_stamina.cfg`). This jar **registers** the stamina-tree traits listed below plus Mining Expert. It still does **not** register `aqtweaks:armor_mastery` or `aqtweaks:mining_efficiency` (pack CrT).
+Stamina Armor Mastery / Mining Efficiency **perk id lookups** stay in [stamina.md](stamina.md) (`Reflect.hasUnlockable`, `aqtweaks_stamina.cfg`). This jar **registers** those traits (same ids as the old pack CrT). Remove pack `stamina_perks.zs` or the duplicate registry will conflict.
 
 Effortless Building placement bonuses need both `reskillable` and `effortlessbuilding`. Optional `mixins.aqtweaks.effortlessbuilding.json` (`required: false`). Parent jar: `effortlessbuilding-1.12.2-2.16`. Soft `after:effortlessbuilding`.
 
@@ -96,11 +96,24 @@ Register in **preInit** (`ReskillablePerkRegistry`). CAD `getTraitConfig` still 
 | --- | --- | --- | --- | --- |
 | `aqtweaks:melee_efficiency` | attack | 2,2 | 4 | attack 16, agility 12 |
 | `aqtweaks:ranged_efficiency` | attack | 2,3 | 4 | attack 16, agility 12 |
+| `aqtweaks:power_attack` | attack | 2,1 | 3 | attack 12 |
 | `aqtweaks:shield_efficiency` | defense | 2,2 | 4 | defense 16 |
+| `aqtweaks:respite` | defense | 2,1 | 4 | defense 16, magic 16 |
+| `aqtweaks:armor_mastery` | defense | 2,3 | 6 | defense 8, agility 16 |
 | `aqtweaks:adrenaline` | agility | 2,1 | 4 | agility 16, defense 12 |
+| `aqtweaks:evasion` | agility | 3,2 | 3 | agility 16 |
 | `aqtweaks:expert_climber` | agility | 1,2 | 4 | agility 20 |
 | `aqtweaks:cardio_master` | agility | 3,3 | 4 | agility 20 |
+| `aqtweaks:mining_efficiency` | mining | 2,3 | 6 | mining 20 |
 | `aqtweaks:mining_expert` | mining | 3,3 | 4 | mining 24 |
+
+Power Attack: connecting medium/heavy melee on a **full** regular feather bar; **×1.5** / **×2** and **+2** extra half-feathers (Efficiency does not cut the +2). Light never procs.
+
+Respite: `LivingDamageEvent` LOWEST. Lethal except `outOfWorld`. Regen II + `teastory:defence` 5s. Cooldown 60s (harmful potion, same PNG as the tree icon).
+
+Evasion: `LivingAttackEvent` HIGH, living attacker (PvP included). Spends Elenai dodge cost (`ModConfig.common.feathers.cost` / `airborneCost`). Dodge **sound** only (no roll, no `ServerDodgeEffects.run`). Cooldown 30s potion.
+
+Adrenaline cooldown potion uses `unlockables/adrenaline.png` (20s).
 
 Mining Expert: `PlayerEvent.HarvestCheck` client+server. Pickaxe tool class, block pickaxe or null tool, harvest ≤ floor. Does not change `Item.getHarvestLevel`.
 
@@ -110,7 +123,9 @@ Lang: `reskillable.unlock.aqtweaks.<path>` / `.desc`. Icons: `aqtweaks:textures/
 
 - `reskillable/ReskillablePerkRegistry.java`, `AqtweaksTrait.java`, `ReskillablePerkLayout.java`
 - `reskillable/ReskillableModule.java` — events + Mining Expert HarvestCheck
-- `stamina/StaminaPerks.java` — spend reductions + Adrenaline
+- `reskillable/RespiteHandler.java` — lethal save
+- `potion/PotionPerkCooldown.java` — Adrenaline / Evasion / Respite CD HUD
+- `stamina/StaminaPerks.java` — spend reductions, Adrenaline, Evasion, Power Attack
 - `reskillable/ReskillableBonuses.java` — levels, classify, EB add
 - `reskillable/EffortlessBuildingHooks.java` — mixin bridge (no Reskillable imports)
 - `mixin/effortlessbuilding/MixinReachHelper.java`
@@ -119,10 +134,12 @@ Lang: `reskillable.unlock.aqtweaks.<path>` / `.desc`. Icons: `aqtweaks:textures/
 ## Do not regress
 
 - Stamina `aqtweaks_stamina.cfg` Reskillable perk section and `Reflect.hasUnlockable`
-- No unlockable registration for Armor Mastery / Mining Efficiency (pack CrT)
+- Duplicate registry if pack CrT still registers Armor Mastery / Mining Efficiency
 - No Reskillable `import` from `StaminaModule` / `Reflect` / config class body
 - No vanilla `REACH_DISTANCE`; do not mixin EB `getMaxReach`
-- Attack/Defense not extra-multiplied in `LivingHurtEvent`
+- Attack/Defense not extra-multiplied in `LivingHurtEvent` except Power Attack’s tagged multiplier
+- Comfort still only cancels rest; Gaia bolt retype still runs before this NORMAL hurt
+- Evasion must not call Elenai `ServerDodgeEffects.run` or post `SpendFeatherEvent`
 - Comfort still only cancels rest; Gaia bolt retype still runs before this NORMAL hurt
 - `--release 21`
 
