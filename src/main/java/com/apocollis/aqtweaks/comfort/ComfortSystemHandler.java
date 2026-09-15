@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -58,7 +59,8 @@ public class ComfortSystemHandler {
     private static final String GRANTED_BAND_TAG = "AQTComfortGrantedBand";
     private static final String BAND_SINCE_TAG = "AQTComfortBandSince";
     private static final String HURT_AT_TAG = "AQTComfortHurtAt";
-    private static final String ATTACK_AT_TAG = "AQTComfortAttackAt";
+    private static final String LEARNING_POTION = "extraalchemy:effect.learning";
+    private static final String XP_BOOST_POTION = "soot:experience_boost";
 
     static final Map<String, CozyConfig> COZY_BLOCKS = new HashMap<>();
     static final Map<String, Integer> CATEGORY_LIMITS = new HashMap<>();
@@ -102,47 +104,11 @@ public class ComfortSystemHandler {
         if ((player.ticksExisted + player.getEntityId()) % CHECK_INTERVAL_TICKS != 0) return;
 
         boolean currentlyResting = isComfortResting(player);
-
-        // The cozy scan is 3,125 block lookups. Skip it when this tick cannot start or refresh.
         if (!currentlyResting) {
             if (!isPlayerResting(player) || isEntryOnCooldown(player, world)) return;
         }
 
-        CozyScan cozy = calculateCozyScan(player);
-        if (!cozy.meetsEntryFurniture()) {
-            if (currentlyResting) {
-                setComfortResting(player, false);
-            }
-            return;
-        }
-
-        float score = Math.max(0.0f, cozy.score + calculateBonuses(player) - calculatePenalties(player));
-        int scoreBand = scoreBand(score);
-
-        if (scoreBand <= 0) {
-            if (currentlyResting) {
-                setComfortResting(player, false);
-            }
-            return;
-        }
-
-        if (!currentlyResting) {
-            startLadder(player, world, 1);
-            setComfortResting(player, true);
-            applyComfortBenefits(player, 1);
-            return;
-        }
-
-        int granted = getGrantedBand(player);
-        if (scoreBand < granted) {
-            granted = scoreBand;
-            stampLadder(player, world, granted);
-        } else if (scoreBand > granted && world.getTotalWorldTime() - getBandSince(player) >= PROMOTE_TICKS) {
-            granted = Math.min(granted + 1, scoreBand);
-            stampLadder(player, world, granted);
-        }
-
-        applyComfortBenefits(player, granted);
+        applyEvaluation(player, evaluate(player));
     }
 
     /**
@@ -187,17 +153,127 @@ public class ComfortSystemHandler {
     }
 
     private static boolean isEntryOnCooldown(EntityPlayer player, World world) {
-        long now = world.getTotalWorldTime();
+        return remainingHurtTicks(player, world) > 0L || remainingAttackTicks(player, world) > 0L;
+    }
+
+    static long remainingHurtTicks(EntityPlayer player, World world) {
+        return remainingCooldown(player, world, HURT_AT_TAG, DAMAGE_COOLDOWN_TICKS);
+    }
+
+    static long remainingAttackTicks(EntityPlayer player, World world) {
+        return remainingCooldown(player, world, ATTACK_AT_TAG, ATTACK_COOLDOWN_TICKS);
+    }
+
+    private static long remainingCooldown(EntityPlayer player, World world, String tag, long cooldownTicks) {
+        if (cooldownTicks <= 0L) return 0L;
         NBTTagCompound data = player.getEntityData();
-        if (DAMAGE_COOLDOWN_TICKS > 0L && data.hasKey(HURT_AT_TAG)
-                && now - data.getLong(HURT_AT_TAG) < DAMAGE_COOLDOWN_TICKS) {
-            return true;
+        if (!data.hasKey(tag)) return 0L;
+        long left = cooldownTicks - (world.getTotalWorldTime() - data.getLong(tag));
+        return left > 0L ? left : 0L;
+    }
+
+    /**
+     * Full 25×5×25 scan plus bonuses/penalties. Used by the 30s tick and {@code /aqcomfort}.
+     */
+    static ComfortEval evaluate(EntityPlayer player) {
+        World world = player.world;
+        CozyScan cozy = calculateCozyScan(player);
+        if (world == null) {
+            return new ComfortEval(
+                    false, false, cozy.meetsEntryFurniture(), 0L, 0L,
+                    cozy.score, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                    Math.max(0.0f, cozy.score), scoreBand(Math.max(0.0f, cozy.score)), 0, -1L,
+                    cozy.cappedByCategory, Collections.emptyList(), Collections.emptyList());
         }
-        if (ATTACK_COOLDOWN_TICKS > 0L && data.hasKey(ATTACK_AT_TAG)
-                && now - data.getLong(ATTACK_AT_TAG) < ATTACK_COOLDOWN_TICKS) {
-            return true;
+        List<ComfortSettings.PotionModifier> activeBonuses = activeModifiers(player, POTION_BONUSES, BONUSES_ENABLED);
+        List<ComfortSettings.PotionModifier> activePenaltyEffects = activeModifiers(player, POTION_PENALTIES, PENALTIES_ENABLED);
+        float bonusTotal = 0.0f;
+        for (ComfortSettings.PotionModifier m : activeBonuses) {
+            bonusTotal += m.amount;
         }
-        return false;
+        float temp = PENALTIES_ENABLED ? temperaturePenalty(player) : 0.0f;
+        float thirst = PENALTIES_ENABLED ? thirstPenalty(player) : 0.0f;
+        float hunger = PENALTIES_ENABLED ? hungerPenalty(player) : 0.0f;
+        float health = PENALTIES_ENABLED ? healthPenalty(player) : 0.0f;
+        float potionPenalties = 0.0f;
+        for (ComfortSettings.PotionModifier m : activePenaltyEffects) {
+            potionPenalties += m.amount;
+        }
+        float penaltyTotal = temp + thirst + hunger + health + potionPenalties;
+        float effective = Math.max(0.0f, cozy.score + bonusTotal - penaltyTotal);
+        boolean resting = isComfortResting(player);
+        int granted = resting ? getGrantedBand(player) : 0;
+        long promoteIn = -1L;
+        int scoreBand = scoreBand(effective);
+        if (resting && world != null && scoreBand > granted && granted >= 1 && granted < 3) {
+            promoteIn = Math.max(0L, PROMOTE_TICKS - (world.getTotalWorldTime() - getBandSince(player)));
+        }
+        return new ComfortEval(
+                resting,
+                isPlayerResting(player),
+                cozy.meetsEntryFurniture(),
+                remainingHurtTicks(player, world),
+                remainingAttackTicks(player, world),
+                cozy.score,
+                bonusTotal,
+                penaltyTotal,
+                temp,
+                thirst,
+                hunger,
+                health,
+                potionPenalties,
+                effective,
+                scoreBand,
+                granted,
+                promoteIn,
+                cozy.cappedByCategory,
+                activeBonuses,
+                activePenaltyEffects);
+    }
+
+    /**
+     * Same ladder rules as the interval tick. Does nothing if the player cannot enter and is not already resting.
+     */
+    static void applyEvaluation(EntityPlayer player, ComfortEval eval) {
+        World world = player.world;
+        if (world == null) return;
+
+        if (!eval.currentlyResting) {
+            if (!eval.restPose || eval.hurtRemain > 0L || eval.attackRemain > 0L) return;
+            if (!eval.furniture || eval.scoreBand <= 0) return;
+            startLadder(player, world, 1);
+            setComfortResting(player, true);
+            applyComfortBenefits(player, 1);
+            return;
+        }
+
+        if (!eval.furniture || eval.scoreBand <= 0) {
+            setComfortResting(player, false);
+            return;
+        }
+
+        int granted = eval.grantedBand < 1 ? 1 : eval.grantedBand;
+        if (eval.scoreBand < granted) {
+            granted = eval.scoreBand;
+            stampLadder(player, world, granted);
+        } else if (eval.scoreBand > granted && world.getTotalWorldTime() - getBandSince(player) >= PROMOTE_TICKS) {
+            granted = Math.min(granted + 1, eval.scoreBand);
+            stampLadder(player, world, granted);
+        }
+        applyComfortBenefits(player, granted);
+    }
+
+    private static List<ComfortSettings.PotionModifier> activeModifiers(
+            EntityPlayer player, List<ComfortSettings.PotionModifier> modifiers, boolean masterEnabled) {
+        if (!masterEnabled || modifiers == null) return Collections.emptyList();
+        List<ComfortSettings.PotionModifier> active = new ArrayList<>();
+        for (ComfortSettings.PotionModifier modifier : modifiers) {
+            if (modifier == null || !modifier.enabled) continue;
+            if (hasPotion(player, modifier.potion)) {
+                active.add(modifier);
+            }
+        }
+        return active;
     }
 
     private static boolean isPlayerResting(EntityPlayer player) {
@@ -299,17 +375,21 @@ public class ComfortSystemHandler {
         }
 
         float totalScore = 0.0f;
+        Map<String, Float> capped = new LinkedHashMap<>();
         for (Map.Entry<String, List<Float>> entry : categoryScores.entrySet()) {
             String category = entry.getKey();
             List<Float> weights = entry.getValue();
             weights.sort(Collections.reverseOrder());
             int limit = CATEGORY_LIMITS.getOrDefault(category, 1);
             int toTake = Math.min(weights.size(), limit);
+            float categoryTotal = 0.0f;
             for (int i = 0; i < toTake; i++) {
-                totalScore += weights.get(i);
+                categoryTotal += weights.get(i);
             }
+            capped.put(category, categoryTotal);
+            totalScore += categoryTotal;
         }
-        return new CozyScan(totalScore, hasEntryFurniture);
+        return new CozyScan(totalScore, hasEntryFurniture, capped);
     }
 
     /** The block-centred box {@code Reflect.grow(BlockPos, double)} built: one block plus radius. */
@@ -423,32 +503,41 @@ public class ComfortSystemHandler {
         player.addPotionEffect(new PotionEffect(potion, duration, amplifier, true, false));
     }
 
+    private static void removeNamedPotion(EntityPlayer player, String id) {
+        Potion potion = potionById(id);
+        if (potion == null) return;
+        player.removePotionEffect(potion);
+    }
+
     /**
      * Applies benefits for the granted Homestead band (1–3), not the raw score band.
      */
     private static void applyComfortBenefits(EntityPlayer player, int grantedBand) {
         int progressToAdd;
         int homesteadAmplifier;
-        int xpAmp;
 
         if (grantedBand == 1) {
             progressToAdd = 18;
             homesteadAmplifier = 0;
-            xpAmp = 0;
         } else if (grantedBand == 2) {
             progressToAdd = 26;
             homesteadAmplifier = 1;
-            xpAmp = 1;
         } else if (grantedBand >= 3) {
             progressToAdd = 50;
             homesteadAmplifier = 2;
-            xpAmp = 2;
         } else {
             return;
         }
 
         player.addPotionEffect(new PotionEffect(PotionHomestead.INSTANCE, HOMESTEAD_DURATION_TICKS, homesteadAmplifier, true, false));
-        applyNamedPotion(player, "soot:experience_boost", EIGHT_MINUTES_TICKS, xpAmp);
+
+        if (grantedBand == 1) {
+            applyNamedPotion(player, LEARNING_POTION, EIGHT_MINUTES_TICKS, 0);
+        } else {
+            removeNamedPotion(player, LEARNING_POTION);
+            int xpAmp = grantedBand >= 3 ? 1 : 0;
+            applyNamedPotion(player, XP_BOOST_POTION, EIGHT_MINUTES_TICKS, xpAmp);
+        }
 
         if (grantedBand == 2) {
             applyNamedPotion(player, "elenaidodge2:endurance", EIGHT_MINUTES_TICKS, 0);
@@ -480,15 +569,83 @@ public class ComfortSystemHandler {
         }
     }
 
+    static final class ComfortEval {
+        final boolean currentlyResting;
+        final boolean restPose;
+        final boolean furniture;
+        final long hurtRemain;
+        final long attackRemain;
+        final float cozy;
+        final float bonuses;
+        final float penalties;
+        final float tempPenalty;
+        final float thirstPenalty;
+        final float hungerPenalty;
+        final float healthPenalty;
+        final float potionPenalties;
+        final float effective;
+        final int scoreBand;
+        final int grantedBand;
+        final long promoteInTicks;
+        final Map<String, Float> cappedByCategory;
+        final List<ComfortSettings.PotionModifier> activeBonuses;
+        final List<ComfortSettings.PotionModifier> activePenaltyEffects;
+
+        ComfortEval(
+                boolean currentlyResting,
+                boolean restPose,
+                boolean furniture,
+                long hurtRemain,
+                long attackRemain,
+                float cozy,
+                float bonuses,
+                float penalties,
+                float tempPenalty,
+                float thirstPenalty,
+                float hungerPenalty,
+                float healthPenalty,
+                float potionPenalties,
+                float effective,
+                int scoreBand,
+                int grantedBand,
+                long promoteInTicks,
+                Map<String, Float> cappedByCategory,
+                List<ComfortSettings.PotionModifier> activeBonuses,
+                List<ComfortSettings.PotionModifier> activePenaltyEffects) {
+            this.currentlyResting = currentlyResting;
+            this.restPose = restPose;
+            this.furniture = furniture;
+            this.hurtRemain = hurtRemain;
+            this.attackRemain = attackRemain;
+            this.cozy = cozy;
+            this.bonuses = bonuses;
+            this.penalties = penalties;
+            this.tempPenalty = tempPenalty;
+            this.thirstPenalty = thirstPenalty;
+            this.hungerPenalty = hungerPenalty;
+            this.healthPenalty = healthPenalty;
+            this.potionPenalties = potionPenalties;
+            this.effective = effective;
+            this.scoreBand = scoreBand;
+            this.grantedBand = grantedBand;
+            this.promoteInTicks = promoteInTicks;
+            this.cappedByCategory = cappedByCategory;
+            this.activeBonuses = activeBonuses;
+            this.activePenaltyEffects = activePenaltyEffects;
+        }
+    }
+
     static final class CozyScan {
-        static final CozyScan EMPTY = new CozyScan(0.0f, false);
+        static final CozyScan EMPTY = new CozyScan(0.0f, false, Map.of());
 
         final float score;
         final boolean hasEntryFurniture;
+        final Map<String, Float> cappedByCategory;
 
-        CozyScan(float score, boolean hasEntryFurniture) {
+        CozyScan(float score, boolean hasEntryFurniture, Map<String, Float> cappedByCategory) {
             this.score = score;
             this.hasEntryFurniture = hasEntryFurniture;
+            this.cappedByCategory = cappedByCategory;
         }
 
         boolean meetsEntryFurniture() {

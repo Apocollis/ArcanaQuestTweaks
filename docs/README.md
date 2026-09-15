@@ -88,7 +88,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 - `StaminaModuleClient`, `DepthsFogHandler`, `ClientModule`.
 - Entity renderer for `EntityArcaneRift` in **client preInit**. If `grimoireofgaia` and Deep Dwarf enabled: `RenderDeepDwarf`. Item models on `ModelRegistryEvent`.
 
-`postInit` registers `SpawnLayerFilter` (after InControl `PotentialSpawns`), enables structure cave exemption if `incontrol` is loaded, and runs `Reflect.auditUnresolved()`. `ArcanaQuestTweaks.serverStarting` (`@Mod.EventHandler` on `FMLServerStartingEvent`) registers the `/aqvillage` server command (`CommandAqVillage`) — see [rtg.md](rtg.md).
+`postInit` registers `SpawnLayerFilter` (after InControl `PotentialSpawns`), enables structure cave exemption if `incontrol` is loaded, and runs `Reflect.auditUnresolved()`. `ArcanaQuestTweaks.serverStarting` (`@Mod.EventHandler` on `FMLServerStartingEvent`) registers `/aqvillage` (`CommandAqVillage`, [rtg.md](rtg.md)) and `/aqcomfort` (`CommandAqComfort`, [comfort.md](comfort.md)).
 
 ### MixinBooter: early vs late
 

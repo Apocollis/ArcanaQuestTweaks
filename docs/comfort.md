@@ -1,6 +1,6 @@
 # Comfort module (1.8)
 
-Last updated: 2026-09-13.
+Last updated: 2026-09-15.
 
 JSON (two files under `config/arcanaquesttweaks/`):
 
@@ -15,7 +15,7 @@ There is no Forge `@Config` for comfort and no mixin into those mods. Missing mo
 
 ## Locked intent
 
-A homestead rest loop: scan nearby “cozy” blocks and tamed pets, add potion bonuses, subtract player-state penalties, then apply a custom **Homestead** potion plus Soot XP boost, (II/III) Elenai stamina potions, and (if loaded) Thaumcraft temp-warp drain. Also grants Simple Difficulty **cold resist** while standing in Biomes O' Plenty hot spring water.
+A homestead rest loop: scan nearby “cozy” blocks and tamed pets, add potion bonuses, subtract player-state penalties, then apply a custom **Homestead** potion plus Extra Alchemy Learning (I) or Soot XP boost (II/III), (II/III) Elenai stamina potions, and (if loaded) Thaumcraft temp-warp drain. Also grants Simple Difficulty **cold resist** while standing in Biomes O' Plenty hot spring water.
 
 Category caps are the design. Uncapped sums turn a chandelier farm into Homestead III. Penalties **do not** have a global cap: eat, drink, heal, warm/cool, and rest to recover.
 
@@ -30,7 +30,8 @@ Category caps are the design. Uncapped sums turn a chandelier farm into Homestea
 | Simple Difficulty | thirst, body temp, `cold_resist` / `heat_protection` / `cold_protection` / `heat_resist` | `Reflect` for thirst/temp; potions by resource name — null-safe |
 | Somnia | `somnia:sleepy` / `exhausted` / `fading` | default rows in `penalties.effects` |
 | Farmer's Delight | `farmersdelight:comfort` | default row in `bonuses.effects` |
-| Soot | `soot:experience_boost` | Homestead refresh 8:00 |
+| Extra Alchemy | `extraalchemy:effect.learning` | Homestead I only; stripped on II/III |
+| Soot | `soot:experience_boost` | Homestead II amp 0 / III amp 1, refresh 8:00 |
 | Elenai Dodge 2 | `elenaidodge2:endurance`, `elenaidodge2:replenishment` | II/III only |
 | Biomes O' Plenty | `biomesoplenty:hot_spring_water` | Block at feet or head |
 
@@ -77,11 +78,25 @@ Thresholds are floats in JSON (defaults 15 / 40 / 60). They set the **maximum** 
 
 | Granted | After | HUD | Other |
 | --- | --- | --- | --- |
-| I | immediately when score ≥ I | Homestead I (amp 0) | +18 warp / 30s; `soot:experience_boost` amp 0, 8:00 |
-| II | 60s at I while score ≥ II | Homestead II (amp 1) | +26 warp; XP boost amp 1, 8:00; `elenaidodge2:endurance` amp 0, 8:00; `elenaidodge2:replenishment` 4:00 |
-| III | 60s at II while score ≥ III | Homestead III (amp 2) | +50 warp; XP boost amp 2, 8:00; endurance amp 1, 8:00; replenishment 8:00 |
+| I | immediately when score ≥ I | Homestead I (amp 0) | +18 warp / 30s; `extraalchemy:effect.learning` amp 0, 8:00 |
+| II | 60s at I while score ≥ II | Homestead II (amp 1) | +26 warp; strip Learning; `soot:experience_boost` amp 0, 8:00; `elenaidodge2:endurance` amp 0, 8:00; `elenaidodge2:replenishment` 4:00 |
+| III | 60s at II while score ≥ III | Homestead III (amp 2) | +50 warp; strip Learning; XP boost amp 1, 8:00; endurance amp 1, 8:00; replenishment 8:00 |
 
-Homestead potion duration is **900** ticks (45s). XP / endurance / replenishment are **re-applied** each scan while that band is held; when Homestead ends they **count down** (not stripped). All `PotionEffect`s use ambient **true**, particles **false**. No regen, saturation, or SD thermals from Homestead.
+Homestead potion duration is **900** ticks (45s). XP / endurance / replenishment are **re-applied** each scan while that band is held; when Homestead ends they **count down** (not stripped). Learning is **removed** when promoting to II or III; it is **not** stripped if Homestead I ends from hurt/attack/furniture. All `PotionEffect`s use ambient **true**, particles **false**. No regen, saturation, or SD thermals from Homestead.
+
+### `/aqcomfort` (OP)
+
+`ArcanaQuestTweaks.serverStarting` registers `CommandAqComfort` (perm **2**, player only, no args) next to `/aqvillage`.
+
+Runs the same 25×5×25 scan as the 30s tick, **applies** the ladder immediately (entry still needs rest pose, furniture, score, and no combat cooldown), then prints:
+
+- resting tag, rest pose, furniture gate, score band vs granted, hurt/attack remaining ticks, ticks until promote (or `-`)
+- cozy / bonus / penalty / effective
+- capped cozy **by category**
+- each active `bonuses.effects` row
+- temp, thirst, hunger, health, plus each active `penalties.effects` row
+
+Non-OP denied. Console without a player errors.
 
 ### Warp cleanse math
 
@@ -237,7 +252,8 @@ Missing pack blocks simply never match; they do not crash.
 
 ## Files
 
-- `comfort/ComfortSystemHandler.java` — tick (30s), effective score, furniture gate, band ladder, benefits (45s Homestead), hot springs, cancel + cooldowns on hurt/attack
+- `comfort/ComfortSystemHandler.java` — tick (30s), evaluate/apply shared with `/aqcomfort`, furniture gate, band ladder, benefits (45s Homestead), hot springs, cancel + cooldowns on hurt/attack
+- `comfort/CommandAqComfort.java` — OP `/aqcomfort`
 - `comfort/ComfortSettings.java` — settings JSON DTO
 - `comfort/ComfortBlocks.java` — blocks JSON DTO
 - `comfort/ComfortConfigLoader.java` — generate/load two files; merge missing `crafting` on blocks only
@@ -250,7 +266,8 @@ Missing pack blocks simply never match; they do not crash.
 
 - Benefits are **ambient, no particles** (`true, false` on `PotionEffect`).
 - Homestead does **not** apply regen, saturation, or SD heat/cold protection. Hot-spring `cold_resist` is independent.
-- XP boost / endurance / replenishment are not stripped when Homestead ends.
+- XP boost / endurance / replenishment are not stripped when Homestead ends. Learning **is** stripped on granted II/III.
+- Homestead I grants Extra Alchemy Learning, not Soot XP boost.
 - Keep category caps. Blocks JSON without `crafting` gets limit 1 and `minecraft:crafting_table`; a player-defined `crafting` key is not overwritten. Combined `aqtweaks_comfort.json` is ignored.
 - Comfort warp NBT is `WarpCleansingProgress`, not Thaumcraft exposure `WarpExposureProgress`.
 - Homestead cleanse calls `ThaumcraftHelper` (raw `Class` only). Generic `Class<?>` on that helper made Forge `SideTransformer` drop the class and crash the server tick.
