@@ -1,8 +1,9 @@
 package com.apocollis.aqtweaks.rtg;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
-import net.minecraft.world.biome.Biome;
+import net.minecraft.world.World;
 import net.minecraft.world.biome.BiomeProvider;
+import rtg.world.gen.ChunkLandscape;
 
 import java.util.Collections;
 import java.util.List;
@@ -25,8 +26,8 @@ public final class VillageShoreMask {
         this.plate = plate;
     }
 
-    public static VillageShoreMask build(BiomeProvider provider, int chunkStartX, int chunkStartZ,
-                                         List<int[]> landBoxes, List<int[]> shrineBoxes,
+    public static VillageShoreMask build(World world, BiomeProvider provider, ChunkLandscape landscape,
+                                         int chunkStartX, int chunkStartZ, List<int[]> landBoxes, List<int[]> shrineBoxes,
                                          int componentPad, int shrinePad) {
         List<int[]> land = landBoxes != null ? landBoxes : Collections.emptyList();
         List<int[]> shrine = shrineBoxes != null ? shrineBoxes : Collections.emptyList();
@@ -42,22 +43,29 @@ public final class VillageShoreMask {
         boolean[] protect = new boolean[n];
         boolean[] inPad = new boolean[n];
         boolean[] never = new boolean[n];
-        for (int iz = 0; iz < dim; iz++) {
-            int wz = originZ + iz;
-            for (int ix = 0; ix < dim; ix++) {
-                int wx = originX + ix;
-                int i = ix + iz * dim;
-                Biome biome = provider.getBiome(new net.minecraft.util.math.BlockPos(wx, 64, wz));
-                never[i] = VillageLandHelper.isNeverRaiseBiome(biome);
-                double landDist = nearestDist(wx, wz, land);
-                double shrineDist = nearestDist(wx, wz, shrine);
-                boolean hard = (landDist <= componentPad && landDist < Double.MAX_VALUE)
-                        || (shrineDist <= shrinePad && shrineDist < Double.MAX_VALUE);
-                inPad[i] = hard;
-                boolean interior = landDist <= 0.0 || shrineDist <= 0.0;
-                raw[i] = hard && !never[i];
-                protect[i] = interior && !never[i];
+        int chunkX = chunkStartX >> 4;
+        int chunkZ = chunkStartZ >> 4;
+        VillageLandHelper.pushColumnLandscapeCache();
+        try {
+            for (int iz = 0; iz < dim; iz++) {
+                int wz = originZ + iz;
+                for (int ix = 0; ix < dim; ix++) {
+                    int wx = originX + ix;
+                    int i = ix + iz * dim;
+                    ChunkLandscape colLand = (wx >> 4 == chunkX && wz >> 4 == chunkZ) ? landscape : null;
+                    never[i] = VillageLandHelper.isOceanOrRiverColumnBiome(world, provider, colLand, wx, wz);
+                    double landDist = nearestDist(wx, wz, land);
+                    double shrineDist = nearestDist(wx, wz, shrine);
+                    boolean hard = (landDist <= componentPad && landDist < Double.MAX_VALUE)
+                            || (shrineDist <= shrinePad && shrineDist < Double.MAX_VALUE);
+                    inPad[i] = hard;
+                    boolean interior = landDist <= 0.0 || shrineDist <= 0.0;
+                    raw[i] = hard && !never[i];
+                    protect[i] = interior && !never[i];
+                }
             }
+        } finally {
+            VillageLandHelper.popColumnLandscapeCache();
         }
         boolean[] pre = raw;
         if (closeOcean) {

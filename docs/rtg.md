@@ -140,9 +140,9 @@ Entry: `MixinChunkGeneratorRTGVillage.aqtweaks$flattenNoise`, once, immediately 
 
 ### Footprints
 
-- **Land boxes:** surviving houses, RC (full `.rcst` size), well, and roads that were **not omitted**. Flatten does **not** fall back to the unsnapped start AABB. A road is omitted from layout (and thus from the plate) if **any** column is ocean/river **biome**, or if at least half its columns are lake. RTG river *noise* on desert/mesa land does not drop the path.
+- **Land boxes:** surviving houses, RC (full `.rcst` size), well, and roads that were **not omitted**. Flatten does **not** fall back to the unsnapped start AABB. A road is omitted from layout (and thus from the plate) if **any** column is ocean/river **biome** (BiomeProvider, RTG `landscape.biome`, or loaded chunk array — same as F3). RTG river *noise* on desert/mesa land does not drop the path.
 - **No village-wide rectangle.** Each column uses Euclidean distance to the **nearest land component AABB** (including paths). Empty corners of the start AABB stay hills.
-- **12-block component pad:** `dist ≤ villageComponentPad` (default 12) is **100% plate** at well Y, then `VillageShoreMask` (open jetties, optional 1-block ocean close). Overlapping pads fill grass between roads and houses when pieces are ≤24 blocks apart. Same rule for **flooded non-ocean** columns (swamp water, plains lakes). Inside this pad (and the shrine pad), flatten/seal skip only ocean/river **biome** except 1-block close — dry RTG river noise still plates. Outside the pad, `landscape.river > 0.4` still never-raise (no sand piers).
+- **12-block component pad:** `dist ≤ villageComponentPad` (default 12) is **100% plate** at well Y, then `VillageShoreMask` (open jetties, optional 1-block ocean close). Overlapping pads fill grass between roads and houses when pieces are ≤24 blocks apart. Same rule for **flooded non-ocean** columns (swamp water, plains lakes). Inside this pad (and the shrine pad), flatten/seal skip ocean/river **biome** from provider, RTG landscape biome, or loaded chunk array (except 1-block close) — dry RTG river noise still plates. Outside the pad, `landscape.river > 0.4` still never-raise (no sand piers).
 - **Outer Hermite:** `pad < dist ≤ pad + villageEdgeFalloff`. Smoothstep (`3t²−2t³`) plate → raw RTG. Default falloff **12**. Live cfg may still have **48** until edited — set it to 12 if yards still ramp.
 - **Village shrine:** not a land-component pad source. 100% plate inside AABB; extra full-plate radius `smallShrinePad` (3). In town, nearby road/house 12-zones already cover the yard.
 - **Building boxes:** land boxes minus roads. Used only for swamp raise ramps **outside** the hard pad. Shrine raise radius 3; others `max(xzPad, waterBank)` (16).
@@ -151,7 +151,7 @@ Entry: `MixinChunkGeneratorRTGVillage.aqtweaks$flattenNoise`, once, immediately 
 
 ### Column rules (in order)
 
-1. **Ocean-like or river biome** → never write, except a **1-block** notch inside the hard pad (cardinal-enclosed or 7 of 8 land neighbors) when Village Shore Close Ocean is on. Pure beach is **not** ocean. Ocean-like names (`kelp`, `coral`, `reef`, …) win even if the biome is also tagged BEACH. Inside the hard pad, RTG river **noise** on a land biome is not this skip.
+1. **Ocean-like or river biome** (provider, RTG `landscape.biome`, or loaded chunk array) → never write, except a **1-block** notch inside the hard pad (cardinal-enclosed or 7 of 8 land neighbors) when Village Shore Close Ocean is on. Pure beach is **not** ocean. Ocean-like names (`kelp`, `coral`, `reef`, …) win even if the biome is also tagged BEACH. Inside the hard pad, RTG river **noise** on a land biome is not this skip.
 2. **Flooded swamp-like**, `dist ≤ pad` from a land component (or shrine pad 3) → 100% plate, at least Y 64. This is the in-between grass in swamp villages.
 3. **Flooded swamp-like**, in the outer Hermite band → blend plate → original water. Water bank can ease that toward skipped ocean/river.
 4. **Flooded swamp-like**, outside that, inside building raise radius → swamp-water approach ramp (not in-village yards).
@@ -198,9 +198,9 @@ If an existing `aqtweaks_rtg.cfg` still has Coast Buffer **32**, Forge keeps tha
 
 ### Houses, RC, and village shrine
 
-`isBuildingWet`: ocean/river biome or RTG river always wet (retry inland). Swamp-like and low dry land (noise below min well Y) are not building-wet; that land is raised to the plate. `isFloodedAt` still treats lakes as flooded so mostly-lake paths are omitted.
+`isBuildingWet`: ocean/river biome (provider, RTG landscape biome, or loaded chunk array) or RTG river always wet (retry inland). Swamp-like and low dry land (noise below min well Y) are not building-wet; that land is raised to the plate. `isFloodedAt` still treats lakes as flooded so mostly-lake paths are omitted.
 
-Retry walks inland (`villageWaterRetryDistance`, default 20): street slots, then toward the well, then a spiral around the well. A path that touches ocean/river or is **at least half** wet retries inland the same way; if every slot still fails, it is omitted (no lake bridge). A forest path with a puddle stays. The Astral small-shrine village piece uses the same wet skip/retry. At populate, Charm `ASMHooks.addComponentParts` (and vanilla `MixinStructureStartVillagePaste` if Charm did not wrap the invoke) skips a non-road building **or well** only if **every** clipped column is never-raise (return `true`, keep the piece). Roads stay exempt so a mixed land/water path chunk is not dropped. Leftover lakes still paste so a shrine/house that spans chunks is not sliced. Layout omission is the real drop.
+Retry walks inland (`villageWaterRetryDistance`, default 20): street slots, then toward the well, then a spiral around the well. A path that touches ocean/river or is **at least half** wet retries inland the same way; if every slot still fails, it is omitted (no lake bridge). A forest path with a puddle stays. The Astral small-shrine village piece uses the same wet skip/retry. At populate, Charm `ASMHooks.addComponentParts` (and vanilla `MixinStructureStartVillagePaste` if Charm did not wrap the invoke) skips a non-road building **or well** if **any** clipped column is ocean/river biome (return `true`, keep the piece). Roads stay exempt so a mixed land/water path chunk is not dropped. Leftover lakes still paste. Layout omission is the real drop.
 
 **Waystones:** `ComponentVillageWaystone` is not retried as a random house. A wet (never-raise) waystone is rebuilt inland (street, then toward the well, then a spiral around the well, all four facings). Failed wet retries are removed from the start lists. Ocean/river still never get a plate. Waystones’ own `villageChance` can still skip a village; this only keeps a rolled waystone from being deleted.
 
@@ -502,11 +502,17 @@ Bewitchment `isInsideStructure("Village")` (and InControl) ran `VillagePlate.sta
 
 **Fix:** mixin RETURN (vanilla pad/house hit first); `startAt` XZ hull then Euclidean then Y/sample; well-floor Y cached; nearby recover once per query chunk; overlap helper does not re-enter `isInsideStructure`; layout forgets rejected starts only when the grid added a Start. Detection volume unchanged.
 
+### 30. Village plate and buildings in F3 Ocean/River
+
+BiomeProvider on coasts still said Beach/Plains while RTG wrote Ocean/River to the chunk array. Paths stayed, the 12-pad painted a cape, houses/RC were not wet, paste required the whole clip to be water.
+
+**Fix:** ocean/river biome from provider **or** RTG `landscape.biome` **or** a loaded chunk array. Path omit, flatten/shore skip (inside the pad), and building wet use that. Paste skips if any clipped column is ocean/river biome. River *noise* on desert still does not drop paths.
+
 ## Playtest reference (this line)
 
 - **Wanted:** inland plains village (example `-2897, 97, -2119`) — flat plate, houses on it, blend to hills.
 - **Wanted:** sea-level forest (`-524, 64, 5893`) — dirt path, lamps, and houses on the same Y.
-- **Wanted:** beach/land well ~16 from water — village starts; buildings retry inland, not on the water.
+- **Wanted:** beach/land well ~16 from water — village starts; buildings retry inland, not on the water. F3 Ocean/River columns are not plate (except 1-block shore-close notches) and have no houses/lamps.
 - **Wanted:** small Astral shrine/ruin — land buffer at most 3 around the marble, not a 16-block mesa.
 - **Wanted:** large Astral ancient/desert temple — raw marble under the pad, not dirt; no floating logs/leaves in or above the AABB.
 - **Wanted:** new Cambion house on a slope — pad flush with plains; cobble on the grass (house +1); door +1 above cobble; air under the footprint filled.

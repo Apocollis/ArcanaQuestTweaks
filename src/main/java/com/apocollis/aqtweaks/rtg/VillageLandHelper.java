@@ -20,6 +20,7 @@ import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.registry.ForgeRegistries;
+import rtg.api.world.biome.IRealisticBiome;
 import rtg.world.gen.ChunkGeneratorRTG;
 import rtg.world.gen.ChunkLandscape;
 
@@ -521,14 +522,76 @@ public final class VillageLandHelper {
     }
 
     public static boolean isNeverRaiseColumn(Biome biome, ChunkLandscape landscape, int index) {
-        return isNeverRaiseBiome(biome) || isLandscapeNeverRaise(landscape, index);
+        return isNeverRaiseBiome(biome)
+                || isNeverRaiseBiome(landscapeBaseBiome(landscape, index))
+                || isLandscapeNeverRaise(landscape, index);
+    }
+
+    /**
+     * Ocean/river as F3 shows it: provider, RTG {@code landscape.biome}, or loaded chunk array.
+     * Does not use river <em>noise</em> (desert paths over river noise stay).
+     */
+    public static boolean isOceanOrRiverColumnBiome(World world, int x, int z) {
+        if (world == null) return false;
+        Map<Long, ChunkLandscape> cache = columnLandscapeCache();
+        ChunkLandscape landscape = cache != null
+                ? landscapeCached(world, x, z, cache)
+                : sampleLandscape(world, x, z);
+        return isOceanOrRiverBiomeSources(world, world.getBiomeProvider(), landscape, x, z);
+    }
+
+    public static boolean isOceanOrRiverColumnBiome(World world, BiomeProvider provider,
+                                                    ChunkLandscape landscape, int x, int z) {
+        BiomeProvider biomes = provider;
+        if (biomes == null && world != null) {
+            biomes = world.getBiomeProvider();
+        }
+        ChunkLandscape land = landscape;
+        if (land == null && world != null) {
+            Map<Long, ChunkLandscape> cache = columnLandscapeCache();
+            land = cache != null ? landscapeCached(world, x, z, cache) : sampleLandscape(world, x, z);
+        }
+        return isOceanOrRiverBiomeSources(world, biomes, land, x, z);
+    }
+
+    private static boolean isOceanOrRiverBiomeSources(World world, BiomeProvider provider,
+                                                      ChunkLandscape landscape, int x, int z) {
+        if (isNeverRaiseBiome(Reflect.getBiome(provider, x, z))) return true;
+        int index = (x & 15) * 16 + (z & 15);
+        if (isNeverRaiseBiome(landscapeBaseBiome(landscape, index))) return true;
+        if (chunkExists(world, x >> 4, z >> 4)) {
+            try {
+                if (isNeverRaiseBiome(world.getBiome(new BlockPos(x, 64, z)))) return true;
+            } catch (Throwable ignored) {}
+        }
+        return false;
+    }
+
+    public static Biome landscapeBaseBiome(ChunkLandscape landscape, int index) {
+        if (landscape == null || landscape.biome == null) return null;
+        if (index < 0 || index >= landscape.biome.length) return null;
+        IRealisticBiome realistic = landscape.biome[index];
+        if (realistic == null) return null;
+        try {
+            return realistic.baseBiome();
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static boolean chunkExists(World world, int cx, int cz) {
+        if (world == null) return false;
+        try {
+            return world.isChunkGeneratedAt(cx, cz);
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     private static boolean isNeverRaiseAt(World world, int x, int z, Map<Long, ChunkLandscape> cache) {
         if (world == null) return false;
-        Biome biome = Reflect.getBiome(world.getBiomeProvider(), x, z);
-        if (isNeverRaiseBiome(biome)) return true;
         ChunkLandscape landscape = cache != null ? landscapeCached(world, x, z, cache) : sampleLandscape(world, x, z);
+        if (isOceanOrRiverBiomeSources(world, world.getBiomeProvider(), landscape, x, z)) return true;
         int index = (x & 15) * 16 + (z & 15);
         return isLandscapeNeverRaise(landscape, index);
     }
@@ -553,8 +616,8 @@ public final class VillageLandHelper {
      * True for ocean/river biome, or RTG water that is not swamp-like (those get a rounded pad instead).
      */
     public static boolean isFlattenSkipColumn(BiomeProvider provider, ChunkLandscape landscape, int index, int worldX, int worldZ) {
-        Biome biome = Reflect.getBiome(provider, worldX, worldZ);
-        return isNeverRaiseColumn(biome, landscape, index);
+        if (isOceanOrRiverBiomeSources(null, provider, landscape, worldX, worldZ)) return true;
+        return isLandscapeNeverRaise(landscape, index);
     }
 
     public static boolean isWetColumn(BiomeProvider provider, ChunkLandscape landscape, int index, int worldX, int worldZ) {
@@ -837,10 +900,14 @@ public final class VillageLandHelper {
         if (biomes == null && world != null) {
             biomes = world.getBiomeProvider();
         }
+        Map<Long, ChunkLandscape> cache = columnLandscapeCache();
+        if (cache == null) {
+            cache = new HashMap<>();
+        }
         for (int x = box[0]; x <= box[1]; x++) {
             for (int z = box[2]; z <= box[3]; z++) {
-                Biome biome = Reflect.getBiome(biomes, x, z);
-                if (isNeverRaiseBiome(biome)) {
+                ChunkLandscape land = world != null ? landscapeCached(world, x, z, cache) : null;
+                if (isOceanOrRiverBiomeSources(world, biomes, land, x, z)) {
                     return true;
                 }
             }
@@ -888,9 +955,8 @@ public final class VillageLandHelper {
 
     /**
      * Last-resort populate check: do not paste a village building onto leftover ocean/river.
-     * Skip the whole chunk paste only if every clipped column is never-raise. Mixed land/water
-     * and leftover lakes still paste so a piece that spans chunks is not sliced. Roads, the well,
-     * and swamp-like land stay.
+     * Skip this chunk's paste if <em>any</em> clipped column is ocean/river biome (provider,
+     * RTG landscape biome, or loaded chunk array). Roads stay exempt. Leftover lakes still paste.
      */
     public static boolean isOceanOrRiverFloor(World world, Object component, StructureBoundingBox clip) {
         if (world == null || world.isRemote || component == null) return false;
@@ -909,14 +975,17 @@ public final class VillageLandHelper {
             maxZ = Math.min(maxZ, clip.maxZ);
         }
         if (minX > maxX || minZ > maxZ) return false;
-        boolean any = false;
-        for (int x = minX; x <= maxX; x++) {
-            for (int z = minZ; z <= maxZ; z++) {
-                any = true;
-                if (!isNeverRaiseAt(world, x, z)) return false;
+        pushColumnLandscapeCache();
+        try {
+            for (int x = minX; x <= maxX; x++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    if (isOceanOrRiverColumnBiome(world, x, z)) return true;
+                }
             }
+            return false;
+        } finally {
+            popColumnLandscapeCache();
         }
-        return any;
     }
 
     public static boolean withinVillageCap(Object villageStart, int x, int z) {

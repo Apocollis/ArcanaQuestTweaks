@@ -239,7 +239,7 @@ public abstract class MixinChunkGeneratorRTGVillage {
         boolean[] skipWater = new boolean[n];
         double[] distScratch = new double[1];
         VillageShoreMask shore = VillageShoreMask.build(
-                biomeProvider, startX, startZ, plateBoxes, shrineBoxes, componentPad, shrinePad);
+                world, biomeProvider, landscape, startX, startZ, plateBoxes, shrineBoxes, componentPad, shrinePad);
         int[] landIdx = new int[n];
         double[] landDist = new double[n];
         int[] shrineIdx = new int[n];
@@ -261,9 +261,11 @@ public abstract class MixinChunkGeneratorRTGVillage {
                 boolean inHardPad = (thisLandIdx >= 0 && thisLandDist <= componentPad)
                         || (thisShrineIdx >= 0 && thisShrineDist <= shrinePad);
                 boolean shorePlate = shore.plated(colX, colZ);
+                boolean waterBiome = VillageLandHelper.isOceanOrRiverColumnBiome(
+                        world, biomeProvider, landscape, colX, colZ);
                 boolean neverRaise = inHardPad
-                        ? VillageLandHelper.isNeverRaiseBiome(biome)
-                        : VillageLandHelper.isNeverRaiseColumn(biome, landscape, index);
+                        ? waterBiome
+                        : (waterBiome || VillageLandHelper.isLandscapeNeverRaise(landscape, index));
                 if (inHardPad && !shorePlate) {
                     skipWater[index] = true;
                     continue;
@@ -473,8 +475,9 @@ public abstract class MixinChunkGeneratorRTGVillage {
         }
         if (plateBoxes.isEmpty() && shrineBoxes.isEmpty()) return;
 
+        ChunkLandscape landscape = aqtweaks$sampleLandscape(biomeProvider, cx, cz);
         VillageShoreMask shore = VillageShoreMask.build(
-                biomeProvider, startX, startZ, plateBoxes, shrineBoxes, componentPad, shrinePad);
+                world, biomeProvider, landscape, startX, startZ, plateBoxes, shrineBoxes, componentPad, shrinePad);
         IBlockState dirt = Blocks.DIRT.getDefaultState();
         IBlockState stone = Blocks.STONE.getDefaultState();
         IBlockState brick = Blocks.STONEBRICK.getDefaultState();

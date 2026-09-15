@@ -59,6 +59,7 @@ public class ComfortSystemHandler {
     private static final String GRANTED_BAND_TAG = "AQTComfortGrantedBand";
     private static final String BAND_SINCE_TAG = "AQTComfortBandSince";
     private static final String HURT_AT_TAG = "AQTComfortHurtAt";
+    private static final String ATTACK_AT_TAG = "AQTComfortAttackAt";
     private static final String LEARNING_POTION = "extraalchemy:effect.learning";
     private static final String XP_BOOST_POTION = "soot:experience_boost";
 
