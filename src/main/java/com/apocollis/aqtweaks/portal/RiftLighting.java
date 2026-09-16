@@ -62,7 +62,6 @@ public final class RiftLighting {
             SOURCES.put(rift.getEntityId(), new Source(rift.world, cell));
             CELLS.put(cell, rift.world);
             refreshActive();
-            rift.world.checkLight(cell);
             return;
         }
 
@@ -73,9 +72,6 @@ public final class RiftLighting {
         existing.world = rift.world;
         existing.cell = cell;
         CELLS.put(cell, rift.world);
-
-        oldWorld.checkLight(oldCell);
-        rift.world.checkLight(cell);
     }
 
     public static void remove(EntityArcaneRift rift) {
@@ -85,7 +81,6 @@ public final class RiftLighting {
         }
         CELLS.remove(existing.cell, existing.world);
         refreshActive();
-        existing.world.checkLight(existing.cell);
     }
 
     /**
