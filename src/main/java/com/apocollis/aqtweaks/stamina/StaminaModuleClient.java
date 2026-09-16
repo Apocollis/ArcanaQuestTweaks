@@ -353,6 +353,12 @@ public class StaminaModuleClient {
             }
 
             if (lip != null) {
+                int grabCost = StaminaPerks.climbCost(player,
+                        ArcanaQuestTweaksConfig.StaminaModuleConfig.ledgeClimb.ledgeClimbCost);
+                if (grabCost > 0 && !Reflect.hasEnoughStamina(player, grabCost)) {
+                    return;
+                }
+
                 ArcanaQuestTweaks.NETWORK.sendToServer(new PacketLedgeClimb());
 
                 clientData.setInteger("StaminaTweaksLedgeClimbState", 1);

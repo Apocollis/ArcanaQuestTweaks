@@ -211,7 +211,9 @@ Client: while on a climbable, send `PacketSyncClimbingInput` (jump held). Slide 
 
 **Client FSM:** airborne, not water/lava/riding, hold jump + forward ≥ 5 ticks, `motionY ≤ 0`, wall 0.7 along look at heights 0.4/0.7/1.0/1.3/1.6. Lip is **`addCollisionBoxToList` maxY** (dirt 1.0, fence/wall **1.5** — not the 1.0 outline AABB), or the block **above** the wall if that has collision and two air blocks above it (fence on dirt). Rise with **Y only** (no XZ into the post). `fallDistance = 0`. When feet reach the lip (or Y stops increasing), set Y to `lipTop + 0.1` and XZ to the **nearest point on that collision** (near face, not block center). Then suppress jump + WASD for `ledgeClimbLandPauseTicks` (default 8) so held W+space does not hop or run off. Abort (keys / water / empty extra) does not pause.
 
-**Server packet:** grab spend `ledgeClimbCost` (default **2**, Expert Climber). Sets state 1, grace `ticksExisted + 60`, mantle ticks 0. If not enough, **does nothing** (client may still animate).
+**Server packet:** grab spend `ledgeClimbCost` (default **2**, Expert Climber). Sets state 1, grace `ticksExisted + 60`, mantle ticks 0. If not enough, **does nothing**.
+
+**Client grab:** same `hasEnoughStamina` check before the packet and before state 1. Empty stamina does not rise or snap.
 
 **Server tick** while state 1: `fallDistance = 0`. Extras +1 at ticks **15 / 23 / 31**. Empty extra: clear state, `motionY = -0.15`. Land/water/ride clears state (grace still blocks ladder slide).
 
@@ -429,14 +431,14 @@ Sideways `dx/dz * 0.005` pushed the AABB into the 1.5-tall post before feet were
 - Motor Ember on **both** sides (server consume + client mixin). Empty Ember must not unhook. Empty stamina must not unhook on descend or grounded-without-motor.
 - `hasEnoughStamina` must keep absorption-then-usable-after-weight. Armor Mastery must affect `getWeight` and the client `SWeightMessage` sync. Endurance `(amp+1)×4` must still apply with Mastery; Weight potion 200 must not be overwritten.
 - Sprint uses Tweaks `hasEnoughStamina` and a sprint-only interval. Keep Universal Tweaks **Sprinting Feather Consumption** and **Requirement** at **0** so feathers are not billed twice. Hunger sprint threshold is a different UT tweak.
-- Ledge grace / jump packet must keep `fallOnDepleted` from cancelling a mantle. Mantle lip uses **collision-list** maxY (fence/wall 1.5, not the 1.0 outline). Grab 2 + extras cap 5. Server mantle state must clear on land. Fence/wall rise is Y-only then finish on the nearest lip collision XZ (not block center); `fallDistance` must stay 0 while climbing. Successful land pauses jump/WASD (`ledgeClimbLandPauseTicks`); abort does not.
+- Ledge grace / jump packet must keep `fallOnDepleted` from cancelling a mantle. Mantle lip uses **collision-list** maxY (fence/wall 1.5, not the 1.0 outline). Grab 2 + extras cap 5. Client and server both refuse the grab when stamina is short. Server mantle state must clear on land. Fence/wall rise is Y-only then finish on the nearest lip collision XZ (not block center); `fallDistance` must stay 0 while climbing. Successful land pauses jump/WASD (`ledgeClimbLandPauseTicks`); abort does not.
 - Mining break is never cancelled. Fatigue uses **regular** feathers.
 
 ## Verify
 
 **Combat / tools:** jump costs 1 and blocks at 0; sprint 1/s and stops below 2 usable (Tweaks weight); Feathers potion gold icons drop on Tweaks spend like a dodge; sword 2, axe 4, dagger 1; empty-hand punch is light **on a hit**; short-stamina **hit** deals reduced damage once; bow 2 on draw + hold (hold may tick twice); throw hold slower than bow, 1 on release; shield 1/s then drops; break stone 1, ore 2; Fatigue III at ≤ 2 full feathers; glider 1/s then folds; DSS with cost > 0 spends and blocks when empty; hunger not also drained if replace exhaustion is on.
 
-**Climb / ledge:** ladder 1/s up, cling half rate, slide free; empty slides; jump+forward mantle 2 short / up to 5 long; fences/walls use 1.5-high lip and finish on the near collision (not block center); no fall-damage charge while holding; ~0.4s land pause so held W+space does not hop off; does not fight slide.
+**Climb / ledge:** ladder 1/s up, cling half rate, slide free; empty slides; jump+forward mantle 2 short / up to 5 long; empty stamina does not start a mantle; fences/walls use 1.5-high lip and finish on the near collision (not block center); no fall-damage charge while holding; ~0.4s land pause so held W+space does not hop off; does not fight slide.
 
 **Grapple:** plant on ground = 0; Shift+W = 3/s; hang = 1/s; pendulum = 2/s through the apex; Shift+S = 0; motor = hang + 40 Ember/s from jar/cartridge/bulb; empty Ember = motor off, still hooked; empty feathers = unhook except descend / grounded.
 
