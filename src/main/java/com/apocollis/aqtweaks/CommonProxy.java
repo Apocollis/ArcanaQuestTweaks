@@ -73,6 +73,10 @@ public class CommonProxy {
         if (net.minecraftforge.fml.common.Loader.isModLoaded("somnia")) {
             com.apocollis.aqtweaks.somnia.SomniaSleepHandler.init();
         }
+
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("stats_keeper")) {
+            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.statskeeper.LifeElixirCapHandler());
+        }
     }
 
     public void postInit(FMLPostInitializationEvent event) {

@@ -33,6 +33,7 @@ Each file covers: what Tweaks changes, how the **parent mod** implements the fea
 | Recipes | Forge `CraftingHelper` (Metallurgy / Spartan JSON) | [recipes.md](recipes.md) |
 | Advancement | Animania Base (Farm / Extra addon JSON via Base handler) | [advancement.md](advancement.md) |
 | Somnia | Somnia Refreshed | [somnia.md](somnia.md) |
+| Stats Keeper | Stats Keeper (`stats_keeper`) | [statskeeper.md](statskeeper.md) |
 | Better Mineshafts | YUNG’s Better Mineshafts + RTG locate | [bettermineshafts.md](bettermineshafts.md) |
 | Compatibility / jars | Compile vs mixin vs runtime vs copy script | [compatibility-matrix.md](compatibility-matrix.md) |
 | Build / deploy | `gradlew build` vs `build_gradle.ps1` | [build-and-release.md](build-and-release.md) |
@@ -46,7 +47,7 @@ Astral surface shrines, Bewitchment Cambion houses, and Mystical World thatch hu
 
 `ArcanaQuestTweaks` declares:
 
-`required-after:elenaidodge2;after:incontrol;after:grimoireofgaia;after:thaumcraft;after:bewitchment;after:grapplemod;after:embers;after:reskillable;after:effortlessbuilding`
+`required-after:elenaidodge2;after:incontrol;after:grimoireofgaia;after:thaumcraft;after:bewitchment;after:grapplemod;after:embers;after:reskillable;after:effortlessbuilding;after:stats_keeper`
 
 That is **not** the full parent list. Soft parents that Tweaks mixins or events against, without `after:` / `required-after:`:
 
@@ -62,6 +63,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 | InControl | Spawning layer filter + pack fill + structure BB cache (compile-hard min-distance and `StructureCache`) | Missing jar fails compile; pack always ships it |
 | Animania | Advancement: skip Base world-load reload + Farm/Extra inject | Mixin json skipped; Animania advancements load as stock |
 | YUNG’s Better Mineshafts | Locate pin + failed-entrance stub | Mixin json skipped; stock BM Y=64 locate |
+| Stats Keeper | Elixir of Vitality drink cancel at SK cap | Handler not registered; vanilla + SK consume/refuse as stock |
 
 ### Init (`CommonProxy` / `ClientProxy`)
 
@@ -82,6 +84,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 - If `astralsorcery`: `VillageAstralSmallShrineHandler.register()` (structure piece id `AQTSmallShrine`).
 - If `reskillable`: `ReskillableModule`.
 - If `somnia`: `SomniaSleepHandler.init()`.
+- If `stats_keeper`: `LifeElixirCapHandler` (elixir drink cancel at SK max health; level-up sound on a successful drink).
 
 **init (client)**
 
@@ -144,6 +147,7 @@ Forge `@Config` on nested classes in `ArcanaQuestTweaksConfig`. Comfort is JSON,
 | `aqtweaks_depths.cfg` | `DepthsModuleConfig` |
 | `aqtweaks_rtg.cfg` | `RtgModuleConfig` |
 | `aqtweaks_portal.cfg` | `PortalModuleConfig` |
+| `aqtweaks_statskeeper.cfg` | `StatsKeeperModuleConfig` |
 | `aqtweaks_reskillable.cfg` | `ReskillableModuleConfig` |
 | `aqtweaks_spawning.cfg` | `SpawningModuleConfig` |
 | `aqtweaks_comfort_settings.json` | `ComfortConfigLoader` (not `@Config`) |
@@ -153,7 +157,7 @@ Forge `@Config` on nested classes in `ArcanaQuestTweaksConfig`. Comfort is JSON,
 
 Its reach is narrower than it looks. It subscribes to `ConfigChangedEvent.OnConfigChangedEvent`, which Forge fires from the **client in-game config GUI only** — never on a dedicated server, and never from hand-editing a cfg file. The only JSON it reloads is spawn-type, spawn-party, and spawn-tier (plus `mob_spawnrules.cfg`); comfort (`aqtweaks_comfort_settings.json`, `aqtweaks_comfort_blocks.json`) and `gaia_mob_damage.json` are preInit-only and need a **restart**.
 
-`aqtweaks_grimoireofgaia.cfg`, `aqtweaks_thaumcraft.cfg`, and `aqtweaks_bewitchment.cfg` wrap their keys in a `general { }` block because those three `@Config` annotations omit `category = ""`; the other seven set it and have no wrapper. That asymmetry is **intentional** — normalizing it would reset tuned values in existing instance files.
+`aqtweaks_grimoireofgaia.cfg`, `aqtweaks_thaumcraft.cfg`, and `aqtweaks_bewitchment.cfg` wrap their keys in a `general { }` block because those three `@Config` annotations omit `category = ""`; the other eight set it and have no wrapper. That asymmetry is **intentional** — normalizing it would reset tuned values in existing instance files.
 
 Pack-owned (not Tweaks): `config/arcanaquest/mob_overworldspawntype.json`, `mob_spawnparties.json`, `mob_tier.json`, and `mob_spawnrules.cfg` for the [spawning](spawning.md) module.
 

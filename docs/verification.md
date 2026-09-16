@@ -1,6 +1,6 @@
 # Verification (1.8)
 
-Last updated: 2026-09-14.
+Last updated: 2026-09-16.
 
 Manual release / smoke checklist. **No automated tests.** Harness: CurseForge **Arcana Quest DEVBOX**, remapped `ArcanaQuestTweaks-1.8.jar` in `mods/`. Algorithms and full checklists stay in module docs; this is the pack-level pass/fail.
 
@@ -40,6 +40,7 @@ These json files are `required: false`. Removing the parent should skip that jso
 | Somnia Refreshed | No `MixinSomniaUtil`; stock Somnia light check behavior |
 | InControl | No `MixinStructureCache`; stock origin-chunk `isInStructure` (Tweaks still loads) |
 | YUNG’s Better Mineshafts | No locate/stub mixins; stock BM Y=64 `/locate Mineshaft` |
+| Stats Keeper | No `LifeElixirCapHandler`; stock SK Finish refuse + vanilla consume |
 
 ### Do not treat as optional
 
@@ -114,6 +115,7 @@ Use the full list in [stamina.md](stamina.md) **Verify**. Minimum: jump costs/bl
 | Spawning | Boot log loads spawn types, structure spawns, parties, and pack group sizes. Closed cave: dwarf/cave_spider/krake yes, Dryad/witch/Wildkin no, zombie/goblin still yes. Mineshaft non-origin chunk: witch/illager/pillager can appear; ordinary cave still no. Night surface: reverse exclusives; zombie still yes. Creeper packs 1–2 not 4; enderman 1; zombie/skeleton/spider 2–4 mixed. Default `goblin_feral=3-5`. Fill Pack Size off: old singles. Natural Overworld cleric: knights + CR archers; cage/portal cleric: no party. Failed cultist/blaze cage Delay ≈ 20 (cfg) not 0 and not 200–800; zombie cage still attempts after 1→0; success still 200–800. Hostile cap default 200. No mixin fail on `MixinWorldEntitySpawner`, `MixinMobSpawnerBaseLogic`, or `MixinStructureCache`. See [spawning.md](spawning.md) |
 | Advancement | Join log: no `AddonHandler.onWorldLoad` → `ForgeHooks.loadAdvancements`. Mixin json applied. Animania animals still spawn/register. No Farm/Extra Animania advancement trees. See [advancement.md](advancement.md) |
 | Better Mineshafts | `/locate Mineshaft` TPs to tunnels; log: no `mixins.aqtweaks.bettermineshafts.json` injection failure. See [bettermineshafts.md](bettermineshafts.md) |
+| Stats Keeper | 10 hearts: elixir consumes, +1 heart, drink sound from `aqtweaks_statskeeper.cfg` (default level-up; empty = silent). 20 hearts: drink cancelled, stack remains, red action bar `Your vitality is already at its peak!`, no drink sound. Baubles/buffs above 20 hearts with unused SK additional still drink. See [statskeeper.md](statskeeper.md) |
 
 ## Edge cases
 

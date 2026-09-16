@@ -29,7 +29,7 @@ If `MinecraftServer.getWorld(BoundDim)` is null, open fails (`missing_dim`); ite
 
 Lifespan is read from cfg in `entityInit` into the synced `REMAINING` value (default 1200 ticks), so a cfg edit only reaches **newly opened** rifts — live ones keep the lifespan they were built with. `setSize(1.6, 2.4)`, noClip, not saved (`writeToNBTOptional` false). Linked by UUID **and** dest dimension. Synced `wild` flag (unstable pair). Ticket on **each** rift’s own world; released in `setDead()`. Killing one finds the other across loaded worlds and `setDead()`.
 
-Block light **15** at the mid cell (`RiftLighting` + `MixinWorldRiftLight` on `World.getRawLight`). Do **not** call `World.checkLight` for rifts — that flood-fill mutates the client chunk-rebuild set and crashes `RenderGlobal.updateClouds` (`ConcurrentModificationException`) on integrated SP while a rift is live. The mixin is in `mixins.aqtweaks.early.json` (jar `MixinConfigs`), not the late Tweaks json — late prepare hits `World` after it is already loaded and crashes boot.
+Block light **15** like glowstone: `MixinBlockRiftLight` on Forge `Block.getLightValue(state, world, pos)`, plus `MixinWorldRiftLight` on `World.getRawLight`. `RiftLighting` queues those cells and calls `World.checkLight` at **world-tick END** (client world always; dedicated `WorldServer` only — skip the integrated server world so client `updateClouds` is not mutated from the server thread). Never `checkLight` from the rift entity tick. Mixins stay in `mixins.aqtweaks.early.json`.
 
 Teleport: AABB overlap. Skip other rifts and **sitting** tamed pets. Players still dismount, companion-pull (radius), remount, re-leash. Everything else in the box (`EntityItem`, villagers, hostiles, standing tames, XP orbs, etc.) `moveToExit`. Then `timeUntilPortal` = cooldown (default 80). Exit XZ is dest + horizontal look × **Exit Offset** (cfg, default 1.5), then `findStandFromY` (solid + 1, two body cells) — **not** wild `findStandPos`, which also rejects liquids and `Type.OCEAN`. If that heading is a wall/trunk/hole, try 8 headings at the same radius, then dest feet.
 
@@ -57,7 +57,8 @@ Particles (client `RiftParticles`, **2**/tick): **purple** `DRAGON_BREATH` insid
 | `portal/EntityArcaneRift.java` | Lifetime, link, teleport, wild flag, lighting tick |
 | `portal/RiftLighting.java` | Glowstone-level emission cells |
 | `portal/RiftTeleporter.java` | Cross-dim place at exit pose |
-| `mixin/MixinWorldRiftLight.java` | `World.getRawLight` BLOCK 15 at rift cells; `mixins.aqtweaks.early.json` |
+| `mixin/MixinWorldRiftLight.java` | `World.getRawLight` BLOCK 15 at rift cells |
+| `mixin/MixinBlockRiftLight.java` | Forge `getLightValue` 15 at rift cells (glowstone-style emitter) |
 | `portal/client/RenderArcaneRift.java` | Wobbly portal cylinder |
 | `portal/client/RiftParticles.java` | Dragon-breath column |
 | `portal/client/PortalClientEvents.java` | Item models |

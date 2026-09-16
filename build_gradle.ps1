@@ -45,7 +45,8 @@ $deps = @(
     "incontrol-1.12-3.10.4.jar",
     "animania-1.12.2-base-2.0.3.28.jar",
     "Somnia-1.0.1.jar",
-    "BetterMineshaftsForge-1.12.2-2.2.1.jar"
+    "BetterMineshaftsForge-1.12.2-2.2.1.jar",
+    "StatsKeeper-1.12.2-3.1.13.jar"
 )
 foreach ($dep in $deps) {
     $src = "$localModsDir/$dep"

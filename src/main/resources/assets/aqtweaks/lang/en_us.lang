@@ -44,3 +44,4 @@ reskillable.unlock.aqtweaks.mining_efficiency.desc=Reduces the stamina cost of a
 effect.aqtweaks.adrenaline_cooldown=Adrenaline Cooldown
 effect.aqtweaks.evasion_cooldown=Evasion Cooldown
 effect.aqtweaks.respite_cooldown=Respite Cooldown
+chat.aqtweaks.life_elixir.max_health=Your vitality is already at its peak!
