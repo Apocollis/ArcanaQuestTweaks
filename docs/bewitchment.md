@@ -1,10 +1,10 @@
 # Bewitchment module (1.8)
 
-Last updated: 2026-08-20.
+Last updated: 2026-09-16.
 
 Config: `config/arcanaquesttweaks/aqtweaks_bewitchment.cfg`. `BewitchmentRegistryHandler` registers on the Forge bus only if `bewitchment` is loaded.
 
-Cambion house paste-at-ground, skip-air, and village-skip live in the RTG module ([rtg.md](rtg.md)), not here. Those mixins are `mixins.aqtweaks.bewitchment.json` (`required: false`). This file is **ritual warp only**.
+Cambion house paste-at-ground, skip-air, and village-skip live in the RTG module ([rtg.md](rtg.md)), not here. Those mixins are `mixins.aqtweaks.bewitchment.json` (`required: false`). This file covers **ritual warp** and **CraftTweaker Spinning Wheel** recipes.
 
 ## Locked intent
 
@@ -74,11 +74,36 @@ One list, `ritualWarpList`. Format: `registry_name=normal,temporary[,permanent]`
 
 Malformed lines (`=` missing, fewer than two warp ints) are skipped. `NumberFormatException` is printed.
 
+## CraftTweaker Spinning Wheel
+
+`CTBewitchmentSpinningWheel` is scanned by CraftTweaker (`@ZenRegister`). `@ModOnly("bewitchment")` skips it if Bewitchment is absent. Tweaks does **not** `import` this class from `CommonProxy` or other always-on bus handlers. Compile-hard CraftTweaker jar: `CraftTweaker2-1.12-4.1.20.715.jar`.
+
+Zen package: `mods.bewitchment.SpinningWheel`. Parent type: `com.bewitchment.api.registry.SpinningWheelRecipe` on Forge registry `bewitchment:spinning_wheel_recipe` (constructor `(ResourceLocation, List<Ingredient>, List<ItemStack>)`, max 4 inputs, max 2 outputs). Tweaks exposes a **single** output.
+
+| Method | Effect |
+| --- | --- |
+| `addRecipe(String name, IItemStack output, IIngredient[] inputs)` | Queue an `IAction` that registers one recipe. Inputs must be **1–4**. Empty/null name, null/empty output, or a null ingredient logs and skips. |
+| `removeRecipe(IItemStack output)` | Remove every recipe whose **first** output matches item + meta + NBT (stack size ignored). |
+| `removeRecipe(String name)` | Remove the recipe at that `ResourceLocation`. |
+
+Name with a `:` is a full id (`bewitchment:golden_thread`). Otherwise Tweaks uses `crafttweaker:<name>`. Actions run through `CraftTweakerAPI.apply` against `GameRegistry.findRegistry(SpinningWheelRecipe.class)`. Removes go through `IForgeRegistryModifiable.remove`. Bewitchment did not call `allowModification()` on this registry; if remove throws, Tweaks logs and does not silently swallow.
+
+```zenscript
+import mods.bewitchment.SpinningWheel;
+
+SpinningWheel.removeRecipe(<bewitchment:golden_thread>);
+SpinningWheel.removeRecipe("bewitchment:golden_thread");
+SpinningWheel.addRecipe("pack_thread", <bewitchment:golden_thread>, [<ore:string>, <bewitchment:oak_apple_gall>]);
+```
+
+MoreTweaker already covers oven / distillery / cauldron / ritual. It does **not** cover the Spinning Wheel.
+
 ## Files
 
 - `thaumcraft/BewitchmentRegistryHandler.java` (package is historical)
 - `thaumcraft/WarpRitualWrapper.java`
 - `thaumcraft/ThaumcraftHelper.java` — add/sync
+- `compat/crafttweaker/CTBewitchmentSpinningWheel.java` — `mods.bewitchment.SpinningWheel`
 - Cambion worldgen: `mixin/bewitchment/MixinWorldGenCambionHome.java`, `MixinWorldGenCambionHomeMedium.java` — documented in [rtg.md](rtg.md)
 
 ## Do not regress
@@ -88,9 +113,11 @@ Malformed lines (`=` missing, fewer than two warp ints) are skipped. `NumberForm
 - Keep the same registry name so JEI/altar still resolve the ritual.
 - Do not register wrappers when Thaumcraft is absent (current code returns early).
 - Do not move Cambion paste/skip into this module; it shares village overlap with RTG.
+- Do not load `CTBewitchmentSpinningWheel` from always-on bus classes. Input count stays 1–4.
 
 ## Out of scope unless asked
 
 - Warp on ritual start
 - Wrapping rituals when TC is missing (identity-only wrappers)
 - Hedge Witch / Alchemist village pieces
+- Other Bewitchment machines (oven, distillery, cauldron, ritual) and multi-output Spinning Wheel recipes
