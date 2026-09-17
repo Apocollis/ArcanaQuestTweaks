@@ -19,8 +19,9 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Glowstone-level light at each live rift. Forge {@code Block.getLightValue} reports 15 at the
  * cell ({@code MixinBlockRiftLight}); {@code MixinWorldRiftLight} covers {@code getRawLight}.
- * Vanilla {@code checkLight} then flood-fills, but only at world-tick {@code END} — never from
- * the rift entity tick (that races {@code RenderGlobal.updateClouds} on integrated SP).
+ * Vanilla {@code checkLight} then flood-fills on the client thread ({@code ClientTickEvent}) or a
+ * dedicated {@code WorldServer} tick — never from the rift entity tick, and never on the integrated
+ * server world (that races {@code RenderGlobal.updateClouds}).
  *
  * <p>{@code getRawLight} is one of the hottest methods in the game, so the lookup has to be O(1)
  * and allocation-free. Cells are held in a map keyed by the {@link BlockPos} vanilla already handed
@@ -34,8 +35,8 @@ public final class RiftLighting {
 
     /** Lit cell → the world it belongs to. Keys are immutable. */
     private static final Map<BlockPos, World> CELLS = new ConcurrentHashMap<>();
-    /** Entity id → the cell it currently lights, so a moving rift can relight the cell it left. */
-    private static final Map<Integer, Source> SOURCES = new ConcurrentHashMap<>();
+    /** World identity + entity id → the cell it currently lights. */
+    private static final Map<SourceKey, Source> SOURCES = new ConcurrentHashMap<>();
     private static final Set<LightJob> PENDING = ConcurrentHashMap.newKeySet();
     private static volatile boolean active;
 
@@ -53,11 +54,15 @@ public final class RiftLighting {
     }
 
     public static void tick(EntityArcaneRift rift) {
+        if (!shouldTrack(rift.world)) {
+            return;
+        }
         int x = MathHelper.floor(rift.posX);
         int y = MathHelper.floor(rift.posY + 1.2);
         int z = MathHelper.floor(rift.posZ);
 
-        Source existing = SOURCES.get(rift.getEntityId());
+        SourceKey key = new SourceKey(rift.world, rift.getEntityId());
+        Source existing = SOURCES.get(key);
         if (existing != null && existing.world == rift.world && existing.cell.getX() == x
                 && existing.cell.getY() == y && existing.cell.getZ() == z) {
             return;
@@ -65,7 +70,7 @@ public final class RiftLighting {
 
         BlockPos cell = new BlockPos(x, y, z);
         if (existing == null) {
-            SOURCES.put(rift.getEntityId(), new Source(rift.world, cell));
+            SOURCES.put(key, new Source(rift.world, cell));
             CELLS.put(cell, rift.world);
             refreshActive();
             requestCheck(rift.world, cell);
@@ -84,7 +89,10 @@ public final class RiftLighting {
     }
 
     public static void remove(EntityArcaneRift rift) {
-        Source existing = SOURCES.remove(rift.getEntityId());
+        if (rift.world == null) {
+            return;
+        }
+        Source existing = SOURCES.remove(new SourceKey(rift.world, rift.getEntityId()));
         if (existing == null) {
             return;
         }
@@ -99,8 +107,9 @@ public final class RiftLighting {
      * {@link #isActive()} true, taxing every light query for the rest of the session.
      */
     static void forgetWorld(World world) {
-        for (Iterator<Map.Entry<Integer, Source>> it = SOURCES.entrySet().iterator(); it.hasNext(); ) {
-            if (it.next().getValue().world == world) {
+        for (Iterator<Map.Entry<SourceKey, Source>> it = SOURCES.entrySet().iterator(); it.hasNext(); ) {
+            Map.Entry<SourceKey, Source> entry = it.next();
+            if (entry.getKey().world == world || entry.getValue().world == world) {
                 it.remove();
             }
         }
@@ -109,7 +118,20 @@ public final class RiftLighting {
         refreshActive();
     }
 
+    /**
+     * Client-thread flood-fill. Call only from {@code ClientTickEvent} with the client world.
+     */
+    public static void drainClient(World world) {
+        if (world == null || !world.isRemote) {
+            return;
+        }
+        drain(world);
+    }
+
     private static void requestCheck(World world, BlockPos pos) {
+        if (!shouldTrack(world)) {
+            return;
+        }
         PENDING.add(new LightJob(world, pos.toImmutable()));
     }
 
@@ -126,7 +148,10 @@ public final class RiftLighting {
         });
     }
 
-    private static boolean shouldBake(World world) {
+    private static boolean shouldTrack(World world) {
+        if (world == null) {
+            return false;
+        }
         if (world.isRemote) {
             return true;
         }
@@ -136,6 +161,32 @@ public final class RiftLighting {
 
     private static void refreshActive() {
         active = !SOURCES.isEmpty();
+    }
+
+    private static final class SourceKey {
+        private final World world;
+        private final int entityId;
+
+        private SourceKey(World world, int entityId) {
+            this.world = world;
+            this.entityId = entityId;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            }
+            if (!(other instanceof SourceKey key)) {
+                return false;
+            }
+            return world == key.world && entityId == key.entityId;
+        }
+
+        @Override
+        public int hashCode() {
+            return System.identityHashCode(world) * 31 + entityId;
+        }
     }
 
     private static final class Source {
@@ -178,7 +229,8 @@ public final class RiftLighting {
     public static final class Events {
         @SubscribeEvent
         public static void onWorldTick(TickEvent.WorldTickEvent event) {
-            if (event.phase != TickEvent.Phase.END || event.world == null || !shouldBake(event.world)) {
+            if (event.phase != TickEvent.Phase.END || event.world == null || !shouldTrack(event.world)
+                    || event.world.isRemote) {
                 return;
             }
             drain(event.world);

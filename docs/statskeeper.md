@@ -31,7 +31,7 @@ Cancel **before** Finish:
 
 1. `LivingEntityUseItemEvent.Start` (client and server). Cancel when the player is not a spectator, the stack is `contenttweaker:life_elixir`, SK health is enabled, the cap is non-null, and `(int) MAX_HEALTH.getBaseValue() + cap.getAdditionalHealth() >= SKHealthConfig.max_health`. Server action bar: `chat.aqtweaks.life_elixir.max_health` (red).
 2. `PlayerInteractEvent.RightClickItem` (client and server, **no** message). Same gates so a held RMB cannot start the drink animation. Message stays on `Start` so hold-RMB does not spam.
-3. `LivingEntityUseItemEvent.Finish` (server only). If the stack is still the elixir and SK health is enabled, resolve `StatsKeeperModuleConfig.elixirDrinkSound` once (empty = silent; unknown/invalid = `ENTITY_PLAYER_LEVELUP`) and `world.playSound(null, …, sound, PLAYERS, 0.75F, 1.0F)`. Cap cancels `Start`, so this does not run when the drink is refused. No tick or packet path.
+3. `LivingEntityUseItemEvent.Finish` (server only). If the stack is still the elixir and SK health is enabled, resolve `StatsKeeperModuleConfig.general.elixirDrinkSound` once (empty = silent; unknown/invalid = `ENTITY_PLAYER_LEVELUP`) and `world.playSound(null, …, sound, PLAYERS, 0.75F, 1.0F)`. Cap cancels `Start`, so this does not run when the drink is refused. No tick or packet path.
 
 Missing Stats Keeper jar → handler not registered; Tweaks still boots. Compile still needs the jar in `libs/`.
 
@@ -40,14 +40,14 @@ Missing Stats Keeper jar → handler not registered; Tweaks still boots. Compile
 | Piece | Role |
 | --- | --- |
 | `statskeeper/LifeElixirCapHandler.java` | Cancel elixir use at SK cap; configured sound on successful Finish |
-| `ArcanaQuestTweaksConfig.StatsKeeperModuleConfig` | `aqtweaks_statskeeper.cfg` |
+| `ArcanaQuestTweaksConfig.StatsKeeperModuleConfig` | Nested `general`; `aqtweaks_statskeeper.cfg` |
 | `assets/aqtweaks/lang/en_us.lang` | `chat.aqtweaks.life_elixir.max_health` |
 
 ## Live config (`config/arcanaquesttweaks/aqtweaks_statskeeper.cfg`)
 
 | Category / Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `Elixir Drink Sound` | string | `minecraft:entity.player.levelup` | Sound event id on a successful elixir drink. Empty disables. Unknown or invalid ids fall back to level-up. Hand-edit needs a restart; in-game Tweaks GUI syncs without one. |
+| `general` / `Elixir Drink Sound` | string | `minecraft:entity.player.levelup` | Sound event id on a successful elixir drink. Empty disables. Unknown or invalid ids fall back to level-up. Hand-edit needs a restart; in-game Tweaks GUI syncs without one. |
 
 Cap still follows live `SKHealthConfig.max_health` / `enabled`. Item id is pack-pinned.
 
@@ -59,6 +59,7 @@ Cap still follows live `SKHealthConfig.max_health` / `enabled`. Item id is pack-
 - Do not send the action-bar message from `RightClickItem`.
 - Do not play a drink sound when the drink is cancelled at cap.
 - Do not import Stats Keeper types from `ArcanaQuestTweaksConfig`.
+- Do not put string/primitive fields on a `@Config(..., category = "")` class (Forge empty-category crash). Nest them under `general`.
 - Do not treat ContentTweaker as a compile parent.
 
 ## Verify

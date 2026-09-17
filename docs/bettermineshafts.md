@@ -1,6 +1,6 @@
 # Better Mineshafts module (1.8)
 
-Last updated: 2026-09-14.
+Last updated: 2026-09-16. Vanilla inherited `@Shadow` on BM classes uses Reflect (Cleanroom named supers).
 
 Optional mixin layer if YUNG’s Better Mineshafts is present (`mixins.aqtweaks.bettermineshafts.json`, `required: false`). No Tweaks Forge cfg.
 
@@ -22,8 +22,8 @@ Vanilla `MapGenMineshaft.getNearestStructurePos` (`func_180706_b`) is a can-spaw
 
 ## Design plan
 
-- `MixinVerticalEntrance` RETURN of `func_74875_a`: if the parent returned false, keep a **small** box around `centerPos` (Y through Y+6, ±2 XZ) and return true. Do not shrink `maxY` while a cliff opening exists.
-- `MixinMapGenBetterMineshaftStart` RETURN of `func_75068_a`: `updateBoundingBox()` (`func_75072_c`) after piece removal.
+- `MixinVerticalEntrance` RETURN of `func_74875_a`: if the parent returned false, keep a **small** box around `centerPos` (Y through Y+6, ±2 XZ) and return true. Do not shrink `maxY` while a cliff opening exists. Set the box via Reflect (`setBoundingBox` / `boundingBox` / `field_74887_e`) — do not `@Shadow` vanilla `setBoundingBox` on the SRG BM class.
+- `MixinMapGenBetterMineshaftStart` RETURN of `func_75068_a`: `Reflect.updateStructureStartBoundingBox` (`updateBoundingBox` / `func_75072_c`) after piece removal. Do not `@Shadow func_75072_c`.
 - `MixinMapGenBetterMineshaft` RETURN of `func_180706_b`: nearest registered Start pin (entrance `centerPos`, else start-chunk at `minY+4`). If none, retarget the vanilla Y=64 pin to Y=24.
 
 `VerticalEntranceAccess` is only implemented by the entrance mixin. `BetterMineshaftLocate` is only called from the BM mixin json.
@@ -55,5 +55,5 @@ None. Always on when the json applies.
 
 1. New Overworld chunks, BM loaded. `/locate Mineshaft` → TP. Spectator: tunnels or shaft near that XZ; `isInsideStructure("Mineshaft")` true at the pin and at tunnel Y; false high in the sky.
 2. Flat plains (no cliff opening): locate is tunnel Y at the start chunk, not ~136.
-3. Relog: same nearest mineshaft. Optional json skip if BM jar absent (no mixin apply crash).
+3. Relog: same nearest mineshaft. Optional json skip if BM jar absent (no mixin apply crash). Log must not say `setBoundingBox` / `func_75072_c` was not located.
 4. Villages unchanged.

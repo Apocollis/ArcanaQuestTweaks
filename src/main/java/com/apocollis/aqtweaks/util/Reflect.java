@@ -269,6 +269,8 @@ public class Reflect {
     private static Field chunkProviderChunkGeneratorField;
     private static Method worldGetChunkProviderMethod;
     private static Method structureComponentGetBoundingBoxMethod;
+    private static Method structureComponentSetBoundingBoxMethod;
+    private static Field structureComponentBoundingBoxField;
     private static Method structureComponentOffsetMethod;
     private static Method structureStartUpdateBoundingBoxMethod;
     private static Method structureStartWriteNbtMethod;
@@ -1139,6 +1141,15 @@ public class Reflect {
             Class<?> componentClass = Class.forName("net.minecraft.world.gen.structure.StructureComponent");
             try { structureComponentGetBoundingBoxMethod = componentClass.getMethod("func_74874_b"); } catch (Throwable t) {
                 try { structureComponentGetBoundingBoxMethod = componentClass.getMethod("getBoundingBox"); } catch (Throwable ignored) {}
+            }
+            try { structureComponentSetBoundingBoxMethod = componentClass.getMethod("func_74878_a", boxClass); } catch (Throwable t) {
+                try { structureComponentSetBoundingBoxMethod = componentClass.getMethod("setBoundingBox", boxClass); } catch (Throwable ignored) {}
+            }
+            try { structureComponentBoundingBoxField = componentClass.getDeclaredField("field_74887_e"); } catch (Throwable t) {
+                try { structureComponentBoundingBoxField = componentClass.getDeclaredField("boundingBox"); } catch (Throwable ignored) {}
+            }
+            if (structureComponentBoundingBoxField != null) {
+                structureComponentBoundingBoxField.setAccessible(true);
             }
             try { structureComponentOffsetMethod = componentClass.getMethod("func_181138_a", int.class, int.class, int.class); } catch (Throwable t) {
                 try { structureComponentOffsetMethod = componentClass.getMethod("offset", int.class, int.class, int.class); } catch (Throwable ignored) {}
@@ -3935,6 +3946,20 @@ public class Reflect {
         if (start == null || structureStartUpdateBoundingBoxMethod == null) return;
         try {
             structureStartUpdateBoundingBoxMethod.invoke(start);
+        } catch (Exception ignored) {}
+    }
+
+    public static void setStructureComponentBoundingBox(Object component, Object box) {
+        if (component == null || box == null) return;
+        if (structureComponentSetBoundingBoxMethod != null) {
+            try {
+                structureComponentSetBoundingBoxMethod.invoke(component, box);
+                return;
+            } catch (Exception ignored) {}
+        }
+        if (structureComponentBoundingBoxField == null) return;
+        try {
+            structureComponentBoundingBoxField.set(component, box);
         } catch (Exception ignored) {}
     }
 

@@ -1,6 +1,7 @@
 package com.apocollis.aqtweaks.mixin.bettermineshafts;
 
 import com.apocollis.aqtweaks.bettermineshafts.VerticalEntranceAccess;
+import com.apocollis.aqtweaks.util.Reflect;
 import com.yungnickyoung.minecraft.bettermineshafts.world.generator.pieces.VerticalEntrance;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -18,9 +19,6 @@ public abstract class MixinVerticalEntrance implements VerticalEntranceAccess {
 
     @Shadow
     private BlockPos centerPos;
-
-    @Shadow
-    public abstract void setBoundingBox(StructureBoundingBox box);
 
     @Override
     public BlockPos aqtweaks$getCenterPos() {
@@ -45,7 +43,8 @@ public abstract class MixinVerticalEntrance implements VerticalEntranceAccess {
         int x = this.centerPos.getX();
         int y = this.centerPos.getY();
         int z = this.centerPos.getZ();
-        this.setBoundingBox(new StructureBoundingBox(x - 2, y, z - 2, x + 2, y + 6, z + 2));
+        Reflect.setStructureComponentBoundingBox(this,
+                new StructureBoundingBox(x - 2, y, z - 2, x + 2, y + 6, z + 2));
         cir.setReturnValue(Boolean.TRUE);
     }
 }

@@ -31,6 +31,7 @@ foreach ($old in $stale) {
 $deps = @(
     "ElenaiDodge2Extended-1.12.2-1.1.3.jar",
     "bewitchment-1.12.2-0.0.22.65.jar",
+    "CraftTweaker2-1.12-4.1.20.715.jar",
     "CoFHWorld-1.12.2-1.4.0.1-universal.jar",
     "bettercaves-1.12.2-2.0.4.jar",
     "RecurrentComplexVolts-1.12.2-2.0.0.9.jar",

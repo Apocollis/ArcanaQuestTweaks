@@ -1019,9 +1019,15 @@ public class ArcanaQuestTweaksConfig {
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_statskeeper", category = "")
     public static class StatsKeeperModuleConfig {
+        @Config.Name("General")
+        @Config.Comment("Elixir of Vitality drink sound when Stats Keeper accepts the heart.")
+        public static final StatsKeeperGeneral general = new StatsKeeperGeneral();
+    }
+
+    public static class StatsKeeperGeneral {
         @Config.Name("Elixir Drink Sound")
         @Config.Comment("Sound event id played when Elixir of Vitality is successfully drunk. Empty disables the sound. Unknown or invalid ids fall back to minecraft:entity.player.levelup.")
-        public static String elixirDrinkSound = "minecraft:entity.player.levelup";
+        public String elixirDrinkSound = "minecraft:entity.player.levelup";
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_spawning", category = "")

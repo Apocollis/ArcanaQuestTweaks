@@ -1,6 +1,6 @@
 # Portal module (1.8)
 
-Last updated: 2026-09-10.
+Last updated: 2026-09-16. Rift `checkLight` on client-tick / dedicated world-tick only.
 
 Config: `config/arcanaquesttweaks/aqtweaks_portal.cfg`. Tweaks-owned. No parent portal mod.
 
@@ -29,7 +29,7 @@ If `MinecraftServer.getWorld(BoundDim)` is null, open fails (`missing_dim`); ite
 
 Lifespan is read from cfg in `entityInit` into the synced `REMAINING` value (default 1200 ticks), so a cfg edit only reaches **newly opened** rifts — live ones keep the lifespan they were built with. `setSize(1.6, 2.4)`, noClip, not saved (`writeToNBTOptional` false). Linked by UUID **and** dest dimension. Synced `wild` flag (unstable pair). Ticket on **each** rift’s own world; released in `setDead()`. Killing one finds the other across loaded worlds and `setDead()`.
 
-Block light **15** like glowstone: `MixinBlockRiftLight` on Forge `Block.getLightValue(state, world, pos)`, plus `MixinWorldRiftLight` on `World.getRawLight`. `RiftLighting` queues those cells and calls `World.checkLight` at **world-tick END** (client world always; dedicated `WorldServer` only — skip the integrated server world so client `updateClouds` is not mutated from the server thread). Never `checkLight` from the rift entity tick. Mixins stay in `mixins.aqtweaks.early.json`.
+Block light **15** like glowstone: `MixinBlockRiftLight` on Forge `Block.getLightValue(state, world, pos)`, plus `MixinWorldRiftLight` on `World.getRawLight`. `RiftLighting` queues those cells and calls `World.checkLight` on **client-tick END** (`PortalClientEvents`) and on **dedicated** `WorldServer` world-tick END. Skip the integrated server world and never `checkLight` a client world from the server thread — that races `RenderGlobal.updateClouds`. Never `checkLight` from the rift entity tick. Client vs server rift entities are keyed by world identity + entity id. Mixins stay in `mixins.aqtweaks.early.json`.
 
 Teleport: AABB overlap. Skip other rifts and **sitting** tamed pets. Players still dismount, companion-pull (radius), remount, re-leash. Everything else in the box (`EntityItem`, villagers, hostiles, standing tames, XP orbs, etc.) `moveToExit`. Then `timeUntilPortal` = cooldown (default 80). Exit XZ is dest + horizontal look × **Exit Offset** (cfg, default 1.5), then `findStandFromY` (solid + 1, two body cells) — **not** wild `findStandPos`, which also rejects liquids and `Type.OCEAN`. If that heading is a wall/trunk/hole, try 8 headings at the same radius, then dest feet.
 
@@ -61,7 +61,7 @@ Particles (client `RiftParticles`, **2**/tick): **purple** `DRAGON_BREATH` insid
 | `mixin/MixinBlockRiftLight.java` | Forge `getLightValue` 15 at rift cells (glowstone-style emitter) |
 | `portal/client/RenderArcaneRift.java` | Wobbly portal cylinder |
 | `portal/client/RiftParticles.java` | Dragon-breath column |
-| `portal/client/PortalClientEvents.java` | Item models |
+| `portal/client/PortalClientEvents.java` | Item models; client-tick rift `checkLight` drain |
 | `ArcanaQuestTweaksConfig.PortalModuleConfig.general` | `aqtweaks_portal.cfg` |
 
 ## Live config
@@ -86,8 +86,9 @@ Existing instance `aqtweaks_portal.cfg` keeps old wild distances until edited.
 - Sitting pets must not companion-pull. Leash rebind must not attach unleashed pets.
 - Particle counts stay capped at 2/tick inside the cylinder. No vanilla nether portal math on rift travel. Tear rifts must not use the wild red flag.
 - Do not `untrack`/`track` rifts. No portal light packet.
+- Do not `checkLight` from `EntityArcaneRift.onUpdate` or the integrated server thread (races `RenderGlobal.updateClouds`). Client drain is `ClientTickEvent` only.
 - Wild dest must not sit on canopy logs. Exit must snap at Exit Offset, not dest Y in a trunk.
 
 ## Verify
 
-`/give @p aqtweaks:spatial_rift_tear` then `/give @p aqtweaks:spatial_rift_wild`. Unbound name Arcane Tunnel; tooltip has use line. First air-use binds (Linked + glint). Sneak-use unbinds. Second air-use (elsewhere, including Nether) opens purple rifts both ends; wild opens red. Breath stays inside the cylinder. Dark cave lights like glowstone. Walk through both ways; villager/zombie in the box also go; 60s collapse. Sitting wolf stays; standing follows. Lead follows. Wild tear lands on dirt/stone ~4000–6000 blocks away, not ocean, **not** on a tree limb. Walk through: stand on solid ~1.5 in front of dest. Far dest cylinder still draws with DS full bypass. Missing dest dim fails with item kept; a successful open spends one from the stack (creative keeps it). Dedicated server boots.
+`/give @p aqtweaks:spatial_rift_tear` then `/give @p aqtweaks:spatial_rift_wild`. Unbound name Arcane Tunnel; tooltip has use line. First air-use binds (Linked + glint). Sneak-use unbinds. Second air-use (elsewhere, including Nether) opens purple rifts both ends; wild opens red. Breath stays inside the cylinder. Dark cave lights like glowstone. Sit in an open rift ~60s: no `updateClouds` CME. Walk through both ways; villager/zombie in the box also go; 60s collapse. Sitting wolf stays; standing follows. Lead follows. Wild tear lands on dirt/stone ~4000–6000 blocks away, not ocean, **not** on a tree limb. Walk through: stand on solid ~1.5 in front of dest. Far dest cylinder still draws with DS full bypass. Missing dest dim fails with item kept; a successful open spends one from the stack (creative keeps it). Dedicated server boots.

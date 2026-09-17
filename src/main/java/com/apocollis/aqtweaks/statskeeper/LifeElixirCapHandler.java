@@ -68,7 +68,7 @@ public class LifeElixirCapHandler {
     }
 
     private static SoundEvent resolveDrinkSound() {
-        String id = ArcanaQuestTweaksConfig.StatsKeeperModuleConfig.elixirDrinkSound;
+        String id = ArcanaQuestTweaksConfig.StatsKeeperModuleConfig.general.elixirDrinkSound;
         if (id == null || id.trim().isEmpty()) {
             return null;
         }
