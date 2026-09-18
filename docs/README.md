@@ -26,7 +26,7 @@ Each file covers: what Tweaks changes, how the **parent mod** implements the fea
 | Comfort | Vanilla + optional Thaumcraft, Simple Difficulty, Biomes O' Plenty | [comfort.md](comfort.md) |
 | Portal | Tweaks-owned (no parent) | [portal.md](portal.md) |
 | Twilight Forest | RandomPortals + Twilight Forest | [twilightforest.md](twilightforest.md) |
-| Depths | Depths Update, YUNG's Better Caves, RTG, CoFH World, Recurrent Complex | [depths.md](depths.md) |
+| Depths | Depths Update, YUNG's Better Caves, RTG, CoFH World, Recurrent Complex, optional Quark | [depths.md](depths.md) |
 | RTG | Realistic Terrain Generation + vanilla `MapGenVillage` + Recurrent Complex + Astral / Bewitchment Cambion / Mystical World huts | [rtg.md](rtg.md) |
 | Village gen (pack pipeline) | Vanilla + RTG + Geographicraft + Recurrent Complex + Charm + Tweaks overlay | [villagegen_info.md](villagegen_info.md) |
 | Client | Toughness Bar (optional), tooltip lines for non-Metallurgy tools | [client.md](client.md) |
@@ -63,9 +63,10 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 | Effortless Building | Building skill place-reach / max blocks | Mixin json skipped; Building drip unused |
 | InControl | Spawning layer filter + pack fill + structure BB cache (compile-hard min-distance and `StructureCache`) | Missing jar fails compile; pack always ships it |
 | Animania | Advancement: skip Base world-load reload + Farm/Extra inject | Mixin json skipped; Animania advancements load as stock |
-| YUNG’s Better Mineshafts | Locate pin + failed-entrance stub | Mixin json skipped; stock BM Y=64 locate |
+| YUNG’s Better Mineshafts | Locate pin + failed-entrance stub + Tweaks rate/spacing/Y | Mixin json skipped; stock BM Y=64 locate |
 | Stats Keeper | Elixir of Vitality drink cancel at SK cap | Handler not registered; vanilla + SK consume/refuse as stock |
 | RandomPortals + Twilight Forest | TF landing safety + grass pads | Handler not registered; RP mixin json skipped; stock RP 1:1 landings |
+| Quark | Depths lower-cavern speleothem primer decor | Helper not called; +Y stock Quark unchanged; Deepslate columns/spikes still generate |
 
 ### Init (`CommonProxy` / `ClientProxy`)
 
@@ -121,7 +122,7 @@ Vanilla `World` and `MobSpawnerBaseLogic` are already loaded when late mixins pr
 | `mixins.aqtweaks.animania.json` | false | Advancement: cancel Animania `onWorldLoad` | Skip |
 | `mixins.aqtweaks.somnia.json` | false | Somnia: chunk light fix, 3-tier SMP sleep (Case A/B/C), Case B 2x time, fatigue tuning & chat notifications | Skip |
 | `mixins.aqtweaks.incontrol.json` | false | Spawning: `StructureCache.parseStructureData` BB chunk expand | Skip |
-| `mixins.aqtweaks.bettermineshafts.json` | false | Better Mineshafts locate pin + entrance stub | Skip |
+| `mixins.aqtweaks.bettermineshafts.json` | false | Better Mineshafts locate pin + entrance stub + Tweaks placement | Skip |
 | `mixins.aqtweaks.randomportals.json` | false | Twilight Forest: grass pad on RP generate | Skip |
 
 `mixins.aqtweaks.json` contents (package `com.apocollis.aqtweaks.mixin`):
@@ -155,6 +156,7 @@ Forge `@Config` on nested classes in `ArcanaQuestTweaksConfig`. Comfort is JSON,
 | `aqtweaks_statskeeper.cfg` | `StatsKeeperModuleConfig` |
 | `aqtweaks_reskillable.cfg` | `ReskillableModuleConfig` |
 | `aqtweaks_spawning.cfg` | `SpawningModuleConfig` |
+| `aqtweaks_bettermineshafts.cfg` | `BetterMineshaftsModuleConfig` |
 | `aqtweaks_comfort_settings.json` | `ComfortConfigLoader` (not `@Config`) |
 | `aqtweaks_comfort_blocks.json` | `ComfortConfigLoader` (not `@Config`) |
 
@@ -162,7 +164,7 @@ Forge `@Config` on nested classes in `ArcanaQuestTweaksConfig`. Comfort is JSON,
 
 Its reach is narrower than it looks. It subscribes to `ConfigChangedEvent.OnConfigChangedEvent`, which Forge fires from the **client in-game config GUI only** — never on a dedicated server, and never from hand-editing a cfg file. The only JSON it reloads is spawn-type, spawn-party, and spawn-tier (plus `mob_spawnrules.cfg`); comfort (`aqtweaks_comfort_settings.json`, `aqtweaks_comfort_blocks.json`) and `gaia_mob_damage.json` are preInit-only and need a **restart**.
 
-`aqtweaks_grimoireofgaia.cfg`, `aqtweaks_thaumcraft.cfg`, and `aqtweaks_bewitchment.cfg` wrap their keys in a `general { }` block because those three `@Config` annotations omit `category = ""`. `aqtweaks_spawning.cfg`, `aqtweaks_statskeeper.cfg`, and `aqtweaks_twilightforest.cfg` also nest a `General` object (still `category = ""`) so their keys sit in `general { }` too. The remaining six with `category = ""` keep keys at file root. That asymmetry is **intentional** — normalizing the three omit-category files would reset tuned values in existing instance files.
+`aqtweaks_grimoireofgaia.cfg`, `aqtweaks_thaumcraft.cfg`, and `aqtweaks_bewitchment.cfg` wrap their keys in a `general { }` block because those three `@Config` annotations omit `category = ""`. `aqtweaks_spawning.cfg`, `aqtweaks_statskeeper.cfg`, `aqtweaks_twilightforest.cfg`, and `aqtweaks_bettermineshafts.cfg` also nest a `General` object (still `category = ""`) so their keys sit in `general { }` too. Files with `category = ""` and no nested General keep keys at file root. That asymmetry is **intentional** — normalizing the three omit-category files would reset tuned values in existing instance files.
 
 Pack-owned (not Tweaks): `config/arcanaquest/mob_overworldspawntype.json`, `mob_spawnparties.json`, `mob_tier.json`, and `mob_spawnrules.cfg` for the [spawning](spawning.md) module.
 

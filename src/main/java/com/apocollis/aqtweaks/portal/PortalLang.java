@@ -26,10 +26,10 @@ public final class PortalLang {
         put(TEAR_NAME_LINKED, "Linked Arcane Tunnel");
         put(TEAR_LORE,
                 "\u00a7dPulls the arcane threads between places to open a temporary tunnel between them. Attune to a destination to open a rift back to that point.");
-        put(TEAR_UNBOUND, "\u00a77Unbound. Right-click in air to mark this place.");
+        put(TEAR_UNBOUND, "\u00a77Unbound. Right-click air or a block to mark that place.");
         put(TEAR_BOUND, "Bound: %d, %d, %d (dim %d)");
         put(TEAR_SHIFT,
-                "\u00a78Sneak-use unbinds. Air-use attunes this place (unbound) or opens a 60s rift at the bound point (linked). Standing pets and leads follow; sitting pets stay.");
+                "\u00a78Sneak-use unbinds. Air- or block-use attunes (unbound) or opens a 60s rift at the bound point (linked). Standing pets and leads follow; sitting pets stay.");
         put(TEAR_SHIFT_HINT, "\u00a78Hold Shift for details.");
         put("item.aqtweaks.spatial_rift_tear.attuned",
                 "\u00a75[Arcana]\u00a7r \u00a7dAttuned Arcane Tunnel to X: %d, Y: %d, Z: %d.");

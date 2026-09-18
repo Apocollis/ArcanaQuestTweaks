@@ -2,6 +2,7 @@ package com.apocollis.aqtweaks.mixin.bettercaves;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.depths.PrimerAccess;
+import com.apocollis.aqtweaks.depths.QuarkSpeleothemDecor;
 import com.apocollis.aqtweaks.depths.UpperTunnelNetwork;
 import com.apocollis.aqtweaks.util.Reflect;
 import com.yungnickyoung.minecraft.bettercaves.noise.FastNoise;
@@ -10,6 +11,7 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.chunk.ChunkPrimer;
+import net.minecraftforge.fml.common.Loader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.spongepowered.asm.mixin.Mixin;
@@ -571,6 +573,11 @@ public abstract class MixinCaveNoiseGenerator {
                     }
                 }
             }
+        }
+
+        if (ArcanaQuestTweaksConfig.DepthsModuleConfig.general.enableQuarkSpeleothems
+                && Loader.isModLoaded("quark")) {
+            QuarkSpeleothemDecor.decorate(primer, chunkX, chunkZ, seed);
         }
 
         ci.cancel();

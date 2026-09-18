@@ -1,6 +1,6 @@
 # Depths module (1.8)
 
-Last updated: 2026-09-10.
+Last updated: 2026-09-18.
 
 Config: `config/arcanaquesttweaks/aqtweaks_depths.cfg`. **New chunks only** for carve/fill. Client fog/sky apply immediately.
 
@@ -12,6 +12,7 @@ Depths Update extends the Overworld to **Y = -64**. Several 1.12 gens still assu
 
 - Fills RTG’s sub-zero primer with Deepslate (bedrock at min Y). **Never write Y=0** in that fill.
 - Disables Depths’ own -Y cave samples, then carves AQTweaks caves in the primer (upper tunnels, chambers, lower deep, sparse shafts).
+- Decorates the lower cavern with Quark speleothem clusters (primer-only; stock Quark never walks below Y 4).
 - Opens mouths at Y0 into **+Y Better Caves** without cancelling BC.
 - Lets Better Caves carve RTG terracotta/clay/etc.; cancels BC bedrock flatten; fixes surface-altitude for -Y.
 - Lets CoFH World and Recurrent Complex rays go down to min Y.
@@ -134,6 +135,7 @@ Decor (Deepslate), after carve:
 - **Stalactites:** spike `&lt; -0.15` and not a lower-breach column, length 5–16 down from ceiling, stop on solid, stay above land surface.
 - **Bridges:** 16-block cells, spawn ≥ 0.28, span 16, half-width ~1.2. Both ends land, mid a lava channel. Solid fill under a smooth arch, deck 4–6 above lava. Skip breach shafts.
 - **Orphan cleanup:** isolated floaters and short stacks (≤8) that do not touch the ceiling, with air/lava above and below. Protects columns, bridge fill, and short floor spikes.
+- **Quark speleothems:** after that pass, if Quark is loaded and `enableQuarkSpeleothems` is on, `QuarkSpeleothemDecor` plants in-chunk clusters (60 attempts, 10 per cluster, 1–3 tapering `EnumSize` blocks). Same walk-to-full-block logic as stock `SpeleothemGenerator`, but Y is the lower cavern (−59..−24) and writes go to the primer. Deepslate hosts `stone_speleothem` (Quark has no deepslate variant). Skip roof-breach shaft columns. Does not replace Deepslate columns/spikes/bridges. Stock +Y Quark gen is unchanged.
 
 Carve loop skips existing air and bedrock. Land fill is applied again after carve so skipped cells still get a floor.
 
@@ -162,6 +164,7 @@ Same `UpperTunnelNetwork` as -Y upper worms. Overworld only (`dimension == 0`).
 | Enable Depths Module | true | yes | Master. Off: fill/carve/fog/sky/CoFH/RC/BC hooks that check it skip. **Exception:** Depths `ICaveGenerator.sample` y&lt;0 is still redirected off. |
 | Minimum World Y Elevation | -64 | — | **Pinned.** Bedrock floor and ray/CoFH clamp read the constant; not a tunable knob |
 | Better Depths Caves | true | yes | AQTweaks primer carve + BC mouths + chunk seam. Off: those skip; Depths still has no -Y samples |
+| Enable Quark Speleothems | true | yes | Lower-cavern primer Quark clusters. Off or Quark missing: skip; cave shape unchanged |
 | Deep Cave Fog | true | yes | Client fog below Y0 |
 | Hide Skybox Below Y 0 | true | yes | Client skip `renderSky` |
 | Enable CoFH World Negative Y | true | yes | `Math.max` floor → minWorldY |
@@ -191,6 +194,7 @@ Same `UpperTunnelNetwork` as -Y upper worms. Overworld only (`dimension == 0`).
 | `depths/PrimerAccess.java` | Direct (remapped) primer/state reads + open-sky surface scan |
 | `depths/DepthsFogHandler.java` | Fog |
 | `depths/DepthsBiomeUtil.java` | Water/beach/ocean/river/coral/kelp for seam seal |
+| `depths/QuarkSpeleothemDecor.java` | Primer Quark speleothems in the lower cavern (`Loader.isModLoaded("quark")`) |
 | `ArcanaQuestTweaksConfig.DepthsModuleConfig` | `aqtweaks_depths.cfg` |
 
 ## Design history (do not regress)
@@ -245,6 +249,8 @@ A Spark profile put Tweaks at ~56% of chunk generation: 34s primer carve, 18s su
 - `enableBetterDepthsCaves` vs `enableBetterCavesNegativeY` stay separate.
 - `@Overwrite` on `RayMatcher.cast` — re-verify on Recurrent Complex updates.
 - Turning off Better Depths Caves does **not** restore Depths’ own -Y caves (sample redirect has no flag).
+- Quark speleothems in the deep are **primer-only** and **in-chunk**. Do not mixin `SpeleothemGenerator` to lower its Y walk, and do not `setBlockState` below 0 for this decor.
+- Do not replace Deepslate columns, floor spikes, stalactites, or bridges with speleothems.
 
 ## Out of scope unless asked
 

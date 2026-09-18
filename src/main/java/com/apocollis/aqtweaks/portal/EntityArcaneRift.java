@@ -15,7 +15,6 @@ import net.minecraft.network.datasync.EntityDataManager;
 import net.minecraft.util.SoundCategory;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
@@ -210,10 +209,9 @@ public class EntityArcaneRift extends Entity {
         if (entity == null || entity.isDead) {
             return entity;
         }
-        Vec3d stand = PortalModule.standAtOffset(dest.world, dest.posX, dest.posY, dest.posZ, dest.rotationYaw);
-        double x = stand.x;
-        double y = stand.y;
-        double z = stand.z;
+        double x = dest.posX;
+        double y = dest.posY;
+        double z = dest.posZ;
         float yaw = dest.rotationYaw;
         int destDim = dest.world.provider.getDimension();
         if (entity.world.provider.getDimension() == destDim) {

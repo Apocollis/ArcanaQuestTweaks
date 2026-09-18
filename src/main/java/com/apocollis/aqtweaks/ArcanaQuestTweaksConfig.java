@@ -784,6 +784,10 @@ public class ArcanaQuestTweaksConfig {
             @Config.Name("Better Depths Caves")
             @Config.Comment("Enable AQTweaks Depths cave generation (BC-style upper tunnels, chambers, lower deep, sparse shafts, Y0 mouths into +Y Better Caves). Affects new chunks only. When false, AQTweaks skips that carve path.")
             public boolean enableBetterDepthsCaves = true;
+
+            @Config.Name("Enable Quark Speleothems")
+            @Config.Comment("Place Quark speleothem clusters in the lower cavern primer (new chunks only). Skipped if Quark is not loaded. Does not replace Deepslate columns, spikes, or bridges.")
+            public boolean enableQuarkSpeleothems = true;
         }
 
         public static class Client {
@@ -982,9 +986,9 @@ public class ArcanaQuestTweaksConfig {
         public int lifespanTicks = 1200;
 
         @Config.Name("Teleport Cooldown Ticks")
-        @Config.Comment("Vanilla-style timeUntilPortal after a trip so entities do not bounce. 80 = 4 seconds.")
+        @Config.Comment("Vanilla-style timeUntilPortal after open and after a trip so entities do not bounce. 60 = 3 seconds.")
         @Config.RangeInt(min = 1, max = 400)
-        public int cooldownTicks = 80;
+        public int cooldownTicks = 60;
 
         @Config.Name("Spawn Offset")
         @Config.Comment("Blocks along look direction to place the source rift in front of the player.")
@@ -992,7 +996,7 @@ public class ArcanaQuestTweaksConfig {
         public double spawnOffset = 1.5;
 
         @Config.Name("Exit Offset")
-        @Config.Comment("Blocks in front of the destination rift to stand after teleport.")
+        @Config.Comment("Unused for teleport (arrival is dest rift XYZ). Kept so existing cfg files still load.")
         @Config.RangeDouble(min = 0.5, max = 4.0)
         public double exitOffset = 1.5;
 
@@ -1358,6 +1362,43 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Deny Types")
         @Config.Comment("Exact damageType strings that never count as spell-like.")
         public String[] denyTypes = new String[] {"wither", "onFire", "lava", "hotFloor"};
+    }
+
+    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_bettermineshafts", category = "")
+    public static class BetterMineshaftsModuleConfig {
+        @Config.Name("General")
+        @Config.Comment("Tweaks mineshaft rate, spacing, ocean skip, and tunnel Y.")
+        public static final BetterMineshaftsGeneral general = new BetterMineshaftsGeneral();
+    }
+
+    public static class BetterMineshaftsGeneral {
+        @Config.Name("Enable Better Mineshafts Tweaks")
+        @Config.Comment("When true, Tweaks owns mineshaft can-spawn (rate, chunk spacing, ocean/beach skip) and tunnel Y. When false, parent Better Mineshafts canSpawn and Y run; locate pin and failed-entrance stub still apply.")
+        public boolean enable = true;
+
+        @Config.Name("Mineshaft Spawn Rate")
+        @Config.Comment("Chance a spacing-eligible land chunk gets a shaft. Tweaks owns this roll; Better Mineshafts cfg spawn rate is unused while Enable is true. New chunks only.")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public double mineshaftSpawnRate = 0.001;
+
+        @Config.Name("Chunk Spacing")
+        @Config.Comment("Only chunks whose X and Z are multiples of this may roll. 1 = no grid. New chunks only.")
+        @Config.RangeInt(min = 1, max = 64)
+        public int chunkSpacing = 4;
+
+        @Config.Name("Skip Ocean And Beach")
+        @Config.Comment("Skip biome-provider ocean and beach at the chunk center (Y=64). Off lets shafts roll there.")
+        public boolean skipOceanAndBeach = true;
+
+        @Config.Name("Tunnel Min Y")
+        @Config.Comment("Lowest Y for the start tunnel (local copy; does not rewrite Better Mineshafts variant settings). Clamped to 1. New chunks only.")
+        @Config.RangeInt(min = 1, max = 255)
+        public int tunnelMinY = 17;
+
+        @Config.Name("Tunnel Max Y")
+        @Config.Comment("Highest Y for the start tunnel. Clamped to 255. Swapped with min if inverted. Does not go into Depths −Y.")
+        @Config.RangeInt(min = 1, max = 255)
+        public int tunnelMaxY = 37;
     }
 
     /**

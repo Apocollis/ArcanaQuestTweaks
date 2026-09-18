@@ -1,6 +1,6 @@
 # Compatibility matrix (1.8)
 
-Last updated: 2026-09-16.
+Last updated: 2026-09-18.
 
 This is the compile / mixin-apply / runtime contract. Module behavior lives in the per-module docs. Do not treat “required vs optional” as one bit.
 
@@ -64,16 +64,18 @@ Jar names below are from the **Arcana Quest DEVBOX** instance on 2026-08-20 unle
 | `waystones` | `Waystones_1.12.2-4.1.0.jar` | omitted | — | no | village piece class name | **no** | rtg | Relocate same gazebo; Tweaks does not mixin Waystones |
 | `animania` | `animania-1.12.2-base-2.0.3.28.jar` | omitted | optional `mixins.aqtweaks.animania.json` | **yes** (`AddonHandler`) | yes | **yes** | [advancement.md](advancement.md) | `MixinAddonHandler` cancels `onWorldLoad` (Forge reload + Farm/Extra inject). Farm/Extra jars are non-mods; not compile, not mixin targets |
 | `somnia` | `Somnia-1.0.1.jar` | omitted | optional `mixins.aqtweaks.somnia.json` | **yes** (`SomniaUtil`) | yes | **yes** | [somnia.md](somnia.md) | `MixinSomniaUtil` `@Overwrite` `chunkLightCheck`; `SomniaOptimizationHandler` throttles ambient to 20t & fixes duplicate calls |
-| `bettermineshafts` | `BetterMineshaftsForge-1.12.2-2.2.1.jar` | omitted | optional `mixins.aqtweaks.bettermineshafts.json` | **yes** (`MapGenBetterMineshaft`, `VerticalEntrance`) | skip json if absent | **yes** | [bettermineshafts.md](bettermineshafts.md) | Locate pin to shaft/tunnel Y; stub failed cliff openings; refresh Start AABB after paste |
+| `bettermineshafts` | `BetterMineshaftsForge-1.12.2-2.2.1.jar` | omitted | optional `mixins.aqtweaks.bettermineshafts.json` | **yes** (`MapGenBetterMineshaft`, `VerticalEntrance`, `MineshaftVariantSettings`) | skip json if absent | **yes** | [bettermineshafts.md](bettermineshafts.md) | Locate pin; stub failed openings; Tweaks rate/spacing/Y (local settings copy) |
 | `stats_keeper` | `StatsKeeper-1.12.2-3.1.13.jar` | after | — | **yes** (`IHealth`, `SKCapabilities`, `SKHealthConfig`) | yes | **yes** | [statskeeper.md](statskeeper.md) | Bus handler cancels `contenttweaker:life_elixir` drink at SK cap. No mixin. ContentTweaker is registry-name only |
 | `randomportals` | `randomportals-cleanroom0.1.0.jar` | after | optional `mixins.aqtweaks.randomportals.json` | **yes** (`NetherPortalEvent`, `RPOTeleporter`, `RPOConfig`) | yes | **yes** | [twilightforest.md](twilightforest.md) | `MixinRPOTeleporter` grass pad on `isValidPortalPosition` + `findTopLeft`. Do not shadow `Teleporter.world`. Handler also needs TF |
 | `twilightforest` | `twilightforest-1.12.2-3.15.1.jar` | after | — | **yes** (`TFTeleporter`, `TFWorld`) | yes | **yes** | [twilightforest.md](twilightforest.md) | Bus handler only if RP is also loaded. No TF mixin |
+| `quark` | `Quark-r1.6-179.jar` | omitted | — | **yes** (`BlockSpeleothem`, `Speleothems`) | yes | **yes** | [depths.md](depths.md) | Primer speleothems in the lower cavern. No Quark mixin. Handler class is only invoked after `Loader.isModLoaded("quark")` |
+| `autoreglib` | `AutoRegLib-1.3-32.jar` | omitted | — | **yes** (Quark `BlockMod` super) | Quark runtime | **yes** | [depths.md](depths.md) | Compile-only for Quark `BlockSpeleothem`. Tweaks does not import ARL types |
 
 Vanilla `MapGenVillage` / `MapGenCaves` / `WorldGenLakes` / `ChunkProviderServer` / `RenderGlobal` / `WorldEntitySpawner` / `MobSpawnerBaseLogic` are Forge/vanilla, not extra jars. `MixinWorldGenLakes` skips water (not lava) on the village pad. `MixinWorldEntitySpawner` fills pack sizes (late json). `MixinMobSpawnerBaseLogic` applies cage fail-recheck delay (early json) — do not late-mixin `MobSpawnerBaseLogic`, `World`, or `WorldServer`.
 
 ## `build_gradle.ps1` copy list vs contract
 
-**Copied if present:** Elenai Extended 1.1.3, Bewitchment, CraftTweaker **1.12-4.1.20.715**, CoFH World, Better Caves, RC 2.0.0.9, IvToolkit, RTG 7.3.3.6, Astral 1.10.27, Mystical World 1.11.0, Grimoire of Gaia 1.7.2, Reskillable 1.13.1, Effortless Building 2.16, Thaumcraft 6.1 BETA26, InControl **1.12-3.10.4**, Animania Base **2.0.3.28**, Somnia **1.0.1**, Better Mineshafts **1.12.2-2.2.1**, Stats Keeper **1.12.2-3.1.13**, RandomPortals **cleanroom0.1.0**, Twilight Forest **1.12.2-3.15.1**. After InControl copy, the script **extracts** nested `META-INF/libraries/mcjtytools-1.12-0.0.21.jar` to `libs/` for compile-hard `StructureCache`. Also **deletes** from `libs/`: `ElenaiDodge2-1.12.2-1.1.0.jar`, `RecurrentComplexVolts-1.12.2-2.0.0.7.jar`, `RoguelikeDungeons-Arcana-1.12.2-2.5.0.jar`, `BaublesEX-1.12.2-2.3.5.jar`, `WearableBackpacks-RLCraft-1.12.2-3.2.7.jar`.
+**Copied if present:** Elenai Extended 1.1.3, Bewitchment, CraftTweaker **1.12-4.1.20.715**, CoFH World, Better Caves, RC 2.0.0.9, IvToolkit, RTG 7.3.3.6, Astral 1.10.27, Mystical World 1.11.0, Grimoire of Gaia 1.7.2, Reskillable 1.13.1, Effortless Building 2.16, Thaumcraft 6.1 BETA26, InControl **1.12-3.10.4**, Animania Base **2.0.3.28**, Somnia **1.0.1**, Better Mineshafts **1.12.2-2.2.1**, Stats Keeper **1.12.2-3.1.13**, RandomPortals **cleanroom0.1.0**, Twilight Forest **1.12.2-3.15.1**, Quark **r1.6-179**, AutoRegLib **1.3-32**. After InControl copy, the script **extracts** nested `META-INF/libraries/mcjtytools-1.12-0.0.21.jar` to `libs/` for compile-hard `StructureCache`. Also **deletes** from `libs/`: `ElenaiDodge2-1.12.2-1.1.0.jar`, `RecurrentComplexVolts-1.12.2-2.0.0.7.jar`, `RoguelikeDungeons-Arcana-1.12.2-2.5.0.jar`, `BaublesEX-1.12.2-2.3.5.jar`, `WearableBackpacks-RLCraft-1.12.2-3.2.7.jar`.
 
 **Not copied (but needed to compile and/or mixin-apply):** Depths Update **a12**, Grapple, Embers, DSS, Simple Difficulty, BOP. **Charm** is not copied either and is needed for neither — `MixinASMHooksVillagePaste` is a string target in a `required: false` json.
 

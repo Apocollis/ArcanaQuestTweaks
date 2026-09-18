@@ -43,17 +43,27 @@ public class ItemSpatialRiftTear extends Item {
     @Override
     public EnumActionResult onItemUse(EntityPlayer player, World world, BlockPos pos, EnumHand hand,
             EnumFacing facing, float hitX, float hitY, float hitZ) {
-        if (!player.isSneaking() || !PortalModuleConfig.general.enable) {
+        if (!PortalModuleConfig.general.enable) {
             return EnumActionResult.PASS;
         }
         ItemStack stack = player.getHeldItem(hand);
+        if (player.isSneaking()) {
+            if (!isBound(stack)) {
+                return EnumActionResult.PASS;
+            }
+            if (!world.isRemote) {
+                unbind(stack, player);
+            }
+            return EnumActionResult.SUCCESS;
+        }
+        if (world.isRemote) {
+            return EnumActionResult.SUCCESS;
+        }
         if (!isBound(stack)) {
-            return EnumActionResult.PASS;
+            bind(stack, player, pos.offset(facing), world.provider.getDimension());
+            return EnumActionResult.SUCCESS;
         }
-        if (!world.isRemote) {
-            unbind(stack, player);
-        }
-        return EnumActionResult.SUCCESS;
+        return tryOpen(player, world, stack) ? EnumActionResult.SUCCESS : EnumActionResult.FAIL;
     }
 
     @Override
@@ -80,12 +90,17 @@ public class ItemSpatialRiftTear extends Item {
             bind(stack, player, feet, world.provider.getDimension());
             return new ActionResult<>(EnumActionResult.SUCCESS, stack);
         }
+        EnumActionResult result = tryOpen(player, world, stack) ? EnumActionResult.SUCCESS : EnumActionResult.FAIL;
+        return new ActionResult<>(result, stack);
+    }
+
+    private boolean tryOpen(EntityPlayer player, World world, ItemStack stack) {
         int dim = stack.getTagCompound().getInteger(TAG_DIM);
         World destWorld = player.getServer() != null ? player.getServer().getWorld(dim) : null;
         if (destWorld == null) {
             player.sendStatusMessage(new TextComponentString(
                     PortalLang.format("item.aqtweaks.spatial_rift_tear.missing_dim")), true);
-            return new ActionResult<>(EnumActionResult.FAIL, stack);
+            return false;
         }
         BlockPos dest = new BlockPos(
                 stack.getTagCompound().getInteger(TAG_X),
@@ -94,12 +109,12 @@ public class ItemSpatialRiftTear extends Item {
         if (!PortalModule.spawnLinkedRifts(world, destWorld, player, dest, false)) {
             player.sendStatusMessage(new TextComponentString(
                     PortalLang.format("item.aqtweaks.spatial_rift_tear.failed")), true);
-            return new ActionResult<>(EnumActionResult.FAIL, stack);
+            return false;
         }
         if (!player.capabilities.isCreativeMode) {
             stack.shrink(1);
         }
-        return new ActionResult<>(EnumActionResult.SUCCESS, stack);
+        return true;
     }
 
     @Override

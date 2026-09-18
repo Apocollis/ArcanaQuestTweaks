@@ -1,6 +1,6 @@
 # Verification (1.8)
 
-Last updated: 2026-09-16.
+Last updated: 2026-09-18.
 
 Manual release / smoke checklist. **No automated tests.** Harness: CurseForge **Arcana Quest DEVBOX**, remapped `ArcanaQuestTweaks-1.8.jar` in `mods/`. Algorithms and full checklists stay in module docs; this is the pack-level pass/fail.
 
@@ -14,7 +14,7 @@ Worldgen applies to **new chunks only**.
 
 ## Boot
 
-- [ ] Client starts the full pack; no mixin apply crash from `mixins.aqtweaks.json` or `mixins.aqtweaks.early.json`. Log must not say `MixinWorldRiftLight` / `World was loaded too early`, `MixinMobSpawnerBaseLogic` / `MobSpawnerBaseLogic was loaded too early`, `MixinASMHooksVillagePaste` / `ASMHooks was loaded too early`, `MixinWorldGenLakes` / `field_150589_a was not located` / `WorldGenLakes in invalid classes`, `empty category` / `StatsKeeperModuleConfig`, BM `setBoundingBox` / `func_75072_c` was not located, or `MixinRPOTeleporter` / `field_85192_a was not located` in `RPOTeleporter`. Optional `mixins.aqtweaks.gaia.json` must not log `InvalidInjectionException` (vanilla INVOKEs must be MCP + `remap = true`; a miss boots anyway because `required: false`).
+- [ ] Client starts the full pack; no mixin apply crash from `mixins.aqtweaks.json` or `mixins.aqtweaks.early.json`. Log must not say `MixinWorldRiftLight` / `World was loaded too early`, `MixinMobSpawnerBaseLogic` / `MobSpawnerBaseLogic was loaded too early`, `MixinASMHooksVillagePaste` / `ASMHooks was loaded too early`, `MixinWorldGenLakes` / `field_150589_a was not located` / `WorldGenLakes in invalid classes`, `empty category` / `StatsKeeperModuleConfig` / `BetterMineshaftsModuleConfig`, BM `setBoundingBox` / `func_75072_c` was not located, or `MixinRPOTeleporter` / `field_85192_a was not located` in `RPOTeleporter`. Optional `mixins.aqtweaks.gaia.json` must not log `InvalidInjectionException` (vanilla INVOKEs must be MCP + `remap = true`; a miss boots anyway because `required: false`).
 - [ ] Mixin log does **not** say Tweaks mixins require class version 69 (Java 21 class files).
 - [ ] Wait through full JEI / ThaumicJEI / **TC6 Aspects 4 JEI** load. Title screen stays up. No `hs_err_pid*.log`.
 - [ ] Dedicated server: **not routinely tested** in this repo. If you ship a server, start one with the same mods and confirm it reaches “Done”.
@@ -43,6 +43,7 @@ These json files are `required: false`. Removing the parent should skip that jso
 | Stats Keeper | No `LifeElixirCapHandler`; stock SK Finish refuse + vanilla consume |
 | RandomPortals | No `MixinRPOTeleporter`; stock RP generate (leaves/Y≥70 fallback). Handler also off if TF missing |
 | Twilight Forest | No `TfPortalLandingHandler` unless RP is also present |
+| Quark | Helper not called; +Y stock Quark unchanged; Deepslate columns/spikes still generate |
 
 ### Do not treat as optional
 
@@ -94,7 +95,8 @@ Missing **RTG, Depths Update, Better Caves, CoFH World, Recurrent Complex, or Iv
 | -Y caves after a perf change (new chunks) | Same seed, same chunks: tunnels, chambers, pillars, bridges, stalactites and floater cleanup unchanged. Perf work here is exact-equivalence, so any visible difference is a bug | depths |
 | Spark while flying new terrain | `UpperTunnelNetwork.forColumn`, `columnStrength`, `getSurfaceAltitudeForColumn` and `Reflect.getBlockState` all well down; chunk gen no longer ~half Tweaks | depths |
 | Fog / sky below Y0 | Dark fog ~32–52; no skybox | depths |
-| New `/locate Mineshaft` | Unexplored pin has tunnels; `isInsideStructure` true at the pin. Old generated-empty pin is skipped on the next locate | [bettermineshafts.md](bettermineshafts.md) |
+| Deep cave floor/ceiling (new chunks, Quark on) | Tapered Quark stone speleothems mixed with existing Deepslate columns/spikes/bridges. +Y Better Caves still have stock Quark clusters. Quark jar removed or cfg off: no deep speleothems; cave shape unchanged | depths |
+| New `/locate Mineshaft` | Unexplored pin has tunnels; `isInsideStructure` true at the pin. Old generated-empty pin is skipped. New terrain rarer than every-land 0.003 (Tweaks 0.001 + spacing 4); hill openings still happen | [bettermineshafts.md](bettermineshafts.md) |
 
 Log snippets if debug on: `veto chunk=`, `forget chunk=`, `flatten chunk=`, `seal chunk=`, `waystone relocate`, `village piece skip water floor charm`, `astral small shrine village piece`.
 
@@ -110,13 +112,13 @@ Use the full list in [stamina.md](stamina.md) **Verify**. Minimum: jump costs/bl
 | Thaumcraft | First Nether visit warps after ~2s; sleep at dawn reduces warp; whispers underground on interval. Log: no `mixins.aqtweaks.thaumcraft.json` injection failure. Fire/frost foci `isMagic=true classified=true`; Heal on self scales with Magic; snowball does not |
 | Bewitchment | Listed ritual **finish** grants warp; halt does not. CraftTweaker `mods.bewitchment.SpinningWheel.addRecipe` / `removeRecipe` updates JEI and the wheel; unnamed ids are `crafttweaker:<name>` |
 | Comfort | Homestead I in a scored room that also has a hearth, bed, or seat, while healthy: Learning 8:00, no Soot XP boost. Lanterns/structure alone do not start it. Penalties can deny it. Scan every 30s; Homestead potion 45s. Hurt: clear + 30s before re-entry. Attack entity: clear + 15s. II: Learning gone, XP boost I + endurance I + replenishment 4:00. III: XP boost II + endurance II + replenishment 8:00. OP `/aqcomfort` prints the breakdown and can refresh without waiting 30s; non-OP denied. Hot spring → cold resist if SD+BOP |
-| Portal | Arcane Tunnel binds then opens a 60s two-way rift (cross-dim if bound elsewhere); Unstable Arcane Tunnel lands ~4000–6000 same dim; villagers/mobs in the box teleport; sitting pet stays; lead follows. Dark cave mid-cell lights like glowstone. Sit in an open rift: no `updateClouds` CME. See [portal.md](portal.md) |
+| Portal | Arcane Tunnel binds on air or block then opens a 60s two-way rift (cross-dim if bound elsewhere); land at dest rift XYZ after ~3s gate; Unstable Arcane Tunnel lands ~4000–6000 same dim; villagers/mobs in the box teleport; sitting pet stays; lead follows. Dark cave mid-cell lights like glowstone. Sit in an open rift: no `updateClouds` CME. Do not DS full-bypass the rift (blanks the cylinder). See [portal.md](portal.md) |
 | Client | Toughness LTR above armor; iron pick shows Vanilla Tools stats; Metallurgy pick not duplicated |
 | Recipes | Pack boots without Metallurgy `generated/item/spartanweaponry` recipe spam or `Parsing error loading recipe` stacks for the 40 known-missing items and `draugr_ingot_from_block`; one-shot skip lines logged per missing item ID; new/unexpected missing items still dump |
 | Reskillable | Attack 16 → +2 damage; Mining Expert wood pick drops diamond ore; stamina perks on tree. Full list: [reskillable.md](reskillable.md) |
 | Spawning | Boot log loads spawn types, structure spawns, parties, and pack group sizes. Closed cave: dwarf/cave_spider/krake yes, Dryad/witch/Wildkin no, zombie/goblin still yes. Mineshaft non-origin chunk: witch/illager/pillager can appear; ordinary cave still no. Night surface: reverse exclusives; zombie still yes. Creeper packs 1–2 not 4; enderman 1; zombie/skeleton/spider 2–4 mixed. Default `goblin_feral=3-5`. Fill Pack Size off: old singles. Natural Overworld cleric: knights + CR archers; cage/portal cleric: no party. Failed cultist/blaze cage Delay ≈ 20 (cfg) not 0 and not 200–800; zombie cage still attempts after 1→0; success still 200–800. Hostile cap default 200. No mixin fail on `MixinWorldEntitySpawner`, `MixinMobSpawnerBaseLogic`, or `MixinStructureCache`. See [spawning.md](spawning.md) |
 | Advancement | Join log: no `AddonHandler.onWorldLoad` → `ForgeHooks.loadAdvancements`. Mixin json applied. Animania animals still spawn/register. No Farm/Extra Animania advancement trees. See [advancement.md](advancement.md) |
-| Better Mineshafts | `/locate Mineshaft` TPs to tunnels; log: no `mixins.aqtweaks.bettermineshafts.json` `setBoundingBox` / `func_75072_c` apply failure. See [bettermineshafts.md](bettermineshafts.md) |
+| Better Mineshafts | `/locate Mineshaft` TPs to tunnels; new chunks use `aqtweaks_bettermineshafts.cfg` rate/spacing; log: no `mixins.aqtweaks.bettermineshafts.json` `setBoundingBox` / `func_75072_c` apply failure. See [bettermineshafts.md](bettermineshafts.md) |
 | Stats Keeper | 10 hearts: elixir consumes, +1 heart, drink sound from `aqtweaks_statskeeper.cfg` (default level-up; empty = silent). 20 hearts: drink cancelled, stack remains, red action bar `Your vitality is already at its peak!`, no drink sound. Baubles/buffs above 20 hearts with unused SK additional still drink. See [statskeeper.md](statskeeper.md) |
 | Twilight Forest | New Overworld→TF RandomPortals trip into a locked/hazard column lands in a safe biome **on grass**, not a landmark, not tree canopy. Return through the same sending portal stays linked. Nether RP unchanged. Rift items unchanged. See [twilightforest.md](twilightforest.md) |
 
