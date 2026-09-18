@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -248,6 +249,7 @@ public class Reflect {
     private static Field mapGenStructureMapField;
     private static Field mapGenStructureDataField;
     private static Field mapGenWorldField;
+    private static Field mapGenRandField;
     private static Method mapGenInitializeStructureDataMethod;
     private static Method mapGenStructureDataGetTagMethod;
     private static Method structureStartGetBoundingBoxMethod;
@@ -1101,6 +1103,12 @@ public class Reflect {
             }
             if (mapGenWorldField != null) {
                 mapGenWorldField.setAccessible(true);
+            }
+            try { mapGenRandField = mapGenBaseClass.getDeclaredField("field_75038_b"); } catch (Throwable t) {
+                try { mapGenRandField = mapGenBaseClass.getDeclaredField("rand"); } catch (Throwable ignored) {}
+            }
+            if (mapGenRandField != null) {
+                mapGenRandField.setAccessible(true);
             }
             Class<?> startClass = Class.forName("net.minecraft.world.gen.structure.StructureStart");
             try { structureStartGetBoundingBoxMethod = startClass.getMethod("func_75071_a"); } catch (Throwable t) {
@@ -3724,6 +3732,18 @@ public class Reflect {
         try {
             mapGenWorldField.set(mapGen, world);
         } catch (Exception ignored) {}
+    }
+
+    public static Random getMapGenRandom(Object mapGen) {
+        if (mapGen == null || mapGenRandField == null) {
+            return null;
+        }
+        try {
+            Object rand = mapGenRandField.get(mapGen);
+            return rand instanceof Random ? (Random) rand : null;
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     public static boolean canSpawnVillage(Object mapGen, int chunkX, int chunkZ) {

@@ -94,7 +94,7 @@ Missing **RTG, Depths Update, Better Caves, CoFH World, Recurrent Complex, or Iv
 | -Y caves after a perf change (new chunks) | Same seed, same chunks: tunnels, chambers, pillars, bridges, stalactites and floater cleanup unchanged. Perf work here is exact-equivalence, so any visible difference is a bug | depths |
 | Spark while flying new terrain | `UpperTunnelNetwork.forColumn`, `columnStrength`, `getSurfaceAltitudeForColumn` and `Reflect.getBlockState` all well down; chunk gen no longer ~half Tweaks | depths |
 | Fog / sky below Y0 | Dark fog ~32–52; no skybox | depths |
-| New `/locate Mineshaft` | Pin at tunnel/shaft Y (not ~136 or empty Y=64 air); `isInsideStructure("Mineshaft")` true at the pin; plains still have tunnels | [bettermineshafts.md](bettermineshafts.md) |
+| New `/locate Mineshaft` | Unexplored pin has tunnels; `isInsideStructure` true at the pin. Old generated-empty pin is skipped on the next locate | [bettermineshafts.md](bettermineshafts.md) |
 
 Log snippets if debug on: `veto chunk=`, `forget chunk=`, `flatten chunk=`, `seal chunk=`, `waystone relocate`, `village piece skip water floor charm`, `astral small shrine village piece`.
 
