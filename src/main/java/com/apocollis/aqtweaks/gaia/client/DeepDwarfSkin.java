@@ -58,6 +58,7 @@ public final class DeepDwarfSkin {
                 continue;
             }
             bakeFlesh(img);
+            bakeHairWhite(img);
             var loc = new ResourceLocation(ArcanaQuestTweaks.MODID, "dynamic/deep_dwarf_" + i);
             tm.loadTexture(loc, new DynamicTexture(img));
             BAKED[i] = loc;
@@ -105,11 +106,51 @@ public final class DeepDwarfSkin {
         }
     }
 
+    /**
+     * After {@link #bakeFlesh}: leftover orange/brown hair on the purple-baked head island
+     * and the beard overlay (64,18) → white / light gray. Gear UVs stay stock. Cool purple skin is skipped.
+     */
+    private static void bakeHairWhite(BufferedImage img) {
+        int w = img.getWidth();
+        int h = img.getHeight();
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                if (!isHeadIsland(x, y) && !isBeardIsland(x, y)) {
+                    continue;
+                }
+                int argb = img.getRGB(x, y);
+                int a = (argb >>> 24) & 0xFF;
+                if (a < 16) {
+                    continue;
+                }
+                float[] hsb = Color.RGBtoHSB((argb >> 16) & 0xFF, (argb >> 8) & 0xFF, argb & 0xFF, null);
+                if (!isOrangeHair(hsb)) {
+                    continue;
+                }
+                float shade = 0.58f + hsb[2] * 0.40f;
+                hsb[0] = 0.0f;
+                hsb[1] = 0.04f;
+                hsb[2] = Math.min(1.0f, shade);
+                int rgb = Color.HSBtoRGB(hsb[0], hsb[1], hsb[2]);
+                img.setRGB(x, y, (a << 24) | (rgb & 0x00FFFFFF));
+            }
+        }
+    }
+
     private static boolean isFleshIsland(int x, int y) {
-        if (x < 32 && y < 16) {
+        if (isHeadIsland(x, y)) {
             return true;
         }
         return x >= 64 && x < 80 && y >= 36 && y < 44;
+    }
+
+    private static boolean isHeadIsland(int x, int y) {
+        return x < 32 && y < 16;
+    }
+
+    /** {@code headbeard} cube at tex 64,18 size 9³ → u 64–100, v 18–36. */
+    private static boolean isBeardIsland(int x, int y) {
+        return x >= 64 && x < 100 && y >= 18 && y < 36;
     }
 
     private static boolean isFleshTone(float[] hsb) {
@@ -118,6 +159,15 @@ public final class DeepDwarfSkin {
         float val = hsb[2];
         boolean warm = hue <= 0.12f || hue >= 0.95f;
         return warm && sat >= 0.12f && sat <= 0.62f && val >= 0.48f;
+    }
+
+    /** Saturated warm pixels left after the purple flesh bake (stock hair). */
+    private static boolean isOrangeHair(float[] hsb) {
+        float hue = hsb[0];
+        float sat = hsb[1];
+        float val = hsb[2];
+        boolean warm = hue <= 0.13f || hue >= 0.94f;
+        return warm && sat >= 0.40f && val >= 0.22f && val <= 0.98f;
     }
 
     private static void bakeEyesRed(BufferedImage img) {

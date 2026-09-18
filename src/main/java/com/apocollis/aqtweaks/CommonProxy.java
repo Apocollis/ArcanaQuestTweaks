@@ -77,6 +77,11 @@ public class CommonProxy {
         if (net.minecraftforge.fml.common.Loader.isModLoaded("stats_keeper")) {
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.statskeeper.LifeElixirCapHandler());
         }
+
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("randomportals")
+                && net.minecraftforge.fml.common.Loader.isModLoaded("twilightforest")) {
+            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.twilightforest.TfPortalLandingHandler());
+        }
     }
 
     public void postInit(FMLPostInitializationEvent event) {

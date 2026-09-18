@@ -2,6 +2,7 @@ package com.apocollis.aqtweaks.gaia;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityList;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
@@ -11,8 +12,12 @@ import net.minecraft.entity.projectile.EntityTippedArrow;
 import net.minecraft.init.MobEffects;
 import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.DamageSource;
+import net.minecraft.util.ResourceLocation;
 
 public final class GaiaPierce {
+
+    private static final String DEATHWORD_ID = "grimoireofgaia:deathword";
+    private static final int DEATHWORD_WITHER_ADD_TICKS = 30;
 
     private GaiaPierce() {}
 
@@ -52,12 +57,18 @@ public final class GaiaPierce {
     }
 
     public static boolean onMagicBoltHit(Entity projectile, Entity victim, DamageSource source, float amount) {
-        if (!enabled() || source != DamageSource.MAGIC || !(victim instanceof EntityPlayer)) {
-            return victim.attackEntityFrom(source, amount);
-        }
         Entity shooter = shooterOf(projectile);
-        float dmg = scaled(shooter, GaiaDamageConfig.get().spellMultiplier, amount);
-        return victim.attackEntityFrom(DamageSource.causeIndirectMagicDamage(projectile, shooter), dmg);
+        boolean hit;
+        if (!enabled() || source != DamageSource.MAGIC || !(victim instanceof EntityPlayer)) {
+            hit = victim.attackEntityFrom(source, amount);
+        } else {
+            float dmg = scaled(shooter, GaiaDamageConfig.get().spellMultiplier, amount);
+            hit = victim.attackEntityFrom(DamageSource.causeIndirectMagicDamage(projectile, shooter), dmg);
+        }
+        if (hit) {
+            applyDeathwordWither(shooter, victim);
+        }
+        return hit;
     }
 
     public static boolean onBombHit(Entity bomb, Entity victim, DamageSource source, float amount) {
@@ -70,6 +81,20 @@ public final class GaiaPierce {
             return victim.attackEntityFrom(new GaiaDamageSources.Bomb(bomb, thrower), dmg);
         }
         return false;
+    }
+
+    private static void applyDeathwordWither(Entity shooter, Entity victim) {
+        if (!(victim instanceof EntityLivingBase living) || shooter == null) {
+            return;
+        }
+        ResourceLocation id = EntityList.getKey(shooter);
+        if (id == null || !DEATHWORD_ID.equals(id.toString())) {
+            return;
+        }
+        PotionEffect existing = living.getActivePotionEffect(MobEffects.WITHER);
+        int remain = existing != null ? existing.getDuration() : 0;
+        int amp = existing != null ? Math.max(existing.getAmplifier(), 0) : 0;
+        living.addPotionEffect(new PotionEffect(MobEffects.WITHER, remain + DEATHWORD_WITHER_ADD_TICKS, amp));
     }
 
     private static Entity shooterOf(Entity projectile) {

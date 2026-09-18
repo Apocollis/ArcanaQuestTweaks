@@ -14,7 +14,7 @@ Worldgen applies to **new chunks only**.
 
 ## Boot
 
-- [ ] Client starts the full pack; no mixin apply crash from `mixins.aqtweaks.json` or `mixins.aqtweaks.early.json`. Log must not say `MixinWorldRiftLight` / `World was loaded too early`, `MixinMobSpawnerBaseLogic` / `MobSpawnerBaseLogic was loaded too early`, `MixinASMHooksVillagePaste` / `ASMHooks was loaded too early`, `MixinWorldGenLakes` / `field_150589_a was not located` / `WorldGenLakes in invalid classes`, `empty category` / `StatsKeeperModuleConfig`, or BM `setBoundingBox` / `func_75072_c` was not located. Optional `mixins.aqtweaks.gaia.json` must not log `InvalidInjectionException` (vanilla INVOKEs must be MCP + `remap = true`; a miss boots anyway because `required: false`).
+- [ ] Client starts the full pack; no mixin apply crash from `mixins.aqtweaks.json` or `mixins.aqtweaks.early.json`. Log must not say `MixinWorldRiftLight` / `World was loaded too early`, `MixinMobSpawnerBaseLogic` / `MobSpawnerBaseLogic was loaded too early`, `MixinASMHooksVillagePaste` / `ASMHooks was loaded too early`, `MixinWorldGenLakes` / `field_150589_a was not located` / `WorldGenLakes in invalid classes`, `empty category` / `StatsKeeperModuleConfig`, BM `setBoundingBox` / `func_75072_c` was not located, or `MixinRPOTeleporter` / `field_85192_a was not located` in `RPOTeleporter`. Optional `mixins.aqtweaks.gaia.json` must not log `InvalidInjectionException` (vanilla INVOKEs must be MCP + `remap = true`; a miss boots anyway because `required: false`).
 - [ ] Mixin log does **not** say Tweaks mixins require class version 69 (Java 21 class files).
 - [ ] Wait through full JEI / ThaumicJEI / **TC6 Aspects 4 JEI** load. Title screen stays up. No `hs_err_pid*.log`.
 - [ ] Dedicated server: **not routinely tested** in this repo. If you ship a server, start one with the same mods and confirm it reaches “Done”.
@@ -41,6 +41,8 @@ These json files are `required: false`. Removing the parent should skip that jso
 | InControl | No `MixinStructureCache`; stock origin-chunk `isInStructure` (Tweaks still loads) |
 | YUNG’s Better Mineshafts | No locate/stub mixins; stock BM Y=64 `/locate Mineshaft` |
 | Stats Keeper | No `LifeElixirCapHandler`; stock SK Finish refuse + vanilla consume |
+| RandomPortals | No `MixinRPOTeleporter`; stock RP generate (leaves/Y≥70 fallback). Handler also off if TF missing |
+| Twilight Forest | No `TfPortalLandingHandler` unless RP is also present |
 
 ### Do not treat as optional
 
@@ -104,7 +106,7 @@ Use the full list in [stamina.md](stamina.md) **Verify**. Minimum: jump costs/bl
 
 | Module | Smoke |
 | --- | --- |
-| Gaia | Melee: one physical hit, names the mob, **no MAGIC 6** (diamond must not take a flat ~3 hearts of magic). Unarmored may exceed JSON if the mob holds a sword. Hard archer: no MAGIC tip. Bolts: armor skip, Magic Protection works, death names shooter. Bomb: armor + Blast Protection, no extra 2.0, facing shield zeroes. Log: no `mixins.aqtweaks.gaia.json` injection failure. JSON `grimoireofgaia:orc` changes orc melee and bolts after restart. Default JSON HP/armor: orc 30/4, dwarf 60/8, feral goblin 15/4, sporeling 15/2. Deep Dwarf: `/summon aqtweaks:deep_dwarf` hostile, purple face, red eyes, stock gear; cfg 10 attack; JSON 60 HP / 8 armor. |
+| Gaia | Melee: one physical hit, names the mob, **no MAGIC 6** (diamond must not take a flat ~3 hearts of magic). Unarmored may exceed JSON if the mob holds a sword. Hard archer: no MAGIC tip. Bolts: armor skip, Magic Protection works, death names shooter. Bomb: armor + Blast Protection, no extra 2.0, facing shield zeroes. Log: no `mixins.aqtweaks.gaia.json` injection failure. JSON `grimoireofgaia:orc` changes orc melee and bolts after restart. Default JSON HP/armor: orc 30/4, dwarf 60/8, feral goblin 15/4, sporeling 15/2. Deep Dwarf: `/summon aqtweaks:deep_dwarf` hostile, purple face, white/gray hair and beard, red eyes, stock gear; cfg 10 attack; JSON 60 HP / 8 armor. Deathword: ranged Gaia magic (no melee), piercing like orc bolt, wither +30 ticks stacked, summons/beacon stay. |
 | Thaumcraft | First Nether visit warps after ~2s; sleep at dawn reduces warp; whispers underground on interval. Log: no `mixins.aqtweaks.thaumcraft.json` injection failure. Fire/frost foci `isMagic=true classified=true`; Heal on self scales with Magic; snowball does not |
 | Bewitchment | Listed ritual **finish** grants warp; halt does not. CraftTweaker `mods.bewitchment.SpinningWheel.addRecipe` / `removeRecipe` updates JEI and the wheel; unnamed ids are `crafttweaker:<name>` |
 | Comfort | Homestead I in a scored room that also has a hearth, bed, or seat, while healthy: Learning 8:00, no Soot XP boost. Lanterns/structure alone do not start it. Penalties can deny it. Scan every 30s; Homestead potion 45s. Hurt: clear + 30s before re-entry. Attack entity: clear + 15s. II: Learning gone, XP boost I + endurance I + replenishment 4:00. III: XP boost II + endurance II + replenishment 8:00. OP `/aqcomfort` prints the breakdown and can refresh without waiting 30s; non-OP denied. Hot spring → cold resist if SD+BOP |
@@ -116,6 +118,7 @@ Use the full list in [stamina.md](stamina.md) **Verify**. Minimum: jump costs/bl
 | Advancement | Join log: no `AddonHandler.onWorldLoad` → `ForgeHooks.loadAdvancements`. Mixin json applied. Animania animals still spawn/register. No Farm/Extra Animania advancement trees. See [advancement.md](advancement.md) |
 | Better Mineshafts | `/locate Mineshaft` TPs to tunnels; log: no `mixins.aqtweaks.bettermineshafts.json` `setBoundingBox` / `func_75072_c` apply failure. See [bettermineshafts.md](bettermineshafts.md) |
 | Stats Keeper | 10 hearts: elixir consumes, +1 heart, drink sound from `aqtweaks_statskeeper.cfg` (default level-up; empty = silent). 20 hearts: drink cancelled, stack remains, red action bar `Your vitality is already at its peak!`, no drink sound. Baubles/buffs above 20 hearts with unused SK additional still drink. See [statskeeper.md](statskeeper.md) |
+| Twilight Forest | New Overworld→TF RandomPortals trip into a locked/hazard column lands in a safe biome **on grass**, not a landmark, not tree canopy. Return through the same sending portal stays linked. Nether RP unchanged. Rift items unchanged. See [twilightforest.md](twilightforest.md) |
 
 ## Edge cases
 

@@ -1017,6 +1017,37 @@ public class ArcanaQuestTweaksConfig {
         public int wildSearchAttempts = 48;
     }
 
+    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_twilightforest", category = "")
+    public static class TwilightForestModuleConfig {
+        @Config.Name("General")
+        @Config.Comment("RandomPortals landings into Twilight Forest.")
+        public static final TwilightForestGeneral general = new TwilightForestGeneral();
+    }
+
+    public static class TwilightForestGeneral {
+        @Config.Name("Enable Twilight Forest Portal Safety")
+        @Config.Comment("When true, RandomPortals destinations in Destination Dimension ID reroute out of locked biomes and landmarks, and new pads require grass.")
+        public boolean enable = true;
+
+        @Config.Name("Destination Dimension ID")
+        @Config.Comment("Twilight Forest dimension id. Pack default is 7.")
+        public int destinationDimensionId = 7;
+
+        @Config.Name("Always Unsafe Biomes")
+        @Config.Comment("Biome registry names that are never valid RandomPortals landings in the destination dimension, including for non-players. Empty entries ignored.")
+        public String[] alwaysUnsafeBiomes = {
+                "twilightforest:dark_forest_center",
+                "twilightforest:fire_swamp",
+                "twilightforest:twilight_glacier",
+                "twilightforest:thornlands",
+                "twilightforest:highlands_center"
+        };
+
+        @Config.Name("Safe Biome Allowlist")
+        @Config.Comment("If any non-empty names are set, the landing biome must also be one of these registry names. Empty = unused.")
+        public String[] safeBiomeAllowlist = {};
+    }
+
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_statskeeper", category = "")
     public static class StatsKeeperModuleConfig {
         @Config.Name("General")
