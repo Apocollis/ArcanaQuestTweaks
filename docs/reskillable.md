@@ -1,6 +1,6 @@
 # Reskillable module (1.8)
 
-Last updated: 2026-09-14.
+Last updated: 2026-09-19.
 
 Config: `config/arcanaquesttweaks/aqtweaks_reskillable.cfg`. Handler registers only if `reskillable` is loaded (`CommonProxy.init`). Compile-hard CAD Reskillable **1.13.1** API; types live only in `com.apocollis.aqtweaks.reskillable`. Soft `@Mod` `after:reskillable` (not `required-after`).
 
@@ -106,8 +106,34 @@ Register in **preInit** (`ReskillablePerkRegistry`). CAD `getTraitConfig` still 
 | `aqtweaks:cardio_master` | agility | 3,3 | 4 | agility 20 |
 | `aqtweaks:mining_efficiency` | mining | 2,3 | 6 | mining 20 |
 | `aqtweaks:mining_expert` | mining | 3,3 | 4 | mining 24 |
+| `aqtweaks:precision_shot` | attack | 3,3 | 3 | attack 12, agility 16 |
+| `aqtweaks:herbalist` | gathering | 2,1 | 3 | gathering 16, magic 12 |
+| `aqtweaks:gathering_efficiency` | gathering | 2,3 | 4 | gathering 12 |
+| `aqtweaks:bountiful_harvest` | farming | 2,2 | 4 | farming 16 |
+| `aqtweaks:rancher` | farming | 2,1 | 4 | farming 16, gathering 12 |
+| `aqtweaks:drafter` | building | 2,1 | 3 | building 12 |
+| `aqtweaks:sculptor` | building | 2,3 | 3 | building 20 |
+| `aqtweaks:transpose` | building | 3,1 | 3 | building 24, magic 30 |
+| `aqtweaks:vis_thrift` | magic | 2,1 | 4 | magic 20 |
+| `aqtweaks:quiet_mind` | magic | 2,2 | 4 | magic 16, defense 12 |
+
+CAD `reskillable:hillwalker` cost is stamped **6** at register LOWEST.
+
+Precision Shot: full-draw `ItemBow` (`ArrowLooseEvent` charge ≥ 20) stamps the arrow; that hit **×2** once. Not melee.
+
+Herbalist: always +1 on listed block namespaces. Bountiful Harvest: always +1 mature food crops; not melon/pumpkin; not Herbalist namespaces.
+
+Gathering Efficiency: −1 forage `BreakEvent` stamina only.
+
+Rancher: tended Animania (`handFed` or `interacted`) within 16 of the perk player extra-tick gestation, dry, growth, drink recovery, wool, hen lay, mating AI delay. No extra milk bucket.
+
+Drafter / Sculptor / Transpose: EB `sanitize` snaps locked modes / quick replace.
+
+Vis Thrift: +0.30 on `getTotalVisDiscount`. Quiet Mind: −round(0.35×bound) warp severity after visor.
 
 Power Attack: connecting medium/heavy melee on a **full** regular feather bar; **×1.5** / **×2** and **+2** extra half-feathers (Efficiency does not cut the +2). Light never procs.
+
+Mining Expert: `PlayerEvent.HarvestCheck` client+server. Pickaxe tool class, block pickaxe or null tool, harvest ≤ floor. Does not change `Item.getHarvestLevel`.
 
 Respite: `LivingDamageEvent` LOWEST. Lethal except `outOfWorld`. Regen II + `teastory:defence` 5s. Cooldown 60s (harmful potion, same PNG as the tree icon).
 
@@ -128,7 +154,11 @@ Lang: `reskillable.unlock.aqtweaks.<path>` / `.desc`. Icons: `aqtweaks:textures/
 - `stamina/StaminaPerks.java` — spend reductions, Adrenaline, Evasion, Power Attack
 - `reskillable/ReskillableBonuses.java` — levels, classify, EB add
 - `reskillable/EffortlessBuildingHooks.java` — mixin bridge (no Reskillable imports)
-- `mixin/effortlessbuilding/MixinReachHelper.java`
+- `animania/AnimaniaModule.java`, `AnimaniaFarmClocks.java`
+- `thaumcraft/ThaumcraftPerkHooks.java`
+- `mixin/effortlessbuilding/MixinReachHelper.java`, `MixinModeSettingsManager.java`, `MixinModifierSettingsManager.java`
+- `mixin/thaumcraft/MixinCasterManager.java`, `MixinWarpEvents.java`
+- `mixin/animania/MixinGenericAIMate.java`
 - `mixins.aqtweaks.effortlessbuilding.json`
 
 ## Do not regress

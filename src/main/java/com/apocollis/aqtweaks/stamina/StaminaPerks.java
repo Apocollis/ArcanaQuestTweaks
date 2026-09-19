@@ -36,6 +36,28 @@ public final class StaminaPerks {
         return Math.max(0, cost - reduction);
     }
 
+    public static int gatheringForageCost(EntityPlayer player, int base,
+            net.minecraft.world.World world, net.minecraft.block.state.IBlockState state) {
+        var cfg = ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable;
+        if (!unlocked(player, cfg.gatheringEfficiencyPerkId)) return base;
+        if (!isForageBlock(world, state)) return base;
+        return Math.max(0, base - cfg.gatheringEfficiencyReduction);
+    }
+
+    private static boolean isForageBlock(net.minecraft.world.World world,
+            net.minecraft.block.state.IBlockState state) {
+        if (!net.minecraftforge.fml.common.Loader.isModLoaded("reskillable")) return false;
+        try {
+            Object out = Class.forName("com.apocollis.aqtweaks.reskillable.ReskillableBonuses")
+                    .getMethod("isForageBlock", net.minecraft.world.World.class,
+                            net.minecraft.block.state.IBlockState.class)
+                    .invoke(null, world, state);
+            return Boolean.TRUE.equals(out);
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
     public static int meleeCost(EntityPlayer player, int base) {
         var cfg = ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable;
         return minus(base, player, cfg.meleeEfficiencyPerkId, cfg.meleeEfficiencyReduction);

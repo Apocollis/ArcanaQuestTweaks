@@ -180,6 +180,40 @@ public final class ReskillableBonuses {
         return block instanceof BlockPumpkin || block instanceof BlockMelon;
     }
 
+    public static boolean isMelonOrPumpkin(IBlockState state) {
+        if (state == null) return false;
+        Block block = state.getBlock();
+        return block instanceof BlockPumpkin || block instanceof BlockMelon;
+    }
+
+    public static boolean isHerbalistBlock(IBlockState state) {
+        if (state == null) return false;
+        ResourceLocation key = Block.REGISTRY.getNameForObject(state.getBlock());
+        if (key == null) return false;
+        String ns = key.getNamespace();
+        String[] list = ArcanaQuestTweaksConfig.ReskillableModuleConfig.gathering.herbalistNamespaces;
+        if (list == null) return false;
+        for (String id : list) {
+            if (id != null && id.equalsIgnoreCase(ns)) return true;
+        }
+        return false;
+    }
+
+    public static boolean isBountifulCrop(IBlockState state) {
+        if (state == null || isMelonOrPumpkin(state) || isHerbalistBlock(state)) return false;
+        Block block = state.getBlock();
+        if (block instanceof BlockCrops) {
+            return ((BlockCrops) block).isMaxAge(state);
+        }
+        if (block instanceof BlockNetherWart) {
+            return state.getValue(BlockNetherWart.AGE) >= 3;
+        }
+        if (block instanceof BlockCocoa) {
+            return state.getValue(BlockCocoa.AGE) >= 2;
+        }
+        return false;
+    }
+
     public static boolean isOreBlock(World world, IBlockState state) {
         if (state == null) return false;
         Block block = state.getBlock();

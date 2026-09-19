@@ -411,6 +411,14 @@ public class ArcanaQuestTweaksConfig {
         @Config.RangeInt(min = 0, max = 20)
         public int miningEfficiencyReduction = 1;
 
+        @Config.Name("Gathering Efficiency Perk ID")
+        public String gatheringEfficiencyPerkId = "aqtweaks:gathering_efficiency";
+
+        @Config.Name("Gathering Efficiency Reduction")
+        @Config.Comment("Subtracted from forage BreakEvent stamina only (logs, leaves, gravel, flowers, mushrooms, tall grass). Not ore, not shear, not fish.")
+        @Config.RangeInt(min = 0, max = 20)
+        public int gatheringEfficiencyReduction = 1;
+
         @Config.Name("Melee Efficiency Perk ID")
         public String meleeEfficiencyPerkId = "aqtweaks:melee_efficiency";
 
@@ -1277,6 +1285,46 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Mining Efficiency")
         public ReskillablePerkLayout miningEfficiency = new ReskillablePerkLayout(
                 2, 3, 6, "reskillable:mining", "reskillable:mining|20");
+
+        @Config.Name("Precision Shot")
+        public ReskillablePerkLayout precisionShot = new ReskillablePerkLayout(
+                3, 3, 3, "reskillable:attack", "reskillable:attack|12", "reskillable:agility|16");
+
+        @Config.Name("Herbalist")
+        public ReskillablePerkLayout herbalist = new ReskillablePerkLayout(
+                2, 1, 3, "reskillable:gathering", "reskillable:gathering|16", "reskillable:magic|12");
+
+        @Config.Name("Gathering Efficiency")
+        public ReskillablePerkLayout gatheringEfficiency = new ReskillablePerkLayout(
+                2, 3, 4, "reskillable:gathering", "reskillable:gathering|12");
+
+        @Config.Name("Bountiful Harvest")
+        public ReskillablePerkLayout bountifulHarvest = new ReskillablePerkLayout(
+                2, 2, 4, "reskillable:farming", "reskillable:farming|16");
+
+        @Config.Name("Rancher")
+        public ReskillablePerkLayout rancher = new ReskillablePerkLayout(
+                2, 1, 4, "reskillable:farming", "reskillable:farming|16", "reskillable:gathering|12");
+
+        @Config.Name("Drafter")
+        public ReskillablePerkLayout drafter = new ReskillablePerkLayout(
+                2, 1, 3, "reskillable:building", "reskillable:building|12");
+
+        @Config.Name("Sculptor")
+        public ReskillablePerkLayout sculptor = new ReskillablePerkLayout(
+                2, 3, 3, "reskillable:building", "reskillable:building|20");
+
+        @Config.Name("Transpose")
+        public ReskillablePerkLayout transpose = new ReskillablePerkLayout(
+                3, 1, 3, "reskillable:building", "reskillable:building|24", "reskillable:magic|30");
+
+        @Config.Name("Vis Thrift")
+        public ReskillablePerkLayout visThrift = new ReskillablePerkLayout(
+                2, 1, 4, "reskillable:magic", "reskillable:magic|20");
+
+        @Config.Name("Quiet Mind")
+        public ReskillablePerkLayout quietMind = new ReskillablePerkLayout(
+                2, 2, 4, "reskillable:magic", "reskillable:magic|16", "reskillable:defense|12");
     }
 
     public static class ReskillableRespite {
@@ -1362,6 +1410,12 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Chance of +1 forage / extra wool / extra fish. 0.00625 → 10% at 16, 20% at 32. Not ores, not crops.")
         @Config.RangeDouble(min = 0.0, max = 1.0)
         public double extraDropChancePerLevel = 0.00625;
+
+        @Config.Name("Herbalist Namespaces")
+        @Config.Comment("Block registry namespaces that always +1 with Herbalist. Restart after edit.")
+        public String[] herbalistNamespaces = new String[] {
+                "bewitchment", "thaumcraft", "botania", "rustic", "teastory", "astralsorcery", "mysticalworld"
+        };
     }
 
     public static class ReskillableFarming {
@@ -1369,6 +1423,11 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Chance of +1 on a mature crop harvest. 0.00625 → 10% at 16, 20% at 32.")
         @Config.RangeDouble(min = 0.0, max = 1.0)
         public double extraDropChancePerLevel = 0.00625;
+
+        @Config.Name("Rancher Range")
+        @Config.Comment("Blocks from a Rancher player to extra-tick tended Animania animals.")
+        @Config.RangeDouble(min = 1.0, max = 64.0)
+        public double rancherRange = 16.0;
     }
 
     public static class ReskillableMagic {
@@ -1388,6 +1447,19 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Deny Types")
         @Config.Comment("Exact damageType strings that never count as spell-like.")
         public String[] denyTypes = new String[] {"wither", "onFire", "lava", "hotFloor"};
+
+        @Config.Name("Vis Thrift Add")
+        @Config.Comment("Added to CasterManager.getTotalVisDiscount when Vis Thrift is unlocked. 0.30 = 30% off foci and Arcane Workbench.")
+        @Config.RangeDouble(min = 0.0, max = 0.9)
+        public double visThriftAdd = 0.30;
+
+        @Config.Name("Quiet Mind Bound Fraction")
+        @Config.Comment("Subtract round(fraction × incident bound) from warp severity after visor.")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public double quietMindBoundFraction = 0.35;
+
+        @Config.Name("Quiet Mind Cancel Chat")
+        public String quietMindCancelChat = "Whispers try to cloud your thoughts, but you push them away...";
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_bettermineshafts", category = "")

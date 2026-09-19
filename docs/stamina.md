@@ -223,7 +223,7 @@ Shield: `isActiveItemStackBlocking`; first tick arms timer (no spend); then spen
 
 Glider: empty → `undeployGlider`.
 
-Mining: `BreakEvent` — registry string contains `ore` or block is obsidian → ore cost, else default. Mining Efficiency perk subtracts `miningEfficiencyReduction` (floor 0). Break is **not** cancelled. Fatigue III (amp 2, 40 ticks, ambient, no particles) while **regular** `getFeatherLevel` ≤ threshold (default 4 = two full feathers). Not usable-after-weight.
+Mining: `BreakEvent` — registry string contains `ore` or block is obsidian → ore cost, else default. Mining Efficiency perk subtracts `miningEfficiencyReduction` (floor 0). Gathering Efficiency subtracts `gatheringEfficiencyReduction` only when the block is forage (`ReskillableBonuses.isForageBlock`). Break is **not** cancelled. Fatigue III (amp 2, 40 ticks, ambient, no particles) while **regular** `getFeatherLevel` ≤ threshold (default 4 = two full feathers). Not usable-after-weight.
 
 ### Simple Difficulty thirst
 

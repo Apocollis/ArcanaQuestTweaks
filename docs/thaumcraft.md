@@ -8,9 +8,9 @@ Comfort homestead drain is a **different** NBT key and module ([comfort.md](comf
 
 ## Locked intent
 
-Add pack-side warp **sources and sinks** Thaumcraft does not have: first visit to a dimension, lingering in configured dimensions / underground Y bands / Roguelike dungeons, and reducing **sticky** warp after a successful night sleep. Temporary warp during sleep is TC decay + Comfort Homestead (Somnia ticks those). Do not replace TC research/flux/eldritch warp. Do not mixin `handleWarp` / `checkWarpEvent` (parent still **−1 TEMPORARY / 2000 ticks** while online, not Warp Ward, not wussMode).
+Add pack-side warp **sources and sinks** Thaumcraft does not have: first visit to a dimension, lingering in configured dimensions / underground Y bands / Roguelike dungeons, and reducing **sticky** warp after a successful night sleep. Temporary warp during sleep is TC decay + Comfort Homestead (Somnia ticks those). Do **not** mixin `handleWarp`. Quiet Mind may mixin `checkWarpEvent` after visor, before `PacketMiscEvent` — do **not** cancel HEAD (that would skip −1 temp). Parent still **−1 TEMPORARY / 2000 ticks** while online, not Warp Ward, not wussMode.
 
-Stamp `setMagicDamage()` on stock caster **focus HP** so Reskillable Magic drip classifies them without a `thrown` prefix (snowballs stay physical). Scale Heal-focus `heal(float)` by the caster’s outgoing Magic %. See [reskillable.md](reskillable.md).
+Stamp `setMagicDamage()` on stock caster **focus HP** so Reskillable Magic drip classifies them without a `thrown` prefix (snowballs stay physical). Scale Heal-focus `heal(float)` by the caster’s outgoing Magic %. Quiet Mind mixins `checkWarpEvent` after visor (not HEAD). Vis Thrift mixins `CasterManager.getTotalVisDiscount`. See [reskillable.md](reskillable.md).
 
 ## How the parent mod works
 
@@ -94,6 +94,8 @@ Optional `mixins.aqtweaks.thaumcraft.json`. Vanilla INVOKEs MCP + `remap = true`
 
 - `MixinFocusEffectExecute` — Fire / Frost / Air / Earth / Flux / Curse / Heal `execute` → `attackEntityFrom`: `setMagicDamage()`. Does **not** change the hurt float (Reskillable `LivingHurtEvent` does). Fire keeps `isFireDamage`.
 - `MixinFocusEffectHeal` — Heal only, `heal(F)`: amount `×` caster Magic outgoing if the caster is a player. Not a global `LivingHealEvent`.
+- `MixinCasterManager` — `getTotalVisDiscount` RETURN: Vis Thrift +0.30.
+- `MixinWarpEvents` — `checkWarpEvent`: Quiet Mind severity after visor, before `PacketMiscEvent`.
 
 Do **not** add `thrown` to Reskillable allow-prefixes. Java default prefix `fireball` is ghast/Lich only (instance cfg may still be empty).
 
@@ -134,7 +136,8 @@ Do **not** add `thrown` to Reskillable allow-prefixes. Java default prefix `fire
 - `thaumcraft/ThaumcraftModule.java`
 - `thaumcraft/ThaumcraftHelper.java` — lazy `init()`, type index 0/1/2, `sync` only if `EntityPlayerMP`. Use raw `Class` (not `Class<?>`): Forge 1.12 `SideTransformer` throws on Java 21 generic Signature / LVT and the class then looks missing (`NoClassDefFoundError` from Comfort homestead cleanse).
 - `thaumcraft/ThaumcraftFocusHooks.java` — `markMagic`, Heal scale (Reskillable via reflection)
-- `mixin/thaumcraft/MixinFocusEffectExecute.java`, `MixinFocusEffectHeal.java`
+- `thaumcraft/ThaumcraftPerkHooks.java` — Vis Thrift / Quiet Mind (no Reskillable import)
+- `mixin/thaumcraft/MixinFocusEffectExecute.java`, `MixinFocusEffectHeal.java`, `MixinCasterManager.java`, `MixinWarpEvents.java`
 - `mixins.aqtweaks.thaumcraft.json`
 
 ## Do not regress

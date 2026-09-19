@@ -71,4 +71,23 @@ public final class EffortlessBuildingHooks {
                     + "resolved; place reach and max blocks will use Effortless Building's values", t);
         }
     }
+
+    public static String clampBuildMode(EntityPlayer player, String modeName) {
+        if (modeName == null || "NORMAL".equals(modeName) || "NORMAL_PLUS".equals(modeName)) {
+            return modeName == null ? "NORMAL" : modeName;
+        }
+        return switch (modeName) {
+            case "LINE", "WALL", "FLOOR", "DIAGONAL_LINE", "DIAGONAL_WALL", "SLOPE_FLOOR" ->
+                    com.apocollis.aqtweaks.util.Reflect.hasUnlockable(player, "aqtweaks:drafter")
+                            ? modeName : "NORMAL";
+            case "CIRCLE", "CYLINDER", "SPHERE", "CUBE" ->
+                    com.apocollis.aqtweaks.util.Reflect.hasUnlockable(player, "aqtweaks:sculptor")
+                            ? modeName : "NORMAL";
+            default -> modeName;
+        };
+    }
+
+    public static boolean allowQuickReplace(EntityPlayer player) {
+        return com.apocollis.aqtweaks.util.Reflect.hasUnlockable(player, "aqtweaks:transpose");
+    }
 }

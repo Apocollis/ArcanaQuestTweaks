@@ -848,6 +848,7 @@ public class StaminaModule {
             Reflect.hasUnlockable(playerMP, ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.miningEfficiencyPerkId)) {
             cost = Math.max(0, cost - ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.miningEfficiencyReduction);
         }
+        cost = StaminaPerks.gatheringForageCost(playerMP, cost, event.getWorld(), event.getState());
         if (cost <= 0) return;
         if (Reflect.hasEnoughStamina(playerMP, cost)) {
             Reflect.decreaseFeathers(playerMP, cost);

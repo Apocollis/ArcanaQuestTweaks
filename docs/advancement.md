@@ -25,7 +25,9 @@ Forge’s first load (world construct) never sees Farm/Extra JSON. Step 3 is the
 
 ## Design plan
 
-Optional late mixin `mixins.aqtweaks.animania.json` (`required: false`). `MixinAddonHandler` `@Inject` HEAD `cancellable` on static `onWorldLoad`, `ci.cancel()`. Compile-hard `AddonHandler` from Base. Farm/Extra jars stay off `libs/`.
+Optional late mixin `mixins.aqtweaks.animania.json` (`required: false`). `MixinAddonHandler` `@Inject` HEAD `cancellable` on static `onWorldLoad`, `ci.cancel()`. Compile-hard `AddonHandler` from Base.
+
+Farm `animania-1.12.2-farm-1.0.2.28.jar` is compile-hard for the **Rancher** perk (`AnimaniaFarmClocks`). Do **not** mixin Farm/Extra for advancements. Still do not load Farm/Extra advancement JSON (`onWorldLoad` stays cancelled).
 
 Missing Base jar → json skipped; Tweaks still boots.
 
@@ -42,8 +44,8 @@ None.
 
 ## Do not regress
 
-- Do not mixin Farm/Extra classes.
-- Do not add Farm/Extra to the compile classpath.
+- Do not mixin Farm/Extra **advancement** classes.
+- Farm jar **is** on `libs/` for Rancher animal clocks. Extra stays off unless a later perk needs it.
 - Do not put this mixin in **required** `mixins.aqtweaks.json`.
 - Do not `@Mod required-after:animania`.
 - Recipes skip (`MixinCraftingHelperFindFiles`) stays `/recipes`-gated; it does not swallow advancements.

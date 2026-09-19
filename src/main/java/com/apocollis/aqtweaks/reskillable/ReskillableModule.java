@@ -126,6 +126,20 @@ public class ReskillableModule {
         List<ItemStack> drops = event.getDrops();
         if (state == null || drops == null || drops.isEmpty()) return;
 
+        if (Reflect.hasUnlockable(player, "aqtweaks:herbalist")
+                && ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.herbalist.enable
+                && ReskillableBonuses.isHerbalistBlock(state)) {
+            addOneExtra(drops);
+            return;
+        }
+
+        if (ReskillableBonuses.isBountifulCrop(state)
+                && Reflect.hasUnlockable(player, "aqtweaks:bountiful_harvest")
+                && ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.bountifulHarvest.enable) {
+            addOneExtra(drops);
+            return;
+        }
+
         if (ReskillableBonuses.isMatureCrop(state)) {
             double k = ArcanaQuestTweaksConfig.ReskillableModuleConfig.farming.extraDropChancePerLevel;
             if (ReskillableBonuses.roll(event.getWorld(), player, "farming", k)) {
@@ -182,11 +196,17 @@ public class ReskillableModule {
 
     @SubscribeEvent(priority = EventPriority.NORMAL)
     public void onHurt(LivingHurtEvent event) {
-        if (!ReskillableBonuses.enabled()) return;
         EntityLivingBase victim = event.getEntityLiving();
         if (victim == null || victim.world == null || victim.world.isRemote) return;
         DamageSource source = event.getSource();
         Entity trueSource = source == null ? null : source.getTrueSource();
+        Entity immediate = source == null ? null : source.getImmediateSource();
+        if (immediate instanceof net.minecraft.entity.projectile.EntityArrow arrow
+                && arrow.getEntityData().getBoolean(NBT_PRECISION_ARROW)) {
+            event.setAmount(event.getAmount() * 2.0f);
+            arrow.getEntityData().removeTag(NBT_PRECISION_ARROW);
+        }
+        if (!ReskillableBonuses.enabled()) return;
         boolean classified = ReskillableBonuses.isSpellLike(source);
         ReskillableBonuses.maybeLogMagic(source, trueSource, victim, classified);
         if (!classified) return;
@@ -200,6 +220,31 @@ public class ReskillableModule {
         }
         event.setAmount(amount);
     }
+
+    @SubscribeEvent
+    public void onArrowLoose(net.minecraftforge.event.entity.player.ArrowLooseEvent event) {
+        EntityPlayer player = event.getEntityPlayer();
+        if (skipPlayer(player) || player.world == null || player.world.isRemote) return;
+        if (!Reflect.hasUnlockable(player, "aqtweaks:precision_shot")) return;
+        if (!ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.precisionShot.enable) return;
+        if (!(event.getBow().getItem() instanceof net.minecraft.item.ItemBow)) return;
+        if (event.getCharge() < 20) return;
+        player.getEntityData().setBoolean(NBT_PRECISION_PENDING, true);
+    }
+
+    @SubscribeEvent
+    public void onArrowJoin(net.minecraftforge.event.entity.EntityJoinWorldEvent event) {
+        if (event.getWorld() == null || event.getWorld().isRemote) return;
+        if (!(event.getEntity() instanceof net.minecraft.entity.projectile.EntityArrow arrow)) return;
+        Entity shooter = arrow.shootingEntity;
+        if (!(shooter instanceof EntityPlayer player) || skipPlayer(player)) return;
+        if (!player.getEntityData().getBoolean(NBT_PRECISION_PENDING)) return;
+        player.getEntityData().removeTag(NBT_PRECISION_PENDING);
+        arrow.getEntityData().setBoolean(NBT_PRECISION_ARROW, true);
+    }
+
+    private static final String NBT_PRECISION_PENDING = "AqtweaksPrecisionPending";
+    private static final String NBT_PRECISION_ARROW = "AqtweaksPrecisionShot";
 
     private static void refresh(EntityPlayer player) {
         ReskillableBonuses.invalidateLevels(player);
