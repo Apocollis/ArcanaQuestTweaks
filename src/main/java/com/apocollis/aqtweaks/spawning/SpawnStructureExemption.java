@@ -22,13 +22,19 @@ public final class SpawnStructureExemption {
         if (names.isEmpty()) {
             return Collections.emptySet();
         }
+        Set<String> cached = SpawnStructureHitCache.get(world, pos);
+        if (cached != null) {
+            return cached;
+        }
         Set<String> hit = new HashSet<>();
         for (String name : names) {
             if (StructureCache.CACHE.isInStructure(world, name, pos)) {
                 hit.add(name);
             }
         }
-        return hit;
+        Set<String> frozen = hit.isEmpty() ? Set.of() : Set.copyOf(hit);
+        SpawnStructureHitCache.put(world, pos, frozen);
+        return frozen;
     }
 
     public static boolean keepSurfaceMob(String entityId, Set<String> structuresHere) {

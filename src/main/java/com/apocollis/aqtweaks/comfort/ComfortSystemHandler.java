@@ -62,6 +62,8 @@ public class ComfortSystemHandler {
     private static final String ATTACK_AT_TAG = "AQTComfortAttackAt";
     private static final String LEARNING_POTION = "extraalchemy:effect.learning";
     private static final String XP_BOOST_POTION = "soot:experience_boost";
+    private static final String WARP_CLEANSE_TAG = "WarpCleansingProgress";
+    private static final int WARP_CLEANSE_THRESHOLD = 12;
 
     static final Map<String, CozyConfig> COZY_BLOCKS = new HashMap<>();
     static final Map<String, Integer> CATEGORY_LIMITS = new HashMap<>();
@@ -518,13 +520,13 @@ public class ComfortSystemHandler {
         int homesteadAmplifier;
 
         if (grantedBand == 1) {
-            progressToAdd = 18;
+            progressToAdd = 2;
             homesteadAmplifier = 0;
         } else if (grantedBand == 2) {
-            progressToAdd = 26;
+            progressToAdd = 3;
             homesteadAmplifier = 1;
         } else if (grantedBand >= 3) {
-            progressToAdd = 50;
+            progressToAdd = 6;
             homesteadAmplifier = 2;
         } else {
             return;
@@ -557,8 +559,13 @@ public class ComfortSystemHandler {
             } else {
                 persisted = data.getCompoundTag(EntityPlayer.PERSISTED_NBT_TAG);
             }
-            int currentProgress = persisted.getInteger("WarpCleansingProgress") + progressToAdd;
-            if (currentProgress >= 100) {
+            int stored = persisted.getInteger(WARP_CLEANSE_TAG);
+            // Pre-1.8 0–100 bars would fire every scan at threshold 12.
+            if (stored > WARP_CLEANSE_THRESHOLD) {
+                stored = 0;
+            }
+            int currentProgress = stored + progressToAdd;
+            if (currentProgress >= WARP_CLEANSE_THRESHOLD) {
                 int currentWarp = ThaumcraftHelper.getWarp(player, 1);
                 if (currentWarp > 0) {
                     ThaumcraftHelper.reduceWarp(player, 1, 1);
@@ -566,7 +573,7 @@ public class ComfortSystemHandler {
                 }
                 currentProgress = 0;
             }
-            persisted.setInteger("WarpCleansingProgress", currentProgress);
+            persisted.setInteger(WARP_CLEANSE_TAG, currentProgress);
         }
     }
 

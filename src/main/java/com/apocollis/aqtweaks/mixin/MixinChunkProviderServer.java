@@ -1,11 +1,12 @@
 package com.apocollis.aqtweaks.mixin;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
+import com.apocollis.aqtweaks.depths.ChunkAccess;
 import com.apocollis.aqtweaks.depths.DepthsBiomeUtil;
+import com.apocollis.aqtweaks.depths.PrimerAccess;
 import com.apocollis.aqtweaks.depths.UpperTunnelNetwork;
 import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 import net.minecraft.world.chunk.Chunk;
@@ -48,7 +49,7 @@ public class MixinChunkProviderServer {
         if (minY >= 0) return;
 
         World world = this.field_73251_h != null ? this.field_73251_h : chunk.getWorld();
-        long seed = world != null ? Reflect.getSeed(world) : 1337L;
+        long seed = ChunkAccess.getSeed(world);
         UpperTunnelNetwork.init(seed);
 
         if (!loggedOnce) {
@@ -63,7 +64,6 @@ public class MixinChunkProviderServer {
 
         int startX = chunkX * 16;
         int startZ = chunkZ * 16;
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
 
         for (int localX = 0; localX < 16; ++localX) {
             int worldX = startX + localX;
@@ -74,11 +74,10 @@ public class MixinChunkProviderServer {
 
                 if (!isWater && dig.shouldOpenSeam()) {
                     for (int y = 0; y <= UpperTunnelNetwork.SEAM_TOP; ++y) {
-                        Reflect.setPos(pos, worldX, y, worldZ);
-                        IBlockState cur = Reflect.getBlockState(chunk, pos);
-                        net.minecraft.block.Block b = Reflect.getBlock(cur);
+                        IBlockState cur = ChunkAccess.getBlockState(chunk, worldX, y, worldZ);
+                        net.minecraft.block.Block b = PrimerAccess.getBlock(cur);
                         if (cur != null && airBlock != null && b != airBlock && (bedrockBlock == null || b != bedrockBlock)) {
-                            Reflect.setBlockState(chunk, pos, airState);
+                            ChunkAccess.setBlockState(chunk, worldX, y, worldZ, airState);
                         }
                         if (y <= UpperTunnelNetwork.SEAM_MAX_Y) {
                             for (int dx = -1; dx <= 1; ++dx) {
@@ -87,11 +86,10 @@ public class MixinChunkProviderServer {
                                     int nx = worldX + dx;
                                     int nz = worldZ + dz;
                                     if ((nx >> 4) != chunkX || (nz >> 4) != chunkZ) continue;
-                                    Reflect.setPos(pos, nx, y, nz);
-                                    IBlockState n = Reflect.getBlockState(chunk, pos);
-                                    net.minecraft.block.Block nb = Reflect.getBlock(n);
+                                    IBlockState n = ChunkAccess.getBlockState(chunk, nx, y, nz);
+                                    net.minecraft.block.Block nb = PrimerAccess.getBlock(n);
                                     if (n != null && airBlock != null && nb != airBlock && (bedrockBlock == null || nb != bedrockBlock)) {
-                                        Reflect.setBlockState(chunk, pos, airState);
+                                        ChunkAccess.setBlockState(chunk, nx, y, nz, airState);
                                     }
                                 }
                             }
@@ -100,10 +98,9 @@ public class MixinChunkProviderServer {
                 }
 
                 if (isWater && deepslateState != null) {
-                    Reflect.setPos(pos, worldX, 0, worldZ);
-                    IBlockState atZero = Reflect.getBlockState(chunk, pos);
-                    if (atZero != null && airBlock != null && Reflect.getBlock(atZero) == airBlock) {
-                        Reflect.setBlockState(chunk, pos, deepslateState);
+                    IBlockState atZero = ChunkAccess.getBlockState(chunk, worldX, 0, worldZ);
+                    if (atZero != null && airBlock != null && PrimerAccess.getBlock(atZero) == airBlock) {
+                        ChunkAccess.setBlockState(chunk, worldX, 0, worldZ, deepslateState);
                     }
                 }
             }

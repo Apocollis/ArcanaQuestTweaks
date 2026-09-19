@@ -19,6 +19,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 /**
  * Depths primer -Y authority (replaces Depths cave generate).
  * All -Y carve + decor happen here so structures stick (Chunk -Y writes are unreliable).
@@ -39,7 +42,8 @@ public abstract class MixinCaveNoiseGenerator {
     private static final float LAVA_CHANNEL_THR = -0.25f;
 
     private static final float COLUMN_RADIUS = 3.75f;
-    private static final int COLUMN_SPACING = 24;
+    /** 20-block cells ≈ 1.44× areal density vs the former 24 (nearest integer to 1.5×). */
+    private static final int COLUMN_SPACING = 20;
 
     /** Natural land bridges (~75% of prior rate) */
     private static final int BRIDGE_SPACING = 16;
@@ -55,6 +59,9 @@ public abstract class MixinCaveNoiseGenerator {
     private static final ThreadLocal<float[]> LOWER1 = ThreadLocal.withInitial(() -> new float[64]);
     private static final ThreadLocal<float[]> LOWER2 = ThreadLocal.withInitial(() -> new float[64]);
     private static final ThreadLocal<int[]> BRIDGE = ThreadLocal.withInitial(() -> new int[2]);
+    private static final int BRIDGE_CELL_CACHE_MAX = 1024;
+    private static final ThreadLocal<BridgeCaches> BRIDGE_CELLS = ThreadLocal.withInitial(BridgeCaches::new);
+    private static volatile int bridgeNoiseGeneration = 0;
 
     /** Short floor spikes — rarer than stalactites */
     private static final float FLOOR_SPIKE_THR = 0.52f;
@@ -153,6 +160,7 @@ public abstract class MixinCaveNoiseGenerator {
             spikeNoise.SetFrequency(0.07f);
 
             initializedSeed = worldSeed;
+            bridgeNoiseGeneration++;
         }
     }
 
@@ -219,33 +227,13 @@ public abstract class MixinCaveNoiseGenerator {
 
         for (int dx = -1; dx <= 1; ++dx) {
             for (int dz = -1; dz <= 1; ++dz) {
-                int cx = cellX + dx;
-                int cz = cellZ + dz;
-                if (bridgeSpawnNoise.GetNoise(cx * 19.1f, cz * 27.3f) < BRIDGE_SPAWN_MIN) continue;
+                BridgeCell cell = bridgeCell(cellX + dx, cellZ + dz);
+                if (!cell.active) continue;
 
-                float jx = bridgeJitterNoise.GetNoise(cx * 11.7f, cz * 29.3f);
-                float jz = bridgeJitterNoise.GetNoise(cx * 31.1f + 40.0f, cz * 13.9f);
-                int centerX = Math.round(cx * spacing + spacing * 0.5f + jx * (spacing * 0.15f));
-                int centerZ = Math.round(cz * spacing + spacing * 0.5f + jz * (spacing * 0.15f));
-
-                float dir = bridgeDirNoise.GetNoise(cx * 7.3f, cz * 17.9f);
-                boolean alongX = dir >= 0.0f;
-
-                int endAx = alongX ? centerX - BRIDGE_HALF_SPAN : centerX;
-                int endAz = alongX ? centerZ : centerZ - BRIDGE_HALF_SPAN;
-                int endBx = alongX ? centerX + BRIDGE_HALF_SPAN : centerX;
-                int endBz = alongX ? centerZ : centerZ + BRIDGE_HALF_SPAN;
-
-                float endA = floorIslandNoise.GetNoise(endAx, endAz);
-                float endB = floorIslandNoise.GetNoise(endBx, endBz);
-                float mid = floorIslandNoise.GetNoise(centerX, centerZ);
-                if (!isLand(endA) || !isLand(endB)) continue;
-                if (!isLavaChannel(mid)) continue;
-
-                float dxw = worldX - centerX;
-                float dzw = worldZ - centerZ;
-                float along = alongX ? dxw : dzw;
-                float across = alongX ? dzw : dxw;
+                float dxw = worldX - cell.centerX;
+                float dzw = worldZ - cell.centerZ;
+                float along = cell.alongX ? dxw : dzw;
+                float across = cell.alongX ? dzw : dxw;
                 if (Math.abs(along) > BRIDGE_HALF_SPAN + 0.5f) continue;
 
                 float edgeJitter = bridgeEdgeNoise.GetNoise(worldX * 0.8f, worldZ * 0.8f) * 0.45f;
@@ -257,8 +245,7 @@ public abstract class MixinCaveNoiseGenerator {
                 float u = MathHelper.clamp(along / (float) BRIDGE_HALF_SPAN, -1.0f, 1.0f);
                 float absU = Math.abs(u);
                 float arch = 1.0f - (float) Math.pow(absU, 2.4);
-                float riseN = bridgeRiseNoise.GetNoise(cx * 5.1f, cz * 9.7f) * 0.5f + 0.5f;
-                float rise = BRIDGE_RISE_MIN + riseN * (BRIDGE_RISE_MAX - BRIDGE_RISE_MIN);
+                float rise = BRIDGE_RISE_MIN + cell.riseN * (BRIDGE_RISE_MAX - BRIDGE_RISE_MIN);
                 float topJitter = bridgeEdgeNoise.GetNoise(worldX * 1.3f + 9.0f, worldZ * 1.3f) * 0.45f;
                 int endY = lavaLevel + 1;
                 int deckY = Math.round(endY + rise * arch + topJitter);
@@ -280,6 +267,72 @@ public abstract class MixinCaveNoiseGenerator {
         out[0] = bestDeck;
         out[1] = fillBottom;
         return out;
+    }
+
+    private static BridgeCell bridgeCell(int cx, int cz) {
+        BridgeCaches caches = BRIDGE_CELLS.get();
+        if (caches.generation != bridgeNoiseGeneration) {
+            caches.cells.clear();
+            caches.generation = bridgeNoiseGeneration;
+        }
+        long key = ((long) cx << 32) ^ (cz & 0xFFFFFFFFL);
+        BridgeCell hit = caches.cells.get(key);
+        if (hit != null) return hit;
+
+        int spacing = BRIDGE_SPACING;
+        BridgeCell cell = BridgeCell.INACTIVE;
+        if (bridgeSpawnNoise.GetNoise(cx * 19.1f, cz * 27.3f) >= BRIDGE_SPAWN_MIN) {
+            float jx = bridgeJitterNoise.GetNoise(cx * 11.7f, cz * 29.3f);
+            float jz = bridgeJitterNoise.GetNoise(cx * 31.1f + 40.0f, cz * 13.9f);
+            int centerX = Math.round(cx * spacing + spacing * 0.5f + jx * (spacing * 0.15f));
+            int centerZ = Math.round(cz * spacing + spacing * 0.5f + jz * (spacing * 0.15f));
+
+            float dir = bridgeDirNoise.GetNoise(cx * 7.3f, cz * 17.9f);
+            boolean alongX = dir >= 0.0f;
+
+            int endAx = alongX ? centerX - BRIDGE_HALF_SPAN : centerX;
+            int endAz = alongX ? centerZ : centerZ - BRIDGE_HALF_SPAN;
+            int endBx = alongX ? centerX + BRIDGE_HALF_SPAN : centerX;
+            int endBz = alongX ? centerZ : centerZ + BRIDGE_HALF_SPAN;
+
+            float endA = floorIslandNoise.GetNoise(endAx, endAz);
+            float endB = floorIslandNoise.GetNoise(endBx, endBz);
+            float mid = floorIslandNoise.GetNoise(centerX, centerZ);
+            if (isLand(endA) && isLand(endB) && isLavaChannel(mid)) {
+                float riseN = bridgeRiseNoise.GetNoise(cx * 5.1f, cz * 9.7f) * 0.5f + 0.5f;
+                cell = new BridgeCell(true, centerX, centerZ, alongX, riseN);
+            }
+        }
+        caches.cells.put(key, cell);
+        return cell;
+    }
+
+    private static final class BridgeCell {
+        private static final BridgeCell INACTIVE = new BridgeCell(false, 0, 0, false, 0.0f);
+
+        private final boolean active;
+        private final int centerX;
+        private final int centerZ;
+        private final boolean alongX;
+        private final float riseN;
+
+        private BridgeCell(boolean active, int centerX, int centerZ, boolean alongX, float riseN) {
+            this.active = active;
+            this.centerX = centerX;
+            this.centerZ = centerZ;
+            this.alongX = alongX;
+            this.riseN = riseN;
+        }
+    }
+
+    private static final class BridgeCaches {
+        private int generation = -1;
+        private final Map<Long, BridgeCell> cells = new LinkedHashMap<Long, BridgeCell>(256, 0.75f, false) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<Long, BridgeCell> eldest) {
+                return size() > BRIDGE_CELL_CACHE_MAX;
+            }
+        };
     }
 
     private static int ceilingYAt(int worldX, int worldZ) {

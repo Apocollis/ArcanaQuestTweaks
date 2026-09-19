@@ -78,21 +78,15 @@ public abstract class MixinStructureStartVillagePaste {
             Object gen = StructureVillageOverlap.findVillageGenerator(world);
             VillagePlate.ensureStarts(world, gen);
             long seed = Reflect.getSeed(world);
-            for (VillagePlate.Record rec : VillagePlate.starts(seed)) {
-                if (rec.start == this) {
-                    VillagePlate.stampDetectionPieces(world, rec, gen);
-                    VillageRelight.afterVillagePaste(world, box);
-                    return;
-                }
+            VillagePlate.Record rec = VillagePlate.recordForStart(seed, this);
+            if (rec == null) {
+                VillagePlate.remember(world, this);
+                rec = VillagePlate.recordForStart(seed, this);
             }
-            VillagePlate.remember(world, this);
-            for (VillagePlate.Record rec : VillagePlate.starts(seed)) {
-                if (rec.start == this) {
-                    VillagePlate.stampDetectionPieces(world, rec, gen);
-                    break;
-                }
+            if (rec != null) {
+                VillagePlate.stampDetectionPieces(world, rec, gen);
             }
-            VillageRelight.afterVillagePaste(world, box);
+            VillageRelight.afterVillagePaste(world, (StructureStart) (Object) this, box);
         } finally {
             AQTWEAKS$SKIP_STAMP.set(Boolean.FALSE);
         }

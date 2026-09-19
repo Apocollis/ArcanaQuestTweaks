@@ -88,6 +88,7 @@ public final class SpawnStructureLists {
             }
             structuresById = Map.copyOf(frozenById);
             structureNames = Set.copyOf(byStruct.keySet());
+            SpawnStructureHitCache.clear();
             LOGGER.info("[AQTweaks] Loaded structure spawns from {} ({} structures, {} id rows).",
                     file.getAbsolutePath(), byStruct.size(), idCount);
         } catch (Exception e) {
@@ -110,6 +111,7 @@ public final class SpawnStructureLists {
     private static void clear() {
         structuresById = Map.of();
         structureNames = Set.of();
+        SpawnStructureHitCache.clear();
     }
 
     private static Set<String> toIdSet(List<String> raw) {

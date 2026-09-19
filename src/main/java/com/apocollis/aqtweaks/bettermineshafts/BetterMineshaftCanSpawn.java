@@ -10,9 +10,10 @@ import net.minecraftforge.common.BiomeDictionary;
 import java.util.Random;
 
 /**
- * Same spawn decision for locate and chunk generate: biome <em>provider</em> at Y=64
- * (not loaded-chunk biome) plus Tweaks rate and spacing. Layout still consumes
- * {@code MapGenBase.rand} once on land so {@code getStructureStart} stays on the parent stream.
+ * Same spawn decision for locate and chunk generate: chunk spacing first, then biome
+ * <em>provider</em> at Y=64 (not loaded-chunk biome), then Tweaks rate. Layout still
+ * consumes {@code MapGenBase.rand} once on land so {@code getStructureStart} stays on
+ * the parent stream.
  */
 public final class BetterMineshaftCanSpawn {
     private BetterMineshaftCanSpawn() {}
@@ -29,6 +30,10 @@ public final class BetterMineshaftCanSpawn {
         if (world == null) {
             return null;
         }
+        int spacing = Math.max(1, ArcanaQuestTweaksConfig.BetterMineshaftsModuleConfig.general.chunkSpacing);
+        if (Math.floorMod(chunkX, spacing) != 0 || Math.floorMod(chunkZ, spacing) != 0) {
+            return Boolean.FALSE;
+        }
         if (ArcanaQuestTweaksConfig.BetterMineshaftsModuleConfig.general.skipOceanAndBeach) {
             BiomeProvider provider = Reflect.getBiomeProvider(world);
             int x = (chunkX << 4) + 8;
@@ -38,10 +43,6 @@ public final class BetterMineshaftCanSpawn {
                     || BiomeDictionary.hasType(biome, BiomeDictionary.Type.BEACH))) {
                 return Boolean.FALSE;
             }
-        }
-        int spacing = Math.max(1, ArcanaQuestTweaksConfig.BetterMineshaftsModuleConfig.general.chunkSpacing);
-        if (Math.floorMod(chunkX, spacing) != 0 || Math.floorMod(chunkZ, spacing) != 0) {
-            return Boolean.FALSE;
         }
         long seed = Reflect.getSeed(world);
         Random decision = new Random((chunkX * 341873128712L) ^ (chunkZ * 132897987541L) ^ seed);

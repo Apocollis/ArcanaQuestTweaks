@@ -43,7 +43,7 @@ Two mixins, one target class:
 
 `MapGenBetterCaves.func_186125_a` carves **+Y** caves in the primer. Tweaks runs **after RETURN** and punches tunnel mouths at Y0–4 along `UpperTunnelNetwork` (same paths as -Y upper worms). Does not cancel BC.
 
-- `CarverUtils.canReplaceBlock`: BC stops on many RTG blocks; Tweaks allows rock/ground/clay/sand/grass/ice/packed ice/crafted snow, plus name fallbacks (`stone`, `deepslate`, `clay`, `terracotta`, `dirt`, `sand`, `rock`, `granite`, `diorite`, `andesite`, `basalt`, `tuff`, `slate`). Gated by `enableDepthsModule` only (not the BC-negative-Y flag).
+- `CarverUtils.canReplaceBlock`: BC stops on many RTG blocks; Tweaks allows rock/ground/clay/sand/grass/ice/packed ice/crafted snow, plus name fallbacks (`stone`, `deepslate`, `clay`, `terracotta`, `dirt`, `sand`, `rock`, `granite`, `diorite`, `andesite`, `basalt`, `tuff`, `slate`). Logic is `BetterCavesReplaceable` (direct vanilla). Mixin only cancels with **true**. Gated by `enableDepthsModule` only (not the BC-negative-Y flag).
 - `BetterCavesUtils.getSurfaceAltitudeForColumn`: BC used cave ceilings as “surface”; Tweaks finds the highest solid with only air/water above to 255. Gated by `enableDepthsModule` **and** `enableBetterCavesNegativeY`. Null primer → 64.
 - `FlattenBedrock.flattenBedrock`: cancelled so Depths/RTG bedrock at -64 is not flattened back to Y0. Gated by `enableDepthsModule` **and** `adjustBetterCavesBedrock`.
 
@@ -53,7 +53,7 @@ Two mixins, one target class:
 
 Village flatten is `MixinChunkGeneratorRTGVillage` on the same class; it rewrites noise **before** `generateTerrain`. See [rtg.md](rtg.md).
 
-The two run in the right order because of their **injection points**, not because of any declared priority: the village mixin injects at `generateTerrain` HEAD (plus earlier `func_185932_a` / `getNewerNoise` points), the Deepslate fill at `generateTerrain` TAIL. Neither sets `@Mixin(priority = ...)`, and their adjacency in `mixins.aqtweaks.json` is coincidental. Reordering that list changes nothing; needing it to change something means the injection points are wrong.
+The two run in the right order because of their **injection points**, not because of any declared priority: the village mixin injects at `generateTerrain` HEAD (plus earlier `func_185932_a` / `generateLandscape` RETURN), the Deepslate fill at `generateTerrain` TAIL. Neither sets `@Mixin(priority = ...)`, and their adjacency in `mixins.aqtweaks.json` is coincidental. Reordering that list changes nothing; needing it to change something means the injection points are wrong.
 
 ### CoFH World
 
@@ -130,10 +130,10 @@ A column carves if Type 1 **or** Type 2 digs that Y.
 
 Decor (Deepslate), after carve:
 
-- **Columns:** 24-block cells, spawn noise ≥ 0.25, radius ~3.75 wider at ends, strength &gt; 0.18. The 9-cell scan is `pillarMinDist`, resolved **once per column**; `columnStrength(minDist, heightFrac)` then runs per Y. The flare radius is the same for every cell at a given Y and strength falls off with distance, so the nearest centre is always the strongest — nearest distance alone is enough.
+- **Columns:** 20-block cells (~1.44× areal density vs the former 24), spawn noise ≥ 0.25, radius ~3.75 wider at ends, strength &gt; 0.18. The 9-cell scan is `pillarMinDist`, resolved **once per column**; `columnStrength(minDist, heightFrac)` then runs per Y. The flare radius is the same for every cell at a given Y and strength falls off with distance, so the nearest centre is always the strongest — nearest distance alone is enough. Bridges stay on 16-block cells.
 - **Floor spikes:** land only, spike noise &gt; 0.52, height 4 or 5 (rarer than stalactites).
 - **Stalactites:** spike `&lt; -0.15` and not a lower-breach column, length 5–16 down from ceiling, stop on solid, stay above land surface.
-- **Bridges:** 16-block cells, spawn ≥ 0.28, span 16, half-width ~1.2. Both ends land, mid a lava channel. Solid fill under a smooth arch, deck 4–6 above lava. Skip breach shafts.
+- **Bridges:** 16-block cells, spawn ≥ 0.28, span 16, half-width ~1.2. Both ends land, mid a lava channel. Solid fill under a smooth arch, deck 4–6 above lava. Skip breach shafts. Per-cell spawn/centre/dir/`riseN` (including inactive) is a **ThreadLocal LRU**; each column still does along/across width and edge jitter. Cleared when cave noise rebuilds.
 - **Orphan cleanup:** isolated floaters and short stacks (≤8) that do not touch the ceiling, with air/lava above and below. Protects columns, bridge fill, and short floor spikes.
 - **Quark speleothems:** after that pass, if Quark is loaded and `enableQuarkSpeleothems` is on, `QuarkSpeleothemDecor` plants in-chunk clusters (60 attempts, 10 per cluster, 1–3 tapering `EnumSize` blocks). Same walk-to-full-block logic as stock `SpeleothemGenerator`, but Y is the lower cavern (−59..−24) and writes go to the primer. Deepslate hosts `stone_speleothem` (Quark has no deepslate variant). Skip roof-breach shaft columns. Does not replace Deepslate columns/spikes/bridges. Stock +Y Quark gen is unchanged.
 
@@ -149,7 +149,7 @@ Same `UpperTunnelNetwork` as -Y upper worms. Overworld only (`dimension == 0`).
 
 **Chunk (after provide):** same core path, air Y 0..+4, 3×3 at Y 0..+2. **Water biomes skip mouths** and if Y0 is air, set Deepslate.
 
-`DepthsBiomeUtil.isWaterBiome`: `Type.WATER`, `OCEAN`, `RIVER`, or **`BEACH`**, or name contains `ocean`, `deep_ocean`, `beach`, `river`, `coral`, `kelp`. This is **stricter than RTG village “ocean-like”** — beaches are sealed so the sea floor does not open into the deep. Do not reuse village beach exceptions here.
+`DepthsBiomeUtil.isWaterBiome`: `Type.WATER`, `OCEAN`, `RIVER`, or **`BEACH`**, or name contains `ocean`, `deep_ocean`, `beach`, `river`, `coral`, `kelp`. This is **stricter than RTG village “ocean-like”** — beaches are sealed so the sea floor does not open into the deep. Do not reuse village beach exceptions here. Column lookups are memoised per **chunk** (ThreadLocal LRU, cap 64). Key is **world seed + dimension id + chunk XZ**. Unknown dim → uncached, not stored. The BC mouth pass and the chunk seam share the mask. Do not substitute the primer `Biome[]`.
 
 ## Client
 
@@ -182,18 +182,20 @@ Same `UpperTunnelNetwork` as -Y upper worms. Overworld only (`dimension == 0`).
 | `mixin/bettercaves/MixinCaveNoiseGenerator.java` | AQTweaks -Y primer carve; cancel Depths `generate` when caves on |
 | `mixin/bettercaves/MixinBetterCavesDepthsPass.java` | After BC, Y0 mouths |
 | `mixin/bettercaves/MixinChunkGeneratorRTG.java` | RTG sub-zero fill, not Y=0 |
-| `mixin/bettercaves/MixinCarverUtils.java` | BC replaceable blocks (`enableDepthsModule`) |
+| `mixin/bettercaves/MixinCarverUtils.java` | BC replaceable blocks (`enableDepthsModule`); body in `BetterCavesReplaceable` |
 | `mixin/bettercaves/MixinBetterCavesUtils.java` | True surface altitude |
 | `mixin/bettercaves/MixinFlattenBedrock.java` | Cancel Y0 flatten |
 | `mixin/bettercaves/MixinDepthsMapGenCaves.java` | Cancel vanilla `MapGenCaves` only |
 | `mixin/cofh/MixinDistributionUniform.java` | CoFH min Y |
 | `mixin/reccomplex/MixinRayMatcher.java` | `@Overwrite` rays to -64 |
-| `mixin/MixinChunkProviderServer.java` | Seam reinforce / water seal (Y≥0) |
+| `mixin/MixinChunkProviderServer.java` | Seam reinforce / water seal (Y≥0) via `ChunkAccess` |
 | `mixin/MixinRenderGlobal.java` | Hide sky |
 | `depths/UpperTunnelNetwork.java` | Shared tunnel / chamber / seam / shaft paths |
 | `depths/PrimerAccess.java` | Direct (remapped) primer/state reads + open-sky surface scan |
+| `depths/ChunkAccess.java` | Direct (remapped) chunk get/set + world seed for Y≥0 seam |
+| `depths/BetterCavesReplaceable.java` | Direct BC `canReplaceBlock` allow-list |
 | `depths/DepthsFogHandler.java` | Fog |
-| `depths/DepthsBiomeUtil.java` | Water/beach/ocean/river/coral/kelp for seam seal |
+| `depths/DepthsBiomeUtil.java` | Water/beach/ocean/river/coral/kelp for seam seal; chunk mask cache |
 | `depths/QuarkSpeleothemDecor.java` | Primer Quark speleothems in the lower cavern (`Loader.isModLoaded("quark")`) |
 | `ArcanaQuestTweaksConfig.DepthsModuleConfig` | `aqtweaks_depths.cfg` |
 
@@ -235,6 +237,8 @@ A Spark profile put Tweaks at ~56% of chunk generation: 34s primer carve, 18s su
 
 **Fix:** memoise (above), hoist `pillarMinDist` per column, and move primer reads into `PrimerAccess`. Cave shape is unchanged — all three are exact-equivalence rewrites, not approximations.
 
+A later pass moved the remaining `remap = false` hot-path Reflect (`CarverUtils.canReplaceBlock`, chunk seam get/set) into `BetterCavesReplaceable` / `ChunkAccess`, memoised bridge **cells** (including inactive), and cached water-biome masks per seed+dim+chunk XZ. Still exact-equivalence.
+
 ## Do not regress
 
 - Primer owns **-Y**. Chunk writes below 0 are not trusted.
@@ -244,8 +248,9 @@ A Spark profile put Tweaks at ~56% of chunk generation: 34s primer carve, 18s su
 - Water/beach/river/ocean/coral/kelp columns: no Y0 mouths into the sea.
 - Keep `UpperTunnelNetwork` as the single path for primer, BC mouths, and chunk seam.
 - `UpperTunnelNetwork` caches are **per thread** and bounded. Never a shared map; never unbounded.
+- Bridge-cell and water-biome caches are **per thread** and bounded. Water key is seed + dim + chunk XZ; unknown dim is not stored.
 - Performance work here stays exact-equivalence. No coarser noise, fewer octaves, or shifted thresholds.
-- Vanilla member access stays out of `remap = false` mixin bodies — use `PrimerAccess` (hot path) or `Reflect`.
+- Vanilla member access stays out of `remap = false` mixin bodies — use `PrimerAccess` / `ChunkAccess` / `BetterCavesReplaceable` (hot path) or `Reflect`.
 - `enableBetterDepthsCaves` vs `enableBetterCavesNegativeY` stay separate.
 - `@Overwrite` on `RayMatcher.cast` — re-verify on Recurrent Complex updates.
 - Turning off Better Depths Caves does **not** restore Depths’ own -Y caves (sample redirect has no flag).

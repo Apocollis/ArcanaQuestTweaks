@@ -9,6 +9,7 @@ import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
@@ -65,12 +66,13 @@ public abstract class MixinChunkGeneratorRTGVillage {
         aqtweaks$laidOutCz = Integer.MIN_VALUE;
     }
 
-    @Inject(method = "getNewerNoise", at = @At("RETURN"))
-    private void aqtweaks$registerVillagesAfterNoise(BiomeProvider biomeProvider, int worldX, int worldZ, ChunkLandscape landscape, CallbackInfo ci) {
-        if (VillageLandHelper.isSamplingLandscape()) {
+    @Inject(method = "generateLandscape", at = @At("RETURN"))
+    private void aqtweaks$registerVillagesAfterRepair(BiomeProvider biomeProvider, BlockPos pos,
+                                                     CallbackInfoReturnable<ChunkLandscape> cir) {
+        if (VillageLandHelper.isSamplingLandscape() || pos == null) {
             return;
         }
-        aqtweaks$registerVillages(worldX >> 4, worldZ >> 4);
+        aqtweaks$registerVillages(pos.getX() >> 4, pos.getZ() >> 4);
     }
 
     @Inject(method = "func_185932_a", at = @At(value = "INVOKE",
@@ -516,6 +518,12 @@ public abstract class MixinChunkGeneratorRTGVillage {
                 for (int y = 1; y <= plateY; y++) {
                     IBlockState cur = Reflect.getBlockState(primer, localX, y, localZ);
                     if (y == plateY) {
+                        if (edge) {
+                            if (cur != null && cur.getMaterial().isLiquid()) continue;
+                            Reflect.setBlockState(primer, localX, y, localZ, brick);
+                            wrote = true;
+                            continue;
+                        }
                         if (VillageLandHelper.isBopMud(cur)) {
                             if (loamy != null) {
                                 Reflect.setBlockState(primer, localX, y, localZ, loamy);
@@ -567,7 +575,7 @@ public abstract class MixinChunkGeneratorRTGVillage {
             return recover ? VillagePlate.refreshUnlocked(seed, hits) : hits;
         }
         if (!recover) return Collections.emptyList();
-        if (VillagePlate.starts(seed).isEmpty()) {
+        if (VillagePlate.isEmpty(seed)) {
             VillagePlate.ensureStarts(world, villageGenerator);
             hits = VillagePlate.overlappingRecords(seed, startX, chunkMaxX, startZ, chunkMaxZ, reach);
             if (!hits.isEmpty()) return hits;

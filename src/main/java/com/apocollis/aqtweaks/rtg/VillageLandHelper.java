@@ -259,7 +259,9 @@ public final class VillageLandHelper {
 
     /**
      * Houses and RC skip/retry on watercourses, not swamp-like land. Those pieces stay and get a land pad.
-     * Ocean and river are always wet, even if a pack also tags them swamp.
+     * Ocean and river are always wet, even if a pack also tags them swamp. RTG {@code getRiverBiome()}
+     * overlay counts when river strength is above {@link #STRONG_RIVER} (F3 River can paint while
+     * {@code landscape.biome} is still forest/beach).
      */
     public static boolean isWaterAt(Object villageStart, int x, int z) {
         return isBuildingWet(villageStart, x, z);
@@ -270,10 +272,19 @@ public final class VillageLandHelper {
         if (world == null) {
             world = Reflect.getVillageStartWorld(villageStart);
         }
-        if (world != null) {
-            return isNeverRaiseAt(world, x, z, columnLandscapeCache());
+        if (world == null) {
+            return isNeverRaiseAt(null, villageStart, x, z);
         }
-        return isNeverRaiseAt(world, villageStart, x, z);
+        Map<Long, ChunkLandscape> cache = columnLandscapeCache();
+        ChunkLandscape landscape = cache != null
+                ? landscapeCached(world, x, z, cache)
+                : sampleLandscape(world, x, z);
+        if (isOceanOrRiverBiomeSources(world, world.getBiomeProvider(), landscape, x, z)) {
+            return true;
+        }
+        int index = (x & 15) * 16 + (z & 15);
+        return isLandscapeNeverRaise(landscape, index)
+                || isRiverOverlayWatercourse(landscape, index);
     }
 
     public static boolean isFloodedAt(Object villageStart, int x, int z) {
@@ -579,6 +590,28 @@ public final class VillageLandHelper {
         }
     }
 
+    /**
+     * RTG {@link IRealisticBiome#getRiverBiome()} when river noise is a watercourse. Landscape
+     * {@code biome[]} is often still forest/beach; F3 River comes from this overlay.
+     */
+    private static boolean isRiverOverlayWatercourse(ChunkLandscape landscape, int index) {
+        if (landscape == null || landscape.biome == null || landscape.river == null) return false;
+        if (index < 0 || index >= landscape.biome.length || index >= landscape.river.length) return false;
+        if (Math.abs(landscape.river[index]) <= STRONG_RIVER) return false;
+        IRealisticBiome realistic = landscape.biome[index];
+        if (realistic == null) return false;
+        try {
+            IRealisticBiome river = realistic.getRiverBiome();
+            if (river != null && isNeverRaiseBiome(river.baseBiome())) {
+                return true;
+            }
+            var riverType = realistic.getRiverType();
+            return riverType != null && isNeverRaiseBiome(riverType.getBiome());
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
     private static boolean chunkExists(World world, int cx, int cz) {
         if (world == null) return false;
         try {
@@ -600,7 +633,9 @@ public final class VillageLandHelper {
         long key = ChunkPos.asLong(x >> 4, z >> 4);
         if (cache.containsKey(key)) return cache.get(key);
         ChunkLandscape landscape = sampleLandscape(world, x, z);
-        cache.put(key, landscape);
+        if (landscape != null) {
+            cache.put(key, landscape);
+        }
         return landscape;
     }
 
@@ -942,21 +977,27 @@ public final class VillageLandHelper {
         if (box == null) return 0.0F;
         int wet = 0;
         int total = 0;
-        for (int x = box[0]; x <= box[1]; x++) {
-            for (int z = box[2]; z <= box[3]; z++) {
-                total++;
-                if (flooded ? isFloodedAt(villageStart, x, z) : isBuildingWet(villageStart, x, z)) {
-                    wet++;
+        pushColumnLandscapeCache();
+        try {
+            for (int x = box[0]; x <= box[1]; x++) {
+                for (int z = box[2]; z <= box[3]; z++) {
+                    total++;
+                    if (flooded ? isFloodedAt(villageStart, x, z) : isBuildingWet(villageStart, x, z)) {
+                        wet++;
+                    }
                 }
             }
+        } finally {
+            popColumnLandscapeCache();
         }
         return total == 0 ? 0.0F : (float) wet / (float) total;
     }
 
     /**
      * Last-resort populate check: do not paste a village building onto leftover ocean/river.
-     * Skip this chunk's paste if <em>any</em> clipped column is ocean/river biome (provider,
-     * RTG landscape biome, or loaded chunk array). Roads stay exempt. Leftover lakes still paste.
+     * Non-road village pieces (vanilla houses, RC {@code GenericVillagePiece}, shrine) skip if
+     * <em>any</em> column of the full AABB is ocean/river biome. Roads stay exempt. Leftover
+     * lakes still paste.
      */
     public static boolean isOceanOrRiverFloor(World world, Object component, StructureBoundingBox clip) {
         if (world == null || world.isRemote || component == null) return false;
@@ -968,12 +1009,6 @@ public final class VillageLandHelper {
         int maxX = box[1];
         int minZ = box[2];
         int maxZ = box[3];
-        if (clip != null) {
-            minX = Math.max(minX, clip.minX);
-            maxX = Math.min(maxX, clip.maxX);
-            minZ = Math.max(minZ, clip.minZ);
-            maxZ = Math.min(maxZ, clip.maxZ);
-        }
         if (minX > maxX || minZ > maxZ) return false;
         pushColumnLandscapeCache();
         try {

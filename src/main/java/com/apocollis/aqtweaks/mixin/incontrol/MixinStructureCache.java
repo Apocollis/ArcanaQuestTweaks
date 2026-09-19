@@ -12,9 +12,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(value = StructureCache.class, remap = false)
 public abstract class MixinStructureCache {
 
-    @Inject(method = "parseStructureData", at = @At("RETURN"))
+    @Inject(method = "parseStructureData", at = @At("RETURN"), cancellable = true)
     private static void aqtweaks$expandBoundingBoxChunks(
             MapGenStructureData data, CallbackInfoReturnable<Set<Long>> cir) {
-        StructureCacheHooks.addBoundingBoxChunks(data, cir.getReturnValue());
+        Set<Long> expanded = StructureCacheHooks.expandedChunks(data, cir.getReturnValue());
+        if (expanded != null) {
+            cir.setReturnValue(expanded);
+        }
     }
 }

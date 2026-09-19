@@ -1,6 +1,6 @@
 # Comfort module (1.8)
 
-Last updated: 2026-09-15.
+Last updated: 2026-09-19.
 
 JSON (two files under `config/arcanaquesttweaks/`):
 
@@ -78,9 +78,9 @@ Thresholds are floats in JSON (defaults 15 / 40 / 60). They set the **maximum** 
 
 | Granted | After | HUD | Other |
 | --- | --- | --- | --- |
-| I | immediately when score ≥ I | Homestead I (amp 0) | +18 warp / 30s; `extraalchemy:effect.learning` amp 0, 8:00 |
-| II | 60s at I while score ≥ II | Homestead II (amp 1) | +26 warp; strip Learning; `soot:experience_boost` amp 0, 8:00; `elenaidodge2:endurance` amp 0, 8:00; `elenaidodge2:replenishment` 4:00 |
-| III | 60s at II while score ≥ III | Homestead III (amp 2) | +50 warp; strip Learning; XP boost amp 1, 8:00; endurance amp 1, 8:00; replenishment 8:00 |
+| I | immediately when score ≥ I | Homestead I (amp 0) | +2 warp cleanse / 30s; `extraalchemy:effect.learning` amp 0, 8:00 |
+| II | 60s at I while score ≥ II | Homestead II (amp 1) | +3 warp cleanse; strip Learning; `soot:experience_boost` amp 0, 8:00; `elenaidodge2:endurance` amp 0, 8:00; `elenaidodge2:replenishment` 4:00 |
+| III | 60s at II while score ≥ III | Homestead III (amp 2) | +6 warp cleanse; strip Learning; XP boost amp 1, 8:00; endurance amp 1, 8:00; replenishment 8:00 |
 
 Homestead potion duration is **900** ticks (45s). XP / endurance / replenishment are **re-applied** each scan while that band is held; when Homestead ends they **count down** (not stripped). Learning is **removed** when promoting to II or III; it is **not** stripped if Homestead I ends from hurt/attack/furniture. All `PotionEffect`s use ambient **true**, particles **false**. No regen, saturation, or SD thermals from Homestead.
 
@@ -100,13 +100,13 @@ Non-OP denied. Console without a player errors.
 
 ### Warp cleanse math
 
-Only if `thaumcraft` is loaded. Progress is persisted NBT `WarpCleansingProgress`. At **100**, if temporary warp (`ThaumcraftHelper` type **1**) is &gt; 0, reduce 1 and `syncWarp`. Progress then **resets to 0** even if warp was already 0 (progress is spent).
+Only if `thaumcraft` is loaded. Progress is persisted NBT `WarpCleansingProgress`. Each successful Homestead scan adds **2 / 3 / 6** (granted I / II / III). If the counter is **≥ 12**, reduce 1 temporary warp (`ThaumcraftHelper` type **1**) if any, `syncWarp`, and set the counter to **0** (remainder discarded; a firing with 0 temp warp still spends the bar). Losing Homestead does **not** clear the counter; the next true scan resumes. Stored values **> 12** (old 0–100 bars) are treated as 0 once.
 
-Approximate time to 1 temp warp at the 30s interval:
+Time to 1 temp warp at the 30s interval:
 
-- I: +18 / 30s → ~167s
-- II: +26 / 30s → ~115s
-- III: +50 / 30s → **60s** (III still clears about 1 temp warp per 60s)
+- I: +2 → 6 scans → **180s**
+- II: +3 → 4 scans → **120s**
+- III: +6 → 2 scans → **60s**
 
 Comfort drain is **temporary warp only**. Sleep drain is the Thaumcraft module ([thaumcraft.md](thaumcraft.md)).
 
@@ -269,7 +269,7 @@ Missing pack blocks simply never match; they do not crash.
 - XP boost / endurance / replenishment are not stripped when Homestead ends. Learning **is** stripped on granted II/III.
 - Homestead I grants Extra Alchemy Learning, not Soot XP boost.
 - Keep category caps. Blocks JSON without `crafting` gets limit 1 and `minecraft:crafting_table`; a player-defined `crafting` key is not overwritten. Combined `aqtweaks_comfort.json` is ignored.
-- Comfort warp NBT is `WarpCleansingProgress`, not Thaumcraft exposure `WarpExposureProgress`.
+- Comfort warp NBT is `WarpCleansingProgress`, not Thaumcraft exposure `WarpExposureProgress`. Do not wipe it when Homestead ends. Adds are 2/3/6; fire at ≥ 12.
 - Homestead cleanse calls `ThaumcraftHelper` (raw `Class` only). Generic `Class<?>` on that helper made Forge `SideTransformer` drop the class and crash the server tick.
 - Thermals and cold resist look up potions by name so Simple Difficulty absence never classloads SD.
 - Entry requires rest pose/stillness **and** a hearth, bed/hammock/sleeping-bag, or seat (or whatever ids sit in `entry_require_categories`). **Continuing** rest allows walking inside the scored area **only while that furniture stays in the scan**.

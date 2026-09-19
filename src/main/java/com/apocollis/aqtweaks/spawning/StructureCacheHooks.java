@@ -1,6 +1,9 @@
 package com.apocollis.aqtweaks.spawning;
 
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 import net.minecraft.nbt.NBTBase;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -9,19 +12,45 @@ import net.minecraft.world.gen.structure.MapGenStructureData;
 
 /**
  * Expand InControl {@code StructureCache} origin chunks with every feature/child {@code BB}.
+ * Memoizes the union per {@link MapGenStructureData} until feature/child counts change.
  */
 public final class StructureCacheHooks {
 
+    private static final Map<MapGenStructureData, Cached> EXPANDED = new WeakHashMap<>();
+
     private StructureCacheHooks() {}
 
-    public static void addBoundingBoxChunks(MapGenStructureData data, Set<Long> chunks) {
-        if (data == null || chunks == null) {
-            return;
+    /**
+     * Union of stock origin chunks plus every feature/child {@code BB}. Cached until the
+     * structure NBT fingerprint changes. Caller should return this set from parse.
+     */
+    public static Set<Long> expandedChunks(MapGenStructureData data, Set<Long> stock) {
+        if (data == null) {
+            return stock;
         }
         NBTTagCompound features = data.getTagCompound();
         if (features == null) {
-            return;
+            return stock;
         }
+        int fingerprint = fingerprint(features);
+        synchronized (EXPANDED) {
+            Cached hit = EXPANDED.get(data);
+            if (hit != null && hit.fingerprint == fingerprint) {
+                return hit.chunks;
+            }
+        }
+        LongOpenHashSet expanded = new LongOpenHashSet();
+        if (stock != null && !stock.isEmpty()) {
+            expanded.addAll(stock);
+        }
+        addBoundingBoxChunks(features, expanded);
+        synchronized (EXPANDED) {
+            EXPANDED.put(data, new Cached(fingerprint, expanded));
+        }
+        return expanded;
+    }
+
+    private static void addBoundingBoxChunks(NBTTagCompound features, Set<Long> chunks) {
         for (String key : features.getKeySet()) {
             NBTBase raw = features.getTag(key);
             if (!(raw instanceof NBTTagCompound compound)) {
@@ -33,6 +62,18 @@ public final class StructureCacheHooks {
                 addBb(chunks, children.getCompoundTagAt(i).getIntArray("BB"));
             }
         }
+    }
+
+    private static int fingerprint(NBTTagCompound features) {
+        int fp = features.getKeySet().size();
+        for (String key : features.getKeySet()) {
+            NBTBase raw = features.getTag(key);
+            if (!(raw instanceof NBTTagCompound compound)) {
+                continue;
+            }
+            fp = 31 * fp + compound.getTagList("Children", 10).tagCount();
+        }
+        return fp;
     }
 
     private static void addBb(Set<Long> chunks, int[] bb) {
@@ -59,4 +100,6 @@ public final class StructureCacheHooks {
             }
         }
     }
+
+    private record Cached(int fingerprint, LongOpenHashSet chunks) {}
 }

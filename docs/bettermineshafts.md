@@ -28,7 +28,7 @@ Start ctor picks tunnel Y from `MineshaftVariantSettings.minY`/`maxY` (0 treated
 
 ## Design plan
 
-- `BetterMineshaftCanSpawn`: if Tweaks Enable is false, return null (parent canSpawn). Else optional ocean/beach from `BiomeProvider` at `(cx<<4)+8, 64, (cz<<4)+8`; chunk spacing (`floorMod` both axes); spawn roll on a per-chunk `Random` using Tweaks rate (not BM `Configuration.mineshaftSpawnRate`). Land path still discards one `rand.nextDouble()` so Start layout stays on the parent stream.
+- `BetterMineshaftCanSpawn`: if Tweaks Enable is false, return null (parent canSpawn). Else chunk spacing (`floorMod` both axes); then optional ocean/beach from `BiomeProvider` at `(cx<<4)+8, 64, (cz<<4)+8`; spawn roll on a per-chunk `Random` using Tweaks rate (not BM `Configuration.mineshaftSpawnRate`). Land path still discards one `rand.nextDouble()` so Start layout stays on the parent stream.
 - `MixinMapGenBetterMineshaft` HEAD of `func_75047_a`: that canSpawn. RETURN of `func_180706_b`: nearest registered Start pin; else vanilla pin if the chunk is not generated-empty; else keep walking the spiral. Pin Y=24 when unexplored.
 - `MixinVerticalEntrance` RETURN of `func_74875_a`: if the parent returned false, keep a **small** box around `centerPos` (Y through Y+6, ±2 XZ) and return true. Do not shrink `maxY` while a cliff opening exists. Set the box via Reflect (`setBoundingBox` / `boundingBox` / `field_74887_e`).
 - `MixinMapGenBetterMineshaftStart` RETURN of `func_75068_a`: `Reflect.updateStructureStartBoundingBox` after piece removal. HEAD ctor `@ModifyVariable` (settings arg): `BetterMineshaftStartSettings.withTweaksY` — local copy with Tweaks min/max Y, never mutate shared variant settings.
@@ -40,7 +40,7 @@ Mineshafts may sit under RTG rivers/beaches the provider still calls plains.
 | Piece | Role |
 | --- | --- |
 | `ArcanaQuestTweaksConfig.BetterMineshaftsModuleConfig` | Nested `general`; `aqtweaks_bettermineshafts.cfg` (no BM imports) |
-| `bettermineshafts/BetterMineshaftCanSpawn.java` | Provider biome + Tweaks rate/spacing |
+| `bettermineshafts/BetterMineshaftCanSpawn.java` | Spacing first, then provider biome, then Tweaks rate |
 | `bettermineshafts/BetterMineshaftStartSettings.java` | Local Start Y copy |
 | `bettermineshafts/BetterMineshaftLocate.java` | Pin + skip generated-empty |
 | `bettermineshafts/VerticalEntranceAccess.java` | Entrance `centerPos` |

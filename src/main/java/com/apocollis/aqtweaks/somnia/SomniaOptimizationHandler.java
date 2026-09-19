@@ -1,6 +1,5 @@
 package com.apocollis.aqtweaks.somnia;
 
-import com.apocollis.aqtweaks.util.Reflect;
 import com.kingrunes.somnia.Somnia;
 import com.kingrunes.somnia.common.SomniaConfig;
 import com.kingrunes.somnia.common.util.SomniaState;
@@ -67,17 +66,13 @@ public class SomniaOptimizationHandler {
             return;
         }
 
-        // 3. Player is awake:
-        // Flush pending queued light checks immediately (queuedLightChecks < 4096 means checks are pending)
-        int queued = Reflect.getQueuedLightChecks(chunk);
-        boolean hasPendingBacklog = queued < 4096;
-
-        // Pure ambient/mood check: throttle to once every 20 ticks (1 second) round-robin
-        boolean ambientInterval = Math.floorMod(currentTick + chunk.x + chunk.z, 20L) == 0;
-
-        if (hasPendingBacklog || ambientInterval) {
-            LAST_CHECK_TICKS.put(key, currentTick);
-            chunk.checkLight();
+        // 3. Player is awake: throttle checkLight even when queuedLightChecks < 4096.
+        // Depths tall columns rarely return to vanilla idle 4096, so a backlog flush every
+        // tick never drains; the 20-tick round-robin still processes the queue over time.
+        if (Math.floorMod(currentTick + chunk.x + chunk.z, 20L) != 0) {
+            return;
         }
+        LAST_CHECK_TICKS.put(key, currentTick);
+        chunk.checkLight();
     }
 }

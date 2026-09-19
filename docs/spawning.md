@@ -1,6 +1,6 @@
 # Spawning module (1.8)
 
-Last updated: 2026-09-14. Cage `MixinMobSpawnerBaseLogic` is in `mixins.aqtweaks.early.json` (late prepare loads `MobSpawnerBaseLogic` too early).
+Last updated: 2026-09-18. `MixinStructureCache` RETURN on `parseStructureData` is `cancellable = true` (Mixin 0.8 `setReturnValue`). Cage `MixinMobSpawnerBaseLogic` is in `mixins.aqtweaks.early.json`.
 
 Config: `config/arcanaquesttweaks/aqtweaks_spawning.cfg`. Pack lists: `config/arcanaquest/mob_overworldspawntype.json`, `mob_structurespawns.json`, `mob_spawnparties.json`, `mob_tier.json`, and `mob_spawnrules.cfg` (Tweaks does **not** ship or write these files). Always registered. Vanilla spawner mixins in **required** `mixins.aqtweaks.json`. Compile-hard InControl `1.12-3.10.4` (`after:incontrol`) plus nested McJtyTools `StructureCache`.
 
@@ -26,7 +26,7 @@ Do **not** put `seesky` / height on `potentialspawn.json`. Do **not** copy layer
 
 **InControl:** **adds** `potentialspawn.json` rows onto the vanilla biome list (creeper 1–2, etc.) and does **not** delete vanilla 4–4. Tweaks then keeps the **last** row per entity class so fill and WeightedRandom use InControl group counts and weights. `spawn.json` deny does not reroll. Mixins player min-distance on the same spawner (`WorldEntitySpawnerMixin`). Tweaks uses `GeneralConfiguration.MIN_PLAYER_*_SPAWN_DISTANCE` for extra members. Per-mob `maxcount` is separate from the global MONSTER cap.
 
-`StructureCache.parseStructureData` reads `MapGenStructureData.getTagCompound()` (already the Features map) and, stock, only stores each start’s origin `ChunkX`/`ChunkZ`. Tweaks RETURN-injects chunk longs for every feature and child `BB` (`[minX,minY,minZ,maxX,maxY,maxZ]`). `isInStructure` is then true across Better Mineshafts (and other multi-chunk structures), so InControl `structure: Mineshaft` rules match the footprint.
+`StructureCache.parseStructureData` reads `MapGenStructureData.getTagCompound()` (already the Features map) and, stock, only stores each start’s origin `ChunkX`/`ChunkZ`. Tweaks RETURN-injects chunk longs for every feature and child `BB` (`[minX,minY,minZ,maxX,maxY,maxZ]`) into a memoized `LongOpenHashSet` (fingerprint = feature count + child counts; rebuild when NBT grows). `isInStructure` is then true across Better Mineshafts (and other multi-chunk structures), so InControl `structure: Mineshaft` rules match the footprint. InControl still fills its own per-chunk Boolean map from that set; Tweaks does not shrink child BBs.
 
 **Pack JSON** `mob_overworldspawntype.json`: `{ "surface": [...], "underground": [...] }`.
 
@@ -63,9 +63,9 @@ Keys are the `@SerializedName` values on `SpawnParties`:
 
 ## How Tweaks hooks in
 
-**Layer filter:** `SpawnTypeLists.load` and `SpawnStructureLists.load` in preInit. `SpawnLayerFilter` on `PotentialSpawns` **LOWEST**, registered in **postInit** (after InControl): strip exclusive layer ids, then **one entry per entity class** (last wins). Cave pick: `Y < Cave Max Y` **and** sky light ≤ Max Cave Sky Light. If InControl is loaded, a cave strip of a **surface-only** id is skipped when `StructureCache` says the pick is in a structure that lists that id. `SpawnLayerFilter` does not import `StructureCache`; `SpawnStructureExemption` is wired from `postInit`.
+**Layer filter:** `SpawnTypeLists.load` and `SpawnStructureLists.load` in preInit. `SpawnLayerFilter` on `PotentialSpawns` **LOWEST**, registered in **postInit** (after InControl): strip exclusive layer ids, then **one entry per entity class** (last wins; skip the rewrite when the list has no duplicate classes). Cave pick: `Y < Cave Max Y` **and** sky light ≤ Max Cave Sky Light. If InControl is loaded, a cave strip of a **surface-only** id is skipped when `StructureCache` says the pick is in a structure that lists that id. Structure-name hits are cached per world+chunk (bounded, cleared on unload and spawn-list reload). `SpawnLayerFilter` does not import `StructureCache`; `SpawnStructureExemption` is wired from `postInit`.
 
-**Structure cache:** optional `mixins.aqtweaks.incontrol.json` `MixinStructureCache` on `parseStructureData` RETURN. Helper `StructureCacheHooks` adds BB chunks. Do not late-mixin `World` / `WorldServer`.
+**Structure cache:** optional `mixins.aqtweaks.incontrol.json` `MixinStructureCache` on `parseStructureData` RETURN (`cancellable = true` — Mixin 0.8 `setReturnValue` cancels). Helper `StructureCacheHooks.expandedChunks` unions origin + every feature/child `BB` into a cached `LongOpenHashSet` and the mixin `setReturnValue`s it. Do not `@Overwrite` parse. Do not late-mixin `World` / `WorldServer`.
 
 **Pack fill:** `MixinWorldEntitySpawner` only. ThreadLocal entry via Redirect of `getSpawnListEntryForTypeAt` while `findChunksForSpawning` runs. Redirect `spawnEntity`: after success, `SpawnPackFiller` extras then `SpawnParties`. Redirect `getMaxSpawnPackSize` → **1** when fill applies. Recursion guard while filling (`filling` also blocks companion parties from stacking).
 
@@ -111,7 +111,8 @@ JSON layer / parties / structure files: edit needs **restart** (or a Tweaks cfg 
 | `spawning/SpawnTypeLists.java` | Pack JSON exclusive sets |
 | `spawning/SpawnStructureLists.java` | Pack JSON structure → ids (no `StructureCache` import) |
 | `spawning/SpawnStructureExemption.java` | `StructureCache.isInStructure` (InControl present) |
-| `spawning/StructureCacheHooks.java` | Feature/child `BB` → chunk longs |
+| `spawning/SpawnStructureHitCache.java` | Bounded world+chunk hit sets; no InControl import |
+| `spawning/StructureCacheHooks.java` | Feature/child `BB` → memoized `LongOpenHashSet` |
 | `spawning/SpawnLayerFilter.java` | `PotentialSpawns` LOWEST; layer strip; last-per-class (drop vanilla 4–4); structure cave keep |
 | `spawning/SpawnGroupCounts.java` | Pack tier id → group min/max |
 | `spawning/SpawnGroupSizes.java` | Overrides + tier range + roll target + findChunks cap |
@@ -120,20 +121,21 @@ JSON layer / parties / structure files: edit needs **restart** (or a Tweaks cfg 
 | `spawning/SpawnParties.java` | Mixed groups from pack JSON |
 | `spawning/CageSpawnerHooks.java` | Cage fail-path delay (HEAD/RETURN) |
 | `mixin/MixinWorldEntitySpawner.java` | Capture entry, fill pack, pack-size 1, hostile cap. Do **not** mixin `WorldServer`. |
-| `mixin/incontrol/MixinStructureCache.java` | Expand structure BB chunks. `mixins.aqtweaks.incontrol.json` |
+| `mixin/incontrol/MixinStructureCache.java` | RETURN inject (`cancellable = true`): memoized BB expand. `mixins.aqtweaks.incontrol.json` |
 | `mixin/MixinMobSpawnerBaseLogic.java` | Cage `updateSpawner` fail delay. Remap true. `mixins.aqtweaks.early.json` |
 | `ArcanaQuestTweaksConfig.SpawningModuleConfig` | `aqtweaks_spawning.cfg` |
 
 ## Do not regress
 
-- Intersection ids on **both** layers. Unknown ids not stripped. Duplicate vanilla+InControl rows: last (InControl) kept. Surface-only ids stay stripped in ordinary caves; listed structure ids remain on cave picks only inside those structures. Surface-only ids stay stripped in ordinary caves; listed structure ids remain on cave picks only inside those structures.
+- Intersection ids on **both** layers. Unknown ids not stripped. Duplicate vanilla+InControl rows: last (InControl) kept. Lists with no duplicate classes are not rewritten. Surface-only ids stay stripped in ordinary caves; listed structure ids remain on cave picks only inside those structures. Structure-hit cache is chunk-based (same as InControl); reload/unload must drop it.
 - Forest Y≥60 under leaves stays surface pool.
 - Nether/End / non-MONSTER unchanged when those flags are on (layer filter / pack fill). Hostile **cap** still applies in every dim for MONSTER.
 - Rare `1..1` stays singles. Feral goblin default override 3–5 until the cfg line is removed.
 - Cage spawner / TC lesser portal: no pack fill, no party, unchanged cap formula (they do not use `findChunksForSpawning`). Failed cage attempts wait **Cage Fail Recheck Delay** (default 20), not 0 and not vanilla 200–800. Success still 200–800.
 - Depths `getRandomChunkPosition` mixin untouched. InControl player-distance mixin still applies to vanilla tries.
+- Structure `BB` expand still includes every feature and child box (dungeon rooms, village houses, mineshaft tunnels). Memoize is in-memory only, not written to Village.dat / Mineshaft.dat. `MixinStructureCache` `setReturnValue` must stay `cancellable = true` (Mixin 0.8; otherwise world-tick `CancellationException`).
 - Java 21 `--release`. Stamina packets stay 0–2.
 
 ## Verify
 
-Boot: `Loaded spawn types from …`; `Loaded structure spawns from …` when that JSON is present; `Loaded N spawn parties from …`; `Loaded pack spawn group sizes for N mobs.` when pack files present. No mixin fail on `MixinWorldEntitySpawner` / `findChunksForSpawning`, `MixinMobSpawnerBaseLogic` / `updateSpawner`, or `MixinStructureCache` / `parseStructureData`. Closed cave: dwarf/cave_spider/krake yes, Dryad/witch/Wildkin no. Better Mineshaft **non-origin** chunk: witch/vindicator/pillager can appear; ordinary closed cave away from the shaft still has no witch/illager. Night plains: creeper packs 1–2 (not 4); enderman 1; zombie/skeleton/spider 2–4 mixed not always 4. `goblin_feral` 3–5 when the first lands. Fill Pack Size off: old singles. Master off or JSON missing: no layer strip (last-per-class still runs if the module is on). Missing parties JSON: mixed groups off, no crash. Missing structure JSON: no cave exemption, no crash; BB cache mixin still runs. Natural Overworld `thaumcraft:cultistcleric`: 2–3 knights + 2–3 CR archers (CheckSpawn / crimsoncult stage can still deny). Portal / cage cleric: no party. Failed cultist/blaze cage: Delay ≈ 20 (cfg), not 0, not 200–800. Legal zombie cage still attempts after delay 1→0; success still 200–800. Hostile cap 200 lets natural MONSTER count exceed the old 70-scaled ceiling; cfg 70 restores vanilla. Animals/water/ambient caps unchanged.
+Boot: `Loaded spawn types from …`; `Loaded structure spawns from …` when that JSON is present; `Loaded N spawn parties from …`; `Loaded pack spawn group sizes for N mobs.` when pack files present. No mixin fail on `MixinWorldEntitySpawner` / `findChunksForSpawning`, `MixinMobSpawnerBaseLogic` / `updateSpawner`, or `MixinStructureCache` / `parseStructureData`. First world ticks must not throw `parseStructureData is not cancellable`. Closed cave: dwarf/cave_spider/krake yes, Dryad/witch/Wildkin no. Better Mineshaft **non-origin** chunk: witch/vindicator/pillager can appear; ordinary closed cave away from the shaft still has no witch/illager. Night plains: creeper packs 1–2 (not 4); enderman 1; zombie/skeleton/spider 2–4 mixed not always 4. `goblin_feral` 3–5 when the first lands. Fill Pack Size off: old singles. Master off or JSON missing: no layer strip (last-per-class still runs if the module is on). Missing parties JSON: mixed groups off, no crash. Missing structure JSON: no cave exemption, no crash; BB cache mixin still runs. Natural Overworld `thaumcraft:cultistcleric`: 2–3 knights + 2–3 CR archers (CheckSpawn / crimsoncult stage can still deny). Portal / cage cleric: no party. Failed cultist/blaze cage: Delay ≈ 20 (cfg), not 0, not 200–800. Legal zombie cage still attempts after delay 1→0; success still 200–800. Hostile cap 200 lets natural MONSTER count exceed the old 70-scaled ceiling; cfg 70 restores vanilla. Animals/water/ambient caps unchanged.

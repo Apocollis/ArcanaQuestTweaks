@@ -9,7 +9,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Hard-pad occupancy after 1-block hole fill and morphological opening, plus 8-connected rim.
+ * Hard-pad occupancy after 1-block hole fill, morphological opening, then close again, plus 8-connected rim.
  * Flatten and seal must use the same instance inputs (boxes + pads) for one chunk.
  */
 public final class VillageShoreMask {
@@ -80,6 +80,14 @@ public final class VillageShoreMask {
                 out[i] = true;
             }
         }
+        if (closeOcean) {
+            out = holeFill(out, inPad, never, dim);
+            for (int i = 0; i < n; i++) {
+                if (protect[i] && pre[i]) {
+                    out[i] = true;
+                }
+            }
+        }
         return new VillageShoreMask(originX, originZ, dim, out);
     }
 
@@ -117,7 +125,9 @@ public final class VillageShoreMask {
                 if (raw[i] || !inPad[i] || !never[i]) {
                     continue;
                 }
-                if (enclosedCardinal(raw, dim, ix, iz) || landNeighbors8(raw, dim, ix, iz) >= 7) {
+                if (enclosedCardinal(raw, dim, ix, iz)
+                        || cardinalChannel(raw, dim, ix, iz)
+                        || landNeighbors8(raw, dim, ix, iz) >= 5) {
                     filled[i] = true;
                 }
             }
@@ -130,6 +140,12 @@ public final class VillageShoreMask {
                 && platedAt(raw, dim, ix - 1, iz)
                 && platedAt(raw, dim, ix, iz + 1)
                 && platedAt(raw, dim, ix, iz - 1);
+    }
+
+    /** 1-block inlet: plate on both sides of a cardinal line. */
+    private static boolean cardinalChannel(boolean[] raw, int dim, int ix, int iz) {
+        return (platedAt(raw, dim, ix + 1, iz) && platedAt(raw, dim, ix - 1, iz))
+                || (platedAt(raw, dim, ix, iz + 1) && platedAt(raw, dim, ix, iz - 1));
     }
 
     private static int landNeighbors8(boolean[] raw, int dim, int ix, int iz) {

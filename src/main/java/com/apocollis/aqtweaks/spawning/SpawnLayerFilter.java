@@ -82,6 +82,9 @@ public class SpawnLayerFilter {
         if (list.size() < 2) {
             return;
         }
+        if (!needsLastPerClassRewrite(list)) {
+            return;
+        }
         Map<Class<?>, Biome.SpawnListEntry> last = new LinkedHashMap<>();
         for (Biome.SpawnListEntry entry : list) {
             if (entry == null || entry.entityClass == null) {
@@ -94,6 +97,28 @@ public class SpawnLayerFilter {
         }
         list.clear();
         list.addAll(last.values());
+    }
+
+    private static boolean needsLastPerClassRewrite(List<Biome.SpawnListEntry> list) {
+        int n = list.size();
+        for (int i = 0; i < n; i++) {
+            Biome.SpawnListEntry entry = list.get(i);
+            if (entry == null || entry.entityClass == null) {
+                return true;
+            }
+            for (int j = 0; j < i; j++) {
+                Biome.SpawnListEntry earlier = list.get(j);
+                if (earlier != null && earlier.entityClass == entry.entityClass) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    @SubscribeEvent
+    public void onWorldUnload(WorldEvent.Unload event) {
+        SpawnStructureHitCache.clearWorld(event.getWorld());
     }
 
     public static boolean isCavePick(World world, BlockPos pos) {

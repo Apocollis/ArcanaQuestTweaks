@@ -2,13 +2,18 @@ package com.apocollis.aqtweaks.rtg;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.util.Reflect;
+import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
 import net.minecraft.world.gen.structure.StructureBoundingBox;
 import net.minecraft.world.gen.structure.StructureVillagePieces;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -21,6 +26,10 @@ public final class VillagePlate {
 
     private static final Map<String, Float> HEIGHTS = new ConcurrentHashMap<>();
     private static final Map<Long, List<Record>> STARTS = new ConcurrentHashMap<>();
+    /** Chunk buckets of {@link #STARTS}; mutated only while that seed's list is locked. */
+    private static final Map<Long, Map<Long, List<Record>>> CHUNK_INDEX = new ConcurrentHashMap<>();
+    /** Identity lookup for paste stamp; mutated only while that seed's list is locked. */
+    private static final Map<Long, IdentityHashMap<Object, Record>> BY_START = new ConcurrentHashMap<>();
     /** {@code rememberNearby} at most once per query chunk (spawn/{@code isInsideStructure}). */
     private static final Set<String> NEARBY_RECOVERED = ConcurrentHashMap.newKeySet();
 
@@ -100,6 +109,8 @@ public final class VillagePlate {
      */
     public static void forgetSeed(long seed) {
         STARTS.remove(seed);
+        CHUNK_INDEX.remove(seed);
+        BY_START.remove(seed);
         String prefix = seed + ":";
         HEIGHTS.keySet().removeIf(k -> k.startsWith(prefix));
         NEARBY_RECOVERED.removeIf(k -> k.startsWith(prefix));
@@ -172,17 +183,22 @@ public final class VillagePlate {
                     if (!replace) return;
                     int minY = Reflect.getStructureStartMinY(start);
                     int maxY = Reflect.getStructureStartMaxY(start);
-                    list.set(i, new Record(start, xz, landBoxesOf(start), buildingBoxesOf(start),
+                    Record next = new Record(start, xz, landBoxesOf(start), buildingBoxesOf(start),
                             shrineBoxesOf(start), wellX, wellZ, minY, maxY,
-                            startChunkX, startChunkZ, true));
+                            startChunkX, startChunkZ, true);
+                    unindexUnlocked(seed, existing);
+                    list.set(i, next);
+                    indexUnlocked(seed, next);
                     return;
                 }
             }
             int minY = Reflect.getStructureStartMinY(start);
             int maxY = Reflect.getStructureStartMaxY(start);
-            list.add(new Record(start, xz, landBoxesOf(start), buildingBoxesOf(start),
+            Record next = new Record(start, xz, landBoxesOf(start), buildingBoxesOf(start),
                     shrineBoxesOf(start), wellX, wellZ, minY, maxY,
-                    startChunkX, startChunkZ, replace));
+                    startChunkX, startChunkZ, replace);
+            list.add(next);
+            indexUnlocked(seed, next);
         }
     }
 
@@ -261,6 +277,7 @@ public final class VillagePlate {
                             || (rec.wellX == wellX && rec.wellZ == wellZ);
                     if (match) {
                         HEIGHTS.remove(wellKey(seed, rec));
+                        unindexUnlocked(seed, rec);
                     }
                     return match;
                 });
@@ -282,30 +299,143 @@ public final class VillagePlate {
         }
     }
 
+    public static boolean isEmpty(long seed) {
+        List<Record> list = STARTS.get(seed);
+        return list == null || list.isEmpty();
+    }
+
+    public static Record recordForStart(long seed, Object start) {
+        if (start == null) return null;
+        List<Record> list = STARTS.get(seed);
+        if (list == null || list.isEmpty()) return null;
+        synchronized (list) {
+            IdentityHashMap<Object, Record> byStart = BY_START.get(seed);
+            return byStart == null ? null : byStart.get(start);
+        }
+    }
+
     public static List<Record> overlappingStartAabb(long seed, int chunkMinX, int chunkMaxX, int chunkMinZ, int chunkMaxZ, int extra) {
-        List<Record> out = new ArrayList<>();
+        List<Record> list = STARTS.get(seed);
+        if (list == null || list.isEmpty()) return Collections.emptyList();
         int e = Math.max(0, extra);
-        for (Record rec : starts(seed)) {
-            if (rec.xz == null) continue;
-            if (rec.xz[1] + e < chunkMinX || rec.xz[0] - e > chunkMaxX) continue;
-            if (rec.xz[3] + e < chunkMinZ || rec.xz[2] - e > chunkMaxZ) continue;
-            out.add(rec);
+        List<Record> out = new ArrayList<>();
+        synchronized (list) {
+            for (Record rec : candidatesUnlocked(seed, chunkMinX, chunkMaxX, chunkMinZ, chunkMaxZ, e)) {
+                if (rec.xz == null) continue;
+                if (rec.xz[1] + e < chunkMinX || rec.xz[0] - e > chunkMaxX) continue;
+                if (rec.xz[3] + e < chunkMinZ || rec.xz[2] - e > chunkMaxZ) continue;
+                out.add(rec);
+            }
         }
         return out;
     }
 
     public static List<Record> overlappingRecords(long seed, int chunkMinX, int chunkMaxX, int chunkMinZ, int chunkMaxZ, int extra) {
-        List<Record> out = new ArrayList<>();
+        List<Record> list = STARTS.get(seed);
+        if (list == null || list.isEmpty()) return Collections.emptyList();
         int e = Math.max(0, extra);
-        for (Record rec : starts(seed)) {
-            for (int[] box : rec.landBoxesOrEmpty()) {
-                if (overlapsXZ(box, chunkMinX, chunkMaxX, chunkMinZ, chunkMaxZ, e)) {
-                    out.add(rec);
-                    break;
+        List<Record> out = new ArrayList<>();
+        synchronized (list) {
+            for (Record rec : candidatesUnlocked(seed, chunkMinX, chunkMaxX, chunkMinZ, chunkMaxZ, e)) {
+                for (int[] box : rec.landBoxesOrEmpty()) {
+                    if (overlapsXZ(box, chunkMinX, chunkMaxX, chunkMinZ, chunkMaxZ, e)) {
+                        out.add(rec);
+                        break;
+                    }
                 }
             }
         }
         return out;
+    }
+
+    /** Nearby records from the chunk index. Caller must hold that seed's {@link #STARTS} lock. */
+    private static List<Record> candidatesUnlocked(long seed, int chunkMinX, int chunkMaxX,
+                                                  int chunkMinZ, int chunkMaxZ, int extra) {
+        Map<Long, List<Record>> buckets = CHUNK_INDEX.get(seed);
+        if (buckets == null || buckets.isEmpty()) {
+            List<Record> list = STARTS.get(seed);
+            return list == null || list.isEmpty() ? Collections.emptyList() : new ArrayList<>(list);
+        }
+        int e = Math.max(0, extra);
+        int minCx = (chunkMinX - e) >> 4;
+        int maxCx = (chunkMaxX + e) >> 4;
+        int minCz = (chunkMinZ - e) >> 4;
+        int maxCz = (chunkMaxZ + e) >> 4;
+        LinkedHashSet<Record> seen = new LinkedHashSet<>();
+        for (int cx = minCx; cx <= maxCx; cx++) {
+            for (int cz = minCz; cz <= maxCz; cz++) {
+                List<Record> bucket = buckets.get(ChunkPos.asLong(cx, cz));
+                if (bucket != null) {
+                    seen.addAll(bucket);
+                }
+            }
+        }
+        return seen.isEmpty() ? Collections.emptyList() : new ArrayList<>(seen);
+    }
+
+    private static void indexUnlocked(long seed, Record rec) {
+        if (rec == null) return;
+        Map<Long, List<Record>> buckets = CHUNK_INDEX.computeIfAbsent(seed, k -> new HashMap<>());
+        for (long key : chunkKeysOf(rec)) {
+            buckets.computeIfAbsent(key, k -> new ArrayList<>()).add(rec);
+        }
+        if (rec.start != null) {
+            BY_START.computeIfAbsent(seed, k -> new IdentityHashMap<>()).put(rec.start, rec);
+        }
+    }
+
+    private static void unindexUnlocked(long seed, Record rec) {
+        if (rec == null) return;
+        Map<Long, List<Record>> buckets = CHUNK_INDEX.get(seed);
+        if (buckets != null) {
+            for (long key : chunkKeysOf(rec)) {
+                List<Record> bucket = buckets.get(key);
+                if (bucket == null) continue;
+                bucket.remove(rec);
+                if (bucket.isEmpty()) buckets.remove(key);
+            }
+            if (buckets.isEmpty()) CHUNK_INDEX.remove(seed);
+        }
+        IdentityHashMap<Object, Record> byStart = BY_START.get(seed);
+        if (byStart != null && rec.start != null) {
+            byStart.remove(rec.start);
+            if (byStart.isEmpty()) BY_START.remove(seed);
+        }
+    }
+
+    private static Set<Long> chunkKeysOf(Record rec) {
+        Set<Long> keys = new HashSet<>();
+        addBoxChunks(keys, rec.xz);
+        for (int[] box : rec.landBoxesOrEmpty()) {
+            addBoxChunks(keys, box);
+        }
+        for (int[] box : rec.shrineBoxesOrEmpty()) {
+            addBoxChunks(keys, box);
+        }
+        return keys;
+    }
+
+    private static void addBoxChunks(Set<Long> keys, int[] box) {
+        if (box == null || box.length < 4) return;
+        int minCx = box[0] >> 4;
+        int maxCx = box[1] >> 4;
+        int minCz = box[2] >> 4;
+        int maxCz = box[3] >> 4;
+        if (minCx > maxCx) {
+            int tmp = minCx;
+            minCx = maxCx;
+            maxCx = tmp;
+        }
+        if (minCz > maxCz) {
+            int tmp = minCz;
+            minCz = maxCz;
+            maxCz = tmp;
+        }
+        for (int cx = minCx; cx <= maxCx; cx++) {
+            for (int cz = minCz; cz <= maxCz; cz++) {
+                keys.add(ChunkPos.asLong(cx, cz));
+            }
+        }
     }
 
     /**
@@ -381,7 +511,9 @@ public final class VillagePlate {
                 for (int i = 0; i < list.size(); i++) {
                     Record existing = list.get(i);
                     if (existing.startChunkX == rec.startChunkX && existing.startChunkZ == rec.startChunkZ) {
+                        unindexUnlocked(seed, existing);
                         list.set(i, next);
+                        indexUnlocked(seed, next);
                         return next;
                     }
                 }
@@ -537,7 +669,14 @@ public final class VillagePlate {
         recoverNearbyOnce(world, mapGen, x >> 4, z >> 4);
         int heightAbove = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageBoxHeight);
         long seed = world.getSeed();
-        for (Record rec : starts(seed)) {
+        List<Record> list = STARTS.get(seed);
+        if (list == null || list.isEmpty()) return null;
+        int extra = detectionLandRadius();
+        List<Record> nearby;
+        synchronized (list) {
+            nearby = candidatesUnlocked(seed, x, x, z, z, extra);
+        }
+        for (Record rec : nearby) {
             if (rec.start == null) continue;
             if (!inDetectionHullXZ(x, z, rec)) continue;
             Record live = maybeRefreshLandBoxes(seed, rec);
@@ -559,7 +698,7 @@ public final class VillagePlate {
     private static void recoverNearbyOnce(World world, Object mapGen, int cx, int cz) {
         if (world == null || mapGen == null) return;
         long seed = world.getSeed();
-        if (starts(seed).isEmpty()) return;
+        if (isEmpty(seed)) return;
         if (!NEARBY_RECOVERED.add(seed + ":" + cx + "," + cz)) return;
         rememberNearby(world, mapGen, cx, cz);
     }
