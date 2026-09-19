@@ -7,7 +7,7 @@ import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.world.gen.ChunkProviderServer;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.potion.Potion;
 import net.minecraft.util.SoundCategory;
 import net.minecraft.util.SoundEvent;
 import net.minecraft.util.text.TextComponentString;
@@ -15,6 +15,7 @@ import net.minecraftforge.event.entity.player.PlayerWakeUpEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
+import thaumcraft.common.lib.potions.PotionWarpWard;
 
 public class ThaumcraftModule {
 
@@ -158,81 +159,132 @@ public class ThaumcraftModule {
 
     @SubscribeEvent
     public void onPlayerTick(TickEvent.PlayerTickEvent event) {
-        if (event.phase == TickEvent.Phase.END && !Reflect.isRemote(event.player) && Reflect.getTicksExisted(event.player) % 400 == 0) {
-            evaluateExposureWarp(event.player);
-        }
+        if (event.phase != TickEvent.Phase.END || Reflect.isRemote(event.player)) return;
+        int period = ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureTickSeconds * 20;
+        if (period <= 0) return;
+        if (Reflect.getTicksExisted(event.player) % period != 0) return;
+        evaluateExposureWarp(event.player);
     }
 
     private void evaluateExposureWarp(EntityPlayer player) {
         if (!ArcanaQuestTweaksConfig.ThaumcraftConfig.enableExposureWarp) return;
 
-        int shortestInterval = Integer.MAX_VALUE;
+        Potion warpWard = PotionWarpWard.instance;
+        if (warpWard != null && player.isPotionActive(warpWard)) return;
 
-        // 1. Check dimension exposure
+        ExposureMatch winner = pickWinningExposure(player);
+        NBTTagCompound persisted = Reflect.getPersistedTag(player);
+        NBTTagCompound banks = Reflect.getCompoundTag(persisted, "WarpExposureBySource");
+        if (banks == null) {
+            banks = new NBTTagCompound();
+        }
+
+        int leftover = Reflect.getInteger(persisted, "WarpExposureProgress");
+        if (leftover > 0 && winner != null) {
+            int existing = Reflect.getInteger(banks, winner.key);
+            Reflect.setInteger(banks, winner.key, existing + leftover);
+            Reflect.removeTag(persisted, "WarpExposureProgress");
+        }
+
+        if (winner == null || winner.g <= 0) {
+            Reflect.setTag(persisted, "WarpExposureBySource", banks);
+            return;
+        }
+
+        int tickSeconds = ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureTickSeconds;
+        int grantSeconds = ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureGrantSeconds;
+        int progress = Reflect.getInteger(banks, winner.key) + tickSeconds;
+        if (progress >= grantSeconds) {
+            progress = 0;
+            ThaumcraftHelper.addWarp(player, 1, winner.g);
+            ThaumcraftHelper.syncWarp(player);
+            playExposureSound(player);
+        }
+        Reflect.setInteger(banks, winner.key, progress);
+        Reflect.setTag(persisted, "WarpExposureBySource", banks);
+    }
+
+    private void playExposureSound(EntityPlayer player) {
+        if (!ArcanaQuestTweaksConfig.ThaumcraftConfig.enableExposureSound) return;
+        String soundName = ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureSoundEffect;
+        if (soundName == null || soundName.isEmpty()) return;
+        SoundEvent sound = Reflect.getSoundEvent(soundName);
+        net.minecraft.world.World pWorld = Reflect.getWorld(player);
+        if (sound == null || pWorld == null) return;
+        float volume = ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureSoundVolume;
+        Reflect.playSound(pWorld, null, Reflect.getPosX(player), Reflect.getPosY(player), Reflect.getPosZ(player),
+                sound, SoundCategory.PLAYERS, volume, 1.0F);
+    }
+
+    private ExposureMatch pickWinningExposure(EntityPlayer player) {
+        ExposureMatch winner = null;
         int playerDim = Reflect.getDimension(player);
-        for (String entry : ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureDimensionsConfig) {
+        for (String entry : ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureDimensionGrants) {
             String[] parts = entry.split("=");
-            if (parts.length == 2) {
-                try {
-                    int dim = Integer.parseInt(parts[0].trim());
-                    int seconds = Integer.parseInt(parts[1].trim());
-                    if (dim == playerDim) {
-                        shortestInterval = Math.min(shortestInterval, seconds);
-                    }
-                } catch (Exception e) {
-                    // Ignore malformed entry
+            if (parts.length != 2) continue;
+            try {
+                int dim = Integer.parseInt(parts[0].trim());
+                int g = Integer.parseInt(parts[1].trim());
+                if (dim == playerDim && g > 0) {
+                    winner = better(winner, new ExposureMatch("dim:" + dim, g, PRI_DIM));
+                }
+            } catch (NumberFormatException ignored) {
+            }
+        }
+
+        if (ArcanaQuestTweaksConfig.ThaumcraftConfig.enableUndergroundExposure) {
+            int y = (int) Math.floor(Reflect.getPosY(player));
+            int yMin = ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureUndergroundYMin;
+            int yMax = ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureUndergroundYMax;
+            if (y < yMin) {
+                int g = ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureDeepUndergroundWarp;
+                if (g > 0) {
+                    winner = better(winner, new ExposureMatch("underDeep", g, PRI_UNDER_DEEP));
+                }
+            } else if (y >= yMin && y <= yMax) {
+                int g = ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureUndergroundWarp;
+                if (g > 0) {
+                    winner = better(winner, new ExposureMatch("under", g, PRI_UNDER));
                 }
             }
         }
 
-        // 2. Check deep underground exposure
-        if (ArcanaQuestTweaksConfig.ThaumcraftConfig.enableUndergroundExposure &&
-            Reflect.getPosY(player) <= ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureUndergroundY) {
-            shortestInterval = Math.min(shortestInterval, ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureUndergroundInterval);
-        }
-
-        // 3. Check dungeon exposure. This is the vanilla ChunkProviderServer.isInsideStructure API —
-        // there is no Tweaks mixin here. Roguelike Dungeons Arcana must register "RoguelikeDungeon"
-        // for this to ever match.
         net.minecraft.world.World pWorld = Reflect.getWorld(player);
         if (ArcanaQuestTweaksConfig.ThaumcraftConfig.enableDungeonExposure && pWorld != null) {
             net.minecraft.world.chunk.IChunkProvider provider = pWorld.getChunkProvider();
             if (provider instanceof ChunkProviderServer
                     && ((ChunkProviderServer) provider).isInsideStructure(pWorld, "RoguelikeDungeon", Reflect.getPosition(player))) {
-                shortestInterval = Math.min(shortestInterval, ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureDungeonInterval);
-            }
-        }
-
-        NBTTagCompound persisted = Reflect.getPersistedTag(player);
-
-        if (shortestInterval != Integer.MAX_VALUE) {
-            // Player is exposed
-            int exposureProgress = Reflect.getInteger(persisted, "WarpExposureProgress") + 20; // 20 seconds elapsed
-            
-            if (exposureProgress >= shortestInterval) {
-                exposureProgress = 0;
-                // Add 1 temporary warp
-                ThaumcraftHelper.addWarp(player, 1, 1);
-                ThaumcraftHelper.syncWarp(player);
-                
-                if (ArcanaQuestTweaksConfig.ThaumcraftConfig.enableExposureSound) {
-                    String soundName = ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureSoundEffect;
-                    if (soundName != null && !soundName.isEmpty()) {
-                        SoundEvent sound = Reflect.getSoundEvent(soundName);
-                        if (sound != null && pWorld != null) {
-                            float volume = ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureSoundVolume;
-                            Reflect.playSound(pWorld, null, Reflect.getPosX(player), Reflect.getPosY(player), Reflect.getPosZ(player), sound, SoundCategory.PLAYERS, volume, 1.0F);
-                        }
-                    }
+                int g = ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureDungeonWarp;
+                if (g > 0) {
+                    winner = better(winner, new ExposureMatch("dungeon", g, PRI_DUNGEON));
                 }
             }
-            Reflect.setInteger(persisted, "WarpExposureProgress", exposureProgress);
-        } else {
-            // Player is NOT exposed: slowly decay progress back to 0
-            int exposureProgress = Reflect.getInteger(persisted, "WarpExposureProgress");
-            if (exposureProgress > 0) {
-                Reflect.setInteger(persisted, "WarpExposureProgress", Math.max(0, exposureProgress - 20));
-            }
+        }
+        return winner;
+    }
+
+    private static ExposureMatch better(ExposureMatch current, ExposureMatch candidate) {
+        if (candidate == null) return current;
+        if (current == null) return candidate;
+        if (candidate.g > current.g) return candidate;
+        if (candidate.g < current.g) return current;
+        return candidate.priority < current.priority ? candidate : current;
+    }
+
+    private static final int PRI_UNDER_DEEP = 0;
+    private static final int PRI_DUNGEON = 1;
+    private static final int PRI_UNDER = 2;
+    private static final int PRI_DIM = 3;
+
+    private static final class ExposureMatch {
+        final String key;
+        final int g;
+        final int priority;
+
+        ExposureMatch(String key, int g, int priority) {
+            this.key = key;
+            this.g = g;
+            this.priority = priority;
         }
     }
 }

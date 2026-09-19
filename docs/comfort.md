@@ -108,7 +108,7 @@ Time to 1 temp warp at the 30s interval:
 - II: +3 → 4 scans → **120s**
 - III: +6 → 2 scans → **60s**
 
-Comfort drain is **temporary warp only**. Sleep drain is the Thaumcraft module ([thaumcraft.md](thaumcraft.md)).
+Comfort drain is **temporary warp only**. Sleep in the Thaumcraft module is **sticky only** by default; temp during a Somnia night is this Homestead bar plus TC decay. See [thaumcraft.md](thaumcraft.md).
 
 ### Hot springs (separate tick)
 

@@ -1,6 +1,6 @@
 # Thaumcraft module (1.8)
 
-Last updated: 2026-09-06.
+Last updated: 2026-09-19.
 
 Config: `config/arcanaquesttweaks/aqtweaks_thaumcraft.cfg`. Event handler registers only if `thaumcraft` is loaded (`CommonProxy.init`). Warp API is reflection (`ThaumcraftHelper`, raw `Class`) so Comfort can call it without importing TC types. Focus mixins **compile-hard** TC **6.1 BETA26** (`libs/`); missing that jar fails compile. Optional `mixins.aqtweaks.thaumcraft.json` (`required: false`) skips at runtime if TC is absent.
 
@@ -8,7 +8,7 @@ Comfort homestead drain is a **different** NBT key and module ([comfort.md](comf
 
 ## Locked intent
 
-Add pack-side warp **sources and sinks** Thaumcraft does not have: first visit to a dimension, lingering in configured dimensions / deep underground / Roguelike dungeons, and reducing warp after a successful night sleep. Do not replace TC research/flux/eldritch warp.
+Add pack-side warp **sources and sinks** Thaumcraft does not have: first visit to a dimension, lingering in configured dimensions / underground Y bands / Roguelike dungeons, and reducing **sticky** warp after a successful night sleep. Temporary warp during sleep is TC decay + Comfort Homestead (Somnia ticks those). Do not replace TC research/flux/eldritch warp. Do not mixin `handleWarp` / `checkWarpEvent` (parent still **−1 TEMPORARY / 2000 ticks** while online, not Warp Ward, not wussMode).
 
 Stamp `setMagicDamage()` on stock caster **focus HP** so Reskillable Magic drip classifies them without a `thrown` prefix (snowballs stay physical). Scale Heal-focus `heal(float)` by the caster’s outgoing Magic %. See [reskillable.md](reskillable.md).
 
@@ -51,43 +51,42 @@ Warp: `ThaumcraftModule` uses Forge events. Foci: optional mixins below.
 | --- | --- |
 | `PlayerLoggedInEvent` | If persisted `VisitedDimensions` is missing, set it to **current dim** so login is not “first visit” |
 | `PlayerChangedDimensionEvent` | If `enableDimensionWarp` and dim not in the list: append, then a **worker thread sleeps 2s**, then `server.addScheduledTask` awards warp |
-| `PlayerWakeUpEvent` | If `enableWarpCleansing`, not `wakeImmediately`, world is daytime: reduce configured types, sync, optional chat |
-| `PlayerTickEvent` END every **400 ticks** (~20s) | Exposure: shortest matching interval; accrue or decay `WarpExposureProgress` |
+| `PlayerWakeUpEvent` | If `enableWarpCleansing`, not `wakeImmediately`, world is daytime: reduce **sticky** if `clearNormalWarp` (temp off by default) |
+| `PlayerTickEvent` END every **tickSeconds × 20** (default 600 / 30s) | Exposure: highest-G match only; pause banks otherwise |
 
 ### Dimension first visit
 
-Persisted int array `VisitedDimensions`. Amounts: `dimensionNormalWarp` (2) + `dimensionTempWarp` (5). Sync, play `dimensionEntrySound` at `dimensionEntrySoundVolume` (2), send `dimensionChatMessageText`. Skip award/sound/chat if both amounts are 0.
+Persisted int array `VisitedDimensions`. Amounts: `dimensionNormalWarp` (**5**) + `dimensionTempWarp` (**5**). Sync, play `dimensionEntrySound` at `dimensionEntrySoundVolume` (2), send `dimensionChatMessageText`. Skip award/sound/chat if both amounts are 0.
 
 After the 2s delay, abort if the player is dead, world is null, or the player is no longer in `playerEntities` (teleport/logout). **Do not call the TC API on the worker thread.**
 
 ### Sleep cleanse
 
-Not a nap: `wakeImmediately` false **and** `world.isDaytime()`. Optional normal reduce 1, temp reduce 2 (`clearNormalWarp` / `clearTempWarp`). Chat only if something was actually cleared and `enableChatMessage`.
+Not a nap: `wakeImmediately` false **and** `world.isDaytime()`. Sticky reduce 1 if `clearNormalWarp`. `clearTempWarp` defaults **false** (Somnia already runs TC −1 temp / 100s and Comfort Homestead). Chat only if something was actually cleared and `enableChatMessage`.
 
 ### Exposure
 
-Each 400-tick pass is worth **20 seconds** of progress (the tick period).
+The handler **returns immediately** unless `ticksExisted % (exposureTickSeconds × 20) == 0` (default **30s**). Dim parse, Y, `isInsideStructure`, NBT, grant, whisper only on that pass.
 
-Sources (take the **minimum** interval in seconds among those that match):
+**Warp Ward:** if `PotionWarpWard.instance` is active, skip the pass (banks frozen). Same intent as TC `handleWarp`.
 
-1. `exposureDimensionsConfig` entries `dimId=seconds` (default Nether `-1=300`, End `1=180`).
-2. If `enableUndergroundExposure` and player Y **≤** `exposureUndergroundY` (30): `exposureUndergroundInterval` (300).
-3. If `enableDungeonExposure` and chunk provider is `ChunkProviderServer` and `isInsideStructure(world, "RoguelikeDungeon", pos)`: `exposureDungeonInterval` (180).
+Sources this pass (G from config; skip G ≤ 0):
 
-There is **no Tweaks mixin** on `isInsideStructure` for this. Roguelike Dungeons Arcana must register that structure name. Village detection ([rtg.md](rtg.md)) is a different inject on village map gen.
+1. `exposureDimensionGrants` `dimId=G` if current dim matches.
+2. If `enableUndergroundExposure`: floor Y **in [Y Min, Y Max]** → `under` G; **Y < Y Min** → `underDeep` G. Y > Y Max is not underground.
+3. If `enableDungeonExposure` and `ChunkProviderServer.isInsideStructure(..., "RoguelikeDungeon", pos)` → `dungeon` G.
 
-If any source matches (`shortestInterval != MAX_VALUE`):
+There is **no Tweaks mixin** on `isInsideStructure`. Roguelike Dungeons Arcana must register that name. Village detection ([rtg.md](rtg.md)) is a different inject.
 
-- `WarpExposureProgress += 20`
-- If progress **≥** interval: reset to 0, add **1 temporary** warp, sync, optional whispers (`enableExposureSound`)
+**Winner:** highest G among matches. Tie-break: `underDeep` > `dungeon` > `under` > `dim:<id>`. Only that key’s bank in persisted `WarpExposureBySource` gets **+tickSeconds**. Losing matches get +0. No source / Warp Ward: **no decrement**.
 
-If **no** source matches:
+When that key **≥ grantSeconds** (300): add **that G** temporary warp, sync, optional whispers, set **that** key to 0.
 
-- `WarpExposureProgress = max(0, progress - 20)`
+Old `WarpExposureProgress` int: on first pass with a winner, add it onto that key and remove the int.
 
-Accrual and decay are **1:1** (20 seconds per check either way). Not 1.5×.
+Y knobs `@Config.RangeInt` **−256..256** (Depths).
 
-`Y` threshold `@Config.RangeInt` allows -1..256 so Depths negative Y still counts as “underground” when ≤ 30.
+Java G defaults: Nether 7, End 9, Aether 6, TF 5, Betweenlands 8, Atum 6, Beneath 7, Emptiness 10, Aurorian 6, upper underground (−20..30) 5, deep (Y < −20) 6, dungeon 4.
 
 ### Focus mixins
 
@@ -105,23 +104,27 @@ Do **not** add `thrown` to Reskillable allow-prefixes. Java default prefix `fire
 | Enable Sleep Warp Cleansing | true | yes | Master sleep sink |
 | Clear Normal Warp | true | yes | Reduce sticky on sleep |
 | Normal Warp Reduction | 1 | yes | Per successful sleep |
-| Clear Temporary Warp | true | yes | Reduce temp on sleep |
-| Temporary Warp Reduction | 2 | yes | Per successful sleep |
+| Clear Temporary Warp | **false** | yes | Extra temp on wake; leave off |
+| Temporary Warp Reduction | 2 | yes | Unused unless Clear Temporary is on |
 | Enable Sleep Chat Message | true | yes | Chat if anything cleared |
 | Sleep Chat Message Text | (purple “whispers grow quieter”) | yes | |
 | Enable Dimension Entry Warp | true | yes | Master first-visit source |
-| Dimension Entry Normal Warp | 2 | yes | |
+| Dimension Entry Normal Warp | **5** | yes | Sticky |
 | Dimension Entry Temporary Warp | 5 | yes | |
 | Dimension Chat Message Text | (purple “ancient whispers”) | yes | |
 | Dimension Entry Sound | `thaumcraft:whispers` | yes | Empty = no sound |
 | Dimension Entry Sound Volume | 2.0 | yes | |
 | Enable Warp Exposure | true | yes | Master tick source |
-| Exposure Dimensions Config | `-1=300`, `1=180` | yes | `id=seconds` |
-| Enable Deep Underground Exposure | true | yes | |
-| Underground Y Threshold | 30 | yes | Y ≤ this |
-| Underground Exposure Interval | 300 | yes | Seconds / 1 temp warp |
+| Exposure Tick Seconds | 30 | yes | Pass cadence |
+| Exposure Grant Seconds | 300 | yes | Bank to grant |
+| Exposure Dimension Grants | `-1=7` `1=9` `4=6` `7=5` `20=8` `17=6` `10=7` `14676=10` `424=6` | yes | `id=G` not seconds |
+| Enable Deep Underground Exposure | true | yes | Both Y bands |
+| Underground Y Max | 30 | yes | Upper band inclusive |
+| Underground Y Min | −20 | yes | Upper inclusive; below = deep |
+| Underground Exposure Warp | 5 | yes | G for −20..30 |
+| Deep Underground Exposure Warp | 6 | yes | G for Y < −20 |
 | Enable Dungeon Exposure | true | yes | `RoguelikeDungeon` |
-| Dungeon Exposure Interval | 180 | yes | |
+| Dungeon Exposure Warp | 4 | yes | |
 | Enable Exposure Sound | true | yes | |
 | Exposure Sound Effect | `thaumcraft:whispers` | yes | |
 | Exposure Sound Volume | 2.0 | yes | |
@@ -138,9 +141,10 @@ Do **not** add `thrown` to Reskillable allow-prefixes. Java default prefix `fire
 
 - Always `syncWarp` after add/reduce on the server.
 - Dimension warp is **first visit only** (persisted array). Login must seed the current dim.
-- Sleep must be a real night sleep (`wakeImmediately` false, daytime).
+- Sleep must be a real night sleep (`wakeImmediately` false, daytime). Default sleep sink is **sticky only**.
 - Off-thread sleep then `addScheduledTask` — never TC API from the worker thread.
-- Exposure decay is **−20 / 20s**, same as accrual, not an instant wipe and not 1.5×.
+- Exposure banks **pause** when unmatched or Warp Ward; do not −seconds. Do not fill two banks in one pass.
+- Old cfg `dimId=seconds` / interval keys are dead; grants are amounts.
 - Comfort `WarpCleansingProgress` is a different counter.
 - `ThaumcraftHelper` fields and `Class.forName` locals stay raw `Class`. Generics here crash SideTransformer on Java 21 class files.
 - Focus mixin: stamp magic only on `attackEntityFrom`; do not double-scale hurt. Heal scale is Heal-only (other foci have no `heal` invoke).

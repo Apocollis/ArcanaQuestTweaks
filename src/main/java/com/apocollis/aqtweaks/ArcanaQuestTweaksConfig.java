@@ -627,8 +627,8 @@ public class ArcanaQuestTweaksConfig {
         public static int normalWarpReduction = 1;
 
         @Config.Name("Clear Temporary Warp")
-        @Config.Comment("Should temporary warp be reduced on successful sleep?")
-        public static boolean clearTempWarp = true;
+        @Config.Comment("Should temporary warp be reduced on successful sleep? Default false: Somnia already ticks TC decay and Comfort Homestead.")
+        public static boolean clearTempWarp = false;
 
         @Config.Name("Temporary Warp Reduction")
         @Config.Comment("Amount of temporary warp to clear per successful sleep")
@@ -650,7 +650,7 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Dimension Entry Normal Warp")
         @Config.Comment("Amount of normal (sticky) warp gained when entering a new dimension for the first time")
         @Config.RangeInt(min = 0)
-        public static int dimensionNormalWarp = 2;
+        public static int dimensionNormalWarp = 5;
 
         @Config.Name("Dimension Entry Temporary Warp")
         @Config.Comment("Amount of temporary warp gained when entering a new dimension for the first time")
@@ -674,40 +674,66 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Should players slowly accumulate temporary warp over time when exposed to certain environments?")
         public static boolean enableExposureWarp = true;
 
-        @Config.Name("Exposure Dimensions Config")
+        @Config.Name("Exposure Tick Seconds")
+        @Config.Comment("How often (real seconds) the exposure pass runs. Progress and grants only happen on this interval.")
+        @Config.RangeInt(min = 1, max = 3600)
+        public static int exposureTickSeconds = 30;
+
+        @Config.Name("Exposure Grant Seconds")
+        @Config.Comment("Seconds banked on the winning source before granting that source's temporary warp.")
+        @Config.RangeInt(min = 1, max = 36000)
+        public static int exposureGrantSeconds = 300;
+
+        @Config.Name("Exposure Dimension Grants")
         @Config.Comment({
-            "List of dimensions where the player slowly accumulates temporary warp, with their exposure intervals.",
-            "Format: dimension_id=interval_seconds",
-            "Example: -1=300 (Nether accumulates 1 warp every 5 minutes)",
-            "Example: 1=180 (The End accumulates 1 warp every 3 minutes)"
+            "Dimensions that grant temporary warp from lingering, with grant amount G (not seconds).",
+            "Format: dimension_id=G",
+            "Every Exposure Grant Seconds, the matching source with the highest G is banked."
         })
-        public static String[] exposureDimensionsConfig = new String[] {
-            "-1=300",
-            "1=180"
+        public static String[] exposureDimensionGrants = new String[] {
+            "-1=7",
+            "1=9",
+            "4=6",
+            "7=5",
+            "20=8",
+            "17=6",
+            "10=7",
+            "14676=10",
+            "424=6"
         };
 
         @Config.Name("Enable Deep Underground Exposure")
-        @Config.Comment("Should players slowly accumulate temporary warp while deep underground?")
+        @Config.Comment("Should players slowly accumulate temporary warp while underground (upper and deep Y bands)?")
         public static boolean enableUndergroundExposure = true;
 
-        @Config.Name("Underground Y Threshold")
-        @Config.Comment("Y level at or below which the player accumulates temporary warp.")
-        @Config.RangeInt(min = -1, max = 256)
-        public static int exposureUndergroundY = 30;
+        @Config.Name("Underground Y Max")
+        @Config.Comment("Inclusive max Y for the upper underground band.")
+        @Config.RangeInt(min = -256, max = 256)
+        public static int exposureUndergroundYMax = 30;
 
-        @Config.Name("Underground Exposure Interval")
-        @Config.Comment("Seconds of underground exposure required to gain 1 point of temporary warp.")
-        @Config.RangeInt(min = 1)
-        public static int exposureUndergroundInterval = 300;
+        @Config.Name("Underground Y Min")
+        @Config.Comment("Inclusive min Y for the upper underground band. Y below this is the deep band.")
+        @Config.RangeInt(min = -256, max = 256)
+        public static int exposureUndergroundYMin = -20;
+
+        @Config.Name("Underground Exposure Warp")
+        @Config.Comment("Temporary warp G for the upper underground band (Y Min through Y Max).")
+        @Config.RangeInt(min = 0)
+        public static int exposureUndergroundWarp = 5;
+
+        @Config.Name("Deep Underground Exposure Warp")
+        @Config.Comment("Temporary warp G for Y strictly below Underground Y Min.")
+        @Config.RangeInt(min = 0)
+        public static int exposureDeepUndergroundWarp = 6;
 
         @Config.Name("Enable Dungeon Exposure")
         @Config.Comment("Should players slowly accumulate temporary warp while inside a Roguelike Dungeon?")
         public static boolean enableDungeonExposure = true;
 
-        @Config.Name("Dungeon Exposure Interval")
-        @Config.Comment("Seconds of dungeon exposure required to gain 1 point of temporary warp.")
-        @Config.RangeInt(min = 1)
-        public static int exposureDungeonInterval = 180;
+        @Config.Name("Dungeon Exposure Warp")
+        @Config.Comment("Temporary warp G while inside a Roguelike Dungeon.")
+        @Config.RangeInt(min = 0)
+        public static int exposureDungeonWarp = 4;
 
         @Config.Name("Enable Exposure Sound")
         @Config.Comment("Should a sound effect play when temporary warp is gained from environmental exposure?")
