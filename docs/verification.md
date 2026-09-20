@@ -14,7 +14,7 @@ Worldgen applies to **new chunks only**.
 
 ## Boot
 
-- [ ] Client starts the full pack; Charm is present (`required-after:charm`). No mixin apply crash from `mixins.aqtweaks.json`, `mixins.aqtweaks.early.json`, or `mixins.aqtweaks.charm.json`. Log must not say `MixinWorldRiftLight` / `World was loaded too early`, `MixinMobSpawnerBaseLogic` / `MobSpawnerBaseLogic was loaded too early`, `MixinASMHooksVillagePaste` / `ASMHooks was loaded too early`, `MixinWorldGenLakes` / `field_150589_a was not located` / `WorldGenLakes in invalid classes`, `empty category` / `StatsKeeperModuleConfig` / `BetterMineshaftsModuleConfig`, BM `setBoundingBox` / `func_75072_c` was not located, `MixinRPOTeleporter` / `field_85192_a was not located` in `RPOTeleporter`, or `parseStructureData is not cancellable`. Optional `mixins.aqtweaks.gaia.json` must not log `InvalidInjectionException` (vanilla INVOKEs must be MCP + `remap = true`; a miss boots anyway because `required: false`).
+- [ ] Client starts the full pack; Charm is present (`required-after:charm`). No mixin apply crash from `mixins.aqtweaks.json`, `mixins.aqtweaks.early.json`, or `mixins.aqtweaks.charm.json`. Log must not say `MixinWorldRiftLight` / `World was loaded too early`, `MixinMobSpawnerBaseLogic` / `MobSpawnerBaseLogic was loaded too early`, `MixinTileEntityLockableLoot` / `TileEntityLockableLoot was loaded too early`, `MixinItemStackQualityDurability` / `ItemStack was loaded too early`, `MixinASMHooksVillagePaste` / `ASMHooks was loaded too early`, `MixinWorldGenLakes` / `field_150589_a was not located` / `WorldGenLakes in invalid classes`, `empty category` / `StatsKeeperModuleConfig` / `BetterMineshaftsModuleConfig`, BM `setBoundingBox` / `func_75072_c` was not located, `MixinRPOTeleporter` / `field_85192_a was not located` in `RPOTeleporter`, or `parseStructureData is not cancellable`. Optional `mixins.aqtweaks.gaia.json` must not log `InvalidInjectionException` (vanilla INVOKEs must be MCP + `remap = true`; a miss boots anyway because `required: false`).
 - [ ] Mixin log does **not** say Tweaks mixins require class version 69 (Java 21 class files).
 - [ ] Wait through full JEI / ThaumicJEI / **TC6 Aspects 4 JEI** load. Title screen stays up. No `hs_err_pid*.log`.
 - [ ] Dedicated server: **not routinely tested** in this repo. If you ship a server, start one with the same mods and confirm it reaches “Done”.
@@ -47,7 +47,7 @@ These json files are `required: false`. Removing the parent should skip that jso
 | Chisel | No Chisel mixins; stock GUI / in-world carving |
 | Recipe Stages | No `setRecipeStage` capture; Chisel gate has no CT index (fallback map also missing) |
 | Game Stages | `lockedStage` no-ops; Chisel mixins still apply if Chisel is present |
-| Quality Tools | No `mixins.aqtweaks.qualitytools.json`; vanilla loot/durability mixins no-op; no rune recipes |
+| Quality Tools | No `mixins.aqtweaks.qualitytools.json`; vanilla loot/durability mixins still apply (pack ships QT); no rune recipes |
 
 ### Do not treat as optional
 

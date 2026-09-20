@@ -29,8 +29,6 @@
     "MixinMapGenVillageStart",
     "MixinMapGenVillageWorld",
     "MixinCraftingHelperFindFiles",
-    "MixinWorldEntitySpawner",
-    "MixinTileEntityLockableLoot",
-    "MixinItemStackQualityDurability"
+    "MixinWorldEntitySpawner"
   ]
 }

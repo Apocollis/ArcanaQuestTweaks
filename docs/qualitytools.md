@@ -1,8 +1,8 @@
 # Quality Tools module (1.8)
 
-Last updated: 2026-09-20.
+Last updated: 2026-09-20. Vanilla loot/durability mixins in `mixins.aqtweaks.early.json`.
 
-Loot stamp, wear/Broken overlays, Dawnstone rune upgrades. Tweaks cfg: `config/arcanaquesttweaks/aqtweaks_qualitytools.cfg`. Mixins: vanilla loot/durability in **required** `mixins.aqtweaks.json` (no-op without QT); QT + Embers targets in optional `mixins.aqtweaks.qualitytools.json`. Soft `@Mod` `after:qualitytools` (not `required-after`). Embers already `after:`.
+Loot stamp, wear/Broken overlays, Dawnstone rune upgrades. Tweaks cfg: `config/arcanaquesttweaks/aqtweaks_qualitytools.cfg`. Mixins: vanilla loot/durability in **`mixins.aqtweaks.early.json`** (jar `MixinConfigs`; pack ships QT). QT + Embers targets in optional `mixins.aqtweaks.qualitytools.json`. Soft `@Mod` `after:qualitytools` (not `required-after`). Embers already `after:`.
 
 ## Locked intent
 
@@ -72,15 +72,15 @@ Kept live color → QualityBase; `gray` / `dark_gray` / `normal` → clear Quali
 | `qualitytools/QualityStamp.java` | First-gen stamp + pre-damage |
 | `qualitytools/QualityDurability.java` | Wear / break / 75% restore; Salvage skip |
 | `qualitytools/QualityRuneAnvilRecipe.java` | Dawnstone recipes (Embers import only here + register) |
-| `mixin/MixinTileEntityLockableLoot.java` | `fillWithLoot` stamp |
-| `mixin/MixinItemStackQualityDurability.java` | `attemptDamageItem` + `setItemDamage` |
+| `mixin/MixinTileEntityLockableLoot.java` | `fillWithLoot` stamp. `mixins.aqtweaks.early.json` |
+| `mixin/MixinItemStackQualityDurability.java` | `attemptDamageItem` + `setItemDamage`. `mixins.aqtweaks.early.json` |
 | `mixin/qualitytools/MixinCommonEventHandler.java` | Skip living-update stamp |
 | `mixin/qualitytools/MixinTileEntityReforgingStation.java` | Sync QualityBase after reforge |
 | `mixin/qualitytools/MixinTileEntityDawnstoneAnvil.java` | Failed-rune action bar |
 | `mixins.aqtweaks.qualitytools.json` | `required: false` |
 | `ArcanaQuestTweaksConfig.QualityToolsModuleConfig` | `aqtweaks_qualitytools.cfg` |
 
-Vanilla durability/loot mixins call helpers only after `Loader.isModLoaded("qualitytools")`. Do not import QT from `CommonProxy` or `ArcanaQuestTweaksConfig`.
+Vanilla durability/loot mixins FQCN into `QualityStamp` / `QualityDurability` (compile-hard QT; no parent `import` on the mixin class). Do not import QT from `CommonProxy` or `ArcanaQuestTweaksConfig`. Pack ships Quality Tools.
 
 ## Live config (`config/arcanaquesttweaks/aqtweaks_qualitytools.cfg`)
 
@@ -109,7 +109,8 @@ Quality JSON must keep **one** `dark_gray` and **one** `gray` per type. **`Quail
 - Do not skip rungs (Common cannot turn `red` into `yellow` in one hammer).
 - Do not stamp `ContainerPlayer` crafting slots or merchant trades.
 - Do not put QT or Embers types on `CommonProxy` / `ArcanaQuestTweaksConfig`.
-- Isolated boot without QT: optional json skipped; vanilla mixins no-op.
+- Do not put `MixinTileEntityLockableLoot` / `MixinItemStackQualityDurability` in late `mixins.aqtweaks.json`.
+- Isolated boot without QT: optional json skipped; vanilla mixins still apply (pack is expected to ship QT).
 
 ## Verify
 
@@ -118,5 +119,5 @@ Quality JSON must keep **one** `dark_gray` and **one** `gray` per type. **`Quail
 3. Hammer only the next rune; wrong rune: action bar, rune not consumed. Second Common after red→white → yellow.
 4. Wear below 20%: live `gray`; QualityBase unchanged; repair to 75% restores base.
 5. Break without Salvage: drop `dark_gray`; QualityBase intact; Salvage-matching sound. Break with Salvage: Charm drop at 0 durability; no Tweaks second copy.
-6. Boot without `qualitytools`: Tweaks loads.
+6. Boot without `qualitytools`: Tweaks mixin json for QT classes skipped; vanilla loot/durability mixins still apply (NCDFE if those helpers run — pack ships QT).
 7. `.\build_gradle.ps1`: Java 21, QT + Embers jars in `libs/`.

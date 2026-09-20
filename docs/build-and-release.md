@@ -2,7 +2,7 @@
 
 Last updated: 2026-09-20.
 
-How to compile and deploy `aqtweaks`. Parent jar contract: [compatibility-matrix.md](compatibility-matrix.md). In-game smoke: [verification.md](verification.md).
+How to compile and deploy `aqtweaks`. Parent jar contract and **CurseForge relations**: [compatibility-matrix.md](compatibility-matrix.md). In-game smoke: [verification.md](verification.md).
 
 There is **no CI**. The practical harness is the CurseForge **Arcana Quest DEVBOX** instance. `gradlew build` / `check` runs `verifyReleaseJar` (class major **65**, `VillagePlate.class` present, mixin json + shared refmap in the remapped jar).
 

@@ -8,7 +8,7 @@ Mod: `aqtweaks`. Minecraft 1.12.2 / CleanroomMC / Forge. Stay on **1.8** unless 
 
 **Always compile as Java 21.** Gradle toolchain may be JDK 25, but `JavaCompile` must keep `options.release = 21` (class major 65). Do not emit Java 22+ bytecode. Mixin/Fugue will refuse class version 66+. Details: [build-and-release.md](build-and-release.md).
 
-`aqtweaks` is a **tweak layer** for the **Arcana Quest pack**, not a standalone optional-mod product. The pack is expected to ship required parents (DEVBOX + `libs/`). If you need a parent class or method, **compile-hard** (`import` + jar on the classpath). Do not add `Reflect` wrappers just to avoid a compile dependency. Mixin json `required: false` only skips that json at **load** if the jar is missing; it does not forbid compiling against it.
+`aqtweaks` is a **tweak layer** for the **Arcana Quest pack**, not a standalone optional-mod product. The pack is expected to ship required parents (DEVBOX + `libs/`). If you need a parent class or method, **compile-hard** (`import` + jar on the classpath). Do not add `Reflect` wrappers just to avoid a compile dependency. If compile-hard gains nothing, keep `Loader.isModLoaded`. Mixin json `required: false` only skips that json at **load** if the jar is missing; it does not forbid compiling against it. Curse relations: [compatibility-matrix.md](compatibility-matrix.md#curseforge-relations-file-page).
 
 Parent mods still own their systems. Tweaks listens to Forge events, calls public APIs (`FeathersHelper`, Thaumcraft warp caps, Bewitchment `Ritual`), or mixins parent methods when events are not enough. Vanilla calls inside `remap = false` mixins go through `Reflect` — see below.
 
@@ -70,7 +70,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 | Stats Keeper | Elixir of Vitality drink cancel at SK cap | Handler not registered; vanilla + SK consume/refuse as stock |
 | RandomPortals + Twilight Forest | TF landing safety + grass pads | Handler not registered; RP mixin json skipped; stock RP 1:1 landings |
 | Chisel + Game Stages + Recipe Stages | Chisel output gated on Recipe Stages | Mixin json skipped; stock Chisel; crafting-table stages unchanged |
-| Quality Tools | Loot stamp, wear/Broken, Dawnstone runes | Optional json skipped; vanilla mixins no-op; handler not registered |
+| Quality Tools | Loot stamp, wear/Broken, Dawnstone runes | Optional json skipped; vanilla early mixins still apply (pack ships QT); handler not registered |
 | Quark | Depths lower-cavern speleothem primer decor | Helper not called; +Y stock Quark unchanged; Deepslate columns/spikes still generate |
 
 ### Init (`CommonProxy` / `ClientProxy`)
@@ -106,7 +106,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 
 ### MixinBooter: early vs late
 
-Vanilla `World` and `MobSpawnerBaseLogic` are already loaded when late mixins prepare. Portal glowstone light (`MixinWorldRiftLight` on `World.getRawLight`) and cage fail delay (`MixinMobSpawnerBaseLogic` on `updateSpawner`) are in **`mixins.aqtweaks.early.json`**. Charm village paste (`mixins.aqtweaks.charm.json`, `required: true`) is on the same jar `MixinConfigs` so Charm `ASMHooks` is mixed before Charm’s transformer defines it. MixinBooter 11 reads `MixinConfigs` from the jar manifest (set in `build.gradle`). Do not register these json files from `AQTweaksLateMixinLoader`. Missing either fails load. Charm is `@Mod required-after` (Curse / pack prerequisite).
+Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, and `ItemStack` are already loaded when late mixins prepare. Portal glowstone light (`MixinWorldRiftLight` on `World.getRawLight`), cage fail delay (`MixinMobSpawnerBaseLogic` on `updateSpawner`), Quality loot stamp (`MixinTileEntityLockableLoot`), and Quality wear (`MixinItemStackQualityDurability`) are in **`mixins.aqtweaks.early.json`**. Charm village paste (`mixins.aqtweaks.charm.json`, `required: true`) is on the same jar `MixinConfigs` so Charm `ASMHooks` is mixed before Charm’s transformer defines it. MixinBooter 11 reads `MixinConfigs` from the jar manifest (set in `build.gradle`). Do not register these json files from `AQTweaksLateMixinLoader`. Missing either fails load. Charm is `@Mod required-after` (Curse / pack prerequisite).
 
 ### MixinBooter late loader
 
@@ -137,7 +137,7 @@ Vanilla `World` and `MobSpawnerBaseLogic` are already loaded when late mixins pr
 `mixins.aqtweaks.json` contents (package `com.apocollis.aqtweaks.mixin`):
 
 - Client: `MixinRenderGlobal` (Depths hide sky)
-- Common: `MixinChunkProviderServer`, `depthsupdate.MixinDepthsCaveNoiseGenerator`, `cofh.MixinDistributionUniform`, `reccomplex.MixinRayMatcher`, `reccomplex.MixinGenericVillageCreationHandler`, Better Caves / RTG village mixins listed in [depths.md](depths.md) and [rtg.md](rtg.md), `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinWorldGenLakes`, `MixinMapGenVillageInside/Spawn/Start/World`, `MixinCraftingHelperFindFiles`, `MixinWorldEntitySpawner`, `MixinTileEntityLockableLoot`, `MixinItemStackQualityDurability`. Charm paste: `mixins.aqtweaks.charm.json` on jar `MixinConfigs`. Portal `MixinWorldRiftLight` and cage `MixinMobSpawnerBaseLogic` are in `mixins.aqtweaks.early.json`. InControl `MixinStructureCache` is in `mixins.aqtweaks.incontrol.json`. Better Mineshafts locate mixins are in `mixins.aqtweaks.bettermineshafts.json`. RandomPortals grass pads: `mixins.aqtweaks.randomportals.json`. Quality Tools parent mixins: `mixins.aqtweaks.qualitytools.json`.
+- Common: `MixinChunkProviderServer`, `depthsupdate.MixinDepthsCaveNoiseGenerator`, `cofh.MixinDistributionUniform`, `reccomplex.MixinRayMatcher`, `reccomplex.MixinGenericVillageCreationHandler`, Better Caves / RTG village mixins listed in [depths.md](depths.md) and [rtg.md](rtg.md), `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinWorldGenLakes`, `MixinMapGenVillageInside/Spawn/Start/World`, `MixinCraftingHelperFindFiles`, `MixinWorldEntitySpawner`. Charm paste: `mixins.aqtweaks.charm.json` on jar `MixinConfigs`. Portal `MixinWorldRiftLight`, cage `MixinMobSpawnerBaseLogic`, Quality `MixinTileEntityLockableLoot` and `MixinItemStackQualityDurability` are in `mixins.aqtweaks.early.json`. InControl `MixinStructureCache` is in `mixins.aqtweaks.incontrol.json`. Better Mineshafts locate mixins are in `mixins.aqtweaks.bettermineshafts.json`. RandomPortals grass pads: `mixins.aqtweaks.randomportals.json`. Quality Tools parent mixins: `mixins.aqtweaks.qualitytools.json`.
 
 Two mixins target `ChunkGeneratorRTG` in that required json. Their order comes from injection points, not from this list:
 
@@ -197,7 +197,7 @@ When hooking a new parent (or a new mixin on an existing one):
 2. **`@Mod`:** `required-after` only if Tweaks must not load without it. Otherwise `after:` or omit. Pack mods can still be compile-hard without `required-after`.
 3. **Mixin:** new json `required: false` unless the pack always ships the parent **and** missing it should crash. Register the json in `AQTweaksLateMixinLoader`. Mixin targets: SRG in vanilla, parent members as in that jar. `required: false` is load-time skip, not “string-target only.”
 4. **Side:** client-only in the json `client` array or `@SideOnly`. Packets: `SimpleNetworkWrapper` side as today (stamina 0–2 are SERVER).
-5. **Absent parent:** `Loader.isModLoaded` or mixin json `required: false` so isolated boot can skip. Do not `import` parent types from **always-loaded** classes (Bewitchment `Ritual` is compile-hard on the handler that only registers when loaded — keep that class off the bus).
+5. **Absent parent:** `Loader.isModLoaded` or mixin json `required: false` when there is **no** parent type to call. If you need a class or method, **compile-hard** it; still gate handler construction with `isModLoaded` so the `import` stays off always-on bus classes. Do not `import` parent types from those always-on classes (Bewitchment `Ritual` is compile-hard on the handler that only registers when loaded).
 6. **Config:** new `@Config` defaults; instance files **keep old keys**. Document live vs dead knobs in the module doc.
 7. **Verify:** add a row to [verification.md](verification.md). Worldgen → new chunks. Mixin vanilla calls → Reflect or remap.
 
@@ -208,4 +208,4 @@ When hooking a new parent (or a new mixin on an existing one):
 3. Wait for explicit `proceed`.
 4. Implement, then `.\build_gradle.ps1` unless told not to rebuild. Portable compile: `.\gradlew.bat build`. That path already sets `--release 21`. Never drop that flag. Details: [build-and-release.md](build-and-release.md).
 
-Worldgen changes apply to **new chunks only**.
+Cursor always-on rules: `.cursor/rules/`. Antigravity: `.agents/rules/` (same policies). Keep both in sync when adding or editing a rule or skill. Worldgen changes apply to **new chunks only**.

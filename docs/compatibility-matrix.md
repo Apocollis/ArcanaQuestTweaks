@@ -18,6 +18,59 @@ Gradle compiles **every jar in `libs/`** (`fileTree`). Those jars are **gitignor
 | Runtime | `Loader.isModLoaded`, potion/registry lookup, or class-name prefix. Missing → feature no-ops (unless mixin apply already crashed) |
 | Copy | Listed in `build_gradle.ps1` `$deps` (copy **if** the file exists in DEVBOX `mods`) |
 
+## CurseForge relations (file page)
+
+Compile-hard = Java `import` or a mixin **class** target (not a string target). Set those as relations on the Tweaks Curse file so the launcher can pull the right mods. **Required** here means Forge `@Mod required-after` (Tweaks refuses to load). Everything else compile-hard is **Optional** on Curse unless you choose to mark the worldgen stack Required too — missing RTG / Depths / Better Caves / CoFH World / Recurrent Complex still **crashes mixin apply**.
+
+Do **not** list string-target / Reflect-only / structure-name parents as compile dependencies.
+
+### Required
+
+| Curse / modid | Why |
+| --- | --- |
+| Elenai Dodge 2 **Extended** (`elenaidodge2`) | Stamina `FeathersHelper` |
+| Charm (`charm`) | Village paste `ASMHooks` |
+
+Use Extended 1.1.3, not Elenai 1.1.0.
+
+### Optional (compile-hard)
+
+| Curse / modid | Why |
+| --- | --- |
+| Embers (`embers`) | Dawnstone rune recipes |
+| Dynamic Sword Skills + Sword Skills API (`dynamicswordskills`) | Skill / sword-beam mixins |
+| Reskillable (`reskillable`) | Per-level bonuses |
+| Effortless Building (`effortlessbuilding`) | Building reach |
+| Simple Difficulty (`simpledifficulty`) | Canteen / thirst util mixins |
+| Grimoire of Gaia (`grimoireofgaia`) | Entity / projectile mixins |
+| Thaumcraft (`thaumcraft`) | Focus / caster mixins |
+| Rustic (`rustic`) | Iron Gut `FluidBooze` |
+| Bewitchment (`bewitchment`) | Ritual, Cambion, spinning wheel |
+| CraftTweaker (`crafttweaker`) | Zen spinning-wheel |
+| Realistic Terrain Generation (`rtg`) | Required mixin json |
+| Depths Update (`depthsupdate`) | Required mixin json |
+| YUNG’s Better Caves (`bettercaves`) | Required mixin json |
+| CoFH World (`cofhworld`) | Required mixin json |
+| Recurrent Complex (`reccomplex`) | Required mixin json (needs IvToolkit at runtime; not a Tweaks `import`) |
+| Astral Sorcery (`astralsorcery`) | Shrine mixins |
+| Mystical World (`mysticalworld`) | Hut mixins |
+| InControl (`incontrol`) | `StructureCache` / spawn distances (nested McJtyTools is **not** a Curse project) |
+| Animania Base (`animania`) | Advancement + Rancher (Farm addon jar is not its own Curse mod) |
+| Somnia (`somnia`) | Sleep mixins |
+| YUNG’s Better Mineshafts (`bettermineshafts`) | Locate / placement mixins |
+| Stats Keeper (`stats_keeper`) | Elixir handler |
+| RandomPortals (`randomportals`) | TF landing mixin |
+| Twilight Forest (`twilightforest`) | TF landing handler |
+| Quark (`quark`) | Speleothems (compile also needs AutoRegLib on the classpath; Tweaks does not `import` ARL) |
+| Chisel (`chisel`) | Game-stage chisel GUI |
+| Game Stages (`gamestages`) | Stage lookup |
+| Recipe Stages (`recipestages`) | `setRecipeStage` capture |
+| Quality Tools (`qualitytools`) | Living-update / reforge / Dawnstone mismatch |
+
+### Not compile-hard (do not set as Tweaks compile deps)
+
+Toughness Bar, Grappling Hook, Open Glider, Biomes O’ Plenty: string mixin or Reflect only — `isModLoaded` / `required: false` json. Waystones and Roguelike Arcana: structure / class **names** only; Roguelike jar must **not** sit in `libs/`.
+
 ## Toolchain (not CurseForge jars)
 
 | Piece | Pin in repo today |
@@ -74,7 +127,7 @@ Jar names below are from the **Arcana Quest DEVBOX** instance on 2026-08-20 unle
 | `chisel` | `Chisel-MC1.12.2-1.0.2.45.jar` | after | optional `mixins.aqtweaks.chisel.json` | **yes** (`SlotChiselSelection`, `ItemChisel`, `ICarvingVariation`) | skip json if absent | **yes** | [gamestages.md](gamestages.md) | `MixinSlotChiselSelection` HEAD on `craft`; `MixinItemChisel` RETURN on `canChisel`. Not Chisels and Bits |
 | `gamestages` | `GameStages-1.12.2-2.0.123.jar` | after | — | **yes** (`GameStageHelper`) | yes | **yes** | [gamestages.md](gamestages.md) | Compile-hard on the Chisel hook nested lookup only. No Game Stages mixin |
 | `recipestages` | `recipestages-2.0.1.jar` | after | optional `mixins.aqtweaks.recipestages.json` | **yes** (`Recipes.setRecipeStage`, `Recipes.recipes`) | skip json if absent | **yes** | [gamestages.md](gamestages.md) | Capture CT `IIngredient` pairs. Needs CraftTweaker already on the classpath |
-| `qualitytools` | `QualityTools-1.0.7_for_1.12.2.jar` | after | optional `mixins.aqtweaks.qualitytools.json` | **yes** (`QualityToolsHelper`, `QualityType`, `CommonEventHandler`, `TileEntityReforgingStation`) | skip json if absent; vanilla loot/durability mixins no-op | **yes** | [qualitytools.md](qualitytools.md) | Living-update stamp skip; reforge QualityBase. Vanilla `MixinTileEntityLockableLoot` + `MixinItemStackQualityDurability` are in the **required** json and gate on `Loader.isModLoaded`. Crafting Runes are registry-name only — do not put `craftingrunes-1.1.jar` in `libs/` |
+| `qualitytools` | `QualityTools-1.0.7_for_1.12.2.jar` | after | optional `mixins.aqtweaks.qualitytools.json` | **yes** (`QualityToolsHelper`, `QualityType`, `CommonEventHandler`, `TileEntityReforgingStation`) | skip QT-class json if absent; vanilla loot/durability mixins still apply (pack ships QT) | **yes** | [qualitytools.md](qualitytools.md) | Living-update stamp skip; reforge QualityBase. Vanilla `MixinTileEntityLockableLoot` + `MixinItemStackQualityDurability` are in **`mixins.aqtweaks.early.json`**. Crafting Runes are registry-name only — do not put `craftingrunes-1.1.jar` in `libs/` |
 
 Vanilla `MapGenVillage` / `MapGenCaves` / `WorldGenLakes` / `ChunkProviderServer` / `RenderGlobal` / `WorldEntitySpawner` / `MobSpawnerBaseLogic` are Forge/vanilla, not extra jars. `MixinWorldGenLakes` skips water (not lava) on the village pad. `MixinWorldEntitySpawner` fills pack sizes (late json). `MixinMobSpawnerBaseLogic` applies cage fail-recheck delay (early json) — do not late-mixin `MobSpawnerBaseLogic`, `World`, or `WorldServer`.
 

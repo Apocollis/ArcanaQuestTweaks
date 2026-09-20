@@ -7,6 +7,8 @@
   "mixins": [
     "MixinWorldRiftLight",
     "MixinBlockRiftLight",
-    "MixinMobSpawnerBaseLogic"
+    "MixinMobSpawnerBaseLogic",
+    "MixinTileEntityLockableLoot",
+    "MixinItemStackQualityDurability"
   ]
 }
