@@ -1280,7 +1280,7 @@ public class ArcanaQuestTweaksConfig {
 
         @Config.Name("Armor Mastery")
         public ReskillablePerkLayout armorMastery = new ReskillablePerkLayout(
-                2, 3, 6, "reskillable:defense", "reskillable:defense|8", "reskillable:agility|16");
+                2, 3, 4, "reskillable:defense", "reskillable:defense|8", "reskillable:agility|16");
 
         @Config.Name("Mining Efficiency")
         public ReskillablePerkLayout miningEfficiency = new ReskillablePerkLayout(
@@ -1292,7 +1292,7 @@ public class ArcanaQuestTweaksConfig {
 
         @Config.Name("Herbalist")
         public ReskillablePerkLayout herbalist = new ReskillablePerkLayout(
-                2, 1, 3, "reskillable:gathering", "reskillable:gathering|16", "reskillable:magic|12");
+                2, 1, 4, "reskillable:gathering", "reskillable:gathering|16", "reskillable:magic|12");
 
         @Config.Name("Gathering Efficiency")
         public ReskillablePerkLayout gatheringEfficiency = new ReskillablePerkLayout(
@@ -1325,6 +1325,30 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Quiet Mind")
         public ReskillablePerkLayout quietMind = new ReskillablePerkLayout(
                 2, 2, 4, "reskillable:magic", "reskillable:magic|16", "reskillable:defense|12");
+
+        @Config.Name("Glass Cutter")
+        public ReskillablePerkLayout glassCutter = new ReskillablePerkLayout(
+                2, 2, 2, "reskillable:building", "reskillable:building|12");
+
+        @Config.Name("Herd Abundance")
+        public ReskillablePerkLayout herdAbundance = new ReskillablePerkLayout(
+                2, 2, 4, "reskillable:gathering", "reskillable:gathering|16", "reskillable:farming|12");
+
+        @Config.Name("Iron Gut")
+        public ReskillablePerkLayout ironGut = new ReskillablePerkLayout(
+                2, 3, 3, "reskillable:farming", "reskillable:farming|16");
+
+        @Config.Name("Water Collector")
+        public ReskillablePerkLayout waterCollector = new ReskillablePerkLayout(
+                3, 1, 4, "reskillable:gathering", "reskillable:gathering|16");
+
+        @Config.Name("Full Font")
+        public ReskillablePerkLayout fullFont = new ReskillablePerkLayout(
+                2, 3, 4, "reskillable:magic", "reskillable:magic|16");
+
+        @Config.Name("Blood Pact")
+        public ReskillablePerkLayout bloodPact = new ReskillablePerkLayout(
+                3, 3, 4, "reskillable:magic", "reskillable:magic|20");
     }
 
     public static class ReskillableRespite {
@@ -1460,6 +1484,31 @@ public class ArcanaQuestTweaksConfig {
 
         @Config.Name("Quiet Mind Cancel Chat")
         public String quietMindCancelChat = "Whispers try to cloud your thoughts, but you push them away...";
+
+        @Config.Name("Full Font Aura Ratio")
+        @Config.Comment("Chunk vis / aura base at or above this counts as full. Flux is ignored.")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public double fullFontAuraRatio = 0.9;
+
+        @Config.Name("Full Font Vis Cost")
+        @Config.Comment("Multiply ItemCaster.consumeVis amount before Vis Thrift when the aura is full.")
+        @Config.RangeDouble(min = 1.0, max = 4.0)
+        public double fullFontVisCost = 1.5;
+
+        @Config.Name("Full Font Output")
+        @Config.Comment("Outgoing classified Magic / Heal-focus after drip and Blood Pact, then the stamp clears.")
+        @Config.RangeDouble(min = 1.0, max = 4.0)
+        public double fullFontOutput = 1.5;
+
+        @Config.Name("Blood Pact Max Health")
+        @Config.Comment("Unsaved generic.maxHealth add while Blood Pact is unlocked. −8 = four hearts.")
+        @Config.RangeDouble(min = -40.0, max = 0.0)
+        public double bloodPactMaxHealth = -8.0;
+
+        @Config.Name("Blood Pact Outgoing")
+        @Config.Comment("Outgoing classified Magic multiply after drip, before Full Font.")
+        @Config.RangeDouble(min = 1.0, max = 4.0)
+        public double bloodPactOutgoing = 2.0;
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_bettermineshafts", category = "")
@@ -1506,6 +1555,26 @@ public class ArcanaQuestTweaksConfig {
      */
     public static void normalizePinned() {
         DepthsModuleConfig.general.minWorldY = DEPTHS_FLOOR_Y;
+        sanitizePerkRequirements();
+    }
+
+    private static void sanitizePerkRequirements() {
+        ReskillablePerks perks = ReskillableModuleConfig.perks;
+        if (perks == null) {
+            return;
+        }
+        for (java.lang.reflect.Field field : ReskillablePerks.class.getFields()) {
+            if (field.getType() != ReskillablePerkLayout.class) {
+                continue;
+            }
+            try {
+                ReskillablePerkLayout layout = (ReskillablePerkLayout) field.get(perks);
+                if (layout != null) {
+                    layout.sanitizeRequirements();
+                }
+            } catch (IllegalAccessException ignored) {
+            }
+        }
     }
 
     @Mod.EventBusSubscriber(modid = ArcanaQuestTweaks.MODID)

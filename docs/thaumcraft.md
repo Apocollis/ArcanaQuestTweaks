@@ -10,7 +10,7 @@ Comfort homestead drain is a **different** NBT key and module ([comfort.md](comf
 
 Add pack-side warp **sources and sinks** Thaumcraft does not have: first visit to a dimension, lingering in configured dimensions / underground Y bands / Roguelike dungeons, and reducing **sticky** warp after a successful night sleep. Temporary warp during sleep is TC decay + Comfort Homestead (Somnia ticks those). Do **not** mixin `handleWarp`. Quiet Mind may mixin `checkWarpEvent` after visor, before `PacketMiscEvent` — do **not** cancel HEAD (that would skip −1 temp). Parent still **−1 TEMPORARY / 2000 ticks** while online, not Warp Ward, not wussMode.
 
-Stamp `setMagicDamage()` on stock caster **focus HP** so Reskillable Magic drip classifies them without a `thrown` prefix (snowballs stay physical). Scale Heal-focus `heal(float)` by the caster’s outgoing Magic %. Quiet Mind mixins `checkWarpEvent` after visor (not HEAD). Vis Thrift mixins `CasterManager.getTotalVisDiscount`. See [reskillable.md](reskillable.md).
+Stamp `setMagicDamage()` on stock caster **focus HP** so Reskillable Magic drip classifies them without a `thrown` prefix (snowballs stay physical). Scale Heal-focus `heal(float)` by `ReskillableBonuses.scaleOutgoingMagic` (drip, Blood Pact, Full Font stamp). Full Font multiplies `ItemCaster.consumeVis` amount ×1.5 when chunk vis ≥ aura base ×0.9, then Vis Thrift; success stamps. Quiet Mind mixins `checkWarpEvent` after visor (not HEAD). Vis Thrift mixins `CasterManager.getTotalVisDiscount`. See [reskillable.md](reskillable.md).
 
 ## How the parent mod works
 

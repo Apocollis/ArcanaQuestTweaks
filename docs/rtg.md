@@ -114,7 +114,7 @@ Flatten looks up `VillagePlate` records by **land-box overlap** first, via a per
 | `rtg/VillagePlate.java` | Remembered starts, plate Y, land-box query (chunk-bucket index), stamp `AQTVillagePlate` |
 | `rtg/VillageRelight.java` | After village paste, `checkLight` at emitters in placing-component AABBs ∩ clip (not Y 0..255) |
 | `mixin/MixinStructureStartVillagePaste.java` | Snapshot `components` iterator; drop/walk ocean well at paste HEAD; populate abort on ocean/river floor (incl. well); stamp `AQTVillagePlate`; relight clip |
-| `mixin/charm/MixinASMHooksVillagePaste.java` | Charm `ASMHooks.addComponentParts` HEAD; thin class (no `VillageLandHelper` import). Json listed first in the late loader |
+| `mixin/charm/MixinASMHooksVillagePaste.java` | Charm `ASMHooks.addComponentParts` HEAD; compile-hard `ASMHooks`; no `VillageLandHelper` import. Json on jar `MixinConfigs` |
 | `rtg/VillageCharmPaste.java` | Wet-paste skip body; loaded on first Charm paste, not mixin prepare |
 | `mixin/reccomplex/MixinGenericVillageCreationHandler.java` | RC building skip/retry on water |
 | `rtg/VillagePieceAstralSmallShrine.java` | Village component that pastes Astral `smallShrine`; AABB from pattern; path overlap OK at layout; paste skips ocean/river **biome** only; liquid-only fill (no dirt collar) |
@@ -131,7 +131,7 @@ Flatten looks up `VillagePlate` records by **land-box overlap** first, via a per
 | `mixin/biomesoplenty/MixinGeneratorLakes.java` | Skip BOP water and quicksand lakes on village overlap. Optional `mixins.aqtweaks.biomesoplenty.json` |
 | `ArcanaQuestTweaksConfig.RtgModuleConfig.surface` | `config/arcanaquesttweaks/aqtweaks_rtg.cfg` |
 | `mixins.aqtweaks.json` | Required: village spawn/start/world/inside, `MixinWorldGenLakes`, `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinChunkGeneratorRTGVillage`, `MixinGenericVillageCreationHandler` |
-| `mixins.aqtweaks.charm.json` | Optional: Charm ASM village paste skip (late loader **first**; not jar `MixinConfigs`) |
+| `mixins.aqtweaks.charm.json` | **Required:** Charm ASM village paste skip (jar `MixinConfigs` with early json; `@Mod required-after:charm`) |
 
 Related but separate: `MixinChunkGeneratorRTG.java` fills Deepslate below Y=0 for Depths. Do not conflate with village flatten. See [depths.md](depths.md).
 

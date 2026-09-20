@@ -1,5 +1,7 @@
 package com.apocollis.aqtweaks.mixin.charm;
 
+import java.lang.reflect.Method;
+import java.util.Random;
 import net.minecraft.world.World;
 import net.minecraft.world.gen.structure.StructureBoundingBox;
 import net.minecraft.world.gen.structure.StructureComponent;
@@ -8,9 +10,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-
-import java.lang.reflect.Method;
-import java.util.Random;
+import svenhjol.charm.base.ASMHooks;
 
 /**
  * Charm ASM calls this instead of {@code StructureComponent.addComponentParts}.
@@ -20,13 +20,14 @@ import java.util.Random;
  * contract the vanilla path in {@code MixinStructureStartVillagePaste} sits on, so this returns
  * {@code true} for the same reason: a wet veto has to skip the paste for this chunk while keeping
  * the piece in the list, or a building spanning chunks is permanently lost the first time one of
- * its chunks vetoes. Returning Charm's {@code DENY} value here diverged from the vanilla path.
+ * its chunks vetoes.
  *
  * <p>Do not import Tweaks RTG types here. Preparing this mixin must not load
  * {@code VillageLandHelper} / {@code StructureStart}, or Charm defines {@code ASMHooks} first
- * and CleanMix reports the target loaded too early.
+ * and CleanMix reports the target loaded too early. This json is on jar {@code MixinConfigs}
+ * (early) because Charm is a Tweaks prerequisite.
  */
-@Mixin(targets = "svenhjol.charm.base.ASMHooks", remap = false)
+@Mixin(value = ASMHooks.class, remap = false)
 public abstract class MixinASMHooksVillagePaste {
 
     @Unique

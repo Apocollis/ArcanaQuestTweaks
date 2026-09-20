@@ -65,6 +65,10 @@ public class CommonProxy {
             com.apocollis.aqtweaks.rtg.VillageAstralSmallShrineHandler.register();
         }
 
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("simpledifficulty")) {
+            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.simpledifficulty.SimpleDifficultyModule());
+        }
+
         if (net.minecraftforge.fml.common.Loader.isModLoaded("animania")) {
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.animania.AnimaniaModule());
         }

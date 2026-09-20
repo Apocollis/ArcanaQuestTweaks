@@ -41,9 +41,9 @@ public final class ThaumcraftFocusHooks {
         resolve();
         if (magicMultiplier == null) return amount;
         try {
-            Object out = magicMultiplier.invoke(null, caster, Boolean.TRUE);
+            Object out = magicMultiplier.invoke(null, caster, amount);
             if (out instanceof Number) {
-                return amount * ((Number) out).floatValue();
+                return ((Number) out).floatValue();
             }
         } catch (Throwable t) {
             if (!warnedInvoke) {
@@ -61,7 +61,7 @@ public final class ThaumcraftFocusHooks {
         if (!Loader.isModLoaded("reskillable")) return;
         try {
             Class<?> bonuses = Class.forName("com.apocollis.aqtweaks.reskillable.ReskillableBonuses");
-            magicMultiplier = bonuses.getMethod("magicMultiplier", EntityPlayer.class, boolean.class);
+            magicMultiplier = bonuses.getMethod("scaleOutgoingMagic", EntityPlayer.class, float.class);
         } catch (Throwable t) {
             magicMultiplier = null;
             LOGGER.warn("[AQ-TC] Reskillable is loaded but the magic multiplier bridge could not be "

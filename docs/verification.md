@@ -1,6 +1,6 @@
 # Verification (1.8)
 
-Last updated: 2026-09-18.
+Last updated: 2026-09-20.
 
 Manual release / smoke checklist. **No automated tests.** Harness: CurseForge **Arcana Quest DEVBOX**, remapped `ArcanaQuestTweaks-1.8.jar` in `mods/`. Algorithms and full checklists stay in module docs; this is the pack-level pass/fail.
 
@@ -8,13 +8,13 @@ Worldgen applies to **new chunks only**.
 
 ## Build artifact
 
-- [ ] `.\gradlew.bat build` or `.\build_gradle.ps1` succeeds.
+- [ ] `.\gradlew.bat build` or `.\build_gradle.ps1` succeeds (`verifyReleaseJar`: class major 65, `VillagePlate.class`, mixin json + `mixins.aqtweaks.refmap.json`).
 - [ ] Instance `mods/` has `ArcanaQuestTweaks-1.8.jar`, **not** `-dev`.
 - [ ] Only one Tweaks jar (the deploy script deletes other `ArcanaQuestTweaks-*.jar`).
 
 ## Boot
 
-- [ ] Client starts the full pack; no mixin apply crash from `mixins.aqtweaks.json` or `mixins.aqtweaks.early.json`. Log must not say `MixinWorldRiftLight` / `World was loaded too early`, `MixinMobSpawnerBaseLogic` / `MobSpawnerBaseLogic was loaded too early`, `MixinASMHooksVillagePaste` / `ASMHooks was loaded too early`, `MixinWorldGenLakes` / `field_150589_a was not located` / `WorldGenLakes in invalid classes`, `empty category` / `StatsKeeperModuleConfig` / `BetterMineshaftsModuleConfig`, BM `setBoundingBox` / `func_75072_c` was not located, `MixinRPOTeleporter` / `field_85192_a was not located` in `RPOTeleporter`, or `parseStructureData is not cancellable`. Optional `mixins.aqtweaks.gaia.json` must not log `InvalidInjectionException` (vanilla INVOKEs must be MCP + `remap = true`; a miss boots anyway because `required: false`).
+- [ ] Client starts the full pack; Charm is present (`required-after:charm`). No mixin apply crash from `mixins.aqtweaks.json`, `mixins.aqtweaks.early.json`, or `mixins.aqtweaks.charm.json`. Log must not say `MixinWorldRiftLight` / `World was loaded too early`, `MixinMobSpawnerBaseLogic` / `MobSpawnerBaseLogic was loaded too early`, `MixinASMHooksVillagePaste` / `ASMHooks was loaded too early`, `MixinWorldGenLakes` / `field_150589_a was not located` / `WorldGenLakes in invalid classes`, `empty category` / `StatsKeeperModuleConfig` / `BetterMineshaftsModuleConfig`, BM `setBoundingBox` / `func_75072_c` was not located, `MixinRPOTeleporter` / `field_85192_a was not located` in `RPOTeleporter`, or `parseStructureData is not cancellable`. Optional `mixins.aqtweaks.gaia.json` must not log `InvalidInjectionException` (vanilla INVOKEs must be MCP + `remap = true`; a miss boots anyway because `required: false`).
 - [ ] Mixin log does **not** say Tweaks mixins require class version 69 (Java 21 class files).
 - [ ] Wait through full JEI / ThaumicJEI / **TC6 Aspects 4 JEI** load. Title screen stays up. No `hs_err_pid*.log`.
 - [ ] Dedicated server: **not routinely tested** in this repo. If you ship a server, start one with the same mods and confirm it reaches “Done”.
@@ -47,7 +47,7 @@ These json files are `required: false`. Removing the parent should skip that jso
 
 ### Do not treat as optional
 
-Missing **RTG, Depths Update, Better Caves, CoFH World, Recurrent Complex, or IvToolkit** with the current required mixin json can **fail mixin apply** at boot. This pack always ships them. Elenai Extended is `@Mod` **required-after**. InControl is `@Mod` **after** and compile-hard for pack fill.
+Missing **RTG, Depths Update, Better Caves, CoFH World, Recurrent Complex, or IvToolkit** with the current required mixin json can **fail mixin apply** at boot. This pack always ships them. Elenai Extended and **Charm** are `@Mod` **required-after**. InControl is `@Mod` **after** and compile-hard for pack fill.
 
 ## Config
 
@@ -133,6 +133,8 @@ Use the full list in [stamina.md](stamina.md) **Verify**. Minimum: jump costs/bl
 | Cross-dimension rift trip that fails | Entity stays in the origin dimension. No teleport loop, no entity stuck in the AABB re-firing every tick, no ghost copy at the destination | [portal.md](portal.md) |
 | Expert Climber with the perk unlocked, low feathers | Server permits the climb and the client does **not** slide. No rubber-band between a client-side `motionY = -0.15` and the server position | stamina, [reskillable.md](reskillable.md) |
 | World A → title screen → world B on a different seed | No village plate heights carried over from A. `getRawLight` is back on its no-rift fast path (no lit cells at B's spawn) | [rtg.md](rtg.md), portal |
+| Leave world / stop integrated server | No `NoClassDefFoundError: VillagePlate`. Log has no `EventSubscriptionTransformer` AIOOBE on Tweaks classes | rtg |
+| Evasion perk | Purchasable at agility 16. No `trait\|elenaidodge2:dodge`. Boot may log that that row was dropped | [reskillable.md](reskillable.md) |
 | `minWorldY` | Pinned at **-64**. No cfg knob to change it; bedrock floor, CoFH `Math.max` floor, and `RayMatcher.cast` all read that constant | [depths.md](depths.md) |
 
 ## After mixin / parent bumps

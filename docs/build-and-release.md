@@ -1,14 +1,15 @@
 # Build and release (1.8)
 
-Last updated: 2026-09-10.
+Last updated: 2026-09-20.
 
 How to compile and deploy `aqtweaks`. Parent jar contract: [compatibility-matrix.md](compatibility-matrix.md). In-game smoke: [verification.md](verification.md).
 
-There is **no CI**. The practical harness is the CurseForge **Arcana Quest DEVBOX** instance.
+There is **no CI**. The practical harness is the CurseForge **Arcana Quest DEVBOX** instance. `gradlew build` / `check` runs `verifyReleaseJar` (class major **65**, `VillagePlate.class` present, mixin json + shared refmap in the remapped jar).
 
 ## Prerequisites
 
-- **JDK 25** (Gradle toolchain `JavaLanguageVersion.of(25)`). Compile emits **Java 21** class files (`options.release = 21`). The deploy script assumes `C:\Program Files\Zulu\zulu-25`. The game still **runs** on Zulu 25.
+- **JDK 25** (Gradle toolchain `JavaLanguageVersion.of(25)`). Compile emits **Java 21** class files (`options.release = 21`, class major **65**). The deploy script assumes `C:\Program Files\Zulu\zulu-25`. The game still **runs** on Zulu 25.
+- **Do not** compile `--release 8`. Source uses records / `var` / `Set.of`; mixin json is `JAVA_21`. Mixin/Fugue refuse class version **66+** (Java 22), not 65. Legacy `build.ps1` still passes `--release 8` and must not ship.
 - Repo root `C:\dev\ArcanaQuestTweaks` (or a clone with `gradlew.bat`).
 - `libs/` containing the compile parents (gitignored; `build_gradle.ps1` copies them from DEVBOX). Gradle is `modCompileOnly files(each jar in libs/)`. Missing Depths / RTG / BC / Bewitchment / Thaumcraft / … will fail compile or produce a jar that crashes on mixin apply. Do not commit those jars.
 - Pack mods folder for deploy (script only): `c:\Users\hughe\curseforge\minecraft\Instances\Arcana Quest DEVBOX\mods`

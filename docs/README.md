@@ -2,7 +2,7 @@
 
 This directory is the design and engineering spec for `aqtweaks` **1.8**. Read the index, then the module file for the system you are changing. Worldgen applies to **new chunks only**.
 
-**Ops (reproduce / ship):** [compatibility-matrix.md](compatibility-matrix.md) · [build-and-release.md](build-and-release.md) · [verification.md](verification.md)
+**Ops (reproduce / ship):** [compatibility-matrix.md](compatibility-matrix.md) · [build-and-release.md](build-and-release.md) · [verification.md](verification.md) · [changelog.md](changelog.md)
 
 Mod: `aqtweaks`. Minecraft 1.12.2 / CleanroomMC / Forge. Stay on **1.8** unless asked to bump.
 
@@ -48,7 +48,7 @@ Astral surface shrines, Bewitchment Cambion houses, and Mystical World thatch hu
 
 `ArcanaQuestTweaks` declares:
 
-`required-after:elenaidodge2;after:incontrol;after:grimoireofgaia;after:thaumcraft;after:bewitchment;after:grapplemod;after:embers;after:reskillable;after:effortlessbuilding;after:stats_keeper;after:randomportals;after:twilightforest`
+`required-after:elenaidodge2;required-after:charm;after:incontrol;after:grimoireofgaia;after:thaumcraft;after:bewitchment;after:grapplemod;after:embers;after:reskillable;after:effortlessbuilding;after:stats_keeper;after:randomportals;after:twilightforest`
 
 That is **not** the full parent list. Soft parents that Tweaks mixins or events against, without `after:` / `required-after:`:
 
@@ -57,7 +57,8 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 | RTG, Depths Update, Better Caves, CoFH World, Recurrent Complex | Depths + RTG mixins in **required** `mixins.aqtweaks.json` | Mixin apply can fail; this pack always ships them |
 | Astral Sorcery | Optional mixin json + village shrine handler | Mixin config `required: false`; handler not registered |
 | Mystical World | Optional mixin json | No hut skip/settle |
-| Simple Difficulty, Biomes O' Plenty | Comfort potions / hot spring block; BOP optional mixin skips village water/quicksand lakes | Those benefits no-op; BOP lake mixin json skipped; vanilla water-lake skip still runs |
+| Simple Difficulty, Biomes O' Plenty | Comfort potions / hot spring; Water Collector (SD mixins + bus handler); BOP optional mixin skips village water/quicksand lakes | Those benefits no-op; SD/BOP mixin json skipped; vanilla water-lake skip still runs |
+| Rustic | Iron Gut `FluidBooze.inebriate` | Mixin json skipped; tipsy applies as stock |
 | Roguelike Dungeons Arcana | Thaumcraft dungeon warp via `isInsideStructure("RoguelikeDungeon")` | Dungeon exposure never matches |
 | Reskillable | Per-level bonuses + stamina perk id lookup | Module not registered; stamina `hasUnlockable` no-ops |
 | Effortless Building | Building skill place-reach / max blocks | Mixin json skipped; Building drip unused |
@@ -99,15 +100,14 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 
 ### MixinBooter: early vs late
 
-Vanilla `World` and `MobSpawnerBaseLogic` are already loaded when late mixins prepare. Portal glowstone light (`MixinWorldRiftLight` on `World.getRawLight`) and cage fail delay (`MixinMobSpawnerBaseLogic` on `updateSpawner`) are in **`mixins.aqtweaks.early.json`** (`required: true`). MixinBooter 11 reads that name from the jar manifest attribute `MixinConfigs` (set in `build.gradle`). Do not register this json from `AQTweaksLateMixinLoader`. Missing it fails load.
+Vanilla `World` and `MobSpawnerBaseLogic` are already loaded when late mixins prepare. Portal glowstone light (`MixinWorldRiftLight` on `World.getRawLight`) and cage fail delay (`MixinMobSpawnerBaseLogic` on `updateSpawner`) are in **`mixins.aqtweaks.early.json`**. Charm village paste (`mixins.aqtweaks.charm.json`, `required: true`) is on the same jar `MixinConfigs` so Charm `ASMHooks` is mixed before Charm’s transformer defines it. MixinBooter 11 reads `MixinConfigs` from the jar manifest (set in `build.gradle`). Do not register these json files from `AQTweaksLateMixinLoader`. Missing either fails load. Charm is `@Mod required-after` (Curse / pack prerequisite).
 
 ### MixinBooter late loader
 
-`AQTweaksLateMixinLoader` always returns these configs (MixinBooter / Fugue). **`mixins.aqtweaks.charm.json` is first** so Charm `ASMHooks` is mixed before `mixins.aqtweaks.json` prepares `StructureStart` (Charm ASM would otherwise define `ASMHooks` too early). Do not put the Charm json on jar `MixinConfigs`.
+`AQTweaksLateMixinLoader` always returns these configs (MixinBooter / Fugue). Charm paste is **not** here — it is on jar `MixinConfigs` with the early json.
 
 | File | `required` | Module | If parent jar missing |
 | --- | --- | --- | --- |
-| `mixins.aqtweaks.charm.json` | false | RTG Charm village paste skip (listed **first**) | Skip |
 | `mixins.aqtweaks.json` | **true** | Depths, RTG villages, Recipes | Load fails |
 | `mixins.aqtweaks.grapple.json` | false | Stamina | Skip |
 | `mixins.aqtweaks.dss.json` | false | Stamina | Skip |
@@ -128,7 +128,7 @@ Vanilla `World` and `MobSpawnerBaseLogic` are already loaded when late mixins pr
 `mixins.aqtweaks.json` contents (package `com.apocollis.aqtweaks.mixin`):
 
 - Client: `MixinRenderGlobal` (Depths hide sky)
-- Common: `MixinChunkProviderServer`, `depthsupdate.MixinDepthsCaveNoiseGenerator`, `cofh.MixinDistributionUniform`, `reccomplex.MixinRayMatcher`, `reccomplex.MixinGenericVillageCreationHandler`, Better Caves / RTG village mixins listed in [depths.md](depths.md) and [rtg.md](rtg.md), `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinWorldGenLakes`, `MixinMapGenVillageInside/Spawn/Start/World`, `MixinCraftingHelperFindFiles`, `MixinWorldEntitySpawner`. Charm paste: optional `mixins.aqtweaks.charm.json`. Portal `MixinWorldRiftLight` and cage `MixinMobSpawnerBaseLogic` are in `mixins.aqtweaks.early.json`. InControl `MixinStructureCache` is in `mixins.aqtweaks.incontrol.json`. Better Mineshafts locate mixins are in `mixins.aqtweaks.bettermineshafts.json`. RandomPortals grass pads: `mixins.aqtweaks.randomportals.json`.
+- Common: `MixinChunkProviderServer`, `depthsupdate.MixinDepthsCaveNoiseGenerator`, `cofh.MixinDistributionUniform`, `reccomplex.MixinRayMatcher`, `reccomplex.MixinGenericVillageCreationHandler`, Better Caves / RTG village mixins listed in [depths.md](depths.md) and [rtg.md](rtg.md), `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinWorldGenLakes`, `MixinMapGenVillageInside/Spawn/Start/World`, `MixinCraftingHelperFindFiles`, `MixinWorldEntitySpawner`. Charm paste: `mixins.aqtweaks.charm.json` on jar `MixinConfigs`. Portal `MixinWorldRiftLight` and cage `MixinMobSpawnerBaseLogic` are in `mixins.aqtweaks.early.json`. InControl `MixinStructureCache` is in `mixins.aqtweaks.incontrol.json`. Better Mineshafts locate mixins are in `mixins.aqtweaks.bettermineshafts.json`. RandomPortals grass pads: `mixins.aqtweaks.randomportals.json`.
 
 Two mixins target `ChunkGeneratorRTG` in that required json. Their order comes from injection points, not from this list:
 

@@ -1,6 +1,7 @@
 {
   "required": false,
   "minVersion": "0.8",
+  "refmap": "mixins.aqtweaks.refmap.json",
   "package": "com.apocollis.aqtweaks.mixin.biomesoplenty",
   "compatibilityLevel": "JAVA_21",
   "mixins": [

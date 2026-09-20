@@ -1,5 +1,6 @@
 # Legacy javac build script (Antigravity / Stamina Tweaks era).
-# Primary Gradle workflow: use build_gradle.ps1 instead.
+# Do not ship this output. --release 8 cannot compile current source (records / Java 21).
+# Primary Gradle workflow: .\build_gradle.ps1 (options.release = 21).
 # This file is PRESERVED for Antigravity compatibility - do not delete.
 $ErrorActionPreference = "Stop"
 

@@ -39,13 +39,23 @@ public class ReskillablePerkRegistry {
         event.getRegistry().register(new AqtweaksTrait("transpose", perks.transpose));
         event.getRegistry().register(new AqtweaksTrait("vis_thrift", perks.visThrift));
         event.getRegistry().register(new AqtweaksTrait("quiet_mind", perks.quietMind));
+        event.getRegistry().register(new AqtweaksTrait("glass_cutter", perks.glassCutter));
+        event.getRegistry().register(new AqtweaksTrait("herd_abundance", perks.herdAbundance));
+        event.getRegistry().register(new AqtweaksTrait("iron_gut", perks.ironGut));
+        event.getRegistry().register(new AqtweaksTrait("water_collector", perks.waterCollector));
+        event.getRegistry().register(new AqtweaksTrait("full_font", perks.fullFont));
+        event.getRegistry().register(new AqtweaksTrait("blood_pact", perks.bloodPact));
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
-    public void stampHillwalkerCost(RegistryEvent.Register<Unlockable> event) {
+    public void stampParentPerkCosts(RegistryEvent.Register<Unlockable> event) {
         Unlockable hill = event.getRegistry().getValue(new ResourceLocation("reskillable", "hillwalker"));
         if (hill != null) {
             hill.getUnlockableConfig().setCost(6);
+        }
+        Unlockable drop = event.getRegistry().getValue(new ResourceLocation("reskillable", "drop_guarantee"));
+        if (drop != null) {
+            drop.getUnlockableConfig().setCost(4);
         }
     }
 }

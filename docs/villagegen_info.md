@@ -122,7 +122,7 @@ Charm ASM rewrites `StructureStart.generateStructure` so paste goes through `ASM
 2. Call the real `addComponentParts`.
 3. Post `Post` if paste returned true.
 
-Tweaks’ `@Redirect` on `StructureComponent.func_74875_a` inside `StructureStart.func_75068_a` often **never runs**. Layout omission (houses/paths/RC) is the reliable drop. Tweaks also injects `ASMHooks.addComponentParts` HEAD (`mixins.aqtweaks.charm.json`, prepared **before** `mixins.aqtweaks.json` so Charm does not define `ASMHooks` first) and returns **true** for leftover ocean/river floors so Charm does not drop the component from the start (a `false` would slice a multi-chunk building). Skip body lives in `VillageCharmPaste` so mixin prepare does not load `VillageLandHelper`.
+Tweaks’ `@Redirect` on `StructureComponent.func_74875_a` inside `StructureStart.func_75068_a` often **never runs**. Layout omission (houses/paths/RC) is the reliable drop. Tweaks also injects `ASMHooks.addComponentParts` HEAD (`mixins.aqtweaks.charm.json` on jar `MixinConfigs`, `required: true`) and returns **true** for leftover ocean/river floors so Charm does not drop the component from the start (a `false` would slice a multi-chunk building). Skip body lives in `VillageCharmPaste` so mixin prepare does not load `VillageLandHelper`. Charm is a Tweaks / Curse prerequisite.
 
 `villageDoorsForBiome` / `BiomeEvent.GetVillageBlockID` only theme wood and doors.
 
@@ -140,7 +140,7 @@ Tweaks’ `@Redirect` on `StructureComponent.func_74875_a` inside `StructureStar
 | `VillagePlate.rememberNearby` | `rememberIfAbsent` for well chunks in layout radius. Does not walk every Start. |
 | `MixinStructureVillagePieces` | House/waystone skip/retry inland on never-raise; wet paths retry inland then omit leftover ocean/river or mostly-wet docks. |
 | `MixinGenericVillageCreationHandler` | Same skip/retry for RC AABBs (full `.rcst` box). |
-| `MixinASMHooksVillagePaste` | Charm populate abort if any column of the full AABB is ocean/river biome (roads exempt). Late json first; `VillageCharmPaste` at paste time. |
+| `MixinASMHooksVillagePaste` | Charm populate abort if any column of the full AABB is ocean/river biome (roads exempt). Jar `MixinConfigs`; `VillageCharmPaste` at paste time. |
 | `MixinStructureStartVillagePaste` | Snapshot component iterator; populate walk/drop if remembered well is never-raise; abort if any column of the full AABB is ocean/river biome (incl. well; roads exempt); stamp pad children; relight clip. |
 | `MixinMapGenVillageInside` | Detection = pad + Hermite (vanilla child hit first, then `startAt` XZ/Y). Also stamped into `Village.dat`. Well floor through plate + `villageBoxHeight`. |
 

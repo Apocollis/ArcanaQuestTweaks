@@ -124,7 +124,20 @@ public class ReskillableModule {
         if (skipPlayer(player) || event.getWorld() == null || event.getWorld().isRemote) return;
         IBlockState state = event.getState();
         List<ItemStack> drops = event.getDrops();
-        if (state == null || drops == null || drops.isEmpty()) return;
+        if (state == null || drops == null) return;
+
+        if (Reflect.hasUnlockable(player, "aqtweaks:glass_cutter")
+                && ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.glassCutter.enable
+                && ReskillableBonuses.isCuttableGlass(event.getWorld(), event.getPos(), state)) {
+            ItemStack self = ReskillableBonuses.glassSelfDrop(state);
+            if (!self.isEmpty() && !ReskillableBonuses.hasSilkTouch(player)
+                    && !ReskillableBonuses.dropsContain(drops, self)) {
+                drops.add(self);
+                event.setDropChance(1.0f);
+            }
+        }
+
+        if (drops.isEmpty()) return;
 
         if (Reflect.hasUnlockable(player, "aqtweaks:herbalist")
                 && ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.herbalist.enable
@@ -178,20 +191,73 @@ public class ReskillableModule {
         if (held.isEmpty() || !(held.getItem() instanceof ItemShears)) return;
         Entity target = event.getTarget();
         if (event.isCanceled()) return;
+        World world = event.getWorld();
+        if (world.getMinecraftServer() == null) return;
+        if (Reflect.hasUnlockable(player, "aqtweaks:herd_abundance")
+                && ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.herdAbundance.enable) {
+            extraFarmWoolAfterShear(world, target);
+        }
         if (!(target instanceof EntitySheep) || !ReskillableBonuses.isShearableLiving(target)) return;
+        if (isFarmWoolAnimal(target)) return;
         EntitySheep sheep = (EntitySheep) target;
         if (sheep.getSheared()) return;
         double k = ArcanaQuestTweaksConfig.ReskillableModuleConfig.gathering.extraDropChancePerLevel;
-        if (!ReskillableBonuses.roll(event.getWorld(), player, "gathering", k)) return;
+        if (!ReskillableBonuses.roll(world, player, "gathering", k)) return;
         int color = sheep.getFleeceColor().getMetadata();
-        World world = event.getWorld();
-        if (world.getMinecraftServer() == null) return;
         world.getMinecraftServer().addScheduledTask(() -> {
             if (sheep.isDead || !sheep.getSheared()) return;
             ItemStack wool = new ItemStack(Blocks.WOOL, 1, color);
             EntityItem dropped = new EntityItem(world, sheep.posX, sheep.posY, sheep.posZ, wool);
             world.spawnEntity(dropped);
         });
+    }
+
+    private static void extraFarmWoolAfterShear(World world, Entity target) {
+        if (!isFarmWoolAnimal(target)) return;
+        if (isEntitySheared(target)) return;
+        world.getMinecraftServer().addScheduledTask(() -> {
+            if (target.isDead || !isEntitySheared(target)) return;
+            ItemStack wool = farmWoolStack(target);
+            if (wool.isEmpty()) return;
+            EntityItem dropped = new EntityItem(world, target.posX, target.posY, target.posZ, wool);
+            world.spawnEntity(dropped);
+        });
+    }
+
+    private static boolean isFarmWoolAnimal(Entity entity) {
+        try {
+            Object out = Class.forName("com.apocollis.aqtweaks.animania.AnimaniaFarmProducts")
+                    .getMethod("isWoolAnimal", Entity.class)
+                    .invoke(null, entity);
+            return Boolean.TRUE.equals(out);
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    private static boolean isEntitySheared(Entity entity) {
+        if (entity instanceof EntitySheep) {
+            return ((EntitySheep) entity).getSheared();
+        }
+        try {
+            Object out = Class.forName("com.apocollis.aqtweaks.animania.AnimaniaFarmProducts")
+                    .getMethod("isSheared", Entity.class)
+                    .invoke(null, entity);
+            return Boolean.TRUE.equals(out);
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    private static ItemStack farmWoolStack(Entity entity) {
+        try {
+            Object out = Class.forName("com.apocollis.aqtweaks.animania.AnimaniaFarmProducts")
+                    .getMethod("woolStack", Entity.class)
+                    .invoke(null, entity);
+            return out instanceof ItemStack ? (ItemStack) out : ItemStack.EMPTY;
+        } catch (Throwable ignored) {
+            return ItemStack.EMPTY;
+        }
     }
 
     @SubscribeEvent(priority = EventPriority.NORMAL)
@@ -213,7 +279,7 @@ public class ReskillableModule {
 
         float amount = event.getAmount();
         if (trueSource instanceof EntityPlayer && !skipPlayer((EntityPlayer) trueSource)) {
-            amount *= ReskillableBonuses.magicMultiplier((EntityPlayer) trueSource, true);
+            amount = ReskillableBonuses.scaleOutgoingMagic((EntityPlayer) trueSource, amount);
         }
         if (victim instanceof EntityPlayer && !skipPlayer((EntityPlayer) victim)) {
             amount *= ReskillableBonuses.magicMultiplier((EntityPlayer) victim, false);
@@ -258,6 +324,7 @@ public class ReskillableModule {
             clearModifier(player, SharedMonsterAttributes.ATTACK_DAMAGE, ReskillableBonuses.UUID_ATTACK);
             clearModifier(player, SharedMonsterAttributes.ARMOR, ReskillableBonuses.UUID_ARMOR);
             clearModifier(player, SharedMonsterAttributes.MOVEMENT_SPEED, ReskillableBonuses.UUID_SPEED);
+            clearModifier(player, SharedMonsterAttributes.MAX_HEALTH, ReskillableBonuses.UUID_MAX_HEALTH);
             return;
         }
         stampAdd(player, SharedMonsterAttributes.ATTACK_DAMAGE, ReskillableBonuses.UUID_ATTACK,
@@ -269,6 +336,39 @@ public class ReskillableModule {
         stampAdd(player, SharedMonsterAttributes.MOVEMENT_SPEED, ReskillableBonuses.UUID_SPEED,
                 ReskillableBonuses.MOD_SPEED, "agility",
                 ArcanaQuestTweaksConfig.ReskillableModuleConfig.agility.speedPerLevel);
+        stampBloodPactHealth(player);
+    }
+
+    private static void stampBloodPactHealth(EntityPlayer player) {
+        double amount = 0.0;
+        if (ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.bloodPact.enable
+                && Reflect.hasUnlockable(player, "aqtweaks:blood_pact")) {
+            amount = ArcanaQuestTweaksConfig.ReskillableModuleConfig.magic.bloodPactMaxHealth;
+        }
+        IAttributeInstance instance = player.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH);
+        if (instance == null) return;
+        UUID uuid = ReskillableBonuses.UUID_MAX_HEALTH;
+        AttributeModifier existing = instance.getModifier(uuid);
+        if (amount == 0.0) {
+            if (existing != null) instance.removeModifier(uuid);
+            return;
+        }
+        if (existing != null && existing.getAmount() == amount && existing.getOperation() == 0
+                && !existing.isSaved()) {
+            clampHealth(player);
+            return;
+        }
+        instance.removeModifier(uuid);
+        instance.applyModifier(new AttributeModifier(uuid, ReskillableBonuses.MOD_MAX_HEALTH, amount, 0)
+                .setSaved(false));
+        clampHealth(player);
+    }
+
+    private static void clampHealth(EntityPlayer player) {
+        float max = player.getMaxHealth();
+        if (player.getHealth() > max) {
+            player.setHealth(max);
+        }
     }
 
     public static void restampOnlinePlayers() {

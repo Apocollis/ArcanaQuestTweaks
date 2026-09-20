@@ -1,6 +1,6 @@
 # Reskillable module (1.8)
 
-Last updated: 2026-09-19.
+Last updated: 2026-09-20.
 
 Config: `config/arcanaquesttweaks/aqtweaks_reskillable.cfg`. Handler registers only if `reskillable` is loaded (`CommonProxy.init`). Compile-hard CAD Reskillable **1.13.1** API; types live only in `com.apocollis.aqtweaks.reskillable`. Soft `@Mod` `after:reskillable` (not `required-after`).
 
@@ -54,7 +54,7 @@ Attributes restamp: `LevelUpEvent.Post`, `CacheInvalidatedEvent`, login, respawn
 
 Farming: mature `BlockCrops`, nether wart age 3, cocoa age 2, pumpkin, melon. Not saturation.
 
-Gathering: logs / `logWood`, gravel, leaves / `treeLeaves`, flowers, mushrooms, tall grass. Skip silk touch. Skip `ore*` OreDict and vanilla ore blocks. Extra wool after a successful sheep shear (next-tick if `getSheared()` flipped). Extra fish: one more stack entry on `ItemFishedEvent`.
+Gathering: logs / `logWood`, gravel, leaves / `treeLeaves`, flowers, mushrooms, tall grass. Skip silk touch. Skip `ore*` OreDict and vanilla ore blocks. Extra wool after a successful **vanilla** sheep shear (next-tick if `getSheared()` flipped). Farm Animania sheep/goats skip that vanilla wool drip. Extra fish: one more stack entry on `ItemFishedEvent`.
 
 ### Magic classify
 
@@ -68,7 +68,11 @@ Outgoing if trueSource is the player; incoming if victim is the player. Same cla
 
 Gaia bolts Tweaks recast to `causeIndirectMagicDamage` still match. Splash/lingering potion HP does not.
 
-Stock TC foci stamp `setMagicDamage()` in the [thaumcraft module](thaumcraft.md) mixin (not a `thrown` prefix). Heal on living uses `heal(float)`: caster outgoing `× (1 + bonus)` only; no incoming DR on heals. Food/regen/potions are not scaled.
+Stock TC foci stamp `setMagicDamage()` in the [thaumcraft module](thaumcraft.md) mixin (not a `thrown` prefix). DSS Blade Beam stamps **magic + unblockable** on `EntitySwordBeam` impact (`mixins.aqtweaks.dss.json`). Heal on living uses `heal(float)`: caster outgoing drip, then Blood Pact, then Full Font if stamped; no incoming DR on heals. Food/regen/potions are not scaled.
+
+Outgoing classified Magic (hurt + Heal-focus + Blade Beam) is `scaleOutgoingMagic`: drip × Blood Pact × Full Font stamp (stamp then clears). Incoming Magic is drip only.
+
+Full Font: aura full means `AuraHandler.getVis ≥ getAuraBase × 0.9` (cfg). `ItemCaster.consumeVis` amount ×1.5 when full+perk **then** Vis Thrift. Success stamps; next classified outgoing ×1.5. Not workbench (`crafting` flag). Blood Pact: unsaved `generic.maxHealth` −8 while unlocked (Stats Keeper extra hearts untouched); outgoing ×2 after drip.
 
 `logClassify` (default **true**) INFO-logs unique `damageType` + `isMagicDamage` + source classes for player-involved hits (cap 48). Default allow prefix **`fireball`** (ghast / blaze / Lich). Instance cfg may still be empty. **Do not** add `thrown`.
 
@@ -99,7 +103,7 @@ Register in **preInit** (`ReskillablePerkRegistry`). CAD `getTraitConfig` still 
 | `aqtweaks:power_attack` | attack | 2,1 | 3 | attack 12 |
 | `aqtweaks:shield_efficiency` | defense | 2,2 | 4 | defense 16 |
 | `aqtweaks:respite` | defense | 2,1 | 4 | defense 16, magic 16 |
-| `aqtweaks:armor_mastery` | defense | 2,3 | 6 | defense 8, agility 16 |
+| `aqtweaks:armor_mastery` | defense | 2,3 | 4 | defense 8, agility 16 |
 | `aqtweaks:adrenaline` | agility | 2,1 | 4 | agility 16, defense 12 |
 | `aqtweaks:evasion` | agility | 3,2 | 3 | agility 16 |
 | `aqtweaks:expert_climber` | agility | 1,2 | 4 | agility 20 |
@@ -107,17 +111,23 @@ Register in **preInit** (`ReskillablePerkRegistry`). CAD `getTraitConfig` still 
 | `aqtweaks:mining_efficiency` | mining | 2,3 | 6 | mining 20 |
 | `aqtweaks:mining_expert` | mining | 3,3 | 4 | mining 24 |
 | `aqtweaks:precision_shot` | attack | 3,3 | 3 | attack 12, agility 16 |
-| `aqtweaks:herbalist` | gathering | 2,1 | 3 | gathering 16, magic 12 |
+| `aqtweaks:herbalist` | gathering | 2,1 | 4 | gathering 16, magic 12 |
 | `aqtweaks:gathering_efficiency` | gathering | 2,3 | 4 | gathering 12 |
+| `aqtweaks:herd_abundance` | gathering | 2,2 | 4 | gathering 16, farming 12 |
+| `aqtweaks:water_collector` | gathering | 3,1 | 4 | gathering 16 |
 | `aqtweaks:bountiful_harvest` | farming | 2,2 | 4 | farming 16 |
 | `aqtweaks:rancher` | farming | 2,1 | 4 | farming 16, gathering 12 |
+| `aqtweaks:iron_gut` | farming | 2,3 | 3 | farming 16 |
 | `aqtweaks:drafter` | building | 2,1 | 3 | building 12 |
+| `aqtweaks:glass_cutter` | building | 2,2 | 2 | building 12 |
 | `aqtweaks:sculptor` | building | 2,3 | 3 | building 20 |
 | `aqtweaks:transpose` | building | 3,1 | 3 | building 24, magic 30 |
 | `aqtweaks:vis_thrift` | magic | 2,1 | 4 | magic 20 |
 | `aqtweaks:quiet_mind` | magic | 2,2 | 4 | magic 16, defense 12 |
+| `aqtweaks:full_font` | magic | 2,3 | 4 | magic 16 |
+| `aqtweaks:blood_pact` | magic | 3,3 | 4 | magic 20 |
 
-CAD `reskillable:hillwalker` cost is stamped **6** at register LOWEST.
+CAD `reskillable:hillwalker` cost is stamped **6** at register LOWEST. CAD `reskillable:drop_guarantee` cost is stamped **4**.
 
 Precision Shot: full-draw `ItemBow` (`ArrowLooseEvent` charge ≥ 20) stamps the arrow; that hit **×2** once. Not melee.
 
@@ -126,6 +136,14 @@ Herbalist: always +1 on listed block namespaces. Bountiful Harvest: always +1 ma
 Gathering Efficiency: −1 forage `BreakEvent` stamina only.
 
 Rancher: tended Animania (`handFed` or `interacted`) within 16 of the perk player extra-tick gestation, dry, growth, drink recovery, wool, hen lay, mating AI delay. No extra milk bucket.
+
+Herd Abundance: always +1 Farm breed wool after a successful Animania sheep/goat shear; always +1 egg on empty-hand nest extract. Not milk, not clocks.
+
+Glass Cutter: harvest of OreDict `blockGlass`/`paneGlass` (and vanilla glass/pane types) drops the block when silk is not already recovering it. Runs before the empty-drop return. No hardness/stamina change.
+
+Iron Gut: cancels Rustic `FluidBooze.inebriate` (tipsy over-drink). Drink benefits remain.
+
+Water Collector: SD world-drink dirty chance 0; canteen fill NORMAL/RAIN → PURIFIED; glass bottle on source water → `SDItems.purifiedWaterBottle`. Compile-hard Simple Difficulty 0.3.9.
 
 Drafter / Sculptor / Transpose: EB `sanitize` snaps locked modes / quick replace.
 
@@ -137,7 +155,7 @@ Mining Expert: `PlayerEvent.HarvestCheck` client+server. Pickaxe tool class, blo
 
 Respite: `LivingDamageEvent` LOWEST. Lethal except `outOfWorld`. Regen II + `teastory:defence` 5s. Cooldown 60s (harmful potion, same PNG as the tree icon).
 
-Evasion: `LivingAttackEvent` HIGH, living attacker (PvP included). Spends Elenai dodge cost (`ModConfig.common.feathers.cost` / `airborneCost`). Dodge **sound** only (no roll, no `ServerDodgeEffects.run`). Cooldown 30s potion.
+Evasion: `LivingAttackEvent` HIGH, living attacker (PvP included). Spends Elenai dodge cost (`ModConfig.common.feathers.cost` / `airborneCost`). Dodge **sound** only (no roll, no `ServerDodgeEffects.run`). Cooldown 30s potion. Tree requirement is **agility 16** only. Instance `trait|elenaidodge2:dodge` is stripped at load (Elenai has no CAD trait).
 
 Adrenaline cooldown potion uses `unlockables/adrenaline.png` (20s).
 
@@ -154,11 +172,15 @@ Lang: `reskillable.unlock.aqtweaks.<path>` / `.desc`. Icons: `aqtweaks:textures/
 - `stamina/StaminaPerks.java` — spend reductions, Adrenaline, Evasion, Power Attack
 - `reskillable/ReskillableBonuses.java` — levels, classify, EB add
 - `reskillable/EffortlessBuildingHooks.java` — mixin bridge (no Reskillable imports)
-- `animania/AnimaniaModule.java`, `AnimaniaFarmClocks.java`
+- `animania/AnimaniaModule.java`, `AnimaniaFarmClocks.java`, `AnimaniaFarmProducts.java`
 - `thaumcraft/ThaumcraftPerkHooks.java`
+- `simpledifficulty/SimpleDifficultyModule.java`
 - `mixin/effortlessbuilding/MixinReachHelper.java`, `MixinModeSettingsManager.java`, `MixinModifierSettingsManager.java`
-- `mixin/thaumcraft/MixinCasterManager.java`, `MixinWarpEvents.java`
-- `mixin/animania/MixinGenericAIMate.java`
+- `mixin/thaumcraft/MixinCasterManager.java`, `MixinWarpEvents.java`, `MixinItemCaster.java`
+- `mixin/dss/MixinEntitySwordBeam.java`
+- `mixin/simpledifficulty/MixinThirstUtilInternal.java`, `MixinItemCanteen.java`, `MixinItemCanteenUse.java`
+- `mixin/rustic/MixinFluidBooze.java`
+- `mixin/animania/MixinGenericAIMate.java`, `MixinBlockNest.java`
 - `mixins.aqtweaks.effortlessbuilding.json`
 
 ## Do not regress

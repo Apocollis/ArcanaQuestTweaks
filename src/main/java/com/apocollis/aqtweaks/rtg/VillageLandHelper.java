@@ -148,6 +148,12 @@ public final class VillageLandHelper {
     private record StashKey(long seed, int dim) {}
 
     public static final class Events {
+        static {
+            // Unload is the first use of VillagePlate. EventSubscriptionTransformer
+            // ClassReader-s it then; during stopServer the jar bytes can already be empty.
+            VillagePlate.class.getName();
+        }
+
         @SubscribeEvent
         public void onWorldUnload(WorldEvent.Unload event) {
             World world = event.getWorld();

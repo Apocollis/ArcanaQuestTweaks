@@ -50,9 +50,14 @@ $deps = @(
     "BetterMineshaftsForge-1.12.2-2.2.1.jar",
     "StatsKeeper-1.12.2-3.1.13.jar",
     "randomportals-cleanroom0.1.0.jar",
+    "1.12.2-DynamicSwordSkills-6.0.1.jar",
+    "1.12.2-SwordSkillsApi-1.1.0.jar",
+    "SimpleDifficulty-1.12.2-0.3.9.jar",
+    "rustic-1.2.0.jar",
     "twilightforest-1.12.2-3.15.1.jar",
     "Quark-r1.6-179.jar",
-    "AutoRegLib-1.3-32.jar"
+    "AutoRegLib-1.3-32.jar",
+    "Charm-1.12.2-1.4.1.jar"
 )
 foreach ($dep in $deps) {
     $src = "$localModsDir/$dep"

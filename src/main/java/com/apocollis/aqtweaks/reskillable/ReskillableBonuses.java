@@ -6,10 +6,12 @@ import codersafterdark.reskillable.api.data.PlayerData;
 import codersafterdark.reskillable.api.data.PlayerDataHandler;
 import codersafterdark.reskillable.api.data.PlayerSkillInfo;
 import codersafterdark.reskillable.api.skill.Skill;
+import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockCocoa;
 import net.minecraft.block.BlockCrops;
 import net.minecraft.block.BlockFlower;
+import net.minecraft.block.BlockGlass;
 import net.minecraft.block.BlockGravel;
 import net.minecraft.block.BlockLeaves;
 import net.minecraft.block.BlockLog;
@@ -17,17 +19,24 @@ import net.minecraft.block.BlockMelon;
 import net.minecraft.block.BlockMushroom;
 import net.minecraft.block.BlockNetherWart;
 import net.minecraft.block.BlockOre;
+import net.minecraft.block.BlockPane;
 import net.minecraft.block.BlockPumpkin;
 import net.minecraft.block.BlockRedstoneOre;
+import net.minecraft.block.BlockStainedGlass;
+import net.minecraft.block.BlockStainedGlassPane;
 import net.minecraft.block.BlockTallGrass;
+import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.projectile.EntityPotion;
 import net.minecraft.init.Enchantments;
+import net.minecraft.init.Items;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraftforge.common.IShearable;
 import net.minecraftforge.oredict.OreDictionary;
@@ -52,10 +61,13 @@ public final class ReskillableBonuses {
     static final UUID UUID_ATTACK = UUID.fromString("8c1e6b10-4a3d-4c6f-9e2a-0b7d2f11a001");
     static final UUID UUID_ARMOR = UUID.fromString("8c1e6b10-4a3d-4c6f-9e2a-0b7d2f11a002");
     static final UUID UUID_SPEED = UUID.fromString("8c1e6b10-4a3d-4c6f-9e2a-0b7d2f11a003");
+    static final UUID UUID_MAX_HEALTH = UUID.fromString("8c1e6b10-4a3d-4c6f-9e2a-0b7d2f11a004");
 
     static final String MOD_ATTACK = "aqtweaks.reskillable.attack";
     static final String MOD_ARMOR = "aqtweaks.reskillable.armor";
     static final String MOD_SPEED = "aqtweaks.reskillable.speed";
+    static final String MOD_MAX_HEALTH = "aqtweaks.reskillable.maxhealth";
+    static final String NBT_FULL_FONT = "AqtweaksFullFont";
 
     private static final Set<String> MAGIC_LOG_SEEN = new HashSet<>();
     private static final int MAGIC_LOG_CAP = 48;
@@ -294,6 +306,86 @@ public final class ReskillableBonuses {
         double bonus = Math.min(0.4, skillLevel(player, "magic") * k);
         if (bonus <= 0.0) return 1.0f;
         return outgoing ? (float) (1.0 + bonus) : (float) (1.0 - bonus);
+    }
+
+    public static float scaleOutgoingMagic(EntityPlayer player, float amount) {
+        if (!enabled() || player == null || amount == 0.0f) return amount;
+        float scaled = amount * magicMultiplier(player, true);
+        if (ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.bloodPact.enable
+                && Reflect.hasUnlockable(player, "aqtweaks:blood_pact")) {
+            scaled *= (float) ArcanaQuestTweaksConfig.ReskillableModuleConfig.magic.bloodPactOutgoing;
+        }
+        if (consumeFullFontStamp(player)) {
+            scaled *= (float) ArcanaQuestTweaksConfig.ReskillableModuleConfig.magic.fullFontOutput;
+        }
+        return scaled;
+    }
+
+    public static void stampFullFont(EntityPlayer player) {
+        if (player == null) return;
+        player.getEntityData().setBoolean(NBT_FULL_FONT, true);
+    }
+
+    public static boolean consumeFullFontStamp(EntityPlayer player) {
+        if (player == null) return false;
+        if (!player.getEntityData().getBoolean(NBT_FULL_FONT)) return false;
+        player.getEntityData().removeTag(NBT_FULL_FONT);
+        return true;
+    }
+
+    public static boolean isCuttableGlass(World world, BlockPos pos, IBlockState state) {
+        if (state == null) return false;
+        Block block = state.getBlock();
+        if (world != null && pos != null) {
+            try {
+                if (block.getBlockHardness(state, world, pos) < 0.0f) return false;
+            } catch (Exception ignored) {
+            }
+        }
+        if (block instanceof BlockGlass || block instanceof BlockStainedGlass
+                || block instanceof BlockStainedGlassPane) {
+            return true;
+        }
+        if (block instanceof BlockPane && state.getMaterial() == Material.GLASS) return true;
+        ItemStack probe = itemFromBlock(world, state);
+        if (!probe.isEmpty()) {
+            try {
+                int[] ids = OreDictionary.getOreIDs(probe);
+                for (int id : ids) {
+                    String name = OreDictionary.getOreName(id);
+                    if (name == null) continue;
+                    if (name.equals("blockGlass") || name.equals("paneGlass")
+                            || name.startsWith("blockGlass") || name.startsWith("paneGlass")) {
+                        return true;
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        ResourceLocation key = Block.REGISTRY.getNameForObject(block);
+        if (key == null) return false;
+        if (!key.getPath().toLowerCase(Locale.ROOT).contains("glass")) return false;
+        return Item.getItemFromBlock(block) != Items.AIR;
+    }
+
+    public static ItemStack glassSelfDrop(IBlockState state) {
+        if (state == null) return ItemStack.EMPTY;
+        Block block = state.getBlock();
+        net.minecraft.item.Item item = Item.getItemFromBlock(block);
+        if (item == Items.AIR) return ItemStack.EMPTY;
+        int meta = block.damageDropped(state);
+        return new ItemStack(item, 1, meta);
+    }
+
+    public static boolean dropsContain(java.util.List<ItemStack> drops, ItemStack match) {
+        if (drops == null || match == null || match.isEmpty()) return false;
+        for (ItemStack stack : drops) {
+            if (stack == null || stack.isEmpty()) continue;
+            if (stack.getItem() == match.getItem() && stack.getMetadata() == match.getMetadata()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static void maybeLogMagic(DamageSource source, Entity trueSource, Entity victim, boolean classified) {

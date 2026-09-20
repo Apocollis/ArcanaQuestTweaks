@@ -1,8 +1,12 @@
 package com.apocollis.aqtweaks.reskillable;
 
 import net.minecraftforge.common.config.Config;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class ReskillablePerkLayout {
+    private static final Logger LOGGER = LogManager.getLogger("AQTweaks-Reskillable");
+
     @Config.Name("Enable")
     @Config.Comment("If false, the trait is registered but disabled (hidden / unpurchasable). Restart after change.")
     public boolean enable = true;
@@ -35,5 +39,45 @@ public class ReskillablePerkLayout {
         this.cost = cost;
         this.parentSkill = parentSkill;
         this.requirements = requirements;
+    }
+
+    /**
+     * Drops CAD {@code trait|} rows that are not Reskillable / Tweaks unlockables
+     * (e.g. instance {@code trait|elenaidodge2:dodge}).
+     */
+    public void sanitizeRequirements() {
+        if (requirements == null || requirements.length == 0) {
+            return;
+        }
+        java.util.List<String> kept = new java.util.ArrayList<>(requirements.length);
+        for (String raw : requirements) {
+            if (raw == null) {
+                continue;
+            }
+            String req = raw.trim();
+            if (req.isEmpty()) {
+                continue;
+            }
+            if (isSupportedRequirement(req)) {
+                kept.add(req);
+            } else {
+                LOGGER.warn("[AQTweaks] Dropping unresolvable perk requirement '{}'.", req);
+            }
+        }
+        requirements = kept.toArray(new String[0]);
+    }
+
+    static boolean isSupportedRequirement(String req) {
+        if (req.startsWith("trait|")) {
+            String id = req.substring("trait|".length());
+            return id.startsWith("reskillable:") || id.startsWith("aqtweaks:");
+        }
+        int bar = req.indexOf('|');
+        if (bar <= 0 || bar == req.length() - 1) {
+            return false;
+        }
+        String skill = req.substring(0, bar);
+        String level = req.substring(bar + 1);
+        return skill.indexOf(':') > 0 && level.chars().allMatch(Character::isDigit);
     }
 }

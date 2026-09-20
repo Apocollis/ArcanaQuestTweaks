@@ -26,6 +26,10 @@ public class AqtweaksTrait extends Trait {
     }
 
     private static String[] reqsOf(ReskillablePerkLayout layout) {
+        if (layout == null) {
+            return new String[0];
+        }
+        layout.sanitizeRequirements();
         return layout.requirements != null ? layout.requirements : new String[0];
     }
 }
