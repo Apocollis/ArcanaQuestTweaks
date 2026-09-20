@@ -1,0 +1,10 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "refmap": "mixins.aqtweaks.refmap.json",
+  "package": "com.apocollis.aqtweaks.mixin.recipestages",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "MixinRecipesSetRecipeStage"
+  ]
+}

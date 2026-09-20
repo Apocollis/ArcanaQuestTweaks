@@ -1099,6 +1099,27 @@ public class ArcanaQuestTweaksConfig {
         public String elixirDrinkSound = "minecraft:entity.player.levelup";
     }
 
+    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_gamestages", category = "")
+    public static class GameStagesModuleConfig {
+        @Config.Name("General")
+        @Config.Comment("Gate Chisel crafts behind Recipe Stages / Game Stages.")
+        public static final GameStagesGeneral general = new GameStagesGeneral();
+    }
+
+    public static class GameStagesGeneral {
+        @Config.Name("Enable Game Stages Module")
+        @Config.Comment("When false, Chisel GUI and in-world carving are not gated by Recipe Stages.")
+        public boolean enable = true;
+
+        @Config.Name("Chisel Stage Allowlist")
+        @Config.Comment("Recipe Stages that can lock a Chisel output. Empty = every captured stage. Pack defaults are the Building skill stages.")
+        public String[] chiselStageAllowlist = {
+                "apprentice_builder",
+                "experienced_builder",
+                "master_builder"
+        };
+    }
+
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_spawning", category = "")
     public static class SpawningModuleConfig {
         @Config.Name("General")
