@@ -1086,6 +1086,55 @@ public class ArcanaQuestTweaksConfig {
         public String[] safeBiomeAllowlist = {};
     }
 
+    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_qualitytools", category = "")
+    public static class QualityToolsModuleConfig {
+        @Config.Name("General")
+        @Config.Comment("Quality Tools Module: loot stamp, wear/break overlays, Dawnstone rune upgrades.")
+        public static final QualityToolsGeneral general = new QualityToolsGeneral();
+    }
+
+    public static class QualityToolsGeneral {
+        @Config.Name("Enable Quality Tools Module")
+        @Config.Comment("Master switch. When false, QT living-update stamp is not skipped and Tweaks wear/break/runes/loot stamp are off.")
+        public boolean enable = true;
+
+        @Config.Name("Low Durability")
+        @Config.Comment("Wear overlay may apply at or below this remaining/max ratio. Broken items never take wear.")
+        @Config.RangeDouble(min = 0.01, max = 1.0)
+        public double lowDurability = 0.20;
+
+        @Config.Name("High Durability")
+        @Config.Comment("Repair to this remaining/max ratio clears gray/dark_gray overlays and restores QualityBase.")
+        @Config.RangeDouble(min = 0.01, max = 1.0)
+        public double highDurability = 0.75;
+
+        @Config.Name("Wear Chance")
+        @Config.Comment("Chance to apply gray when an eligible wear check runs.")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public double wearChance = 1.0;
+
+        @Config.Name("Wear Check Interval Ticks")
+        @Config.Comment("Minimum ticks between wear roll attempts on one stack.")
+        @Config.RangeInt(min = 1, max = 1200)
+        public int wearCheckIntervalTicks = 40;
+
+        @Config.Name("Common Rune")
+        @Config.Comment("sccraftingrunes Common Rune. red→white then white→yellow.")
+        public String commonRune = "sccraftingrunes:common_mat";
+
+        @Config.Name("Uncommon Rune")
+        @Config.Comment("yellow→green")
+        public String uncommonRune = "sccraftingrunes:uncommon_mat";
+
+        @Config.Name("Rare Rune")
+        @Config.Comment("green→blue")
+        public String rareRune = "sccraftingrunes:rare_mat";
+
+        @Config.Name("Legendary Rune")
+        @Config.Comment("blue→gold")
+        public String legendaryRune = "sccraftingrunes:legendary_mat";
+    }
+
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_statskeeper", category = "")
     public static class StatsKeeperModuleConfig {
         @Config.Name("General")

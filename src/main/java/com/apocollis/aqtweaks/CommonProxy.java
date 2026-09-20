@@ -90,9 +90,16 @@ public class CommonProxy {
                 && net.minecraftforge.fml.common.Loader.isModLoaded("twilightforest")) {
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.twilightforest.TfPortalLandingHandler());
         }
+
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("qualitytools")) {
+            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.qualitytools.QualityToolsModule());
+        }
     }
 
     public void postInit(FMLPostInitializationEvent event) {
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("qualitytools")) {
+            com.apocollis.aqtweaks.qualitytools.QualityToolsModule.postInit();
+        }
         // After InControl so PotentialSpawns last-per-class runs after it appends group-count rows.
         if (net.minecraftforge.fml.common.Loader.isModLoaded("incontrol")) {
             com.apocollis.aqtweaks.spawning.SpawnLayerFilter.enableStructureExemption();

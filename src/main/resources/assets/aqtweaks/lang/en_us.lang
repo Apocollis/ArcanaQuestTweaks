@@ -77,3 +77,5 @@ effect.aqtweaks.adrenaline_cooldown=Adrenaline Cooldown
 effect.aqtweaks.evasion_cooldown=Evasion Cooldown
 effect.aqtweaks.respite_cooldown=Respite Cooldown
 chat.aqtweaks.life_elixir.max_health=Your vitality is already at its peak!
+chat.aqtweaks.gamestages.chisel_locked=Crafting locked: requires the %s recipe stage.
+chat.aqtweaks.quality.rune_mismatch=This rune cannot be used with this equipment.

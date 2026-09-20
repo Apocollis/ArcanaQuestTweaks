@@ -57,7 +57,12 @@ $deps = @(
     "twilightforest-1.12.2-3.15.1.jar",
     "Quark-r1.6-179.jar",
     "AutoRegLib-1.3-32.jar",
-    "Charm-1.12.2-1.4.1.jar"
+    "Charm-1.12.2-1.4.1.jar",
+    "Chisel-MC1.12.2-1.0.2.45.jar",
+    "GameStages-1.12.2-2.0.123.jar",
+    "recipestages-2.0.1.jar",
+    "QualityTools-1.0.7_for_1.12.2.jar",
+    "embers-1.26.1.jar"
 )
 foreach ($dep in $deps) {
     $src = "$localModsDir/$dep"

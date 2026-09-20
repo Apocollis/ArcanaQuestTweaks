@@ -44,6 +44,10 @@ These json files are `required: false`. Removing the parent should skip that jso
 | RandomPortals | No `MixinRPOTeleporter`; stock RP generate (leaves/Y≥70 fallback). Handler also off if TF missing |
 | Twilight Forest | No `TfPortalLandingHandler` unless RP is also present |
 | Quark | Helper not called; +Y stock Quark unchanged; Deepslate columns/spikes still generate |
+| Chisel | No Chisel mixins; stock GUI / in-world carving |
+| Recipe Stages | No `setRecipeStage` capture; Chisel gate has no CT index (fallback map also missing) |
+| Game Stages | `lockedStage` no-ops; Chisel mixins still apply if Chisel is present |
+| Quality Tools | No `mixins.aqtweaks.qualitytools.json`; vanilla loot/durability mixins no-op; no rune recipes |
 
 ### Do not treat as optional
 
@@ -123,6 +127,8 @@ Use the full list in [stamina.md](stamina.md) **Verify**. Minimum: jump costs/bl
 | Better Mineshafts | `/locate Mineshaft` TPs to tunnels; new chunks use `aqtweaks_bettermineshafts.cfg` rate/spacing; log: no `mixins.aqtweaks.bettermineshafts.json` `setBoundingBox` / `func_75072_c` apply failure. See [bettermineshafts.md](bettermineshafts.md) |
 | Stats Keeper | 10 hearts: elixir consumes, +1 heart, drink sound from `aqtweaks_statskeeper.cfg` (default level-up; empty = silent). 20 hearts: drink cancelled, stack remains, red action bar `Your vitality is already at its peak!`, no drink sound. Baubles/buffs above 20 hearts with unused SK additional still drink. See [statskeeper.md](statskeeper.md) |
 | Twilight Forest | New Overworld→TF RandomPortals trip into a locked/hazard column lands in a safe biome **on grass**, not a landmark, not tree canopy. Return through the same sending portal stays linked. Nether RP unchanged. Rift items unchanged. See [twilightforest.md](twilightforest.md) |
+| Game Stages | No `apprentice_builder`: chiseling a staged output (GUI and in-world) fails, red action bar, input remains. After the stage is granted, that tier chisels; higher builder tiers stay locked. Unstaged variants and crafting-table Recipe Stages unchanged. See [gamestages.md](gamestages.md) |
+| Quality Tools | Crafted sword has no Quality tag. Loot chest stamps before pickup (`dark_gray` ~25% remaining, `gray` ~50%). Wrong Dawnstone rune: action bar, rune kept. Break without Salvage drops Broken; Salvage uses Charm. See [qualitytools.md](qualitytools.md) |
 
 ## Edge cases
 
