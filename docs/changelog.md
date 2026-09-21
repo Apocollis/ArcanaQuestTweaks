@@ -2,6 +2,22 @@
 
 Stay on version **1.8** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-09-21 — Dawnstone same-tier reroll
+
+- Common/Uncommon/Rare/Legendary also reroll yellow/green/blue/gold when the piece is already that tier. Ladder upgrades unchanged. Duplicate `cfg` string compare no longer gates Uncommon+.
+
+## 2026-09-21 — Dawnstone rune registry names
+
+- Crafting Runes 1.1 ids are `sccraftingrunes:itemcommonmat` (and uncommon/rare/legendary). Tweaks defaults and lookup now use those; old `*_mat` cfg values still resolve. Place the tool first, then the rune.
+
+## 2026-09-20 — Quality Tools wear/break skips
+
+- Do not cache `isQualityItem` before QT types load (crafted tools were stuck `not_quality`). Never cache a false miss; a live Quality tag counts as eligible. Armor `attemptDamageItem` with a null player still stamps wear/Broken in-slot.
+
+## 2026-09-20 — Quality Tools wear chance
+
+- Wear `gray` is no longer a flat 100% on the first eligible 40-tick hit. p = used × (250 / (max/2)), clamped to 0.05–0.50 (`wearChance` 0 still disables). Stone/iron sit on the ceiling; diamond stays below it.
+
 ## 2026-09-20 — Quality Tools Module
 
 - Loot/drops stamp Quality Tools tags before pickup; crafted gear stays untagged (living-update first roll skipped). Wear `gray` at ≤20% remaining (not on Broken); break without Salvage drops `dark_gray` and keeps QualityBase. Dawnstone Anvil upgrades with Crafting Runes on a strict color ladder (rune consumed). Pack `tools.json` still needs a `dark_gray` Broken entry.

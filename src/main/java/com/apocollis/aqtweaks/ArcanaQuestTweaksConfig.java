@@ -1109,9 +1109,24 @@ public class ArcanaQuestTweaksConfig {
         public double highDurability = 0.75;
 
         @Config.Name("Wear Chance")
-        @Config.Comment("Chance to apply gray when an eligible wear check runs.")
+        @Config.Comment("Multiplier on used × (ref / (max/2)). 0 disables wear. 1 is the default curve.")
         @Config.RangeDouble(min = 0.0, max = 1.0)
         public double wearChance = 1.0;
+
+        @Config.Name("Wear Chance Floor")
+        @Config.Comment("Minimum p after the curve when Wear Chance is above 0.")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public double wearChanceFloor = 0.05;
+
+        @Config.Name("Wear Chance Ceiling")
+        @Config.Comment("Maximum p after the curve when Wear Chance is above 0. Stops low-max tools from a near-certain first roll.")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public double wearChanceCeiling = 0.50;
+
+        @Config.Name("Wear Durability Ref")
+        @Config.Comment("Reference max durability (vanilla iron tool = 250). Hardness term is ref / (max/2).")
+        @Config.RangeInt(min = 1, max = 100000)
+        public int wearDurabilityRef = 250;
 
         @Config.Name("Wear Check Interval Ticks")
         @Config.Comment("Minimum ticks between wear roll attempts on one stack.")
@@ -1119,20 +1134,20 @@ public class ArcanaQuestTweaksConfig {
         public int wearCheckIntervalTicks = 40;
 
         @Config.Name("Common Rune")
-        @Config.Comment("sccraftingrunes Common Rune. red→white then white→yellow.")
-        public String commonRune = "sccraftingrunes:common_mat";
+        @Config.Comment("sccraftingrunes Common Rune (itemcommonmat). Place the tool first, then this rune. red→white, white→yellow, yellow reroll. common_mat is accepted as an alias.")
+        public String commonRune = "sccraftingrunes:itemcommonmat";
 
         @Config.Name("Uncommon Rune")
-        @Config.Comment("yellow→green")
-        public String uncommonRune = "sccraftingrunes:uncommon_mat";
+        @Config.Comment("yellow→green, then green reroll. uncommon_mat is accepted as an alias.")
+        public String uncommonRune = "sccraftingrunes:itemuncommonmat";
 
         @Config.Name("Rare Rune")
-        @Config.Comment("green→blue")
-        public String rareRune = "sccraftingrunes:rare_mat";
+        @Config.Comment("green→blue, then blue reroll. rare_mat is accepted as an alias.")
+        public String rareRune = "sccraftingrunes:itemraremat";
 
         @Config.Name("Legendary Rune")
-        @Config.Comment("blue→gold")
-        public String legendaryRune = "sccraftingrunes:legendary_mat";
+        @Config.Comment("blue→gold, then gold reroll. legendary_mat is accepted as an alias.")
+        public String legendaryRune = "sccraftingrunes:itemlegendarymat";
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_statskeeper", category = "")

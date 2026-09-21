@@ -19,13 +19,13 @@ public abstract class MixinItemStackQualityDurability {
             CallbackInfoReturnable<Boolean> cir) {
         ItemStack stack = (ItemStack) (Object) this;
         boolean wouldDestroy = Boolean.TRUE.equals(cir.getReturnValue());
-        if (com.apocollis.aqtweaks.qualitytools.QualityDurability.afterAttemptDamage(stack, wouldDestroy, player)) {
+        if (com.apocollis.aqtweaks.qualitytools.QualityDurability.afterAttemptDamage(stack, wouldDestroy, player, rand)) {
             cir.setReturnValue(false);
         }
     }
 
     @Inject(method = "setItemDamage", at = @At("RETURN"))
     private void aqtweaks$qualityAfterSetDamage(int damage, CallbackInfo ci) {
-        com.apocollis.aqtweaks.qualitytools.QualityDurability.afterSetDamage((ItemStack) (Object) this);
+        com.apocollis.aqtweaks.qualitytools.QualityDurability.afterSetDamage((ItemStack) (Object) this, damage);
     }
 }

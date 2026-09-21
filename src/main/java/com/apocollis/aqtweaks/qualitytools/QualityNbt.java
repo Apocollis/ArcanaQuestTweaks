@@ -48,8 +48,22 @@ public final class QualityNbt {
         if (stack == null || stack.isEmpty()) {
             return false;
         }
+        if (QualityToolsHelper.hasQualityTag(stack)) {
+            return true;
+        }
+        if (ConfigLoader.qualityTypes == null || ConfigLoader.qualityTypes.isEmpty()) {
+            return false;
+        }
         Item item = stack.getItem();
-        return QUALITY_ITEM_CACHE.computeIfAbsent(item, ignored -> matchingType(stack) != null);
+        Boolean cached = QUALITY_ITEM_CACHE.get(item);
+        if (Boolean.TRUE.equals(cached)) {
+            return true;
+        }
+        if (matchingType(stack) == null) {
+            return false;
+        }
+        QUALITY_ITEM_CACHE.put(item, Boolean.TRUE);
+        return true;
     }
 
     public static QualityType matchingType(ItemStack stack) {

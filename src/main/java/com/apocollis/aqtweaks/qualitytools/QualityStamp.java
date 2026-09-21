@@ -38,6 +38,15 @@ public final class QualityStamp {
         QualityNbt.copyLiveToQualityBaseIfKept(stack);
     }
 
+    public static void stampStacks(Iterable<ItemStack> stacks) {
+        if (!enabled() || stacks == null) {
+            return;
+        }
+        for (ItemStack stack : stacks) {
+            stampIfUntagged(stack);
+        }
+    }
+
     public static void stampInventory(IInventory inventory) {
         if (!enabled() || inventory == null) {
             return;
