@@ -38,6 +38,9 @@ public abstract class MixinChunkGeneratorRTGVillage {
     private static final ChunkPrimer AQTWEAKS$DUMMY_PRIMER = new ChunkPrimer();
 
     @Unique
+    private static final int AQTWEAKS$WALL_MIN_DROP = 2;
+
+    @Unique
     private int aqtweaks$laidOutCx = Integer.MIN_VALUE;
     @Unique
     private int aqtweaks$laidOutCz = Integer.MIN_VALUE;
@@ -513,7 +516,7 @@ public abstract class MixinChunkGeneratorRTGVillage {
                 if (plateY < 1 || plateY > 255) continue;
                 Biome biome = padBiome;
                 IBlockState biomeTop = biome != null && biome.topBlock != null ? biome.topBlock : vanillaGrass;
-                boolean edge = oceanWall && shore.rim(colX, colZ);
+                boolean edge = oceanWall && aqtweaks$isPlateCliff(primer, localX, localZ, startX, startZ, plateY);
                 boolean wrote = false;
                 for (int y = 1; y <= plateY; y++) {
                     IBlockState cur = Reflect.getBlockState(primer, localX, y, localZ);
@@ -584,6 +587,62 @@ public abstract class MixinChunkGeneratorRTGVillage {
         hits = VillagePlate.overlappingRecords(seed, startX, chunkMaxX, startZ, chunkMaxZ, reach);
         if (!hits.isEmpty()) return hits;
         return VillagePlate.mergeStartAabbHits(world, hits, startX, chunkMaxX, startZ, chunkMaxZ, reach);
+    }
+
+    /**
+     * Brick only when the plate drops at least {@link #AQTWEAKS$WALL_MIN_DROP} to an
+     * 8-connected neighbor. Level pad rims stay biome top.
+     */
+    @Unique
+    private boolean aqtweaks$isPlateCliff(ChunkPrimer primer, int localX, int localZ,
+                                         int startX, int startZ, int plateY) {
+        for (int dz = -1; dz <= 1; dz++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                if (dx == 0 && dz == 0) {
+                    continue;
+                }
+                int nx = localX + dx;
+                int nz = localZ + dz;
+                int neighborTop;
+                if (nx >= 0 && nx < 16 && nz >= 0 && nz < 16) {
+                    neighborTop = aqtweaks$primerSurfaceY(primer, nx, nz, plateY);
+                } else {
+                    neighborTop = aqtweaks$noiseSurfaceY(startX + nx, startZ + nz);
+                }
+                if (plateY - neighborTop >= AQTWEAKS$WALL_MIN_DROP) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    @Unique
+    private static int aqtweaks$primerSurfaceY(ChunkPrimer primer, int localX, int localZ, int plateY) {
+        int maxY = Math.min(255, plateY + 8);
+        for (int y = maxY; y >= 1; y--) {
+            IBlockState cur = Reflect.getBlockState(primer, localX, y, localZ);
+            if (cur == null) {
+                continue;
+            }
+            Material mat = cur.getMaterial();
+            if (mat == Material.AIR || mat == Material.PLANTS || mat == Material.VINE
+                    || mat == Material.SNOW || mat == Material.LEAVES) {
+                continue;
+            }
+            return y;
+        }
+        return 0;
+    }
+
+    @Unique
+    private int aqtweaks$noiseSurfaceY(int worldX, int worldZ) {
+        BiomeProvider provider = Reflect.getBiomeProvider(world);
+        float n = VillageLandHelper.sampleNoise((ChunkGeneratorRTG) (Object) this, provider, worldX, worldZ);
+        if (!VillageLandHelper.isUsableHeight(n)) {
+            return Integer.MAX_VALUE / 4;
+        }
+        return Math.round(n);
     }
 
     @Unique

@@ -98,7 +98,7 @@ Flatten looks up `VillagePlate` records by **land-box overlap** first, via a per
 | File | Role |
 | --- | --- |
 | `rtg/VillageLandHelper.java` | Wet tests, swamp/ocean-like/river/beach, well veto, forget-once rejected Starts, coast buffer, per-column AABB wet/mostly-wet, full-AABB paste skip for non-road pieces, grid layout, live RTG noise sample, waystone inland slots, column landscape cache, stash `MapGenVillage`/RTG by World and seed+dim |
-| `rtg/VillageShoreMask.java` | Hard-pad occupancy: hole fill (enclosed, cardinal channel, ≥5/8), opening, close again, 8-connected rim for brick |
+| `rtg/VillageShoreMask.java` | Hard-pad occupancy: hole fill (enclosed, cardinal channel, ≥5/8), opening, close again; occupancy rim (walls use cliff drop, not this alone) |
 | `rtg/StructureLandSettle.java` | Post-terrain fill + rim. Large Astral under-fill is raw marble; Cambion uses pad 6 + falloff 12 |
 | `rtg/VillageDebug.java` | `logs/villagepatch.log` in the instance folder (not `latest.log`) |
 | `rtg/StructureVillageOverlap.java` | Village pad XZ then Y for post-terrain schematics (not Y=0). No `isInsideStructure` re-entry. BFS unwrap for `MapGenVillage` / RTG |
@@ -164,7 +164,7 @@ Entry: `MixinChunkGeneratorRTGVillage.aqtweaks$flattenNoise`, once, immediately 
 
 Dock water (ocean/river roads omitted from land boxes; mostly-lake roads omitted) stays water. Land within pad of a house or mixed road still plates.
 
-After `generateTerrain`, caves and ravines can punch the plate. Before `new Chunk`, **shore-mask** columns are refilled solid up to plate Y (stone near bedrock, dirt). Interior plate top stays biome `topBlock` (sand, grass, …). Only `biomesoplenty:mud` is replaced with loamy grass (`biomesoplenty:grass` meta 2). Cave holes at plate Y use the biome `topBlock`. Pad columns on the **8-connected rim** (`Village Ocean Wall`, default on) overwrite `y = 1 .. plateY` with stone brick (coping included). Inland height drops are not bricked.
+After `generateTerrain`, caves and ravines can punch the plate. Before `new Chunk`, **shore-mask** columns are refilled solid up to plate Y (stone near bedrock, dirt). Interior plate top stays biome `topBlock` (sand, grass, …). Only `biomesoplenty:mud` is replaced with loamy grass (`biomesoplenty:grass` meta 2). Cave holes at plate Y use the biome `topBlock`. `Village Ocean Wall` (default on) writes stone brick on plated columns that **cliff**: an 8-connected neighbor’s surface is **≥ 2** below plate Y (primer in this chunk, RTG noise across the chunk edge), `y = 1 .. plateY` including the coping. Level pad rims (farm/path flush with grass) stay biome top. Inland Hermite 1-block ramps are not bricked.
 
 ### Plate Y
 
@@ -249,7 +249,7 @@ Teleport is **on the generated ground** at that column (`world.getHeight`, skip 
 | Village Component Pad | 12 | yes | Full plate around each land component, including roads. Overlap fills yards |
 | Village Edge Falloff | 12 | yes | Hermite **beyond** the component pad. Live cfg may still be **48** — set to 12 if yards ramp |
 | Village Water Bank | 16 | yes | Outer-rim ease toward skipped ocean/river; 0 = old waterline cliffs |
-| Village Ocean Wall | true | yes | Stone brick on 8-connected shore-mask rim, including plate top |
+| Village Ocean Wall | true | yes | Stone brick only on plate cliffs (neighbor ≥2 below plate Y), including coping |
 | Village Shore Smooth | true | yes | Open 1-block jetties on the coastal plate; interiors stay plated |
 | Village Shore Smooth Radius | 1 | yes | Chebyshev opening kernel. `0` = no opening |
 | Village Shore Close Ocean | true | yes | Fill 1-block ocean/river notches and cardinal channels in the hard pad (also after opening) |
@@ -527,6 +527,12 @@ Layout at `getNewerNoise` RETURN still saw Beach/Plains. Flatten after `newRepai
 
 **Fix:** layout at `generateLandscape` RETURN (repaired biomes). Full-AABB paste skip for every non-road village piece. Shore close after open (cardinal channel or ≥5/8). Rim brick through `plateY`. Do not cache a null landscape sample.
 
+### 34. Brick on level plate rims
+
+`Village Ocean Wall` bricked every shore-mask occupancy rim, so a 12-pad ending on flat grass/swamp got a stone-brick ring (farm/path edges). Coping made the top block brick too.
+
+**Fix:** brick only when an 8-connected neighbor surface is ≥ 2 below plate Y. Level rims keep biome `topBlock`. Cliff faces still brick through the coping.
+
 ## Playtest reference (this line)
 
 - **Wanted:** inland plains village (example `-2897, 97, -2119`) — flat plate, houses on it, blend to hills.
@@ -545,7 +551,7 @@ Layout at `getNewerNoise` RETURN still saw Beach/Plains. Flatten after `newRepai
 - **Wanted:** wild BOP quicksand still generates; none inside desert village land boxes.
 - **Wanted:** small water ponds still generate off the village pad; none through yards or house foundations. Lava lakes still generate.
 - **Wanted:** village Astral small shrine **capable of generating** (weight 5, not every village); when it does, complete on the plate, no dirt/grass collar; true ocean/river biome columns still skip.
-- **Wanted:** coastal plate — cleaner XZ outline (open 1-block sea inlets filled); stone-brick on the 8-connected rim **including the top block**; sand/grass on interior top; inland hill cliffs still dirt/stone.
+- **Wanted:** coastal plate — cleaner XZ outline (open 1-block sea inlets filled); stone-brick **only on 2+ cliffs** including the top block; sand/grass on level rims and interior; inland hill cliffs still dirt/stone.
 - **Unwanted (fixed in flatten, verify on new chunks):** beach sand piers into ocean (except 1-block enclosed notches); ocean ledges; swamp/beach vertical plate walls into water; 1-block grass pads under houses with path one lower; village well in coral reef / kelp forest / open ocean; **river well in the water** (walk inland); plains hill villages stepping instead of one pad; **chunk-aligned stone cliff / forgotten 16×16 in town**; dirt cliff at the far end of a tall RC village piece; in-village grass basins between roads and houses; oak plank path sitting in a lake; **small water pond through village foundations**; houses/roads in F3 River; well over a ravine; floating lamps after cave carve; whole pad forced to loamy grass; leftover BOP mud on the pad; **half marble shrine**; raw sand/ore ocean plate face; **toothed sand/red-sand plate in desert/mesa**; **dirt collar around village shrine**; **BOP quicksand in a village square**; **stone circle through a village farm**; **sawtooth coastal plate / mixed dirt-stone-sand ocean face**.
 - Swamp villages still keep pieces in swamp water; that water **inside the 12-pad** is filled to plate Y. Open swamp **outside** the pads stays water. Ocean/river columns are never filled except 1-block pad notches.
 
