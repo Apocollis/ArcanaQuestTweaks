@@ -103,7 +103,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 
 **init (client)**
 
-- `StaminaModuleClient`, `DssSkillsGuiClient` (Skills GUI `isPressed()` + client `/dssgui`; compile-hard DSS), `BaublesMenuClient` (Baubles `isPressed()` → `PacketOpen(EXPANSION)`; compile-hard BaublesEX), `DepthsFogHandler`, `ClientModule`.
+- `StaminaModuleClient`, `DssSkillsGuiClient` (Skills GUI `isPressed()` when DSS did not already send, plus client `/dssgui`; compile-hard DSS), `BaublesMenuClient` (Baubles `isPressed()` → `PacketOpen(EXPANSION)` when Baubles did not already send; compile-hard BaublesEX), `DepthsFogHandler`, `ClientModule`.
 - Entity renderer for `EntityArcaneRift` in **client preInit**. If `grimoireofgaia` and Deep Dwarf enabled: `RenderDeepDwarf`. Item models on `ModelRegistryEvent`.
 
 `postInit` registers `SpawnLayerFilter` (after InControl `PotentialSpawns`), enables structure cave exemption if `incontrol` is loaded, and runs `Reflect.auditUnresolved()`. `ArcanaQuestTweaks.serverStarting` (`@Mod.EventHandler` on `FMLServerStartingEvent`) registers `/aqvillage` (`CommandAqVillage`, [rtg.md](rtg.md)) and `/aqcomfort` (`CommandAqComfort`, [comfort.md](comfort.md)).
@@ -121,6 +121,7 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, a
 | `mixins.aqtweaks.json` | **true** | Depths, RTG villages, Recipes | Load fails |
 | `mixins.aqtweaks.grapple.json` | false | Stamina | Skip |
 | `mixins.aqtweaks.dss.json` | false | Stamina | Skip |
+| `mixins.aqtweaks.baubles.json` | false | MineMenu | Skip |
 | `mixins.aqtweaks.toughnessbar.json` | false | Client HUD | Skip |
 | `mixins.aqtweaks.astral.json` | false | RTG shrines + Reskillable Astromancer altar | Skip |
 | `mixins.aqtweaks.bewitchment.json` | false | RTG Cambion + circle/menhir/wickerman; Reskillable Witch drain/Hearth/Stitch | Skip |

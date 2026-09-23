@@ -1,6 +1,6 @@
 # Aether portal landing (1.8)
 
-Last updated: 2026-09-21.
+Last updated: 2026-09-23.
 
 Optional bus handler if RandomPortals **and** The Aether (`aether_legacy`) are present. Shares `mixins.aqtweaks.randomportals.json` with [twilightforest.md](twilightforest.md). Tweaks cfg: `config/arcanaquesttweaks/aqtweaks_aether.cfg`.
 
@@ -32,8 +32,8 @@ On `SearchingForDestination` (server), cfg enabled, dest dim = cfg id (default 4
 
 Mixin `MixinRPOTeleporter` when `dimensionID` is the Aether dest dim:
 
-- `isValidPortalPosition` RETURN: every platform cell at `y-1` must be island ground.
-- `findTopLeft` RETURN: if the pad is not island ground, search generate-radius for an island pad. If none, keep the parent return.
+- `isValidPortalPosition` RETURN: every platform cell at `y-1` must be island ground. Vertical frames need one extra air cell above.
+- `findTopLeft` RETURN: vertical dest frames shift **up 1** so the bottom row sits on the island, not in it. If the pad is not island ground, search generate-radius for an island pad. If none, keep the parent return.
 
 TF grass rules do not run in dim 4. Nether unchanged.
 

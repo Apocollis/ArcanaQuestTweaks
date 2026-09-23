@@ -1,6 +1,6 @@
 # Twilight Forest portal landing (1.8)
 
-Last updated: 2026-09-16.
+Last updated: 2026-09-23.
 
 Optional bus handler if RandomPortals **and** Twilight Forest are present. Optional mixin json `mixins.aqtweaks.randomportals.json` (`required: false`). Tweaks cfg: `config/arcanaquesttweaks/aqtweaks_twilightforest.cfg`.
 
@@ -35,8 +35,8 @@ On `SearchingForDestination` (server), cfg enabled, dest dim = cfg id (default 7
 
 Mixin `MixinRPOTeleporter` (`remap = false`), only when `dimensionID` matches cfg (TF dest). Aether island pads use the same mixin when the Aether dest dim matches ([aether.md](aether.md)):
 
-- `isValidPortalPosition` RETURN: parent true still fails unless every platform cell at `y-1` is `Material.GRASS`.
-- `findTopLeft` RETURN: if the returned pad is not grass, search `RPOConfig.NetherPortals.portalGenerationLocationSearchRadius` for a grass pad that passes `isValidPortalPosition`, convert to RP `topLeft`. If none, keep the parent return.
+- `isValidPortalPosition` RETURN: parent true still fails unless every platform cell at `y-1` is `Material.GRASS`. Vertical frames also need one extra air cell above so they can sit **on** the grass.
+- `findTopLeft` RETURN: vertical dest frames are shifted **up 1** so the bottom row rests on the grass instead of replacing it (RP otherwise puts the bottom in the platform layer). If the pad is not grass, search generate-radius for a grass pad. If none, keep the parent return.
 
 Nether and other RP dims: mixin no-ops. Missing either jar: handler not registered; mixin json skipped.
 
@@ -72,7 +72,7 @@ Nether and other RP dims: mixin no-ops. Missing either jar: handler not register
 ## Verify
 
 1. Build with `options.release = 21` via `build_gradle.ps1`.
-2. First Overworld→TF portal whose 1:1 column is a listed unsafe biome: dest in a safe biome, **on grass**, not in a landmark, **not on tall trees**.
+2. First Overworld→TF portal whose 1:1 column is a listed unsafe biome: dest in a safe biome, **on grass** (bottom frame row **on** the grass, not replacing it), not in a landmark, **not on tall trees**.
 3. Second trip through the same sending portal: same dest.
 4. Nether RandomPortals travel unchanged.
 5. Strip RandomPortals or TF: Tweaks still loads; mixin json skipped / handler not registered.

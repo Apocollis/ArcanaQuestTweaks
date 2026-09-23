@@ -7,6 +7,7 @@ import net.minecraft.client.gui.GuiScreen;
 import org.lwjglx.input.Mouse;
 import org.lwjglx.opengl.Display;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -19,8 +20,23 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(Minecraft.class)
 public class MixinMinecraftMouseGrab {
 
+    /** Nested {@code setIngameFocus} re-enters {@code displayGuiScreen}. Resync only the outer return. */
+    @Unique
+    private int aqtweaks$guiDepth;
+
+    @Inject(method = "displayGuiScreen", at = @At("HEAD"))
+    private void aqtweaks$enterGui(GuiScreen guiScreenIn, CallbackInfo ci) {
+        aqtweaks$guiDepth++;
+    }
+
     @Inject(method = "displayGuiScreen", at = @At("RETURN"))
     private void aqtweaks$regrabMouse(GuiScreen guiScreenIn, CallbackInfo ci) {
+        if (aqtweaks$guiDepth > 0) {
+            aqtweaks$guiDepth--;
+        }
+        if (aqtweaks$guiDepth != 0) {
+            return;
+        }
         if (!ArcanaQuestTweaksConfig.MineMenuModuleConfig.general.fixGuiMouseGrab) {
             return;
         }

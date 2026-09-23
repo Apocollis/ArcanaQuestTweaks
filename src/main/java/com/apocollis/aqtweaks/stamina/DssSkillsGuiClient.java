@@ -15,18 +15,16 @@ import net.minecraftforge.client.ClientCommandHandler;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
-import org.lwjglx.input.Keyboard;
-
 /**
  * Opens the DSS skills GUI from {@link KeyBinding#isPressed()} so MineMenu
- * (and anything else that only bumps {@code pressTime}) works. Hardware presses
- * still go through DSS {@code KeyInputEvent}; this handler consumes that
- * {@code pressTime} and does not send a second packet.
+ * (and anything else that only bumps {@code pressTime}) works. A real key press
+ * is marked by {@link #noteHardwareSkillsKey()} and does not send a second packet.
  * Pack ships Dynamic Sword Skills; this class imports it directly.
  */
 public final class DssSkillsGuiClient {
 
     private static final int GUI_SKILLS = 0;
+    private static boolean hardwareSkillsKey;
 
     private DssSkillsGuiClient() {
     }
@@ -40,21 +38,24 @@ public final class DssSkillsGuiClient {
         PacketDispatcher.sendToServer(new OpenGuiPacket(GUI_SKILLS));
     }
 
+    /** DSS {@code onKeyPressed} already sent the packet for this physical key. */
+    public static void noteHardwareSkillsKey() {
+        hardwareSkillsKey = true;
+    }
+
     @SubscribeEvent
     public void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) {
             return;
         }
+        boolean hardware = hardwareSkillsKey;
+        hardwareSkillsKey = false;
         Minecraft mc = Minecraft.getMinecraft();
         if (mc.player == null) {
             return;
         }
         KeyBinding key = DSSKeyHandler.keys[DSSKeyHandler.KEY_SKILLS_GUI];
-        if (key == null || !key.isPressed()) {
-            return;
-        }
-        int code = key.getKeyCode();
-        if (code != Keyboard.KEY_NONE && Keyboard.isKeyDown(code)) {
+        if (key == null || !key.isPressed() || hardware) {
             return;
         }
         openSkillsGui();

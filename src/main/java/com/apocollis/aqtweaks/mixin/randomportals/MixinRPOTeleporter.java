@@ -51,6 +51,9 @@ public abstract class MixinRPOTeleporter {
         boolean ok = world != null && (tf
                 ? TfPortalGrass.platformIsGrass(world, x, y - 1, z, platformWidth, platformLength, verticalZ)
                 : AetherPortalIsland.platformIsIsland(world, x, y - 1, z, platformWidth, platformLength, verticalZ));
+        if (ok && type != FrameType.LATERAL) {
+            ok = aqtweaks$airAboveFrame(world, x, y, z, platformWidth, platformLength, spaceHeight, verticalZ);
+        }
         if (!ok) {
             cir.setReturnValue(false);
         }
@@ -70,6 +73,7 @@ public abstract class MixinRPOTeleporter {
         }
         if (tf) {
             if (aqtweaks$frameTopLeftPlatformIsGrass(topLeft, type, width, height)) {
+                cir.setReturnValue(aqtweaks$sitOnSurface(topLeft, type));
                 return;
             }
             BlockPos grass = aqtweaks$findSurfaceTopLeft(entity, type, width, height, true);
@@ -79,6 +83,7 @@ public abstract class MixinRPOTeleporter {
             return;
         }
         if (aqtweaks$frameTopLeftPlatformIsIsland(topLeft, type, width, height)) {
+            cir.setReturnValue(aqtweaks$sitOnSurface(topLeft, type));
             return;
         }
         BlockPos island = aqtweaks$findSurfaceTopLeft(entity, type, width, height, false);
@@ -188,7 +193,30 @@ public abstract class MixinRPOTeleporter {
         if (type == FrameType.VERTICAL_Z) {
             topLeft = topLeft.south(width - 1);
         }
-        return topLeft;
+        return aqtweaks$sitOnSurface(topLeft, type);
+    }
+
+    /**
+     * RP places a vertical frame's bottom row in the solid platform (the grass).
+     * Shift up so that row sits on the surface instead.
+     */
+    private static BlockPos aqtweaks$sitOnSurface(BlockPos topLeft, FrameType type) {
+        return type == FrameType.LATERAL ? topLeft : topLeft.up();
+    }
+
+    private static boolean aqtweaks$airAboveFrame(World world, int x, int y, int z,
+            int platformWidth, int platformLength, int spaceHeight, boolean verticalZ) {
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int widthOffset = 0; widthOffset < platformWidth; widthOffset++) {
+            for (int lengthOffset = 0; lengthOffset < platformLength; lengthOffset++) {
+                int ox = verticalZ ? lengthOffset : widthOffset;
+                int oz = verticalZ ? widthOffset : lengthOffset;
+                if (!world.isAirBlock(pos.setPos(x + ox, y + spaceHeight, z + oz))) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     /** Do not @Shadow Teleporter.world: remap=false targets RPOTeleporter, which has no field_85192_a. */

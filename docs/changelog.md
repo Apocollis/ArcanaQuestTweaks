@@ -2,6 +2,14 @@
 
 Stay on version **1.8** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-09-23 — TF/Aether portal sits on grass
+
+- RandomPortals vertical dest frames were one block in the surface (bottom row replaced grass). Tweaks now raises them so the bottom row rests on the grass/island. See [twilightforest.md](twilightforest.md) and [aether.md](aether.md).
+
+## 2026-09-23 — GUI close once, DSS unbound key
+
+- Mouse re-grab runs only on the outermost `displayGuiScreen` return, so Reskillable, BetterQuesting, and Hwyla config close with the pointer on the crosshair. DSS ignores key 0, so an unbound skills bind does not open on space. Assigned DSS and Baubles keys no longer call `Keyboard.isKeyDown`. See [minemenu.md](minemenu.md) and [stamina.md](stamina.md).
+
 ## 2026-09-23 — GUI mouse recenter and Baubles key
 
 - Closing a screen forces the cursor free, centers it, then grabs again, and skips look for two camera frames so the warp is not yaw. MineMenu’s Baubles entry polls `isPressed()` and sends `PacketOpen(EXPANSION)` when the hardware key is up. See [minemenu.md](minemenu.md).

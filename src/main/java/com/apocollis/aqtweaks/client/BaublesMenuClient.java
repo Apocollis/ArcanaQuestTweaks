@@ -9,15 +9,15 @@ import net.minecraft.client.settings.KeyBinding;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
-import org.lwjglx.input.Keyboard;
-
 /**
  * Opens the expanded Baubles GUI from {@link KeyBinding#isPressed()} so MineMenu
- * works. Hardware presses still go through Baubles {@code onKeyInput}; this handler
- * consumes {@code pressTime} and does not send a second packet.
+ * works when the bind is unset. A press that already sent {@code PacketOpen}
+ * is marked by {@link #noteHardwareOpen()} and does not send a second packet.
  * Pack ships BaublesEX; this class imports it directly.
  */
 public final class BaublesMenuClient {
+
+    private static boolean hardwareOpen;
 
     private BaublesMenuClient() {
     }
@@ -26,21 +26,24 @@ public final class BaublesMenuClient {
         net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(new BaublesMenuClient());
     }
 
+    /** Baubles {@code onKeyInput} already sent {@code PacketOpen}. */
+    public static void noteHardwareOpen() {
+        hardwareOpen = true;
+    }
+
     @SubscribeEvent
     public void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) {
             return;
         }
+        boolean hardware = hardwareOpen;
+        hardwareOpen = false;
         Minecraft mc = Minecraft.getMinecraft();
         if (mc.player == null) {
             return;
         }
         KeyBinding key = KeyBindings.KEY_BAUBLES;
-        if (key == null || !key.isPressed()) {
-            return;
-        }
-        int code = key.getKeyCode();
-        if (code != Keyboard.KEY_NONE && Keyboard.isKeyDown(code)) {
+        if (key == null || !key.isPressed() || hardware) {
             return;
         }
         PacketHandler.INSTANCE.sendToServer(new PacketOpen(PacketOpen.Option.EXPANSION));
