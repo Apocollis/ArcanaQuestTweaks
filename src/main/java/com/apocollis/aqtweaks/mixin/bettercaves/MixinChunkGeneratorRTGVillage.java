@@ -266,7 +266,7 @@ public abstract class MixinChunkGeneratorRTGVillage {
                 boolean inHardPad = (thisLandIdx >= 0 && thisLandDist <= componentPad)
                         || (thisShrineIdx >= 0 && thisShrineDist <= shrinePad);
                 boolean shorePlate = shore.plated(colX, colZ);
-                boolean waterBiome = VillageLandHelper.isOceanOrRiverColumnBiome(
+                boolean waterBiome = VillageLandHelper.isVillageWaterColumn(
                         world, biomeProvider, landscape, colX, colZ);
                 boolean neverRaise = inHardPad
                         ? waterBiome
@@ -516,7 +516,8 @@ public abstract class MixinChunkGeneratorRTGVillage {
                 if (plateY < 1 || plateY > 255) continue;
                 Biome biome = padBiome;
                 IBlockState biomeTop = biome != null && biome.topBlock != null ? biome.topBlock : vanillaGrass;
-                boolean edge = oceanWall && aqtweaks$isPlateCliff(primer, localX, localZ, startX, startZ, plateY);
+                boolean edge = oceanWall && aqtweaks$isPlateCliff(
+                        primer, landscape, shore, biomeProvider, localX, localZ, startX, startZ, plateY);
                 boolean wrote = false;
                 for (int y = 1; y <= plateY; y++) {
                     IBlockState cur = Reflect.getBlockState(primer, localX, y, localZ);
@@ -590,11 +591,14 @@ public abstract class MixinChunkGeneratorRTGVillage {
     }
 
     /**
-     * Brick only when the plate drops at least {@link #AQTWEAKS$WALL_MIN_DROP} to an
-     * 8-connected neighbor. Level pad rims stay biome top.
+     * Brick only when the plate drops at least {@link #AQTWEAKS$WALL_MIN_DROP} to an unplated
+     * 8-connected neighbor. Plated neighbors never count: seal refills them, and caves/ravines have
+     * already bitten the primer. In-chunk heights come from flattened noise; across the chunk edge
+     * the neighbor is still raw, so only water counts there.
      */
     @Unique
-    private boolean aqtweaks$isPlateCliff(ChunkPrimer primer, int localX, int localZ,
+    private boolean aqtweaks$isPlateCliff(ChunkPrimer primer, ChunkLandscape landscape, VillageShoreMask shore,
+                                         BiomeProvider biomeProvider, int localX, int localZ,
                                          int startX, int startZ, int plateY) {
         for (int dz = -1; dz <= 1; dz++) {
             for (int dx = -1; dx <= 1; dx++) {
@@ -603,11 +607,24 @@ public abstract class MixinChunkGeneratorRTGVillage {
                 }
                 int nx = localX + dx;
                 int nz = localZ + dz;
+                int wx = startX + nx;
+                int wz = startZ + nz;
+                if (shore.plated(wx, wz)) {
+                    continue;
+                }
                 int neighborTop;
                 if (nx >= 0 && nx < 16 && nz >= 0 && nz < 16) {
-                    neighborTop = aqtweaks$primerSurfaceY(primer, nx, nz, plateY);
+                    int index = nx * 16 + nz;
+                    if (landscape != null && landscape.noise != null && index < landscape.noise.length) {
+                        neighborTop = Math.round(landscape.noise[index]);
+                    } else {
+                        neighborTop = aqtweaks$primerSurfaceY(primer, nx, nz, plateY);
+                    }
                 } else {
-                    neighborTop = aqtweaks$noiseSurfaceY(startX + nx, startZ + nz);
+                    if (!VillageLandHelper.isVillageWaterColumn(world, biomeProvider, null, wx, wz)) {
+                        continue;
+                    }
+                    neighborTop = aqtweaks$noiseSurfaceY(wx, wz);
                 }
                 if (plateY - neighborTop >= AQTWEAKS$WALL_MIN_DROP) {
                     return true;

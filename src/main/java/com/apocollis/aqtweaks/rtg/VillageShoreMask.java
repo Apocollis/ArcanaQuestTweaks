@@ -53,7 +53,7 @@ public final class VillageShoreMask {
                     int wx = originX + ix;
                     int i = ix + iz * dim;
                     ChunkLandscape colLand = (wx >> 4 == chunkX && wz >> 4 == chunkZ) ? landscape : null;
-                    never[i] = VillageLandHelper.isOceanOrRiverColumnBiome(world, provider, colLand, wx, wz);
+                    never[i] = VillageLandHelper.isVillageWaterColumn(world, provider, colLand, wx, wz);
                     double landDist = nearestDist(wx, wz, land);
                     double shrineDist = nearestDist(wx, wz, shrine);
                     boolean hard = (landDist <= componentPad && landDist < Double.MAX_VALUE)

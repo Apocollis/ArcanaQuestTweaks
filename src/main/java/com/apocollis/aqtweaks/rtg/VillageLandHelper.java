@@ -48,6 +48,8 @@ public final class VillageLandHelper {
     public static final int VILLAGE_LAYOUT_RADIUS = 8;
     public static final int BANK_BLEND = 8;
     public static final float PATH_WET_FRACTION = 0.5F;
+    /** RTG fills water up to y 62; noise below this is a submerged column. */
+    public static final float WATER_SURFACE_NOISE = 62.5F;
 
     private static final ThreadLocal<Deque<World>> WORLDS = ThreadLocal.withInitial(ArrayDeque::new);
     private static final ThreadLocal<Deque<ChunkGeneratorRTG>> GENERATORS = ThreadLocal.withInitial(ArrayDeque::new);
@@ -571,6 +573,44 @@ public final class VillageLandHelper {
         return isOceanOrRiverBiomeSources(world, biomes, land, x, z);
     }
 
+    /**
+     * Ocean/river biome, or strong RTG river noise that is actually under water. Inside the hard pad
+     * this keeps Land of Lakes / forest watercourses open while dry desert river noise still plates.
+     * Flatten never writes these columns, so the flattened noise seen by seal stays below water too.
+     */
+    public static boolean isVillageWaterColumn(World world, BiomeProvider provider,
+                                               ChunkLandscape landscape, int x, int z) {
+        BiomeProvider biomes = provider;
+        if (biomes == null && world != null) {
+            biomes = world.getBiomeProvider();
+        }
+        ChunkLandscape land = landscape;
+        if (land == null && world != null) {
+            Map<Long, ChunkLandscape> cache = columnLandscapeCache();
+            land = cache != null ? landscapeCached(world, x, z, cache) : sampleLandscape(world, x, z);
+        }
+        if (isOceanOrRiverBiomeSources(world, biomes, land, x, z)) return true;
+        return isFloodedWatercourse(land, (x & 15) * 16 + (z & 15));
+    }
+
+    public static boolean isFloodedWatercourse(ChunkLandscape landscape, int index) {
+        if (!isLandscapeNeverRaise(landscape, index)) return false;
+        return landscape.noise != null && index < landscape.noise.length
+                && landscape.noise[index] < WATER_SURFACE_NOISE;
+    }
+
+    private static boolean isOceanColumn(World world, BiomeProvider provider,
+                                         ChunkLandscape landscape, int x, int z) {
+        if (isOceanBiome(Reflect.getBiome(provider, x, z))) return true;
+        if (isOceanBiome(landscapeBaseBiome(landscape, (x & 15) * 16 + (z & 15)))) return true;
+        if (chunkExists(world, x >> 4, z >> 4)) {
+            try {
+                if (isOceanBiome(world.getBiome(new BlockPos(x, 64, z)))) return true;
+            } catch (Throwable ignored) {}
+        }
+        return false;
+    }
+
     private static boolean isOceanOrRiverBiomeSources(World world, BiomeProvider provider,
                                                       ChunkLandscape landscape, int x, int z) {
         if (isNeverRaiseBiome(Reflect.getBiome(provider, x, z))) return true;
@@ -958,10 +998,71 @@ public final class VillageLandHelper {
 
     /**
      * Drop a path that crosses ocean/river, or that is mostly lake. Swamp paths stay.
+     * A river crossing that {@link #isBridgeablePath} accepts stays and becomes a bridge at paste.
      */
     public static boolean shouldOmitPath(Object villageStart, Object component) {
-        return isAabbTouchesOceanOrRiver(villageStart, component)
-                || isAabbMostlyWet(villageStart, component);
+        if (!isAabbTouchesOceanOrRiver(villageStart, component)
+                && !isAabbMostlyWet(villageStart, component)) {
+            return false;
+        }
+        return !isBridgeablePath(villageStart, component);
+    }
+
+    public static boolean isBridgeablePath(Object villageStart, Object component) {
+        if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageRiverBridges) return false;
+        int run = bridgeRun(villageStart, component);
+        return run > 0 && run <= Math.max(1, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageBridgeMaxSpan);
+    }
+
+    /**
+     * Longest water run along the road's long axis, or -1 if any column is ocean or either end is wet.
+     * A slice is wet if any column across the road width is {@link #isVillageWaterColumn}.
+     */
+    public static int bridgeRun(Object villageStart, Object component) {
+        int[] box = Reflect.getStructureComponentBoxXZ(component);
+        if (box == null) return -1;
+        World world = currentWorld();
+        if (world == null) {
+            world = Reflect.getVillageStartWorld(villageStart);
+        }
+        if (world == null) return -1;
+        BiomeProvider provider = Reflect.getVillageStartBiomeProvider(villageStart);
+        if (provider == null) {
+            provider = world.getBiomeProvider();
+        }
+        boolean alongX = box[1] - box[0] >= box[3] - box[2];
+        int axisMin = alongX ? box[0] : box[2];
+        int axisMax = alongX ? box[1] : box[3];
+        int crossMin = alongX ? box[2] : box[0];
+        int crossMax = alongX ? box[3] : box[1];
+        int best = 0;
+        int run = 0;
+        boolean firstWet = false;
+        boolean lastWet = false;
+        pushColumnLandscapeCache();
+        try {
+            Map<Long, ChunkLandscape> cache = columnLandscapeCache();
+            for (int a = axisMin; a <= axisMax; a++) {
+                boolean wet = false;
+                for (int c = crossMin; c <= crossMax; c++) {
+                    int x = alongX ? a : c;
+                    int z = alongX ? c : a;
+                    ChunkLandscape land = landscapeCached(world, x, z, cache);
+                    if (isOceanColumn(world, provider, land, x, z)) return -1;
+                    if (isVillageWaterColumn(world, provider, land, x, z)) {
+                        wet = true;
+                    }
+                }
+                if (a == axisMin) firstWet = wet;
+                lastWet = wet;
+                run = wet ? run + 1 : 0;
+                best = Math.max(best, run);
+            }
+        } finally {
+            popColumnLandscapeCache();
+        }
+        if (firstWet || lastWet) return -1;
+        return best;
     }
 
     public static String pathOmitReason(Object villageStart, Object component) {
@@ -969,7 +1070,7 @@ public final class VillageLandHelper {
             int[] box = Reflect.getStructureComponentBoxXZ(component);
             BiomeProvider provider = Reflect.getVillageStartBiomeProvider(villageStart);
             Biome biome = box == null ? null : Reflect.getBiome(provider, box[0], box[2]);
-            return "ocean_or_river " + biomeId(biome);
+            return "ocean_or_river " + biomeId(biome) + " bridgeRun=" + bridgeRun(villageStart, component);
         }
         return String.format("mostly_wet %.2f", wetFraction(villageStart, component, true));
     }
@@ -1027,6 +1128,17 @@ public final class VillageLandHelper {
         } finally {
             popColumnLandscapeCache();
         }
+    }
+
+    /**
+     * Layout-time twin of {@link #isOceanOrRiverFloor}: the piece will be skipped at paste, so it must
+     * not get a plate either.
+     */
+    public static boolean isPasteSkippedPiece(Object villageStart, Object component) {
+        if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.skipWaterVillagePieces) return false;
+        if (!(component instanceof StructureVillagePieces.Village)) return false;
+        if (isVillageRoad(component) || isVillageWellOrStart(component)) return false;
+        return isAabbTouchesOceanOrRiver(villageStart, component);
     }
 
     public static boolean withinVillageCap(Object villageStart, int x, int z) {

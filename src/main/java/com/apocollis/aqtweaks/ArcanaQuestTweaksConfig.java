@@ -886,7 +886,7 @@ public class ArcanaQuestTweaksConfig {
         public int villageWaterBank = 16;
 
         @Config.Name("Village Ocean Wall")
-        @Config.Comment("Replace the outside-facing plate rim (8-connected to non-plate / ocean) with stone brick below the plate top. Top stays sand/grass. Inland cliffs are unchanged.")
+        @Config.Comment("Stone brick wall with a brick top on plate columns that drop 2+ blocks to non-plate ground or to water across a chunk edge. Level rims and yards keep the biome top.")
         public boolean villageOceanWall = true;
 
         @Config.Name("Village Shore Smooth")
@@ -915,6 +915,15 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("How far (blocks) to walk inland when retrying a water village piece (street, then toward the well). 0 = skip only, no retry.")
         @Config.RangeInt(min = 0, max = 48)
         public int villageWaterRetryDistance = 20;
+
+        @Config.Name("Village River Bridges")
+        @Config.Comment("Keep a village path that crosses a river (not ocean) when both ends are dry and each water run is at most Village Bridge Max Span. The path becomes a stone brick bridge at plate height with cobblestone wall rails and piers. False = omit river paths.")
+        public boolean villageRiverBridges = true;
+
+        @Config.Name("Village Bridge Max Span")
+        @Config.Comment("Longest water run (blocks along the path) a village bridge may cross.")
+        @Config.RangeInt(min = 1, max = 48)
+        public int villageBridgeMaxSpan = 16;
 
         @Config.Name("Reject Coastal Village Starts")
         @Config.Comment("Veto a village only if the well is ocean/river (or RTG river) and there is no dry land within Village Water Retry Distance. Land wells too close to ocean still fail Village Coast Buffer. Dry land below Village Min Well Height is kept and raised. Nearby river does not cancel a dry well.")

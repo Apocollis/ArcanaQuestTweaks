@@ -2,6 +2,7 @@ package com.apocollis.aqtweaks.mixin;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.rtg.StructureVillageOverlap;
+import com.apocollis.aqtweaks.rtg.VillageBridges;
 import com.apocollis.aqtweaks.rtg.VillageDebug;
 import com.apocollis.aqtweaks.rtg.VillageLandHelper;
 import com.apocollis.aqtweaks.rtg.VillagePlate;
@@ -86,6 +87,8 @@ public abstract class MixinStructureStartVillagePaste {
             if (rec != null) {
                 VillagePlate.stampDetectionPieces(world, rec, gen);
             }
+            VillageBridges.afterVillagePaste(world, (StructureStart) (Object) this, box,
+                    rec != null ? VillagePlate.resolvePlate(world, rec) : Float.NaN);
             VillageRelight.afterVillagePaste(world, (StructureStart) (Object) this, box);
         } finally {
             AQTWEAKS$SKIP_STAMP.set(Boolean.FALSE);

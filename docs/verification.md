@@ -67,6 +67,8 @@ Missing **RTG, Depths Update, Better Caves, CoFH World, Recurrent Complex, or Iv
 | --- | --- | --- |
 | Flying new chunks (near and far from villages) | Away from villages, chat TPS stays near 20 (no growing hitch as more towns exist). A village still plates. With debug off, `villagepatch.log` stays empty | [rtg.md](rtg.md) |
 | Coastal village ocean face (new chunks) | Cleaner XZ outline (open 1-block sea inlets filled). Stone brick **only** where the plate cliffs ≥2 (including top); sand/grass on level rims; no open-water pier; inland hill cliffs not bricked | rtg |
+| Village interior (new chunks) | No stone brick patches in yards/farms or along chunk lines; no pad across a Land of Lakes / forest watercourse; no bare plate spur without a building | rtg |
+| Village path across a river (new chunks) | Stone brick deck at plate Y, cobble wall rails, piers on runs >4; water under it; no oak planks at water level. `villagepatch.log`: `bridge clip=` lines. Ocean paths still omitted | rtg |
 | Village small shrine / waystone | Complete shrine on the plate (not half over a pond). No dirt/grass collar. F3 River/ocean columns still skipped | rtg |
 | River through forest/shrubland (new chunks) | No well in the channel; no house/RC/plank dock on F3 River; land plate inland | rtg |
 | RC church/inn next to river or ocean (new chunks) | Building on the plate inland; water unplated. `villagepatch.log`: `rc aabb wet` then retry hit or omit | rtg |

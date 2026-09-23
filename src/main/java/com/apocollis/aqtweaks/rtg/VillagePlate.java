@@ -927,6 +927,7 @@ public final class VillagePlate {
                 if (VillageLandHelper.isVillageRoad(piece) && VillageLandHelper.isAabbFullyFlooded(start, piece)) {
                     continue;
                 }
+                if (VillageLandHelper.isPasteSkippedPiece(start, piece)) continue;
                 out.add(box);
             }
             return out;
@@ -939,14 +940,20 @@ public final class VillagePlate {
      * Houses, RC, and the well. Roads and docks are excluded so swamp raise stays rounded around buildings.
      */
     public static List<int[]> buildingBoxesOf(Object start) {
-        List<int[]> out = new ArrayList<>();
-        for (Object piece : Reflect.getStructureStartComponents(start)) {
-            if (VillageLandHelper.isVillagePlatePad(piece)) continue;
-            int[] box = Reflect.getStructureComponentBoxXZ(piece);
-            if (box == null || VillageLandHelper.isVillageRoad(piece)) continue;
-            out.add(box);
+        VillageLandHelper.pushColumnLandscapeCache();
+        try {
+            List<int[]> out = new ArrayList<>();
+            for (Object piece : Reflect.getStructureStartComponents(start)) {
+                if (VillageLandHelper.isVillagePlatePad(piece)) continue;
+                int[] box = Reflect.getStructureComponentBoxXZ(piece);
+                if (box == null || VillageLandHelper.isVillageRoad(piece)) continue;
+                if (VillageLandHelper.isPasteSkippedPiece(start, piece)) continue;
+                out.add(box);
+            }
+            return out;
+        } finally {
+            VillageLandHelper.popColumnLandscapeCache();
         }
-        return out;
     }
 
     public static List<int[]> shrineBoxesOf(Object start) {

@@ -141,7 +141,7 @@ Tweaks’ `@Redirect` on `StructureComponent.func_74875_a` inside `StructureStar
 | `MixinStructureVillagePieces` | House/waystone skip/retry inland on never-raise; wet paths retry inland then omit leftover ocean/river or mostly-wet docks. |
 | `MixinGenericVillageCreationHandler` | Same skip/retry for RC AABBs (full `.rcst` box). |
 | `MixinASMHooksVillagePaste` | Charm populate abort if any column of the full AABB is ocean/river biome (roads exempt). Jar `MixinConfigs`; `VillageCharmPaste` at paste time. |
-| `MixinStructureStartVillagePaste` | Snapshot component iterator; populate walk/drop if remembered well is never-raise; abort if any column of the full AABB is ocean/river biome (incl. well; roads exempt); stamp pad children; relight clip. |
+| `MixinStructureStartVillagePaste` | Snapshot component iterator; populate walk/drop if remembered well is never-raise; abort if any column of the full AABB is ocean/river biome (incl. well; roads exempt); stamp pad children; `VillageBridges` stone brick river bridge at plate Y on kept river paths; relight clip. |
 | `MixinMapGenVillageInside` | Detection = pad + Hermite (vanilla child hit first, then `startAt` XZ/Y). Also stamped into `Village.dat`. Well floor through plate + `villageBoxHeight`. |
 
 `isLandscapeLake`: a **null** sample (or nested sampling) is **not** wet. Load-time forget must not treat missing landscape as a flooded plains well. Layout must not treat missing landscape as a lake (that omitted every road).
