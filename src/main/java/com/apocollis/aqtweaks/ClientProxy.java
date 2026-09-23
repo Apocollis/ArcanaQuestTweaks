@@ -1,5 +1,6 @@
 package com.apocollis.aqtweaks;
 
+import com.apocollis.aqtweaks.client.BaublesMenuClient;
 import com.apocollis.aqtweaks.client.ClientModule;
 import com.apocollis.aqtweaks.depths.DepthsFogHandler;
 import com.apocollis.aqtweaks.portal.EntityArcaneRift;
@@ -28,6 +29,7 @@ public class ClientProxy extends CommonProxy {
         super.init(event);
         MinecraftForge.EVENT_BUS.register(new StaminaModuleClient());
         DssSkillsGuiClient.register();
+        BaublesMenuClient.register();
         MinecraftForge.EVENT_BUS.register(new DepthsFogHandler());
         MinecraftForge.EVENT_BUS.register(new ClientModule());
     }

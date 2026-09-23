@@ -1,6 +1,7 @@
 package com.apocollis.aqtweaks.mixin;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
+import com.apocollis.aqtweaks.client.GuiMouseGrab;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
 import org.lwjglx.input.Mouse;
@@ -30,8 +31,14 @@ public class MixinMinecraftMouseGrab {
         if (!Display.isActive()) {
             return;
         }
+        Mouse.setGrabbed(false);
+        Mouse.setCursorPosition(Display.getWidth() / 2, Display.getHeight() / 2);
+        Mouse.getDX();
+        Mouse.getDY();
         mc.mouseHelper.grabMouseCursor();
         Mouse.getDX();
         Mouse.getDY();
+        mc.inGameHasFocus = true;
+        GuiMouseGrab.armSuppress();
     }
 }

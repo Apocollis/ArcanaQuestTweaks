@@ -1,6 +1,7 @@
 package com.apocollis.aqtweaks.mixin;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
+import com.apocollis.aqtweaks.client.GuiMouseGrab;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.client.renderer.EntityRenderer;
@@ -28,7 +29,7 @@ public class MixinEntityRendererMouse {
             player.turn(yaw, pitch);
             return;
         }
-        if (Minecraft.getMinecraft().currentScreen != null) {
+        if (Minecraft.getMinecraft().currentScreen != null || GuiMouseGrab.consumeLook()) {
             return;
         }
         player.turn(yaw, pitch);
