@@ -19,7 +19,7 @@ Stop mouse look while any GUI is open, and re-grab the cursor when play resumes,
 `Fix GUI Mouse Grab` default true.
 
 - `MixinEntityRendererMouse` (`mixins.aqtweaks.json` client, with `MixinRenderGlobal`): `@Redirect` both `EntityPlayerSP.turn(FF)V` invokes in `updateCameraAndRender`. Screen open → return. Screen closed → `player.turn`. That frame’s `mouseXYChange` delta is dropped with the skipped call.
-- `MixinMinecraftMouseGrab` (`mixins.aqtweaks.early.json` **client** array): `@Inject` `displayGuiScreen` at RETURN. `Minecraft` is already loaded when late mixins prepare; a late inject fails boot. Dedicated server does not load the `client` array. When `currentScreen` is null, world and player exist, and `Display.isActive()`, call `mouseHelper.grabMouseCursor()`, then `Mouse.getDX()` and `Mouse.getDY()`. Do not call `setIngameFocus` (it calls `displayGuiScreen(null)` again).
+- `MixinMinecraftMouseGrab` (`mixins.aqtweaks.early.json` **client** array): `@Inject` `displayGuiScreen` at RETURN. `Minecraft` is already loaded when late mixins prepare; a late inject fails boot. Dedicated server does not load the `client` array. When `currentScreen` is null, world and player exist, and `Display.isActive()`, call `mouseHelper.grabMouseCursor()`, then `Mouse.getDX()` and `Mouse.getDY()` (`org.lwjglx`, Cleanroom’s LWJGL2 layer). Do not call `setIngameFocus` (it calls `displayGuiScreen(null)` again).
 
 Flag false: both mixins no-op (stock focus).
 
@@ -48,4 +48,4 @@ Overlays that never set `currentScreen` and never call `displayGuiScreen` are un
 
 ## Verify
 
-Hold MineMenu (and open a Reskillable screen): yaw and pitch stay put while the screen is up. After close, the cursor is grabbed and the camera does not jump. Inventory and Esc pause ungrab, then regrab on close with no snap. `fixGuiMouseGrab` false (restart): stock look. Boot log must not say `Minecraft was loaded too early` or `EntityRenderer was loaded too early`.
+Hold MineMenu (and open a Reskillable screen): yaw and pitch stay put while the screen is up. After close, the cursor is grabbed and the camera does not jump. Inventory and Esc pause ungrab, then regrab on close with no snap. `fixGuiMouseGrab` false (restart): stock look. Boot log must not say `Minecraft was loaded too early` or `EntityRenderer was loaded too early`. Assigning the DSS Skills GUI keybind in MineMenu opens that menu; see [stamina.md](stamina.md).

@@ -2,6 +2,10 @@
 
 Stay on version **1.8** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-09-23 — DSS skills GUI from MineMenu
+
+- Client tick polls DSS Skills GUI `KeyBinding.isPressed()` and sends `OpenGuiPacket(0)` when the hardware key is not down. Client `/dssgui` sends the same packet. Real key presses stay on DSS `KeyInputEvent`. See [stamina.md](stamina.md).
+
 ## 2026-09-23 — MineMenu mouse grab
 
 - Client mixins skip `EntityPlayerSP.turn` while any screen is open, and re-grab plus drain the LWJGL recenter delta when `displayGuiScreen` returns to play. `Minecraft` inject is in the early json client array. Spec: [minemenu.md](minemenu.md).

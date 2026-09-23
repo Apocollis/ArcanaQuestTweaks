@@ -52,7 +52,7 @@ Astral surface shrines, Bewitchment Cambion houses, and Mystical World thatch hu
 
 `ArcanaQuestTweaks` declares:
 
-`required-after:elenaidodge2;required-after:charm;after:incontrol;after:grimoireofgaia;after:thaumcraft;after:bewitchment;after:grapplemod;after:embers;after:qualitytools;after:reskillable;after:effortlessbuilding;after:stats_keeper;after:randomportals;after:twilightforest;after:aether_legacy;after:chisel;after:gamestages;after:recipestages`
+`required-after:elenaidodge2;required-after:charm;after:incontrol;after:grimoireofgaia;after:thaumcraft;after:bewitchment;after:grapplemod;after:dynamicswordskills;after:embers;after:qualitytools;after:reskillable;after:effortlessbuilding;after:stats_keeper;after:randomportals;after:twilightforest;after:aether_legacy;after:chisel;after:gamestages;after:recipestages`
 
 That is **not** the full parent list. Soft parents that Tweaks mixins or events against, without `after:` / `required-after:`:
 
@@ -103,7 +103,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 
 **init (client)**
 
-- `StaminaModuleClient`, `DepthsFogHandler`, `ClientModule`.
+- `StaminaModuleClient`, `DssSkillsGuiClient` (Skills GUI `isPressed()` + client `/dssgui`; compile-hard DSS), `DepthsFogHandler`, `ClientModule`.
 - Entity renderer for `EntityArcaneRift` in **client preInit**. If `grimoireofgaia` and Deep Dwarf enabled: `RenderDeepDwarf`. Item models on `ModelRegistryEvent`.
 
 `postInit` registers `SpawnLayerFilter` (after InControl `PotentialSpawns`), enables structure cave exemption if `incontrol` is loaded, and runs `Reflect.auditUnresolved()`. `ArcanaQuestTweaks.serverStarting` (`@Mod.EventHandler` on `FMLServerStartingEvent`) registers `/aqvillage` (`CommandAqVillage`, [rtg.md](rtg.md)) and `/aqcomfort` (`CommandAqComfort`, [comfort.md](comfort.md)).

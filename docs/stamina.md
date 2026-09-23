@@ -45,6 +45,8 @@ Portable Ember via `EmberInventoryUtil.getEmberTotal` / `removeEmber` (jar in ha
 
 `SkillActive.trigger(World, EntityPlayer, boolean)` returns whether the skill started. Stock skills also call `addExhaustion`. Tweaks gates HEAD, spends RETURN if true, optionally no-ops exhaustion.
 
+Skills GUI key (`keys[KEY_SKILLS_GUI]`, default P) is handled in `DSSKeyHandler.onKeyInput` via `Keyboard.getEventKey()`, not `KeyBinding.isPressed()`. MineMenu only sets key state and `pressTime`, so that path never runs. Tweaks polls `isPressed()` on the client tick and sends `OpenGuiPacket(0)` when the hardware key is not down (a real press already sent the packet). Client command `/dssgui` sends the same packet.
+
 ### Open Glider
 
 Deployed / gliding flags. Tweaks `Reflect.isGliding` = deployed and not ground/water/lava. Empty feathers → `undeployGlider`.
@@ -100,6 +102,7 @@ Respawn: `PlayerRespawnEvent` → `FeathersHelper.increaseFeathers(player, getMa
 | `stamina/PacketSyncGrappleInput` | Channel **2** — mode, motor, grounded |
 | `stamina/EmberMotorHelper.java` | Reflect Ember total/remove; `hasEmber` true if Ember not required or Embers absent |
 | `stamina/DssSkillCosts.java` | `registry_name=N` map |
+| `stamina/DssSkillsGuiClient.java` | Client tick `isPressed()` → `OpenGuiPacket(0)`; client `/dssgui`. Imports `DSSKeyHandler` and `OpenGuiPacket`. Registered from `ClientProxy` |
 | `util/Reflect.java` | Feathers (including absorption HUD sync after spend), weight, Grapple query/detach, glider, ropes, thirst, `hasEnoughStamina` |
 | `mixin/grapple/MixinGrappleController.java` | Redirect `GrappleCustomization.motor` GET in `updatePlayerPos` |
 | `mixin/dss/MixinSkillActive.java` | Gate/spend/exhaustion on `trigger` |
@@ -261,6 +264,8 @@ Ember: server `removeEmber` every `motorEmberInterval` for `motorEmberCost` (**4
 ### Dynamic Sword Skills
 
 Mixin `SkillActive.trigger`: HEAD cancel (return false) if cost > 0 and not enough feathers; RETURN spend if trigger returned true; Redirect `addExhaustion` no-op when `enableSkillCost && replaceHungerExhaustion`. Client/creative/spectator skipped. Skill id is `getUnlocalizedName()` (e.g. `swordbeam`), then `getRegistryName()` if present. Cost: exact `skillCosts` key, then `dynamicswordskills:` + name, then compare with `_` stripped (`sword_beam` = `swordbeam`); else `defaultSkillCost`.
+
+`DssSkillsGuiClient` registers from `ClientProxy` init. `@Mod` is `after:dynamicswordskills` (pack ships the jar). `ClientTickEvent` END polls `DSSKeyHandler.keys[KEY_SKILLS_GUI].isPressed()`. If true and that key is not physically down, `PacketDispatcher.sendToServer(new OpenGuiPacket(0))`. A hardware press is left to DSS `KeyInputEvent`; `isPressed()` still runs so `pressTime` is consumed and a second packet is not sent. `/dssgui` is a client command (`ClientCommandHandler`, permission 0) that sends the same packet. No cfg knob. Skill-cost mixins stay `required: false`.
 
 ## Config (`aqtweaks_stamina.cfg`)
 
@@ -436,7 +441,7 @@ Sideways `dx/dz * 0.005` pushed the AABB into the 1.5-tall post before feet were
 
 ## Verify
 
-**Combat / tools:** jump costs 1 and blocks at 0; sprint 1/s and stops below 2 usable (Tweaks weight); Feathers potion gold icons drop on Tweaks spend like a dodge; sword 2, axe 4, dagger 1; empty-hand punch is light **on a hit**; short-stamina **hit** deals reduced damage once; bow 2 on draw + hold (hold may tick twice); throw hold slower than bow, 1 on release; shield 1/s then drops; break stone 1, ore 2; Fatigue III at ≤ 2 full feathers; glider 1/s then folds; DSS with cost > 0 spends and blocks when empty; hunger not also drained if replace exhaustion is on.
+**Combat / tools:** jump costs 1 and blocks at 0; sprint 1/s and stops below 2 usable (Tweaks weight); Feathers potion gold icons drop on Tweaks spend like a dodge; sword 2, axe 4, dagger 1; empty-hand punch is light **on a hit**; short-stamina **hit** deals reduced damage once; bow 2 on draw + hold (hold may tick twice); throw hold slower than bow, 1 on release; shield 1/s then drops; break stone 1, ore 2; Fatigue III at ≤ 2 full feathers; glider 1/s then folds; DSS with cost > 0 spends and blocks when empty; hunger not also drained if replace exhaustion is on. MineMenu keybind entry for Skills GUI opens the DSS menu (one open, no double packet on the real P key). `/dssgui` opens it with no key.
 
 **Climb / ledge:** ladder 1/s up, cling half rate, slide free; empty slides; jump+forward mantle 2 short / up to 5 long; empty stamina does not start a mantle; fences/walls use 1.5-high lip and finish on the near collision (not block center); no fall-damage charge while holding; ~0.4s land pause so held W+space does not hop off; does not fight slide.
 
