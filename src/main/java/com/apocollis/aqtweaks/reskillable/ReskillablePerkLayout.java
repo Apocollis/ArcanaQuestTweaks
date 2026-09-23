@@ -68,6 +68,10 @@ public class ReskillablePerkLayout {
     }
 
     static boolean isSupportedRequirement(String req) {
+        if (req.startsWith("not|trait|")) {
+            String id = req.substring("not|trait|".length());
+            return id.startsWith("reskillable:") || id.startsWith("aqtweaks:");
+        }
         if (req.startsWith("trait|")) {
             String id = req.substring("trait|".length());
             return id.startsWith("reskillable:") || id.startsWith("aqtweaks:");

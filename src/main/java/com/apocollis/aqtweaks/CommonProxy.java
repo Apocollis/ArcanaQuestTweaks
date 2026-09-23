@@ -91,6 +91,11 @@ public class CommonProxy {
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.twilightforest.TfPortalLandingHandler());
         }
 
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("randomportals")
+                && net.minecraftforge.fml.common.Loader.isModLoaded("aether_legacy")) {
+            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.aether.AetherPortalLandingHandler());
+        }
+
         if (net.minecraftforge.fml.common.Loader.isModLoaded("qualitytools")) {
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.qualitytools.QualityToolsModule());
         }

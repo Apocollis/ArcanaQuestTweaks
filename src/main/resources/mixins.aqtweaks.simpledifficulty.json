@@ -7,6 +7,7 @@
   "mixins": [
     "MixinThirstUtilInternal",
     "MixinItemCanteen",
-    "MixinItemCanteenUse"
+    "MixinItemCanteenUse",
+    "MixinTemperatureCapability"
   ]
 }

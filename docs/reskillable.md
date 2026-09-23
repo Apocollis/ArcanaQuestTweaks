@@ -1,12 +1,14 @@
 # Reskillable module (1.8)
 
-Last updated: 2026-09-20.
+Last updated: 2026-09-21.
 
 Config: `config/arcanaquesttweaks/aqtweaks_reskillable.cfg`. Handler registers only if `reskillable` is loaded (`CommonProxy.init`). Compile-hard CAD Reskillable **1.13.1** API; types live only in `com.apocollis.aqtweaks.reskillable`. Soft `@Mod` `after:reskillable` (not `required-after`).
 
 Stamina Armor Mastery / Mining Efficiency **perk id lookups** stay in [stamina.md](stamina.md) (`Reflect.hasUnlockable`, `aqtweaks_stamina.cfg`). This jar **registers** those traits (same ids as the old pack CrT). Remove pack `stamina_perks.zs` or the duplicate registry will conflict.
 
 Effortless Building placement bonuses need both `reskillable` and `effortlessbuilding`. Optional `mixins.aqtweaks.effortlessbuilding.json` (`required: false`). Parent jar: `effortlessbuilding-1.12.2-2.16`. Soft `after:effortlessbuilding`.
+
+Magic **schools** stay in this module. They borrow existing mixin json when the parent already has one (Bewitchment, Astral, Simple Difficulty) and add `mixins.aqtweaks.botania.json` / `mixins.aqtweaks.embers.json`. There is no Botania module doc.
 
 ## Locked intent
 
@@ -126,6 +128,18 @@ Register in **preInit** (`ReskillablePerkRegistry`). CAD `getTraitConfig` still 
 | `aqtweaks:quiet_mind` | magic | 2,2 | 4 | magic 16, defense 12 |
 | `aqtweaks:full_font` | magic | 2,3 | 4 | magic 16 |
 | `aqtweaks:blood_pact` | magic | 3,3 | 4 | magic 20 |
+| `aqtweaks:druid` | magic | 1,2 | 3 | magic 12, not Witch/Astromancer/Artificer |
+| `aqtweaks:mana_veil` | magic | 0,2 | 1 | Druid |
+| `aqtweaks:living_edge` | magic | 0,3 | 1 | Druid |
+| `aqtweaks:witch` | magic | 3,1 | 3 | magic 12, not the other schools |
+| `aqtweaks:cold_iron_mind` | magic | 3,0 | 1 | Witch |
+| `aqtweaks:stitch` | magic | 4,0 | 1 | Witch |
+| `aqtweaks:astromancer` | magic | 4,1 | 3 | magic 12, not the other schools |
+| `aqtweaks:astral_warmth` | magic | 4,2 | 1 | Astromancer |
+| `aqtweaks:star_powered` | magic | 4,3 | 1 | Astromancer |
+| `aqtweaks:artificer` | magic | 0,0 | 3 | magic 12, not the other schools |
+| `aqtweaks:live_spark` | magic | 1,0 | 1 | Artificer |
+| `aqtweaks:cinder_ward` | magic | 2,0 | 1 | Artificer |
 
 CAD `reskillable:hillwalker` cost is stamped **6** at register LOWEST. CAD `reskillable:drop_guarantee` cost is stamped **4**.
 
@@ -149,6 +163,19 @@ Drafter / Sculptor / Transpose: EB `sanitize` snaps locked modes / quick replace
 
 Vis Thrift: +0.30 on `getTotalVisDiscount`. Quiet Mind: −round(0.35×bound) warp severity after visor.
 
+### Magic schools (mutex)
+
+Four schools. Unlocking one blocks the other three (`not|trait|`). School cost 3 includes parent thrift ×0.70 **and** the identity. Each school has two follow-ups cost 1. Leftover Magic cells: **0,1** and **1,3**.
+
+| School | Thrift | Identity | Follow-ups |
+| --- | --- | --- | --- |
+| Druid | Botania `ManaItemHandler` spend ×0.70 | Grove: generating `addMana` ×1.15 within 24 of a Druid | Mana Veil: absorb 20% of a hurt packet at 1000 mana/HP (`requestManaExact`). Living Edge: Botania damage ×1.15 |
+| Witch | `MagicPower.attemptDrain` ×0.70 | Hearth: `TileEntityWitchesAltar.scan` RETURN, `gain` ×1.15 if a Witch is within 24 | Cold Iron Mind: ritual-finish warp each type `/ 2` in `WarpRitualWrapper`. Stitch: skip the second `damageItem` in `Util.attemptDamagePoppet`; shapeless poppet + `bewitchment:witches_stitching` repair (perk-gated when a player is on the container) |
+| Astromancer | altar `getPassiveStarlightRequired` ×0.70 during `ActiveCraftingTask` | `craftingTickTime` ×0.80 (25% faster) | Astral Warmth: SD temp ≥ 9 after `tickUpdate`. Star Powered: open night sky, all outgoing ×1.25 + Regen I + Elenai replenishment |
+| Artificer | `EmberInventoryUtil.removeEmber` ×0.70 | Foundry Pulse: stamper / mixer-bottom / melter-bottom extra `update` every 4 ticks if an Artificer is within 24 | Live Spark: `ember` / Embers damage ×1.20 **after** Magic drip. Cinder Ward: SD temp ≤ 15; fire ×0.80, or heal 20% of the fire packet if `fire_resistance` is active |
+
+Do not extra-stamp Botania/Astral as classified Magic. Embers already `setMagicDamage()`. Schools are not a new docs module; mixins sit in the parent json when it already exists.
+
 Power Attack: connecting medium/heavy melee on a **full** regular feather bar; **×1.5** / **×2** and **+2** extra half-feathers (Efficiency does not cut the +2). Light never procs.
 
 Mining Expert: `PlayerEvent.HarvestCheck` client+server. Pickaxe tool class, block pickaxe or null tool, harvest ≤ floor. Does not change `Item.getHarvestLevel`.
@@ -161,7 +188,7 @@ Adrenaline cooldown potion uses `unlockables/adrenaline.png` (20s).
 
 Mining Expert: `PlayerEvent.HarvestCheck` client+server. Pickaxe tool class, block pickaxe or null tool, harvest ≤ floor. Does not change `Item.getHarvestLevel`.
 
-Lang: `reskillable.unlock.aqtweaks.<path>` / `.desc`. Icons: `aqtweaks:textures/unlockables/<path>.png`.
+Lang: `reskillable.unlock.aqtweaks.<path>` / `.desc`. Icons: `aqtweaks:textures/unlockables/<path>.png` (no leftover slash-square placeholders). Adrenaline / Evasion / Respite cooldown HUD uses the same PNG as the trait.
 
 ## Files
 
@@ -178,9 +205,17 @@ Lang: `reskillable.unlock.aqtweaks.<path>` / `.desc`. Icons: `aqtweaks:textures/
 - `mixin/effortlessbuilding/MixinReachHelper.java`, `MixinModeSettingsManager.java`, `MixinModifierSettingsManager.java`
 - `mixin/thaumcraft/MixinCasterManager.java`, `MixinWarpEvents.java`, `MixinItemCaster.java`
 - `mixin/dss/MixinEntitySwordBeam.java`
-- `mixin/simpledifficulty/MixinThirstUtilInternal.java`, `MixinItemCanteen.java`, `MixinItemCanteenUse.java`
+- `mixin/simpledifficulty/MixinThirstUtilInternal.java`, `MixinItemCanteen.java`, `MixinItemCanteenUse.java`, `MixinTemperatureCapability.java`
 - `mixin/rustic/MixinFluidBooze.java`
 - `mixin/animania/MixinGenericAIMate.java`, `MixinBlockNest.java`
+- `reskillable/MagicSchoolPresence.java`, `MagicSchoolEffects.java`, `MagicSchoolBotania.java`, `MagicSchoolFoundry.java`
+- `reskillable/RecipeStitchPoppet.java`, `StitchRecipeEvents.java`
+- `thaumcraft/WarpRitualWrapper.java` — Cold Iron Mind halves wrapped ritual warp
+- `mixin/botania/MixinManaItemHandler.java`, `MixinSubTileGenerating.java` — `mixins.aqtweaks.botania.json`
+- `mixin/bewitchment/MixinMagicPower.java`, `MixinTileEntityWitchesAltar.java`, `MixinUtilPoppet.java`
+- `mixin/astral/MixinActiveCraftingTask.java`, `MixinAbstractAltarRecipe.java`
+- `mixin/embers/MixinEmberInventoryUtil.java`, `MixinTileEntityStamper.java`, `MixinTileEntityMixerBottom.java`, `MixinTileEntityFurnaceBottom.java` — `mixins.aqtweaks.embers.json`
+- `mixin/simpledifficulty/MixinTemperatureCapability.java`
 - `mixins.aqtweaks.effortlessbuilding.json`
 
 ## Do not regress
@@ -206,6 +241,7 @@ Lang: `reskillable.unlock.aqtweaks.<path>` / `.desc`. Icons: `aqtweaks:textures/
 - Farming: extra wheat on mature crop; not on stone or ore
 - Gathering: extra log/leaf/flint, extra wool, extra fish; **not** ore; silk touch no extra
 - Mining Expert: wood pick + perk drops diamond ore/obsidian; tooltip stars unchanged; fist does not
+- Magic schools: mutex in GUI; Druid flowers +15% mana in 24; Witch drain cheaper; Astromancer altar faster; Artificer stamper extra ticks; Cinder/Astral temp clamps with SD; Stitch repair shapeless
 
 ## Out of scope unless asked
 

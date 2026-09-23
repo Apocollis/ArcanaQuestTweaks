@@ -1086,6 +1086,23 @@ public class ArcanaQuestTweaksConfig {
         public String[] safeBiomeAllowlist = {};
     }
 
+    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_aether", category = "")
+    public static class AetherModuleConfig {
+        @Config.Name("General")
+        @Config.Comment("RandomPortals landings into The Aether.")
+        public static final AetherGeneral general = new AetherGeneral();
+    }
+
+    public static class AetherGeneral {
+        @Config.Name("Enable Aether Portal Safety")
+        @Config.Comment("When true, RandomPortals destinations in Destination Dimension ID snap onto island ground instead of generating in the void.")
+        public boolean enable = true;
+
+        @Config.Name("Destination Dimension ID")
+        @Config.Comment("Aether dimension id. Pack default is 4.")
+        public int destinationDimensionId = 4;
+    }
+
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_qualitytools", category = "")
     public static class QualityToolsModuleConfig {
         @Config.Name("General")
@@ -1434,6 +1451,70 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Blood Pact")
         public ReskillablePerkLayout bloodPact = new ReskillablePerkLayout(
                 3, 3, 4, "reskillable:magic", "reskillable:magic|20");
+
+        @Config.Name("Druid")
+        public ReskillablePerkLayout druid = new ReskillablePerkLayout(
+                1, 2, 3, "reskillable:magic",
+                "reskillable:magic|12",
+                "not|trait|aqtweaks:witch",
+                "not|trait|aqtweaks:astromancer",
+                "not|trait|aqtweaks:artificer");
+
+        @Config.Name("Mana Veil")
+        public ReskillablePerkLayout manaVeil = new ReskillablePerkLayout(
+                0, 2, 1, "reskillable:magic", "trait|aqtweaks:druid");
+
+        @Config.Name("Living Edge")
+        public ReskillablePerkLayout livingEdge = new ReskillablePerkLayout(
+                0, 3, 1, "reskillable:magic", "trait|aqtweaks:druid");
+
+        @Config.Name("Witch")
+        public ReskillablePerkLayout witch = new ReskillablePerkLayout(
+                3, 1, 3, "reskillable:magic",
+                "reskillable:magic|12",
+                "not|trait|aqtweaks:druid",
+                "not|trait|aqtweaks:astromancer",
+                "not|trait|aqtweaks:artificer");
+
+        @Config.Name("Cold Iron Mind")
+        public ReskillablePerkLayout coldIronMind = new ReskillablePerkLayout(
+                3, 0, 1, "reskillable:magic", "trait|aqtweaks:witch");
+
+        @Config.Name("Stitch")
+        public ReskillablePerkLayout stitch = new ReskillablePerkLayout(
+                4, 0, 1, "reskillable:magic", "trait|aqtweaks:witch");
+
+        @Config.Name("Astromancer")
+        public ReskillablePerkLayout astromancer = new ReskillablePerkLayout(
+                4, 1, 3, "reskillable:magic",
+                "reskillable:magic|12",
+                "not|trait|aqtweaks:druid",
+                "not|trait|aqtweaks:witch",
+                "not|trait|aqtweaks:artificer");
+
+        @Config.Name("Astral Warmth")
+        public ReskillablePerkLayout astralWarmth = new ReskillablePerkLayout(
+                4, 2, 1, "reskillable:magic", "trait|aqtweaks:astromancer");
+
+        @Config.Name("Star Powered")
+        public ReskillablePerkLayout starPowered = new ReskillablePerkLayout(
+                4, 3, 1, "reskillable:magic", "trait|aqtweaks:astromancer");
+
+        @Config.Name("Artificer")
+        public ReskillablePerkLayout artificer = new ReskillablePerkLayout(
+                0, 0, 3, "reskillable:magic",
+                "reskillable:magic|12",
+                "not|trait|aqtweaks:druid",
+                "not|trait|aqtweaks:witch",
+                "not|trait|aqtweaks:astromancer");
+
+        @Config.Name("Live Spark")
+        public ReskillablePerkLayout liveSpark = new ReskillablePerkLayout(
+                1, 0, 1, "reskillable:magic", "trait|aqtweaks:artificer");
+
+        @Config.Name("Cinder Ward")
+        public ReskillablePerkLayout cinderWard = new ReskillablePerkLayout(
+                2, 0, 1, "reskillable:magic", "trait|aqtweaks:artificer");
     }
 
     public static class ReskillableRespite {
@@ -1594,6 +1675,70 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Outgoing classified Magic multiply after drip, before Full Font.")
         @Config.RangeDouble(min = 1.0, max = 4.0)
         public double bloodPactOutgoing = 2.0;
+
+        @Config.Name("School Thrift")
+        @Config.Comment("Parent resource spend multiply on the school perk (mana, ritual drain, altar starlight, Ember).")
+        @Config.RangeDouble(min = 0.1, max = 1.0)
+        public double schoolThrift = 0.70;
+
+        @Config.Name("Grove Range")
+        @Config.RangeDouble(min = 1.0, max = 64.0)
+        public double groveRange = 24.0;
+
+        @Config.Name("Grove Mana")
+        @Config.Comment("Generating-flower addMana multiply while a Druid is in range.")
+        @Config.RangeDouble(min = 1.0, max = 2.0)
+        public double groveMana = 1.15;
+
+        @Config.Name("Mana Veil Absorb")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public double manaVeilAbsorb = 0.20;
+
+        @Config.Name("Mana Veil Per HP")
+        @Config.RangeInt(min = 1, max = 100000)
+        public int manaVeilManaPerHp = 1000;
+
+        @Config.Name("Living Edge")
+        @Config.RangeDouble(min = 1.0, max = 2.0)
+        public double livingEdge = 1.15;
+
+        @Config.Name("Hearth Altar Gain")
+        @Config.RangeDouble(min = 1.0, max = 2.0)
+        public double hearthGain = 1.15;
+
+        @Config.Name("Altar Craft Time")
+        @Config.Comment("Astromancer craftingTickTime multiply. 0.8 = 25% faster.")
+        @Config.RangeDouble(min = 0.25, max = 1.0)
+        public double altarCraftTime = 0.80;
+
+        @Config.Name("Star Powered Damage")
+        @Config.RangeDouble(min = 1.0, max = 2.0)
+        public double starPoweredDamage = 1.25;
+
+        @Config.Name("Live Spark")
+        @Config.RangeDouble(min = 1.0, max = 2.0)
+        public double liveSpark = 1.20;
+
+        @Config.Name("Cinder Ward Fire")
+        @Config.RangeDouble(min = 0.1, max = 1.0)
+        public double cinderWardFire = 0.80;
+
+        @Config.Name("Cinder Ward Heal")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public double cinderWardHeal = 0.20;
+
+        @Config.Name("Cinder Temp Max")
+        @Config.RangeInt(min = 0, max = 25)
+        public int cinderTempMax = 15;
+
+        @Config.Name("Astral Temp Min")
+        @Config.RangeInt(min = 0, max = 25)
+        public int astralTempMin = 9;
+
+        @Config.Name("Foundry Pulse Every")
+        @Config.Comment("Extra machine tick when world time modulo this is 0.")
+        @Config.RangeInt(min = 1, max = 40)
+        public int foundryPulseEvery = 4;
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_bettermineshafts", category = "")

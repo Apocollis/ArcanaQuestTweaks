@@ -1,6 +1,6 @@
 # Thaumcraft module (1.8)
 
-Last updated: 2026-09-19.
+Last updated: 2026-09-22.
 
 Config: `config/arcanaquesttweaks/aqtweaks_thaumcraft.cfg`. Event handler registers only if `thaumcraft` is loaded (`CommonProxy.init`). Warp API is reflection (`ThaumcraftHelper`, raw `Class`) so Comfort can call it without importing TC types. Focus mixins **compile-hard** TC **6.1 BETA26** (`libs/`); missing that jar fails compile. Optional `mixins.aqtweaks.thaumcraft.json` (`required: false`) skips at runtime if TC is absent.
 
@@ -94,7 +94,7 @@ Optional `mixins.aqtweaks.thaumcraft.json`. Vanilla INVOKEs MCP + `remap = true`
 
 - `MixinFocusEffectExecute` — Fire / Frost / Air / Earth / Flux / Curse / Heal `execute` → `attackEntityFrom`: `setMagicDamage()`. Does **not** change the hurt float (Reskillable `LivingHurtEvent` does). Fire keeps `isFireDamage`.
 - `MixinFocusEffectHeal` — Heal only, `heal(F)`: amount `×` caster Magic outgoing if the caster is a player. Not a global `LivingHealEvent`.
-- `MixinCasterManager` — `getTotalVisDiscount` RETURN: Vis Thrift +0.30.
+- `MixinCasterManager` — `getTotalVisDiscount` RETURN: Vis Thrift +0.30. `changeFocus` / `fetchFocusFromPouch` / `addFocusToPouch`: bauble pouch offset **4 → 100** so BaublesEX slots ≥ 4 stay negative (not `mainInventory`). Does **not** rewrite the armor `4` in `getTotalVisDiscount`. Those two pouch methods **skip** `IBaublesItemHandler.setChanged`: stock BaublesEX is a no-op, and the transformed method reads missing field `player` (`NoSuchFieldError`) after the focus was already taken out of the pouch. `markDirty` still runs.
 - `MixinWarpEvents` — `checkWarpEvent`: Quiet Mind severity after visor, before `PacketMiscEvent`.
 
 Do **not** add `thrown` to Reskillable allow-prefixes. Java default prefix `fireball` is ghast/Lich only (instance cfg may still be empty).
@@ -152,6 +152,7 @@ Do **not** add `thrown` to Reskillable allow-prefixes. Java default prefix `fire
 - `ThaumcraftHelper` fields and `Class.forName` locals stay raw `Class`. Generics here crash SideTransformer on Java 21 class files.
 - Focus mixin: stamp magic only on `attackEntityFrom`; do not double-scale hurt. Heal scale is Heal-only (other foci have no `heal` invoke).
 - Snowballs stay non-magic (`thrown` is not an allow prefix).
+- Vis Thrift still injects `getTotalVisDiscount` RETURN. Focus-pouch bauble offset is only the three pouch methods.
 
 ## Out of scope unless asked
 

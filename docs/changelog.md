@@ -2,6 +2,14 @@
 
 Stay on version **1.8** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-09-21 — Reskillable Magic schools
+
+- Four mutex Magic schools (Druid, Witch, Astromancer, Artificer) plus two follow-ups each. Thrift ×0.70 on the school perk. Spec: [reskillable.md](reskillable.md). Parent mixins stay in existing json where those modules already exist; Botania/Embers get optional json under this module.
+
+## 2026-09-21 — Aether portal island landing
+
+- RandomPortals dest dim 4 snaps onto aether grass/dirt/holystone before search/build (200 then 400). Mixin rejects void pads. Linked return portals unchanged. See [aether.md](aether.md).
+
 ## 2026-09-21 — Dawnstone same-tier reroll
 
 - Common/Uncommon/Rare/Legendary also reroll yellow/green/blue/gold when the piece is already that tier. Ladder upgrades unchanged. Duplicate `cfg` string compare no longer gates Uncommon+.

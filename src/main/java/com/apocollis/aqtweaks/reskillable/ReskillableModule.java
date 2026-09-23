@@ -272,19 +272,37 @@ public class ReskillableModule {
             event.setAmount(event.getAmount() * 2.0f);
             arrow.getEntityData().removeTag(NBT_PRECISION_ARROW);
         }
-        if (!ReskillableBonuses.enabled()) return;
         boolean classified = ReskillableBonuses.isSpellLike(source);
         ReskillableBonuses.maybeLogMagic(source, trueSource, victim, classified);
-        if (!classified) return;
+        if (ReskillableBonuses.enabled() && classified) {
+            float amount = event.getAmount();
+            if (trueSource instanceof EntityPlayer && !skipPlayer((EntityPlayer) trueSource)) {
+                amount = ReskillableBonuses.scaleOutgoingMagic((EntityPlayer) trueSource, amount);
+            }
+            if (victim instanceof EntityPlayer && !skipPlayer((EntityPlayer) victim)) {
+                amount *= ReskillableBonuses.magicMultiplier((EntityPlayer) victim, false);
+            }
+            event.setAmount(amount);
+        }
+        if (trueSource instanceof EntityPlayer attacker && !skipPlayer(attacker)) {
+            MagicSchoolEffects.onOutgoingHurt(attacker, event);
+        }
+        if (victim instanceof EntityPlayer victimPlayer && !skipPlayer(victimPlayer)) {
+            MagicSchoolEffects.onIncomingHurt(victimPlayer, event);
+        }
+    }
 
-        float amount = event.getAmount();
-        if (trueSource instanceof EntityPlayer && !skipPlayer((EntityPlayer) trueSource)) {
-            amount = ReskillableBonuses.scaleOutgoingMagic((EntityPlayer) trueSource, amount);
-        }
-        if (victim instanceof EntityPlayer && !skipPlayer((EntityPlayer) victim)) {
-            amount *= ReskillableBonuses.magicMultiplier((EntityPlayer) victim, false);
-        }
-        event.setAmount(amount);
+    @SubscribeEvent
+    public void onSchoolAttack(net.minecraftforge.event.entity.living.LivingAttackEvent event) {
+        if (!(event.getEntityLiving() instanceof EntityPlayer player) || skipPlayer(player)) return;
+        if (player.world == null || player.world.isRemote) return;
+        MagicSchoolEffects.onIncomingAttack(player, event);
+    }
+
+    @SubscribeEvent
+    public void onSchoolTick(net.minecraftforge.fml.common.gameevent.TickEvent.PlayerTickEvent event) {
+        if (skipPlayer(event.player)) return;
+        MagicSchoolEffects.onPlayerTick(event.player, event.phase);
     }
 
     @SubscribeEvent

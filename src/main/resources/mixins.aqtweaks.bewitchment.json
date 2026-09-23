@@ -9,6 +9,9 @@
     "MixinWorldGenCambionHomeMedium",
     "MixinWorldGenStonecircle",
     "MixinWorldGenMenhir",
-    "MixinWorldGenWickerman"
+    "MixinWorldGenWickerman",
+    "MixinMagicPower",
+    "MixinTileEntityWitchesAltar",
+    "MixinUtilPoppet"
   ]
 }

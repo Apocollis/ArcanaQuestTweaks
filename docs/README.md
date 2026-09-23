@@ -19,13 +19,14 @@ Each file covers: what Tweaks changes, how the **parent mod** implements the fea
 | Module | Parent mod(s) | Doc |
 | --- | --- | --- |
 | Stamina | Elenai Dodge 2 Extended, Grappling Hook, Dynamic Sword Skills, Embers, Reskillable, Simple Difficulty, Spartan Weaponry | [stamina.md](stamina.md) |
-| Reskillable | Reskillable + optional Effortless Building | [reskillable.md](reskillable.md) |
+| Reskillable | Reskillable + optional Effortless Building, Botania, Bewitchment, Astral, Embers, Simple Difficulty | [reskillable.md](reskillable.md) |
 | Grimoire of Gaia | Grimoire of Gaia (`gaia`) | [grimoire-of-gaia.md](grimoire-of-gaia.md) |
 | Thaumcraft | Thaumcraft 6 | [thaumcraft.md](thaumcraft.md) |
 | Bewitchment | Bewitchment + Thaumcraft | [bewitchment.md](bewitchment.md) |
 | Comfort | Vanilla + optional Thaumcraft, Simple Difficulty, Biomes O' Plenty | [comfort.md](comfort.md) |
 | Portal | Tweaks-owned (no parent) | [portal.md](portal.md) |
 | Twilight Forest | RandomPortals + Twilight Forest | [twilightforest.md](twilightforest.md) |
+| Aether | RandomPortals + The Aether (`aether_legacy`) | [aether.md](aether.md) |
 | Depths | Depths Update, YUNG's Better Caves, RTG, CoFH World, Recurrent Complex, optional Quark | [depths.md](depths.md) |
 | RTG | Realistic Terrain Generation + vanilla `MapGenVillage` + Recurrent Complex + Astral / Bewitchment Cambion / Mystical World huts | [rtg.md](rtg.md) |
 | Village gen (pack pipeline) | Vanilla + RTG + Geographicraft + Recurrent Complex + Charm + Tweaks overlay | [villagegen_info.md](villagegen_info.md) |
@@ -50,7 +51,7 @@ Astral surface shrines, Bewitchment Cambion houses, and Mystical World thatch hu
 
 `ArcanaQuestTweaks` declares:
 
-`required-after:elenaidodge2;required-after:charm;after:incontrol;after:grimoireofgaia;after:thaumcraft;after:bewitchment;after:grapplemod;after:embers;after:qualitytools;after:reskillable;after:effortlessbuilding;after:stats_keeper;after:randomportals;after:twilightforest;after:chisel;after:gamestages;after:recipestages`
+`required-after:elenaidodge2;required-after:charm;after:incontrol;after:grimoireofgaia;after:thaumcraft;after:bewitchment;after:grapplemod;after:embers;after:qualitytools;after:reskillable;after:effortlessbuilding;after:stats_keeper;after:randomportals;after:twilightforest;after:aether_legacy;after:chisel;after:gamestages;after:recipestages`
 
 That is **not** the full parent list. Soft parents that Tweaks mixins or events against, without `after:` / `required-after:`:
 
@@ -69,6 +70,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 | YUNG’s Better Mineshafts | Locate pin + failed-entrance stub + Tweaks rate/spacing/Y | Mixin json skipped; stock BM Y=64 locate |
 | Stats Keeper | Elixir of Vitality drink cancel at SK cap | Handler not registered; vanilla + SK consume/refuse as stock |
 | RandomPortals + Twilight Forest | TF landing safety + grass pads | Handler not registered; RP mixin json skipped; stock RP 1:1 landings |
+| RandomPortals + Aether | Island landing | Handler not registered; mixin still compiles Aether types if RP json applies |
 | Chisel + Game Stages + Recipe Stages | Chisel output gated on Recipe Stages | Mixin json skipped; stock Chisel; crafting-table stages unchanged |
 | Quality Tools | Loot stamp, wear/Broken, Dawnstone runes | Optional json skipped; vanilla early mixins still apply (pack ships QT); handler not registered |
 | Quark | Depths lower-cavern speleothem primer decor | Helper not called; +Y stock Quark unchanged; Deepslate columns/spikes still generate |
@@ -94,6 +96,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 - If `somnia`: `SomniaSleepHandler.init()`.
 - If `stats_keeper`: `LifeElixirCapHandler` (elixir drink cancel at SK max health; level-up sound on a successful drink).
 - If `randomportals` **and** `twilightforest`: `TfPortalLandingHandler` (TF dest biome/landmark/grass landing; [twilightforest.md](twilightforest.md)).
+- If `randomportals` **and** `aether_legacy`: `AetherPortalLandingHandler` (Aether island snap; [aether.md](aether.md)).
 - If `qualitytools`: `QualityToolsModule` (loot/drop stamp). `postInit` registers Dawnstone rune recipes when `embers` is also loaded. See [qualitytools.md](qualitytools.md).
 - Game Stages / Chisel: no bus handler (mixins only; [gamestages.md](gamestages.md)).
 
@@ -118,8 +121,8 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, and `ItemStack
 | `mixins.aqtweaks.grapple.json` | false | Stamina | Skip |
 | `mixins.aqtweaks.dss.json` | false | Stamina | Skip |
 | `mixins.aqtweaks.toughnessbar.json` | false | Client HUD | Skip |
-| `mixins.aqtweaks.astral.json` | false | RTG post-terrain shrines | Skip |
-| `mixins.aqtweaks.bewitchment.json` | false | RTG Cambion + circle/menhir/wickerman | Skip |
+| `mixins.aqtweaks.astral.json` | false | RTG shrines + Reskillable Astromancer altar | Skip |
+| `mixins.aqtweaks.bewitchment.json` | false | RTG Cambion + circle/menhir/wickerman; Reskillable Witch drain/Hearth/Stitch | Skip |
 | `mixins.aqtweaks.mysticalworld.json` | false | RTG Mystical huts | Skip |
 | `mixins.aqtweaks.biomesoplenty.json` | false | RTG BOP water/quicksand village skip | Skip |
 | `mixins.aqtweaks.gaia.json` | false | Grimoire of Gaia drop pierce + recast bolts/bombs + Deathword ranged | Skip |
@@ -129,15 +132,19 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, and `ItemStack
 | `mixins.aqtweaks.somnia.json` | false | Somnia: chunk light fix, 3-tier SMP sleep (Case A/B/C), Case B 2x time, fatigue tuning & chat notifications | Skip |
 | `mixins.aqtweaks.incontrol.json` | false | Spawning: `StructureCache.parseStructureData` BB chunk expand | Skip |
 | `mixins.aqtweaks.bettermineshafts.json` | false | Better Mineshafts locate pin + entrance stub + Tweaks placement | Skip |
-| `mixins.aqtweaks.randomportals.json` | false | Twilight Forest: grass pad on RP generate | Skip |
+| `mixins.aqtweaks.randomportals.json` | false | TF grass pad + Aether island pad on RP generate | Skip |
 | `mixins.aqtweaks.chisel.json` | false | Game Stages: Chisel GUI + `canChisel` | Skip |
 | `mixins.aqtweaks.recipestages.json` | false | Game Stages: capture `setRecipeStage` | Skip |
 | `mixins.aqtweaks.qualitytools.json` | false | Quality Tools living-update skip, reforge base, Dawnstone mismatch | Skip |
+| `mixins.aqtweaks.simpledifficulty.json` | false | Reskillable Water Collector + Cinder/Astral temp clamp | Skip |
+| `mixins.aqtweaks.rustic.json` | false | Reskillable Iron Gut | Skip |
+| `mixins.aqtweaks.botania.json` | false | Reskillable Druid mana thrift + Grove | Skip |
+| `mixins.aqtweaks.embers.json` | false | Reskillable Artificer Ember thrift + Foundry Pulse | Skip |
 
 `mixins.aqtweaks.json` contents (package `com.apocollis.aqtweaks.mixin`):
 
 - Client: `MixinRenderGlobal` (Depths hide sky)
-- Common: `MixinChunkProviderServer`, `depthsupdate.MixinDepthsCaveNoiseGenerator`, `cofh.MixinDistributionUniform`, `reccomplex.MixinRayMatcher`, `reccomplex.MixinGenericVillageCreationHandler`, Better Caves / RTG village mixins listed in [depths.md](depths.md) and [rtg.md](rtg.md), `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinWorldGenLakes`, `MixinMapGenVillageInside/Spawn/Start/World`, `MixinCraftingHelperFindFiles`, `MixinWorldEntitySpawner`. Charm paste: `mixins.aqtweaks.charm.json` on jar `MixinConfigs`. Portal `MixinWorldRiftLight`, cage `MixinMobSpawnerBaseLogic`, Quality `MixinTileEntityLockableLoot` and `MixinItemStackQualityDurability` are in `mixins.aqtweaks.early.json`. InControl `MixinStructureCache` is in `mixins.aqtweaks.incontrol.json`. Better Mineshafts locate mixins are in `mixins.aqtweaks.bettermineshafts.json`. RandomPortals grass pads: `mixins.aqtweaks.randomportals.json`. Quality Tools parent mixins: `mixins.aqtweaks.qualitytools.json`.
+- Common: `MixinChunkProviderServer`, `depthsupdate.MixinDepthsCaveNoiseGenerator`, `cofh.MixinDistributionUniform`, `reccomplex.MixinRayMatcher`, `reccomplex.MixinGenericVillageCreationHandler`, Better Caves / RTG village mixins listed in [depths.md](depths.md) and [rtg.md](rtg.md), `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinWorldGenLakes`, `MixinMapGenVillageInside/Spawn/Start/World`, `MixinCraftingHelperFindFiles`, `MixinWorldEntitySpawner`. Charm paste: `mixins.aqtweaks.charm.json` on jar `MixinConfigs`. Portal `MixinWorldRiftLight`, cage `MixinMobSpawnerBaseLogic`, Quality `MixinTileEntityLockableLoot` and `MixinItemStackQualityDurability` are in `mixins.aqtweaks.early.json`. InControl `MixinStructureCache` is in `mixins.aqtweaks.incontrol.json`. Better Mineshafts locate mixins are in `mixins.aqtweaks.bettermineshafts.json`. RandomPortals grass pads / Aether island pads: `mixins.aqtweaks.randomportals.json`. Quality Tools parent mixins: `mixins.aqtweaks.qualitytools.json`.
 
 Two mixins target `ChunkGeneratorRTG` in that required json. Their order comes from injection points, not from this list:
 
@@ -162,6 +169,7 @@ Forge `@Config` on nested classes in `ArcanaQuestTweaksConfig`. Comfort is JSON,
 | `aqtweaks_rtg.cfg` | `RtgModuleConfig` |
 | `aqtweaks_portal.cfg` | `PortalModuleConfig` |
 | `aqtweaks_twilightforest.cfg` | `TwilightForestModuleConfig` |
+| `aqtweaks_aether.cfg` | `AetherModuleConfig` |
 | `aqtweaks_statskeeper.cfg` | `StatsKeeperModuleConfig` |
 | `aqtweaks_gamestages.cfg` | `GameStagesModuleConfig` |
 | `aqtweaks_qualitytools.cfg` | `QualityToolsModuleConfig` |
@@ -175,7 +183,7 @@ Forge `@Config` on nested classes in `ArcanaQuestTweaksConfig`. Comfort is JSON,
 
 Its reach is narrower than it looks. It subscribes to `ConfigChangedEvent.OnConfigChangedEvent`, which Forge fires from the **client in-game config GUI only** — never on a dedicated server, and never from hand-editing a cfg file. The only JSON it reloads is spawn-type, spawn-party, and spawn-tier (plus `mob_spawnrules.cfg`); comfort (`aqtweaks_comfort_settings.json`, `aqtweaks_comfort_blocks.json`) and `gaia_mob_damage.json` are preInit-only and need a **restart**.
 
-`aqtweaks_grimoireofgaia.cfg`, `aqtweaks_thaumcraft.cfg`, and `aqtweaks_bewitchment.cfg` wrap their keys in a `general { }` block because those three `@Config` annotations omit `category = ""`. `aqtweaks_spawning.cfg`, `aqtweaks_statskeeper.cfg`, `aqtweaks_gamestages.cfg`, `aqtweaks_qualitytools.cfg`, `aqtweaks_twilightforest.cfg`, and `aqtweaks_bettermineshafts.cfg` also nest a `General` object (still `category = ""`) so their keys sit in `general { }` too. Files with `category = ""` and no nested General keep keys at file root. That asymmetry is **intentional** — normalizing the three omit-category files would reset tuned values in existing instance files.
+`aqtweaks_grimoireofgaia.cfg`, `aqtweaks_thaumcraft.cfg`, and `aqtweaks_bewitchment.cfg` wrap their keys in a `general { }` block because those three `@Config` annotations omit `category = ""`. `aqtweaks_spawning.cfg`, `aqtweaks_statskeeper.cfg`, `aqtweaks_gamestages.cfg`, `aqtweaks_qualitytools.cfg`, `aqtweaks_twilightforest.cfg`, `aqtweaks_aether.cfg`, and `aqtweaks_bettermineshafts.cfg` also nest a `General` object (still `category = ""`) so their keys sit in `general { }` too. Files with `category = ""` and no nested General keep keys at file root. That asymmetry is **intentional** — normalizing the three omit-category files would reset tuned values in existing instance files.
 
 Pack-owned (not Tweaks): `config/arcanaquest/mob_overworldspawntype.json`, `mob_spawnparties.json`, `mob_tier.json`, and `mob_spawnrules.cfg` for the [spawning](spawning.md) module.
 

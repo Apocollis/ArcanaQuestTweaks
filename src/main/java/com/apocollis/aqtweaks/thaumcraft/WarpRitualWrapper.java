@@ -59,18 +59,39 @@ public class WarpRitualWrapper extends Ritual {
             boolean added = false;
 
             if (warpNormal > 0) {
-                ThaumcraftHelper.addWarp(player, 0, warpNormal);
-                added = true;
+                int n = warpNormal;
+                if (Reflect.hasUnlockable(player, "aqtweaks:cold_iron_mind")
+                        && ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.coldIronMind.enable) {
+                    n = n / 2;
+                }
+                if (n > 0) {
+                    ThaumcraftHelper.addWarp(player, 0, n);
+                    added = true;
+                }
             }
 
             if (warpTemp > 0) {
-                ThaumcraftHelper.addWarp(player, 1, warpTemp);
-                added = true;
+                int n = warpTemp;
+                if (Reflect.hasUnlockable(player, "aqtweaks:cold_iron_mind")
+                        && ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.coldIronMind.enable) {
+                    n = n / 2;
+                }
+                if (n > 0) {
+                    ThaumcraftHelper.addWarp(player, 1, n);
+                    added = true;
+                }
             }
 
             if (warpPerm > 0) {
-                ThaumcraftHelper.addWarp(player, 2, warpPerm);
-                added = true;
+                int n = warpPerm;
+                if (Reflect.hasUnlockable(player, "aqtweaks:cold_iron_mind")
+                        && ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.coldIronMind.enable) {
+                    n = n / 2;
+                }
+                if (n > 0) {
+                    ThaumcraftHelper.addWarp(player, 2, n);
+                    added = true;
+                }
             }
 
             if (added) {

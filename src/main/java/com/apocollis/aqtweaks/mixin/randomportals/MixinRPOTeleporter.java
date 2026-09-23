@@ -1,5 +1,7 @@
 package com.apocollis.aqtweaks.mixin.randomportals;
 
+import com.apocollis.aqtweaks.aether.AetherPortalIsland;
+import com.apocollis.aqtweaks.aether.AetherPortalLandingHandler;
 import com.apocollis.aqtweaks.twilightforest.TfPortalGrass;
 import com.apocollis.aqtweaks.twilightforest.TfPortalLandingHandler;
 import com.therandomlabs.randomportals.api.config.PortalType;
@@ -33,35 +35,55 @@ public abstract class MixinRPOTeleporter {
             int platformWidth, int platformLength, int spaceHeight, FrameType type);
 
     @Inject(method = "isValidPortalPosition", at = @At("RETURN"), cancellable = true)
-    private void aqtweaks$requireGrassPad(BlockPos.MutableBlockPos pos, int x, int y, int z,
+    private void aqtweaks$requireSafePad(BlockPos.MutableBlockPos pos, int x, int y, int z,
             int platformWidth, int platformLength, int spaceHeight, FrameType type,
             CallbackInfoReturnable<Boolean> cir) {
-        if (!Boolean.TRUE.equals(cir.getReturnValue()) || !TfPortalLandingHandler.shouldGate(this.dimensionID)) {
+        if (!Boolean.TRUE.equals(cir.getReturnValue())) {
+            return;
+        }
+        boolean tf = TfPortalLandingHandler.shouldGate(this.dimensionID);
+        boolean aether = AetherPortalLandingHandler.shouldGate(this.dimensionID);
+        if (!tf && !aether) {
             return;
         }
         World world = aqtweaks$destWorld(null);
-        if (world == null || !TfPortalGrass.platformIsGrass(world, x, y - 1, z, platformWidth, platformLength,
-                type == FrameType.VERTICAL_Z)) {
+        boolean verticalZ = type == FrameType.VERTICAL_Z;
+        boolean ok = world != null && (tf
+                ? TfPortalGrass.platformIsGrass(world, x, y - 1, z, platformWidth, platformLength, verticalZ)
+                : AetherPortalIsland.platformIsIsland(world, x, y - 1, z, platformWidth, platformLength, verticalZ));
+        if (!ok) {
             cir.setReturnValue(false);
         }
     }
 
     @Inject(method = "findTopLeft", at = @At("RETURN"), cancellable = true)
-    private void aqtweaks$replaceCanopyFallback(RPOSavedData savedData, Entity entity, PortalType portalType,
+    private void aqtweaks$replaceVoidFallback(RPOSavedData savedData, Entity entity, PortalType portalType,
             FrameType type, int width, int height, IBlockState air, CallbackInfoReturnable<BlockPos> cir) {
-        if (!TfPortalLandingHandler.shouldGate(this.dimensionID)) {
+        boolean tf = TfPortalLandingHandler.shouldGate(this.dimensionID);
+        boolean aether = AetherPortalLandingHandler.shouldGate(this.dimensionID);
+        if (!tf && !aether) {
             return;
         }
         BlockPos topLeft = cir.getReturnValue();
         if (topLeft == null) {
             return;
         }
-        if (aqtweaks$frameTopLeftPlatformIsGrass(topLeft, type, width, height)) {
+        if (tf) {
+            if (aqtweaks$frameTopLeftPlatformIsGrass(topLeft, type, width, height)) {
+                return;
+            }
+            BlockPos grass = aqtweaks$findSurfaceTopLeft(entity, type, width, height, true);
+            if (grass != null) {
+                cir.setReturnValue(grass);
+            }
             return;
         }
-        BlockPos grass = aqtweaks$findGrassTopLeft(entity, type, width, height);
-        if (grass != null) {
-            cir.setReturnValue(grass);
+        if (aqtweaks$frameTopLeftPlatformIsIsland(topLeft, type, width, height)) {
+            return;
+        }
+        BlockPos island = aqtweaks$findSurfaceTopLeft(entity, type, width, height, false);
+        if (island != null) {
+            cir.setReturnValue(island);
         }
     }
 
@@ -92,7 +114,34 @@ public abstract class MixinRPOTeleporter {
                 type == FrameType.VERTICAL_Z);
     }
 
-    private BlockPos aqtweaks$findGrassTopLeft(Entity entity, FrameType type, int width, int height) {
+    private boolean aqtweaks$frameTopLeftPlatformIsIsland(BlockPos topLeft, FrameType type, int width, int height) {
+        int platformWidth = width;
+        int platformLength = type == FrameType.LATERAL ? height : 3;
+        int originX;
+        int originY;
+        int originZ;
+        if (type == FrameType.LATERAL) {
+            originX = topLeft.getX();
+            originY = topLeft.getY();
+            originZ = topLeft.getZ();
+        } else if (type == FrameType.VERTICAL_Z) {
+            originX = topLeft.getX() - 1;
+            originY = topLeft.getY() - (height - 2) - 1;
+            originZ = topLeft.getZ() - (width - 1);
+        } else {
+            originX = topLeft.getX();
+            originY = topLeft.getY() - (height - 2) - 1;
+            originZ = topLeft.getZ() - 1;
+        }
+        World world = aqtweaks$destWorld(null);
+        if (world == null) {
+            return false;
+        }
+        return AetherPortalIsland.platformIsIsland(world, originX, originY, originZ, platformWidth, platformLength,
+                type == FrameType.VERTICAL_Z);
+    }
+
+    private BlockPos aqtweaks$findSurfaceTopLeft(Entity entity, FrameType type, int width, int height, boolean twilight) {
         World world = aqtweaks$destWorld(entity);
         if (world == null) {
             return null;
@@ -108,11 +157,13 @@ public abstract class MixinRPOTeleporter {
         double bestDist = Double.MAX_VALUE;
         for (int x = entityX - radius; x <= entityX + radius; x++) {
             for (int z = entityZ - radius; z <= entityZ + radius; z++) {
-                int grassY = TfPortalGrass.findGrassBlockY(world, x, z);
-                if (grassY == Integer.MIN_VALUE) {
+                int surfaceY = twilight
+                        ? TfPortalGrass.findGrassBlockY(world, x, z)
+                        : AetherPortalIsland.findSurfaceY(world, x, z);
+                if (surfaceY == Integer.MIN_VALUE) {
                     continue;
                 }
-                int y = grassY + 1;
+                int y = surfaceY + 1;
                 if (!this.isValidPortalPosition(pos, x, y, z, platformWidth, platformLength, spaceHeight, type)) {
                     continue;
                 }

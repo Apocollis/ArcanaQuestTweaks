@@ -12,6 +12,9 @@ public class ReskillablePerkRegistry {
 
     public static void preInit() {
         MinecraftForge.EVENT_BUS.register(new ReskillablePerkRegistry());
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("bewitchment")) {
+            MinecraftForge.EVENT_BUS.register(new StitchRecipeEvents());
+        }
     }
 
     @SubscribeEvent
@@ -45,6 +48,18 @@ public class ReskillablePerkRegistry {
         event.getRegistry().register(new AqtweaksTrait("water_collector", perks.waterCollector));
         event.getRegistry().register(new AqtweaksTrait("full_font", perks.fullFont));
         event.getRegistry().register(new AqtweaksTrait("blood_pact", perks.bloodPact));
+        event.getRegistry().register(new AqtweaksTrait("druid", perks.druid));
+        event.getRegistry().register(new AqtweaksTrait("mana_veil", perks.manaVeil));
+        event.getRegistry().register(new AqtweaksTrait("living_edge", perks.livingEdge));
+        event.getRegistry().register(new AqtweaksTrait("witch", perks.witch));
+        event.getRegistry().register(new AqtweaksTrait("cold_iron_mind", perks.coldIronMind));
+        event.getRegistry().register(new AqtweaksTrait("stitch", perks.stitch));
+        event.getRegistry().register(new AqtweaksTrait("astromancer", perks.astromancer));
+        event.getRegistry().register(new AqtweaksTrait("astral_warmth", perks.astralWarmth));
+        event.getRegistry().register(new AqtweaksTrait("star_powered", perks.starPowered));
+        event.getRegistry().register(new AqtweaksTrait("artificer", perks.artificer));
+        event.getRegistry().register(new AqtweaksTrait("live_spark", perks.liveSpark));
+        event.getRegistry().register(new AqtweaksTrait("cinder_ward", perks.cinderWard));
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)

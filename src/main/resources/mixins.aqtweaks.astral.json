@@ -6,6 +6,8 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "MixinWorldGenAttributeCommon",
-    "MixinWorldGenAttributeStructure"
+    "MixinWorldGenAttributeStructure",
+    "MixinActiveCraftingTask",
+    "MixinAbstractAltarRecipe"
   ]
 }

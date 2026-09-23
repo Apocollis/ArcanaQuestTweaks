@@ -33,7 +33,7 @@ On `SearchingForDestination` (server), cfg enabled, dest dim = cfg id (default 7
 3. If not OK: same random search as TF (200, then 400).
 4. `entity.setLocationAndAngles(x+0.5, grassY+1, z+0.5, …)`. Never cancel the event. If no grass-safe column, leave the entity.
 
-Mixin `MixinRPOTeleporter` (`remap = false`), only when `dimensionID` matches cfg:
+Mixin `MixinRPOTeleporter` (`remap = false`), only when `dimensionID` matches cfg (TF dest). Aether island pads use the same mixin when the Aether dest dim matches ([aether.md](aether.md)):
 
 - `isValidPortalPosition` RETURN: parent true still fails unless every platform cell at `y-1` is `Material.GRASS`.
 - `findTopLeft` RETURN: if the returned pad is not grass, search `RPOConfig.NetherPortals.portalGenerationLocationSearchRadius` for a grass pad that passes `isValidPortalPosition`, convert to RP `topLeft`. If none, keep the parent return.
