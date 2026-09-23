@@ -31,6 +31,7 @@ Each file covers: what Tweaks changes, how the **parent mod** implements the fea
 | RTG | Realistic Terrain Generation + vanilla `MapGenVillage` + Recurrent Complex + Astral / Bewitchment Cambion / Mystical World huts | [rtg.md](rtg.md) |
 | Village gen (pack pipeline) | Vanilla + RTG + Geographicraft + Recurrent Complex + Charm + Tweaks overlay | [villagegen_info.md](villagegen_info.md) |
 | Client | Toughness Bar (optional), tooltip lines for non-Metallurgy tools | [client.md](client.md) |
+| MineMenu | Vanilla client mouse grab (MineMenu, Reskillable, Hwyla screens) | [minemenu.md](minemenu.md) |
 | Spawning | Vanilla `PotentialSpawns` + pack `mob_overworldspawntype.json` (InControl still owns deny) | [spawning.md](spawning.md) |
 | Recipes | Forge `CraftingHelper` (Metallurgy / Spartan JSON) | [recipes.md](recipes.md) |
 | Advancement | Animania Base (Farm / Extra addon JSON via Base handler) | [advancement.md](advancement.md) |
@@ -109,7 +110,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 
 ### MixinBooter: early vs late
 
-Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, and `ItemStack` are already loaded when late mixins prepare. Portal glowstone light (`MixinWorldRiftLight` on `World.getRawLight`), cage fail delay (`MixinMobSpawnerBaseLogic` on `updateSpawner`), Quality loot stamp (`MixinTileEntityLockableLoot`), and Quality wear (`MixinItemStackQualityDurability`) are in **`mixins.aqtweaks.early.json`**. Charm village paste (`mixins.aqtweaks.charm.json`, `required: true`) is on the same jar `MixinConfigs` so Charm `ASMHooks` is mixed before Charm’s transformer defines it. MixinBooter 11 reads `MixinConfigs` from the jar manifest (set in `build.gradle`). Do not register these json files from `AQTweaksLateMixinLoader`. Missing either fails load. Charm is `@Mod required-after` (Curse / pack prerequisite).
+Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, and client `Minecraft` are already loaded when late mixins prepare. Portal glowstone light (`MixinWorldRiftLight` on `World.getRawLight`), cage fail delay (`MixinMobSpawnerBaseLogic` on `updateSpawner`), Quality loot stamp (`MixinTileEntityLockableLoot`), Quality wear (`MixinItemStackQualityDurability`), and MineMenu mouse re-grab (`MixinMinecraftMouseGrab` on `displayGuiScreen`, **client** array) are in **`mixins.aqtweaks.early.json`**. Charm village paste (`mixins.aqtweaks.charm.json`, `required: true`) is on the same jar `MixinConfigs` so Charm `ASMHooks` is mixed before Charm’s transformer defines it. MixinBooter 11 reads `MixinConfigs` from the jar manifest (set in `build.gradle`). Do not register these json files from `AQTweaksLateMixinLoader`. Missing either fails load. Charm is `@Mod required-after` (Curse / pack prerequisite).
 
 ### MixinBooter late loader
 
@@ -143,8 +144,8 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, and `ItemStack
 
 `mixins.aqtweaks.json` contents (package `com.apocollis.aqtweaks.mixin`):
 
-- Client: `MixinRenderGlobal` (Depths hide sky)
-- Common: `MixinChunkProviderServer`, `depthsupdate.MixinDepthsCaveNoiseGenerator`, `cofh.MixinDistributionUniform`, `reccomplex.MixinRayMatcher`, `reccomplex.MixinGenericVillageCreationHandler`, Better Caves / RTG village mixins listed in [depths.md](depths.md) and [rtg.md](rtg.md), `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinWorldGenLakes`, `MixinMapGenVillageInside/Spawn/Start/World`, `MixinCraftingHelperFindFiles`, `MixinWorldEntitySpawner`. Charm paste: `mixins.aqtweaks.charm.json` on jar `MixinConfigs`. Portal `MixinWorldRiftLight`, cage `MixinMobSpawnerBaseLogic`, Quality `MixinTileEntityLockableLoot` and `MixinItemStackQualityDurability` are in `mixins.aqtweaks.early.json`. InControl `MixinStructureCache` is in `mixins.aqtweaks.incontrol.json`. Better Mineshafts locate mixins are in `mixins.aqtweaks.bettermineshafts.json`. RandomPortals grass pads / Aether island pads: `mixins.aqtweaks.randomportals.json`. Quality Tools parent mixins: `mixins.aqtweaks.qualitytools.json`.
+- Client: `MixinRenderGlobal` (Depths hide sky), `MixinEntityRendererMouse` (skip look while a screen is open; [minemenu.md](minemenu.md))
+- Common: `MixinChunkProviderServer`, `depthsupdate.MixinDepthsCaveNoiseGenerator`, `cofh.MixinDistributionUniform`, `reccomplex.MixinRayMatcher`, `reccomplex.MixinGenericVillageCreationHandler`, Better Caves / RTG village mixins listed in [depths.md](depths.md) and [rtg.md](rtg.md), `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinWorldGenLakes`, `MixinMapGenVillageInside/Spawn/Start/World`, `MixinCraftingHelperFindFiles`, `MixinWorldEntitySpawner`. Charm paste: `mixins.aqtweaks.charm.json` on jar `MixinConfigs`. Portal `MixinWorldRiftLight`, cage `MixinMobSpawnerBaseLogic`, Quality `MixinTileEntityLockableLoot` and `MixinItemStackQualityDurability`, and MineMenu `MixinMinecraftMouseGrab` (client) are in `mixins.aqtweaks.early.json`. InControl `MixinStructureCache` is in `mixins.aqtweaks.incontrol.json`. Better Mineshafts locate mixins are in `mixins.aqtweaks.bettermineshafts.json`. RandomPortals grass pads / Aether island pads: `mixins.aqtweaks.randomportals.json`. Quality Tools parent mixins: `mixins.aqtweaks.qualitytools.json`.
 
 Two mixins target `ChunkGeneratorRTG` in that required json. Their order comes from injection points, not from this list:
 
@@ -176,6 +177,7 @@ Forge `@Config` on nested classes in `ArcanaQuestTweaksConfig`. Comfort is JSON,
 | `aqtweaks_reskillable.cfg` | `ReskillableModuleConfig` |
 | `aqtweaks_spawning.cfg` | `SpawningModuleConfig` |
 | `aqtweaks_bettermineshafts.cfg` | `BetterMineshaftsModuleConfig` |
+| `aqtweaks_minemenu.cfg` | `MineMenuModuleConfig` |
 | `aqtweaks_comfort_settings.json` | `ComfortConfigLoader` (not `@Config`) |
 | `aqtweaks_comfort_blocks.json` | `ComfortConfigLoader` (not `@Config`) |
 
@@ -183,7 +185,7 @@ Forge `@Config` on nested classes in `ArcanaQuestTweaksConfig`. Comfort is JSON,
 
 Its reach is narrower than it looks. It subscribes to `ConfigChangedEvent.OnConfigChangedEvent`, which Forge fires from the **client in-game config GUI only** — never on a dedicated server, and never from hand-editing a cfg file. The only JSON it reloads is spawn-type, spawn-party, and spawn-tier (plus `mob_spawnrules.cfg`); comfort (`aqtweaks_comfort_settings.json`, `aqtweaks_comfort_blocks.json`) and `gaia_mob_damage.json` are preInit-only and need a **restart**.
 
-`aqtweaks_grimoireofgaia.cfg`, `aqtweaks_thaumcraft.cfg`, and `aqtweaks_bewitchment.cfg` wrap their keys in a `general { }` block because those three `@Config` annotations omit `category = ""`. `aqtweaks_spawning.cfg`, `aqtweaks_statskeeper.cfg`, `aqtweaks_gamestages.cfg`, `aqtweaks_qualitytools.cfg`, `aqtweaks_twilightforest.cfg`, `aqtweaks_aether.cfg`, and `aqtweaks_bettermineshafts.cfg` also nest a `General` object (still `category = ""`) so their keys sit in `general { }` too. Files with `category = ""` and no nested General keep keys at file root. That asymmetry is **intentional** — normalizing the three omit-category files would reset tuned values in existing instance files.
+`aqtweaks_grimoireofgaia.cfg`, `aqtweaks_thaumcraft.cfg`, and `aqtweaks_bewitchment.cfg` wrap their keys in a `general { }` block because those three `@Config` annotations omit `category = ""`. `aqtweaks_spawning.cfg`, `aqtweaks_statskeeper.cfg`, `aqtweaks_gamestages.cfg`, `aqtweaks_qualitytools.cfg`, `aqtweaks_twilightforest.cfg`, `aqtweaks_aether.cfg`, `aqtweaks_bettermineshafts.cfg`, and `aqtweaks_minemenu.cfg` also nest a `General` object (still `category = ""`) so their keys sit in `general { }` too. Files with `category = ""` and no nested General keep keys at file root. That asymmetry is **intentional** — normalizing the three omit-category files would reset tuned values in existing instance files.
 
 Pack-owned (not Tweaks): `config/arcanaquest/mob_overworldspawntype.json`, `mob_spawnparties.json`, `mob_tier.json`, and `mob_spawnrules.cfg` for the [spawning](spawning.md) module.
 

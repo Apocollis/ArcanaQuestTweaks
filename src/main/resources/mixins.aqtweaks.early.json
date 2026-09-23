@@ -4,6 +4,9 @@
   "refmap": "mixins.aqtweaks.refmap.json",
   "package": "com.apocollis.aqtweaks.mixin",
   "compatibilityLevel": "JAVA_21",
+  "client": [
+    "MixinMinecraftMouseGrab"
+  ],
   "mixins": [
     "MixinWorldRiftLight",
     "MixinBlockRiftLight",

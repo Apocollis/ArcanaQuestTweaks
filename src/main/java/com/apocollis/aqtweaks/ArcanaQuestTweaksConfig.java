@@ -1778,6 +1778,19 @@ public class ArcanaQuestTweaksConfig {
         public int tunnelMaxY = 37;
     }
 
+    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_minemenu", category = "")
+    public static class MineMenuModuleConfig {
+        @Config.Name("General")
+        @Config.Comment("GUI mouse grab while a screen is open, and on return to play.")
+        public static final MineMenuGeneral general = new MineMenuGeneral();
+    }
+
+    public static class MineMenuGeneral {
+        @Config.Name("Fix GUI Mouse Grab")
+        @Config.Comment("When true, mouse look is skipped while any screen is open, and closing a screen back to play re-grabs the cursor and drops the recenter delta. When false, stock Minecraft mouse focus.")
+        public boolean fixGuiMouseGrab = true;
+    }
+
     /**
      * Forces values that are documented as non-tunable back to their pinned constants. Runs after
      * every sync, so a hand-edited instance file is corrected rather than honoured. Readers can
