@@ -12,6 +12,8 @@
     "MixinBlockRiftLight",
     "MixinMobSpawnerBaseLogic",
     "MixinTileEntityLockableLoot",
-    "MixinItemStackQualityDurability"
+    "MixinItemStackQualityDurability",
+    "MixinItemStackDurability",
+    "MixinBlockCropsSeed"
   ]
 }

@@ -258,8 +258,12 @@ Lang: `reskillable.unlock.aqtweaks.<path>` / `.desc`. Icons: `aqtweaks:textures/
 - `mixin/embers/MixinEmberInventoryUtil.java`, `MixinTileEntityStamper.java`, `MixinTileEntityMixerBottom.java`, `MixinTileEntityFurnaceBottom.java` — `mixins.aqtweaks.embers.json`
 - `mixin/simpledifficulty/MixinTemperatureCapability.java`
 - `mixins.aqtweaks.effortlessbuilding.json`
+- `reskillable/PerkDurability.java`, `PerkDrops.java` — Stone Cleaver / Wood Splitter, crop/seed drops
+- `mixin/MixinItemStackDurability.java` (`ItemStack.damageItem` HEAD), `mixin/MixinBlockCropsSeed.java` (`BlockCrops.getSeed` invoker) — **`mixins.aqtweaks.early.json`**; FQCN into `reskillable/` helpers
 
 ## Do not regress
+
+- Do not put vanilla-target mixins (`ItemStack`, `BlockCrops`, …) in late `mixins.aqtweaks.json` (`loaded too early` at boot)
 
 - Stamina `aqtweaks_stamina.cfg` Reskillable perk section and `Reflect.hasUnlockable`
 - Duplicate registry if pack CrT still registers Armor Mastery / Mining Efficiency

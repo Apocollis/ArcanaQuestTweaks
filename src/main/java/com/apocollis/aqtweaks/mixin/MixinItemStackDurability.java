@@ -1,6 +1,5 @@
 package com.apocollis.aqtweaks.mixin;
 
-import com.apocollis.aqtweaks.reskillable.PerkDurability;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
@@ -15,7 +14,7 @@ public abstract class MixinItemStackDurability {
     @Inject(method = "damageItem", at = @At("HEAD"), cancellable = true)
     private void aqtweaks$freeBreak(int amount, EntityLivingBase entity, CallbackInfo ci) {
         if (!(entity instanceof EntityPlayer player)) return;
-        if (PerkDurability.consume(player, (ItemStack) (Object) this)) {
+        if (com.apocollis.aqtweaks.reskillable.PerkDurability.consume(player, (ItemStack) (Object) this)) {
             ci.cancel();
         }
     }
