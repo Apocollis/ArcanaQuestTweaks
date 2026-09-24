@@ -71,7 +71,8 @@ $deps = @(
     "DynamicStealth-1.12.2.120.jar",
     "PlayerRevive_v1.2.40_mc1.12.2.jar",
     "FarmersDelightLegacy-1.1.7.jar",
-    "extra-delight-legacy-1.1.6.jar"
+    "extra-delight-legacy-1.1.6.jar",
+    "prospectus-1.8.jar"
 )
 foreach ($dep in $deps) {
     $src = "$localModsDir/$dep"

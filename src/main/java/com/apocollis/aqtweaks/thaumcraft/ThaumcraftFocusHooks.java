@@ -33,15 +33,19 @@ public final class ThaumcraftFocusHooks {
 
     public static void healScaled(EntityLivingBase target, Entity caster, float amount) {
         if (target == null) return;
-        target.heal(scaleOutgoing(caster, amount));
+        target.heal(scaleHeal(caster, target, amount));
     }
 
     public static float scaleOutgoing(Entity caster, float amount) {
+        return scaleHeal(caster, null, amount);
+    }
+
+    private static float scaleHeal(Entity caster, EntityLivingBase target, float amount) {
         if (!(caster instanceof EntityPlayer) || amount == 0.0f) return amount;
         resolve();
         if (magicMultiplier == null) return amount;
         try {
-            Object out = magicMultiplier.invoke(null, caster, amount);
+            Object out = magicMultiplier.invoke(null, caster, target, amount);
             if (out instanceof Number) {
                 return ((Number) out).floatValue();
             }
@@ -61,7 +65,8 @@ public final class ThaumcraftFocusHooks {
         if (!Loader.isModLoaded("reskillable")) return;
         try {
             Class<?> bonuses = Class.forName("com.apocollis.aqtweaks.reskillable.ReskillableBonuses");
-            magicMultiplier = bonuses.getMethod("scaleOutgoingMagic", EntityPlayer.class, float.class);
+            magicMultiplier = bonuses.getMethod("scaleOutgoingHeal",
+                    EntityPlayer.class, EntityLivingBase.class, float.class);
         } catch (Throwable t) {
             magicMultiplier = null;
             LOGGER.warn("[AQ-TC] Reskillable is loaded but the magic multiplier bridge could not be "

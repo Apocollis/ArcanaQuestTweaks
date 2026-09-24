@@ -142,6 +142,7 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `
 | `mixins.aqtweaks.rustic.json` | false | Reskillable Iron Gut | Skip |
 | `mixins.aqtweaks.botania.json` | false | Reskillable Druid mana thrift + Grove | Skip |
 | `mixins.aqtweaks.embers.json` | false | Reskillable Artificer Ember thrift + Foundry Pulse | Skip |
+| `mixins.aqtweaks.prospectus.json` | false | Reskillable Prospector pick accuracy + ore outline | Skip |
 
 `mixins.aqtweaks.json` contents (package `com.apocollis.aqtweaks.mixin`):
 

@@ -70,7 +70,7 @@ Outgoing if trueSource is the player; incoming if victim is the player. Same cla
 
 Gaia bolts Tweaks recast to `causeIndirectMagicDamage` still match. Splash/lingering potion HP does not.
 
-Stock TC foci stamp `setMagicDamage()` in the [thaumcraft module](thaumcraft.md) mixin (not a `thrown` prefix). DSS Blade Beam stamps **magic + unblockable** on `EntitySwordBeam` impact (`mixins.aqtweaks.dss.json`). Heal on living uses `heal(float)`: caster outgoing drip, then Blood Pact, then Full Font if stamped; no incoming DR on heals. Food/regen/potions are not scaled.
+Stock TC foci stamp `setMagicDamage()` in the [thaumcraft module](thaumcraft.md) mixin (not a `thrown` prefix). DSS Blade Beam stamps **magic + unblockable** on `EntitySwordBeam` impact (`mixins.aqtweaks.dss.json`). Heal on living uses `heal(float)`: caster outgoing drip, then Blood Pact, then Full Font if stamped, then Benevolent ×2 when the target is another living entity. A self-heal skips Benevolent. No incoming DR on heals. Food/regen/potions are not scaled.
 
 Outgoing classified Magic (hurt + Heal-focus + Blade Beam) is `scaleOutgoingMagic`: drip × Blood Pact × Full Font stamp (stamp then clears). Incoming Magic is drip only.
 
@@ -165,7 +165,7 @@ Vis Thrift: +0.30 on `getTotalVisDiscount`. Quiet Mind: −round(0.35×bound) wa
 
 ### Magic schools (mutex)
 
-Four schools. Unlocking one blocks the other three (`not|trait|`). School cost 3, requirement **magic 20**. The school includes parent thrift ×0.70 **and** the identity. Each school has two follow-ups cost 1. CAD resolves `trait|` while the perk is constructed, so `ReskillablePerkRegistry` restamps those holders on the LOWEST registry pass after every school exists. Leftover Magic cells: **0,1** and **1,3**.
+Four schools. Unlocking one blocks the other three (`not|trait|`). School cost 3, requirement **magic 20**. The school includes parent thrift ×0.70 **and** the identity. Each school has two follow-ups cost 1. CAD resolves `trait|` while the perk is constructed, so `ReskillablePerkRegistry` restamps those holders on the LOWEST registry pass after every school exists. Leftover Magic cell: **1,3**.
 
 ### Wishlist perks
 
@@ -173,6 +173,7 @@ Drop spikes use `skillLevel × 0.02`, one extra item. The forage and farming dri
 
 | Id | Skill | Cost | Req |
 | --- | --- | --- | --- |
+| `benevolent` | magic | 3 | magic 16 |
 | `dark_vision` | mining | 2 | mining 8 |
 | `spelunker` | mining | 3 | mining 16 |
 | `tunnel_sense` | mining | 3 | mining 12 |
@@ -204,7 +205,7 @@ Drop spikes use `skillLevel × 0.02`, one extra item. The forage and farming dri
 | `tumble` | agility | 2 | agility 12 |
 | `slow_fall` | agility | 3 | agility 12 |
 
-Dark Vision: Night Vision while combined light at the feet is ≤ 7, clear at 9. Spelunker: underground (Thaumcraft under / underDeep Y) halves those two exposure banks and pulls Simple Difficulty body temperature 4 points toward 11 (10 and 11 stay). Tunnel Sense: hostile within 10 blocks plays `block.note.pling` for that player and applies Glowing for 100 ticks; it does not fire again until that ends. Prospector: breaking stone, cobble, or stone brick marks ores in 5 blocks, cooldown 15 seconds. Motherlode: one extra on one ore stack. Lithomancy: one Rare Earth roll, Thaumcraft base × `(1 + mining × 0.0625)`, and Thaumcraft’s own roll is skipped for that break. Stone Cleaver / Wood Splitter: tool harvest level ≥ 3, no durability on stone/cobble/gravel or logs. Reforester: one sapling if the leaf drop has none; shears and silk skip it. Sifter: gravel stays, plus a flint roll; clay adds one clay ball on the same roll. Orchard: melon, pumpkin, and ripe Rustic / Farmer’s Delight / Extra Delight fruit. Sower: 3×3 seeds on farmland. Husbandry: ageable mobs within 16 grow and cool down faster. Hearty Meal: +2 hunger. Seed Harvester: one replant item. Finisher: melee ×1.5 under 25% health. Aura Breaker: Broken Magic Shield III for 5 seconds. Bleeding Edge: `lycanitesmobs:bleed` 16 seconds, melee only. Pinning Shot: physical ranged Slowness II for 40 ticks. Opportunistic: redirect Dynamic Stealth `Sight.canSee` in `entityAttackedPre` when a different living attacker hit the target in the last 60 ticks. Fortify: shield stamina 0, Resistance II after 20 still ticks while blocking. Unyielding: knockback resistance 1 while the shield is up. Awareness: cancel `StealthAttackEvent`. Fast Revive: each perk holder counts as a second helper in `Revival.tick`. Taunt ×2 and Low Profile ×0.75 on the six `THREATGEN_*` stats. Soft Step: cancel farmland trample. Tumble: fall damage ×0.5. Slow Fall: Rustic `PotionFeather` while a solid block is beside the player.
+Dark Vision: client lightmap mix, brighter of head and feet. Light 0 mixes at 0.8, light 6 at 0.4, light 9 or higher at 0 (`(108 - 3L - L²) / 135`). The factor eases over 5 ticks. A Night Vision potion stays at full strength and skips this mix. Benevolent: Heal focus on any living target other than the caster is ×2 after the drip, Blood Pact, and Full Font. Spelunker: underground (Thaumcraft under / underDeep Y) halves those two exposure banks and pulls Simple Difficulty body temperature 4 points toward 11 (10 and 11 stay). Tunnel Sense: hostile within 10 blocks plays `block.note.pling` for that player and applies Glowing for 100 ticks; it does not fire again until that ends. Prospector: a Prospectus pick right-click uses Tweaks base chances (wood 10 through steel 75) and, with the perk, adds 25 (cap 100) and outlines the ore blocks that click counted for 7 seconds. No cooldown. Invar keeps the Prospectus accuracy. Motherlode: one extra on one ore stack. Lithomancy: one Rare Earth roll, Thaumcraft base × `(1 + mining × 0.0625)`, and Thaumcraft’s own roll is skipped for that break. Stone Cleaver / Wood Splitter: tool harvest level ≥ 3, no durability on stone/cobble/gravel or logs. Reforester: one sapling if the leaf drop has none; shears and silk skip it. Sifter: gravel stays, plus a flint roll; clay adds one clay ball on the same roll. Orchard: melon, pumpkin, and ripe Rustic / Farmer’s Delight / Extra Delight fruit. Sower: 3×3 seeds on farmland. Husbandry: ageable mobs within 16 grow and cool down faster. Hearty Meal: +2 hunger. Seed Harvester: one replant item. Finisher: melee ×1.5 under 25% health. Aura Breaker: Broken Magic Shield III for 5 seconds. Bleeding Edge: `lycanitesmobs:bleed` 16 seconds, melee only. Pinning Shot: physical ranged Slowness II for 40 ticks. Opportunistic: redirect Dynamic Stealth `Sight.canSee` in `entityAttackedPre` when a different living attacker hit the target in the last 60 ticks. Fortify: shield stamina 0, Resistance II after 20 still ticks while blocking. Unyielding: knockback resistance 1 while the shield is up. Awareness: cancel `StealthAttackEvent`. Fast Revive: each perk holder counts as a second helper in `Revival.tick`. Taunt ×2 and Low Profile ×0.75 on the six `THREATGEN_*` stats. Soft Step: cancel farmland trample. Tumble: fall damage ×0.5. Slow Fall: Rustic `PotionFeather` while a solid block is beside the player.
 
 Existing Tweaks costs were retuned in the same pass. Stock traits are stamped on the LOWEST registry pass.
 
@@ -258,6 +259,9 @@ Lang: `reskillable.unlock.aqtweaks.<path>` / `.desc`. Icons: `aqtweaks:textures/
 - `mixin/embers/MixinEmberInventoryUtil.java`, `MixinTileEntityStamper.java`, `MixinTileEntityMixerBottom.java`, `MixinTileEntityFurnaceBottom.java` — `mixins.aqtweaks.embers.json`
 - `mixin/simpledifficulty/MixinTemperatureCapability.java`
 - `mixins.aqtweaks.effortlessbuilding.json`
+- `reskillable/ProspectAccuracy.java`, `ProspectorSample.java` — Prospectus pick chances and the ore boxes from one click
+- `mixin/prospectus/MixinItemProspector.java`, `InvokerProspectus.java` — `mixins.aqtweaks.prospectus.json`. Right-click is `func_180614_a`; `getBlockState` invoke is MCP with `remap = true`
+- `reskillable/client/DarkVisionLight.java` — lightmap mix
 - `reskillable/PerkDurability.java`, `PerkDrops.java` — Stone Cleaver / Wood Splitter, crop/seed drops
 - `mixin/MixinItemStackDurability.java` (`ItemStack.damageItem` HEAD), `mixin/MixinBlockCropsSeed.java` (`BlockCrops.getSeed` invoker) — **`mixins.aqtweaks.early.json`**; FQCN into `reskillable/` helpers
 
@@ -290,7 +294,5 @@ Lang: `reskillable.unlock.aqtweaks.<path>` / `.desc`. Icons: `aqtweaks:textures/
 
 ## Out of scope unless asked
 
-- Extra HP; attack speed; bow damage; general % DR; potion duration
-- Vanilla reach; Agility stamina/dodge; farming saturation; gathering extra **ore** (pack Mining perk)
 - Recipe/item gating (Recipe Stages / Game Stages / CrT)
 - Shipping Universal Tweaks Armor Curve in this jar

@@ -32,5 +32,6 @@ public class ClientProxy extends CommonProxy {
         BaublesMenuClient.register();
         MinecraftForge.EVENT_BUS.register(new DepthsFogHandler());
         MinecraftForge.EVENT_BUS.register(new ClientModule());
+        MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.reskillable.client.ProspectorOutline());
     }
 }

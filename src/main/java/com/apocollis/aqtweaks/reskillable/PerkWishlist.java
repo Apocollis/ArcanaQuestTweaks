@@ -29,13 +29,11 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.potion.Potion;
 import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.EnumFacing;
-import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.SoundCategory;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
-import net.minecraft.world.WorldServer;
 import net.minecraftforge.event.entity.living.LivingEntityUseItemEvent;
 import net.minecraftforge.event.entity.living.LivingFallEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
@@ -54,7 +52,6 @@ public class PerkWishlist {
 
     private static final UUID KNOCKBACK = UUID.fromString("91b2c4de-6a10-4e55-8f3a-2d7c0b6e44c1");
     private static final String STILL = "AqtweaksFortifyStill";
-    private static final String PROSPECT = "AqtweaksProspectorUntil";
     private static final String TUNNEL = "AqtweaksTunnelUntil";
 
     @SubscribeEvent
@@ -62,7 +59,6 @@ public class PerkWishlist {
         if (event.getWorld().isRemote) return;
         EntityPlayer player = event.getPlayer();
         PerkDrops.markFreeBreak(player, event.getState());
-        prospect(event);
     }
 
     @SubscribeEvent
@@ -157,7 +153,6 @@ public class PerkWishlist {
     public void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase != TickEvent.Phase.END || event.player.world.isRemote) return;
         EntityPlayer player = event.player;
-        darkVision(player);
         tunnel(player);
         fortify(player);
         unyielding(player);
@@ -203,22 +198,6 @@ public class PerkWishlist {
         if (immediate instanceof EntityFireball || immediate instanceof EntityPotion) return;
         if (!(immediate instanceof EntityArrow) && !(immediate instanceof EntityThrowable)) return;
         event.getEntityLiving().addPotionEffect(new PotionEffect(MobEffects.SLOWNESS, 40, 1));
-    }
-
-    private static void darkVision(EntityPlayer player) {
-        boolean on = PerkAccess.on(player, "aqtweaks:dark_vision",
-                ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.darkVision.enable);
-        int light = player.world.getLight(new BlockPos(player.posX, player.posY, player.posZ));
-        if (on && light <= 7) {
-            player.addPotionEffect(new PotionEffect(MobEffects.NIGHT_VISION, 220, 0, true, false));
-            return;
-        }
-        if (light >= 9) {
-            PotionEffect active = player.getActivePotionEffect(MobEffects.NIGHT_VISION);
-            if (active != null && active.getDuration() <= 230) {
-                player.removePotionEffect(MobEffects.NIGHT_VISION);
-            }
-        }
     }
 
     private static void tunnel(EntityPlayer player) {
@@ -306,25 +285,6 @@ public class PerkWishlist {
             int age = animal.getGrowingAge();
             if (age < 0) animal.setGrowingAge(Math.min(0, age + 20));
             else if (age > 0) animal.setGrowingAge(Math.max(0, age - 20));
-        }
-    }
-
-    private static void prospect(BlockEvent.BreakEvent event) {
-        EntityPlayer player = event.getPlayer();
-        if (!PerkAccess.on(player, "aqtweaks:prospector",
-                ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.prospector.enable)) return;
-        Block block = event.getState().getBlock();
-        if (block != Blocks.STONE && block != Blocks.COBBLESTONE && block != Blocks.STONEBRICK) return;
-        long now = event.getWorld().getTotalWorldTime();
-        if (player.getEntityData().getLong(PROSPECT) > now) return;
-        player.getEntityData().setLong(PROSPECT, now + 300);
-        if (!(event.getWorld() instanceof WorldServer server)) return;
-        BlockPos origin = event.getPos();
-        for (BlockPos pos : BlockPos.getAllInBoxMutable(origin.add(-5, -5, -5), origin.add(5, 5, 5))) {
-            if (!ReskillableBonuses.isOreBlock(event.getWorld(), event.getWorld().getBlockState(pos))) continue;
-            server.spawnParticle(EnumParticleTypes.VILLAGER_HAPPY, false,
-                    pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
-                    4, 0.2, 0.2, 0.2, 0.01);
         }
     }
 

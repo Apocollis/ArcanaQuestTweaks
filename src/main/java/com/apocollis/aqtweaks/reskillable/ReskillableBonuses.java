@@ -28,6 +28,7 @@ import net.minecraft.block.BlockTallGrass;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.projectile.EntityPotion;
 import net.minecraft.init.Enchantments;
@@ -306,6 +307,16 @@ public final class ReskillableBonuses {
         double bonus = Math.min(0.4, skillLevel(player, "magic") * k);
         if (bonus <= 0.0) return 1.0f;
         return outgoing ? (float) (1.0 + bonus) : (float) (1.0 - bonus);
+    }
+
+    public static float scaleOutgoingHeal(EntityPlayer player, EntityLivingBase target, float amount) {
+        float scaled = scaleOutgoingMagic(player, amount);
+        if (target == null || target == player) return scaled;
+        if (PerkAccess.on(player, "aqtweaks:benevolent",
+                ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.benevolent.enable)) {
+            scaled *= 2.0f;
+        }
+        return scaled;
     }
 
     public static float scaleOutgoingMagic(EntityPlayer player, float amount) {

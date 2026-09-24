@@ -1525,6 +1525,10 @@ public class ArcanaQuestTweaksConfig {
         public ReskillablePerkLayout cinderWard = new ReskillablePerkLayout(
                 2, 0, 1, "reskillable:magic", "trait|aqtweaks:artificer");
 
+        @Config.Name("Benevolent")
+        public ReskillablePerkLayout benevolent = new ReskillablePerkLayout(
+                0, 1, 3, "reskillable:magic", "reskillable:magic|16");
+
         @Config.Name("Dark Vision")
         public ReskillablePerkLayout darkVision = new ReskillablePerkLayout(
                 0, 1, 2, "reskillable:mining", "reskillable:mining|8");

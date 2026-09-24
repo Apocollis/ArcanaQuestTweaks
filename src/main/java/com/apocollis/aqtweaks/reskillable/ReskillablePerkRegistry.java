@@ -62,6 +62,7 @@ public class ReskillablePerkRegistry {
         event.getRegistry().register(new AqtweaksTrait("artificer", perks.artificer));
         event.getRegistry().register(new AqtweaksTrait("live_spark", perks.liveSpark));
         event.getRegistry().register(new AqtweaksTrait("cinder_ward", perks.cinderWard));
+        event.getRegistry().register(new AqtweaksTrait("benevolent", perks.benevolent));
         event.getRegistry().register(new AqtweaksTrait("dark_vision", perks.darkVision));
         event.getRegistry().register(new AqtweaksTrait("spelunker", perks.spelunker));
         event.getRegistry().register(new AqtweaksTrait("tunnel_sense", perks.tunnelSense));

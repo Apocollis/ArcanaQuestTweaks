@@ -32,6 +32,9 @@ public class CommonProxy {
         ArcanaQuestTweaks.NETWORK.registerMessage(PacketSyncClimbingInput.Handler.class, PacketSyncClimbingInput.class, 0, Side.SERVER);
         ArcanaQuestTweaks.NETWORK.registerMessage(PacketLedgeClimb.Handler.class, PacketLedgeClimb.class, 1, Side.SERVER);
         ArcanaQuestTweaks.NETWORK.registerMessage(PacketSyncGrappleInput.Handler.class, PacketSyncGrappleInput.class, 2, Side.SERVER);
+        ArcanaQuestTweaks.NETWORK.registerMessage(
+                com.apocollis.aqtweaks.reskillable.client.PacketProspectorMarks.Handler.class,
+                com.apocollis.aqtweaks.reskillable.client.PacketProspectorMarks.class, 3, Side.CLIENT);
         ComfortConfigLoader.load(event.getModConfigurationDirectory());
         GaiaDamageConfig.load(event.getModConfigurationDirectory());
         com.apocollis.aqtweaks.spawning.SpawnTypeLists.load(event.getModConfigurationDirectory());
