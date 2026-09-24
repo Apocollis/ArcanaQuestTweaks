@@ -30,6 +30,8 @@
     "MixinMapGenVillageStart",
     "MixinMapGenVillageWorld",
     "MixinCraftingHelperFindFiles",
-    "MixinWorldEntitySpawner"
+    "MixinWorldEntitySpawner",
+    "MixinItemStackDurability",
+    "MixinBlockCropsSeed"
   ]
 }

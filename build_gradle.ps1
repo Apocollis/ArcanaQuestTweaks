@@ -65,7 +65,13 @@ $deps = @(
     "QualityTools-1.0.7_for_1.12.2.jar",
     "embers-1.26.1.jar",
     "Botania r1.10-364.4.jar",
-    "BaublesEX-1.12.2-2.3.7.jar"
+    "BaublesEX-1.12.2-2.3.7.jar",
+    "PotionCore-1.9_for_1.12.2.jar",
+    "lycanitesmobs-1.12.2-2.0.8.10.jar",
+    "DynamicStealth-1.12.2.120.jar",
+    "PlayerRevive_v1.2.40_mc1.12.2.jar",
+    "FarmersDelightLegacy-1.1.7.jar",
+    "extra-delight-legacy-1.1.6.jar"
 )
 foreach ($dep in $deps) {
     $src = "$localModsDir/$dep"

@@ -9,6 +9,7 @@
     "MixinFocusEffectHeal",
     "MixinCasterManager",
     "MixinWarpEvents",
-    "MixinItemCaster"
+    "MixinItemCaster",
+    "MixinToolEvents"
   ]
 }

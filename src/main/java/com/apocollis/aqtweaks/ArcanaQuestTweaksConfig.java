@@ -1351,27 +1351,27 @@ public class ArcanaQuestTweaksConfig {
     public static class ReskillablePerks {
         @Config.Name("Melee Efficiency")
         public ReskillablePerkLayout meleeEfficiency = new ReskillablePerkLayout(
-                2, 2, 4, "reskillable:attack", "reskillable:attack|16", "reskillable:agility|12");
+                2, 2, 3, "reskillable:attack", "reskillable:attack|16", "reskillable:agility|12");
 
         @Config.Name("Ranged Efficiency")
         public ReskillablePerkLayout rangedEfficiency = new ReskillablePerkLayout(
-                2, 3, 4, "reskillable:attack", "reskillable:attack|16", "reskillable:agility|12");
+                2, 3, 3, "reskillable:attack", "reskillable:attack|16", "reskillable:agility|12");
 
         @Config.Name("Shield Efficiency")
         public ReskillablePerkLayout shieldEfficiency = new ReskillablePerkLayout(
-                2, 2, 4, "reskillable:defense", "reskillable:defense|16");
+                2, 2, 2, "reskillable:defense", "reskillable:defense|12");
 
         @Config.Name("Adrenaline")
         public ReskillablePerkLayout adrenaline = new ReskillablePerkLayout(
-                2, 1, 4, "reskillable:agility", "reskillable:agility|16", "reskillable:defense|12");
+                2, 1, 3, "reskillable:agility", "reskillable:agility|16", "reskillable:defense|12");
 
         @Config.Name("Expert Climber")
         public ReskillablePerkLayout expertClimber = new ReskillablePerkLayout(
-                1, 2, 4, "reskillable:agility", "reskillable:agility|20");
+                1, 2, 3, "reskillable:agility", "reskillable:agility|20");
 
         @Config.Name("Cardio Master")
         public ReskillablePerkLayout cardioMaster = new ReskillablePerkLayout(
-                3, 3, 4, "reskillable:agility", "reskillable:agility|20");
+                3, 3, 3, "reskillable:agility", "reskillable:agility|20");
 
         @Config.Name("Mining Expert")
         public ReskillablePerkLayout miningExpert = new ReskillablePerkLayout(
@@ -1383,79 +1383,79 @@ public class ArcanaQuestTweaksConfig {
 
         @Config.Name("Respite")
         public ReskillablePerkLayout respite = new ReskillablePerkLayout(
-                2, 1, 4, "reskillable:defense", "reskillable:defense|16", "reskillable:magic|16");
+                2, 1, 3, "reskillable:defense", "reskillable:defense|16", "reskillable:magic|16");
 
         @Config.Name("Power Attack")
         public ReskillablePerkLayout powerAttack = new ReskillablePerkLayout(
-                2, 1, 3, "reskillable:attack", "reskillable:attack|12");
+                2, 1, 2, "reskillable:attack", "reskillable:attack|12");
 
         @Config.Name("Armor Mastery")
         public ReskillablePerkLayout armorMastery = new ReskillablePerkLayout(
-                2, 3, 4, "reskillable:defense", "reskillable:defense|8", "reskillable:agility|16");
+                2, 3, 3, "reskillable:defense", "reskillable:defense|12", "reskillable:agility|16");
 
         @Config.Name("Mining Efficiency")
         public ReskillablePerkLayout miningEfficiency = new ReskillablePerkLayout(
-                2, 3, 6, "reskillable:mining", "reskillable:mining|20");
+                2, 3, 3, "reskillable:mining", "reskillable:mining|16");
 
         @Config.Name("Precision Shot")
         public ReskillablePerkLayout precisionShot = new ReskillablePerkLayout(
-                3, 3, 3, "reskillable:attack", "reskillable:attack|12", "reskillable:agility|16");
+                3, 3, 2, "reskillable:attack", "reskillable:attack|12", "reskillable:agility|16");
 
         @Config.Name("Herbalist")
         public ReskillablePerkLayout herbalist = new ReskillablePerkLayout(
-                2, 1, 4, "reskillable:gathering", "reskillable:gathering|16", "reskillable:magic|12");
+                2, 1, 3, "reskillable:gathering", "reskillable:gathering|16", "reskillable:magic|12");
 
         @Config.Name("Gathering Efficiency")
         public ReskillablePerkLayout gatheringEfficiency = new ReskillablePerkLayout(
-                2, 3, 4, "reskillable:gathering", "reskillable:gathering|12");
+                2, 3, 2, "reskillable:gathering", "reskillable:gathering|12");
 
         @Config.Name("Bountiful Harvest")
         public ReskillablePerkLayout bountifulHarvest = new ReskillablePerkLayout(
-                2, 2, 4, "reskillable:farming", "reskillable:farming|16");
+                2, 2, 3, "reskillable:farming", "reskillable:farming|16");
 
         @Config.Name("Rancher")
         public ReskillablePerkLayout rancher = new ReskillablePerkLayout(
-                2, 1, 4, "reskillable:farming", "reskillable:farming|16", "reskillable:gathering|12");
+                2, 1, 3, "reskillable:farming", "reskillable:farming|16", "reskillable:gathering|12");
 
         @Config.Name("Drafter")
         public ReskillablePerkLayout drafter = new ReskillablePerkLayout(
-                2, 1, 3, "reskillable:building", "reskillable:building|12");
+                2, 1, 2, "reskillable:building", "reskillable:building|12");
 
         @Config.Name("Sculptor")
         public ReskillablePerkLayout sculptor = new ReskillablePerkLayout(
-                2, 3, 3, "reskillable:building", "reskillable:building|20");
+                2, 3, 3, "reskillable:building", "reskillable:building|16");
 
         @Config.Name("Transpose")
         public ReskillablePerkLayout transpose = new ReskillablePerkLayout(
-                3, 1, 3, "reskillable:building", "reskillable:building|24", "reskillable:magic|30");
+                3, 1, 3, "reskillable:building", "reskillable:building|20", "reskillable:magic|20");
 
         @Config.Name("Vis Thrift")
         public ReskillablePerkLayout visThrift = new ReskillablePerkLayout(
-                2, 1, 4, "reskillable:magic", "reskillable:magic|20");
+                2, 1, 3, "reskillable:magic", "reskillable:magic|16");
 
         @Config.Name("Quiet Mind")
         public ReskillablePerkLayout quietMind = new ReskillablePerkLayout(
-                2, 2, 4, "reskillable:magic", "reskillable:magic|16", "reskillable:defense|12");
+                2, 2, 3, "reskillable:magic", "reskillable:magic|16", "reskillable:defense|12");
 
         @Config.Name("Glass Cutter")
         public ReskillablePerkLayout glassCutter = new ReskillablePerkLayout(
-                2, 2, 2, "reskillable:building", "reskillable:building|12");
+                2, 2, 2, "reskillable:building", "reskillable:building|8");
 
         @Config.Name("Herd Abundance")
         public ReskillablePerkLayout herdAbundance = new ReskillablePerkLayout(
-                2, 2, 4, "reskillable:gathering", "reskillable:gathering|16", "reskillable:farming|12");
+                2, 2, 3, "reskillable:gathering", "reskillable:gathering|16", "reskillable:farming|12");
 
         @Config.Name("Iron Gut")
         public ReskillablePerkLayout ironGut = new ReskillablePerkLayout(
-                2, 3, 3, "reskillable:farming", "reskillable:farming|16");
+                2, 3, 2, "reskillable:farming", "reskillable:farming|12");
 
         @Config.Name("Water Collector")
         public ReskillablePerkLayout waterCollector = new ReskillablePerkLayout(
-                3, 1, 4, "reskillable:gathering", "reskillable:gathering|16");
+                3, 1, 3, "reskillable:gathering", "reskillable:gathering|16");
 
         @Config.Name("Full Font")
         public ReskillablePerkLayout fullFont = new ReskillablePerkLayout(
-                2, 3, 4, "reskillable:magic", "reskillable:magic|16");
+                2, 3, 3, "reskillable:magic", "reskillable:magic|16");
 
         @Config.Name("Blood Pact")
         public ReskillablePerkLayout bloodPact = new ReskillablePerkLayout(
@@ -1464,7 +1464,7 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Druid")
         public ReskillablePerkLayout druid = new ReskillablePerkLayout(
                 1, 2, 3, "reskillable:magic",
-                "reskillable:magic|12",
+                "reskillable:magic|20",
                 "not|trait|aqtweaks:witch",
                 "not|trait|aqtweaks:astromancer",
                 "not|trait|aqtweaks:artificer");
@@ -1480,7 +1480,7 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Witch")
         public ReskillablePerkLayout witch = new ReskillablePerkLayout(
                 3, 1, 3, "reskillable:magic",
-                "reskillable:magic|12",
+                "reskillable:magic|20",
                 "not|trait|aqtweaks:druid",
                 "not|trait|aqtweaks:astromancer",
                 "not|trait|aqtweaks:artificer");
@@ -1496,7 +1496,7 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Astromancer")
         public ReskillablePerkLayout astromancer = new ReskillablePerkLayout(
                 4, 1, 3, "reskillable:magic",
-                "reskillable:magic|12",
+                "reskillable:magic|20",
                 "not|trait|aqtweaks:druid",
                 "not|trait|aqtweaks:witch",
                 "not|trait|aqtweaks:artificer");
@@ -1512,7 +1512,7 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Artificer")
         public ReskillablePerkLayout artificer = new ReskillablePerkLayout(
                 0, 0, 3, "reskillable:magic",
-                "reskillable:magic|12",
+                "reskillable:magic|20",
                 "not|trait|aqtweaks:druid",
                 "not|trait|aqtweaks:witch",
                 "not|trait|aqtweaks:astromancer");
@@ -1524,6 +1524,126 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Cinder Ward")
         public ReskillablePerkLayout cinderWard = new ReskillablePerkLayout(
                 2, 0, 1, "reskillable:magic", "trait|aqtweaks:artificer");
+
+        @Config.Name("Dark Vision")
+        public ReskillablePerkLayout darkVision = new ReskillablePerkLayout(
+                0, 1, 2, "reskillable:mining", "reskillable:mining|8");
+
+        @Config.Name("Spelunker")
+        public ReskillablePerkLayout spelunker = new ReskillablePerkLayout(
+                3, 2, 3, "reskillable:mining", "reskillable:mining|16");
+
+        @Config.Name("Tunnel Sense")
+        public ReskillablePerkLayout tunnelSense = new ReskillablePerkLayout(
+                1, 3, 3, "reskillable:mining", "reskillable:mining|12");
+
+        @Config.Name("Prospector")
+        public ReskillablePerkLayout prospector = new ReskillablePerkLayout(
+                0, 2, 2, "reskillable:mining", "reskillable:mining|12");
+
+        @Config.Name("Motherlode")
+        public ReskillablePerkLayout motherlode = new ReskillablePerkLayout(
+                4, 2, 3, "reskillable:mining", "reskillable:mining|16");
+
+        @Config.Name("Lithomancy")
+        public ReskillablePerkLayout lithomancy = new ReskillablePerkLayout(
+                4, 3, 3, "reskillable:mining", "reskillable:mining|16", "reskillable:magic|12");
+
+        @Config.Name("Stone Cleaver")
+        public ReskillablePerkLayout stoneCleaver = new ReskillablePerkLayout(
+                3, 1, 4, "reskillable:mining", "reskillable:mining|20");
+
+        @Config.Name("Lumberjack")
+        public ReskillablePerkLayout lumberjack = new ReskillablePerkLayout(
+                4, 2, 3, "reskillable:gathering", "reskillable:gathering|16");
+
+        @Config.Name("Reforester")
+        public ReskillablePerkLayout reforester = new ReskillablePerkLayout(
+                1, 2, 2, "reskillable:gathering", "reskillable:gathering|12");
+
+        @Config.Name("Sifter")
+        public ReskillablePerkLayout sifter = new ReskillablePerkLayout(
+                0, 1, 2, "reskillable:gathering", "reskillable:gathering|8");
+
+        @Config.Name("Wood Splitter")
+        public ReskillablePerkLayout woodSplitter = new ReskillablePerkLayout(
+                4, 3, 4, "reskillable:gathering", "reskillable:gathering|20");
+
+        @Config.Name("Orchard")
+        public ReskillablePerkLayout orchard = new ReskillablePerkLayout(
+                1, 3, 2, "reskillable:farming", "reskillable:farming|12");
+
+        @Config.Name("Sower")
+        public ReskillablePerkLayout sower = new ReskillablePerkLayout(
+                0, 2, 2, "reskillable:farming", "reskillable:farming|12");
+
+        @Config.Name("Husbandry")
+        public ReskillablePerkLayout husbandry = new ReskillablePerkLayout(
+                3, 2, 3, "reskillable:farming", "reskillable:farming|16");
+
+        @Config.Name("Hearty Meal")
+        public ReskillablePerkLayout heartyMeal = new ReskillablePerkLayout(
+                4, 2, 3, "reskillable:farming", "reskillable:farming|16");
+
+        @Config.Name("Seed Harvester")
+        public ReskillablePerkLayout seedHarvester = new ReskillablePerkLayout(
+                0, 1, 2, "reskillable:farming", "reskillable:farming|12");
+
+        @Config.Name("Finisher")
+        public ReskillablePerkLayout finisher = new ReskillablePerkLayout(
+                1, 1, 3, "reskillable:attack", "reskillable:attack|16");
+
+        @Config.Name("Aura Breaker")
+        public ReskillablePerkLayout auraBreaker = new ReskillablePerkLayout(
+                4, 1, 3, "reskillable:attack", "reskillable:attack|12", "reskillable:magic|20");
+
+        @Config.Name("Bleeding Edge")
+        public ReskillablePerkLayout bleedingEdge = new ReskillablePerkLayout(
+                0, 1, 2, "reskillable:attack", "reskillable:attack|12");
+
+        @Config.Name("Pinning Shot")
+        public ReskillablePerkLayout pinningShot = new ReskillablePerkLayout(
+                4, 3, 2, "reskillable:attack", "reskillable:attack|12");
+
+        @Config.Name("Opportunistic")
+        public ReskillablePerkLayout opportunistic = new ReskillablePerkLayout(
+                1, 3, 4, "reskillable:attack", "reskillable:attack|16", "reskillable:agility|12");
+
+        @Config.Name("Fortify")
+        public ReskillablePerkLayout fortify = new ReskillablePerkLayout(
+                3, 2, 4, "reskillable:defense", "reskillable:defense|20", "trait|aqtweaks:shield_efficiency");
+
+        @Config.Name("Unyielding")
+        public ReskillablePerkLayout unyielding = new ReskillablePerkLayout(
+                3, 3, 3, "reskillable:defense", "reskillable:defense|16");
+
+        @Config.Name("Awareness")
+        public ReskillablePerkLayout awareness = new ReskillablePerkLayout(
+                1, 3, 3, "reskillable:defense", "reskillable:defense|16");
+
+        @Config.Name("Fast Revive")
+        public ReskillablePerkLayout fastRevive = new ReskillablePerkLayout(
+                0, 1, 2, "reskillable:defense", "reskillable:defense|8");
+
+        @Config.Name("Taunt")
+        public ReskillablePerkLayout taunt = new ReskillablePerkLayout(
+                4, 2, 3, "reskillable:defense", "reskillable:defense|16", "not|trait|aqtweaks:low_profile");
+
+        @Config.Name("Low Profile")
+        public ReskillablePerkLayout lowProfile = new ReskillablePerkLayout(
+                4, 3, 3, "reskillable:defense", "reskillable:defense|16", "not|trait|aqtweaks:taunt");
+
+        @Config.Name("Soft Step")
+        public ReskillablePerkLayout softStep = new ReskillablePerkLayout(
+                0, 1, 2, "reskillable:agility", "reskillable:agility|8");
+
+        @Config.Name("Tumble")
+        public ReskillablePerkLayout tumble = new ReskillablePerkLayout(
+                0, 2, 2, "reskillable:agility", "reskillable:agility|12");
+
+        @Config.Name("Slow Fall")
+        public ReskillablePerkLayout slowFall = new ReskillablePerkLayout(
+                4, 1, 3, "reskillable:agility", "reskillable:agility|12");
     }
 
     public static class ReskillableRespite {

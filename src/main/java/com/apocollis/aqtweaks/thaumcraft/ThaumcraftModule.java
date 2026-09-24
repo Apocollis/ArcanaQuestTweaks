@@ -193,7 +193,14 @@ public class ThaumcraftModule {
 
         int tickSeconds = ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureTickSeconds;
         int grantSeconds = ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureGrantSeconds;
-        int progress = Reflect.getInteger(banks, winner.key) + tickSeconds;
+        int step = tickSeconds;
+        if (("under".equals(winner.key) || "underDeep".equals(winner.key))
+                && com.apocollis.aqtweaks.reskillable.SpelunkerComfort.underground(player)
+                && com.apocollis.aqtweaks.reskillable.PerkAccess.on(player, "aqtweaks:spelunker",
+                ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.spelunker.enable)) {
+            step = Math.max(1, tickSeconds / 2);
+        }
+        int progress = Reflect.getInteger(banks, winner.key) + step;
         if (progress >= grantSeconds) {
             progress = 0;
             ThaumcraftHelper.addWarp(player, 1, winner.g);

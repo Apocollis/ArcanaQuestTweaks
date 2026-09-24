@@ -76,6 +76,10 @@ public class CommonProxy {
         if (net.minecraftforge.fml.common.Loader.isModLoaded("reskillable")) {
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.reskillable.ReskillableModule());
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.reskillable.RespiteHandler());
+            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.reskillable.PerkWishlist());
+            if (net.minecraftforge.fml.common.Loader.isModLoaded("dynamicstealth")) {
+                MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.reskillable.PerkStealth());
+            }
         }
 
         if (net.minecraftforge.fml.common.Loader.isModLoaded("somnia")) {

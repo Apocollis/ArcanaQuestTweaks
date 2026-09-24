@@ -799,6 +799,10 @@ public class StaminaModule {
             int interval = StaminaPerks.shieldHoldInterval(player,
                     ArcanaQuestTweaksConfig.StaminaModuleConfig.shield.shieldHoldInterval);
             int cost = ArcanaQuestTweaksConfig.StaminaModuleConfig.shield.shieldHoldCost;
+            if (com.apocollis.aqtweaks.reskillable.PerkAccess.on(player, "aqtweaks:fortify",
+                    ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.fortify.enable)) {
+                cost = 0;
+            }
 
             if (!wasBlocking) {
                 data.setBoolean("StaminaTweaksShieldActive", true);

@@ -32,6 +32,7 @@ public class AQTweaksLateMixinLoader implements ILateMixinLoader {
                 "mixins.aqtweaks.recipestages.json",
                 "mixins.aqtweaks.qualitytools.json",
                 "mixins.aqtweaks.botania.json",
-                "mixins.aqtweaks.embers.json");
+                "mixins.aqtweaks.embers.json",
+                "mixins.aqtweaks.playerrevive.json");
     }
 }

@@ -28,6 +28,7 @@ public abstract class MixinTemperatureCapability {
         if (MagicSchoolPresence.unlocked(player, "aqtweaks:astral_warmth", perks.astralWarmth.enable)) {
             next = Math.max(next, magic.astralTempMin);
         }
+        next = com.apocollis.aqtweaks.reskillable.SpelunkerComfort.pull(player, next);
         if (next != temp) {
             cap.setTemperatureLevel(next);
         }

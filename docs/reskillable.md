@@ -100,48 +100,48 @@ Register in **preInit** (`ReskillablePerkRegistry`). CAD `getTraitConfig` still 
 
 | Id | Skill | Default cell | Cost | Req |
 | --- | --- | --- | --- | --- |
-| `aqtweaks:melee_efficiency` | attack | 2,2 | 4 | attack 16, agility 12 |
-| `aqtweaks:ranged_efficiency` | attack | 2,3 | 4 | attack 16, agility 12 |
-| `aqtweaks:power_attack` | attack | 2,1 | 3 | attack 12 |
-| `aqtweaks:shield_efficiency` | defense | 2,2 | 4 | defense 16 |
-| `aqtweaks:respite` | defense | 2,1 | 4 | defense 16, magic 16 |
-| `aqtweaks:armor_mastery` | defense | 2,3 | 4 | defense 8, agility 16 |
-| `aqtweaks:adrenaline` | agility | 2,1 | 4 | agility 16, defense 12 |
+| `aqtweaks:melee_efficiency` | attack | 2,2 | 3 | attack 16, agility 12 |
+| `aqtweaks:ranged_efficiency` | attack | 2,3 | 3 | attack 16, agility 12 |
+| `aqtweaks:power_attack` | attack | 2,1 | 2 | attack 12 |
+| `aqtweaks:shield_efficiency` | defense | 2,2 | 2 | defense 12 |
+| `aqtweaks:respite` | defense | 2,1 | 3 | defense 16, magic 16 |
+| `aqtweaks:armor_mastery` | defense | 2,3 | 3 | defense 12, agility 16 |
+| `aqtweaks:adrenaline` | agility | 2,1 | 3 | agility 16, defense 12 |
 | `aqtweaks:evasion` | agility | 3,2 | 3 | agility 16 |
-| `aqtweaks:expert_climber` | agility | 1,2 | 4 | agility 20 |
-| `aqtweaks:cardio_master` | agility | 3,3 | 4 | agility 20 |
-| `aqtweaks:mining_efficiency` | mining | 2,3 | 6 | mining 20 |
+| `aqtweaks:expert_climber` | agility | 1,2 | 3 | agility 20 |
+| `aqtweaks:cardio_master` | agility | 3,3 | 3 | agility 20 |
+| `aqtweaks:mining_efficiency` | mining | 2,3 | 3 | mining 16 |
 | `aqtweaks:mining_expert` | mining | 3,3 | 4 | mining 24 |
-| `aqtweaks:precision_shot` | attack | 3,3 | 3 | attack 12, agility 16 |
-| `aqtweaks:herbalist` | gathering | 2,1 | 4 | gathering 16, magic 12 |
-| `aqtweaks:gathering_efficiency` | gathering | 2,3 | 4 | gathering 12 |
-| `aqtweaks:herd_abundance` | gathering | 2,2 | 4 | gathering 16, farming 12 |
-| `aqtweaks:water_collector` | gathering | 3,1 | 4 | gathering 16 |
-| `aqtweaks:bountiful_harvest` | farming | 2,2 | 4 | farming 16 |
-| `aqtweaks:rancher` | farming | 2,1 | 4 | farming 16, gathering 12 |
-| `aqtweaks:iron_gut` | farming | 2,3 | 3 | farming 16 |
-| `aqtweaks:drafter` | building | 2,1 | 3 | building 12 |
-| `aqtweaks:glass_cutter` | building | 2,2 | 2 | building 12 |
-| `aqtweaks:sculptor` | building | 2,3 | 3 | building 20 |
-| `aqtweaks:transpose` | building | 3,1 | 3 | building 24, magic 30 |
-| `aqtweaks:vis_thrift` | magic | 2,1 | 4 | magic 20 |
-| `aqtweaks:quiet_mind` | magic | 2,2 | 4 | magic 16, defense 12 |
-| `aqtweaks:full_font` | magic | 2,3 | 4 | magic 16 |
+| `aqtweaks:precision_shot` | attack | 3,3 | 2 | attack 12, agility 16 |
+| `aqtweaks:herbalist` | gathering | 2,1 | 3 | gathering 16, magic 12 |
+| `aqtweaks:gathering_efficiency` | gathering | 2,3 | 2 | gathering 12 |
+| `aqtweaks:herd_abundance` | gathering | 2,2 | 3 | gathering 16, farming 12 |
+| `aqtweaks:water_collector` | gathering | 3,1 | 3 | gathering 16 |
+| `aqtweaks:bountiful_harvest` | farming | 2,2 | 3 | farming 16 |
+| `aqtweaks:rancher` | farming | 2,1 | 3 | farming 16, gathering 12 |
+| `aqtweaks:iron_gut` | farming | 2,3 | 2 | farming 12 |
+| `aqtweaks:drafter` | building | 2,1 | 2 | building 12 |
+| `aqtweaks:glass_cutter` | building | 2,2 | 2 | building 8 |
+| `aqtweaks:sculptor` | building | 2,3 | 3 | building 16 |
+| `aqtweaks:transpose` | building | 3,1 | 3 | building 20, magic 20 |
+| `aqtweaks:vis_thrift` | magic | 2,1 | 3 | magic 16 |
+| `aqtweaks:quiet_mind` | magic | 2,2 | 3 | magic 16, defense 12 |
+| `aqtweaks:full_font` | magic | 2,3 | 3 | magic 16 |
 | `aqtweaks:blood_pact` | magic | 3,3 | 4 | magic 20 |
-| `aqtweaks:druid` | magic | 1,2 | 3 | magic 12, not Witch/Astromancer/Artificer |
+| `aqtweaks:druid` | magic | 1,2 | 3 | magic 20, not Witch/Astromancer/Artificer |
 | `aqtweaks:mana_veil` | magic | 0,2 | 1 | Druid |
 | `aqtweaks:living_edge` | magic | 0,3 | 1 | Druid |
-| `aqtweaks:witch` | magic | 3,1 | 3 | magic 12, not the other schools |
+| `aqtweaks:witch` | magic | 3,1 | 3 | magic 20, not the other schools |
 | `aqtweaks:cold_iron_mind` | magic | 3,0 | 1 | Witch |
 | `aqtweaks:stitch` | magic | 4,0 | 1 | Witch |
-| `aqtweaks:astromancer` | magic | 4,1 | 3 | magic 12, not the other schools |
+| `aqtweaks:astromancer` | magic | 4,1 | 3 | magic 20, not the other schools |
 | `aqtweaks:astral_warmth` | magic | 4,2 | 1 | Astromancer |
 | `aqtweaks:star_powered` | magic | 4,3 | 1 | Astromancer |
-| `aqtweaks:artificer` | magic | 0,0 | 3 | magic 12, not the other schools |
+| `aqtweaks:artificer` | magic | 0,0 | 3 | magic 20, not the other schools |
 | `aqtweaks:live_spark` | magic | 1,0 | 1 | Artificer |
 | `aqtweaks:cinder_ward` | magic | 2,0 | 1 | Artificer |
 
-CAD `reskillable:hillwalker` cost is stamped **6** at register LOWEST. CAD `reskillable:drop_guarantee` cost is stamped **4**.
+CAD stock costs are stamped on the same LOWEST pass. Hillwalker is **4**. Drop Guarantee stays **4**. Elenai dodge is **2**. Safe Port is **2** at magic 12, agility 12, defense 12. Golden Osmosis is **2** at magic 8, with mining, gathering, and attack still at 6.
 
 Precision Shot: full-draw `ItemBow` (`ArrowLooseEvent` charge ≥ 20) stamps the arrow; that hit **×2** once. Not melee.
 
@@ -165,7 +165,48 @@ Vis Thrift: +0.30 on `getTotalVisDiscount`. Quiet Mind: −round(0.35×bound) wa
 
 ### Magic schools (mutex)
 
-Four schools. Unlocking one blocks the other three (`not|trait|`). School cost 3 includes parent thrift ×0.70 **and** the identity. Each school has two follow-ups cost 1. Leftover Magic cells: **0,1** and **1,3**.
+Four schools. Unlocking one blocks the other three (`not|trait|`). School cost 3, requirement **magic 20**. The school includes parent thrift ×0.70 **and** the identity. Each school has two follow-ups cost 1. CAD resolves `trait|` while the perk is constructed, so `ReskillablePerkRegistry` restamps those holders on the LOWEST registry pass after every school exists. Leftover Magic cells: **0,1** and **1,3**.
+
+### Wishlist perks
+
+Drop spikes use `skillLevel × 0.02`, one extra item. The forage and farming drips still roll on their own. Silk Touch skips ore and forage extras. Tomato vines are left to Orchard; Bountiful Harvest and the farming drip skip them.
+
+| Id | Skill | Cost | Req |
+| --- | --- | --- | --- |
+| `dark_vision` | mining | 2 | mining 8 |
+| `spelunker` | mining | 3 | mining 16 |
+| `tunnel_sense` | mining | 3 | mining 12 |
+| `prospector` | mining | 2 | mining 12 |
+| `motherlode` | mining | 3 | mining 16 |
+| `lithomancy` | mining | 3 | mining 16, magic 12 |
+| `stone_cleaver` | mining | 4 | mining 20 |
+| `lumberjack` | gathering | 3 | gathering 16 |
+| `reforester` | gathering | 2 | gathering 12 |
+| `sifter` | gathering | 2 | gathering 8 |
+| `wood_splitter` | gathering | 4 | gathering 20 |
+| `orchard` | farming | 2 | farming 12 |
+| `sower` | farming | 2 | farming 12 |
+| `husbandry` | farming | 3 | farming 16 |
+| `hearty_meal` | farming | 3 | farming 16 |
+| `seed_harvester` | farming | 2 | farming 12 |
+| `finisher` | attack | 3 | attack 16 |
+| `aura_breaker` | attack | 3 | attack 12, magic 20 |
+| `bleeding_edge` | attack | 2 | attack 12 |
+| `pinning_shot` | attack | 2 | attack 12 |
+| `opportunistic` | attack | 4 | attack 16, agility 12 |
+| `fortify` | defense | 4 | defense 20, Shield Efficiency |
+| `unyielding` | defense | 3 | defense 16 |
+| `awareness` | defense | 3 | defense 16 |
+| `fast_revive` | defense | 2 | defense 8 |
+| `taunt` | defense | 3 | defense 16, not Low Profile |
+| `low_profile` | defense | 3 | defense 16, not Taunt |
+| `soft_step` | agility | 2 | agility 8 |
+| `tumble` | agility | 2 | agility 12 |
+| `slow_fall` | agility | 3 | agility 12 |
+
+Dark Vision: Night Vision while combined light at the feet is ≤ 7, clear at 9. Spelunker: underground (Thaumcraft under / underDeep Y) halves those two exposure banks and pulls Simple Difficulty body temperature 4 points toward 11 (10 and 11 stay). Tunnel Sense: hostile within 10 blocks plays `block.note.pling` for that player and applies Glowing for 100 ticks; it does not fire again until that ends. Prospector: breaking stone, cobble, or stone brick marks ores in 5 blocks, cooldown 15 seconds. Motherlode: one extra on one ore stack. Lithomancy: one Rare Earth roll, Thaumcraft base × `(1 + mining × 0.0625)`, and Thaumcraft’s own roll is skipped for that break. Stone Cleaver / Wood Splitter: tool harvest level ≥ 3, no durability on stone/cobble/gravel or logs. Reforester: one sapling if the leaf drop has none; shears and silk skip it. Sifter: gravel stays, plus a flint roll; clay adds one clay ball on the same roll. Orchard: melon, pumpkin, and ripe Rustic / Farmer’s Delight / Extra Delight fruit. Sower: 3×3 seeds on farmland. Husbandry: ageable mobs within 16 grow and cool down faster. Hearty Meal: +2 hunger. Seed Harvester: one replant item. Finisher: melee ×1.5 under 25% health. Aura Breaker: Broken Magic Shield III for 5 seconds. Bleeding Edge: `lycanitesmobs:bleed` 16 seconds, melee only. Pinning Shot: physical ranged Slowness II for 40 ticks. Opportunistic: redirect Dynamic Stealth `Sight.canSee` in `entityAttackedPre` when a different living attacker hit the target in the last 60 ticks. Fortify: shield stamina 0, Resistance II after 20 still ticks while blocking. Unyielding: knockback resistance 1 while the shield is up. Awareness: cancel `StealthAttackEvent`. Fast Revive: each perk holder counts as a second helper in `Revival.tick`. Taunt ×2 and Low Profile ×0.75 on the six `THREATGEN_*` stats. Soft Step: cancel farmland trample. Tumble: fall damage ×0.5. Slow Fall: Rustic `PotionFeather` while a solid block is beside the player.
+
+Existing Tweaks costs were retuned in the same pass. Stock traits are stamped on the LOWEST registry pass.
 
 | School | Thrift | Identity | Follow-ups |
 | --- | --- | --- | --- |

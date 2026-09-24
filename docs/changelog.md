@@ -2,6 +2,10 @@
 
 Stay on version **1.8** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-09-23 — Reskillable perk wishlist
+
+- New perks for mining, gathering, farming, attack, defense, and agility, plus the cost pass on the existing trees. Magic schools require Magic 20 and restamp their `not|trait|` locks after every school is registered. Spec: [reskillable.md](reskillable.md).
+
 ## 2026-09-23 — TF/Aether portal sits on grass
 
 - RandomPortals vertical dest frames were one block in the surface (bottom row replaced grass). Tweaks now raises them so the bottom row rests on the grass/island. See [twilightforest.md](twilightforest.md) and [aether.md](aether.md).

@@ -6,7 +6,8 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "MixinSkillActive",
-    "MixinEntitySwordBeam"
+    "MixinEntitySwordBeam",
+    "MixinDynamicStealthAttack"
   ],
   "client": [
     "MixinDSSKeyHandler"

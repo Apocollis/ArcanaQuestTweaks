@@ -139,34 +139,28 @@ public class ReskillableModule {
 
         if (drops.isEmpty()) return;
 
-        if (Reflect.hasUnlockable(player, "aqtweaks:herbalist")
+        boolean herbalist = Reflect.hasUnlockable(player, "aqtweaks:herbalist")
                 && ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.herbalist.enable
-                && ReskillableBonuses.isHerbalistBlock(state)) {
+                && ReskillableBonuses.isHerbalistBlock(state);
+        if (herbalist) {
             addOneExtra(drops);
-            return;
-        }
-
-        if (ReskillableBonuses.isBountifulCrop(state)
+        } else if (ReskillableBonuses.isBountifulCrop(state)
+                && !PerkDrops.isTomatoVine(state)
                 && Reflect.hasUnlockable(player, "aqtweaks:bountiful_harvest")
                 && ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.bountifulHarvest.enable) {
             addOneExtra(drops);
-            return;
-        }
-
-        if (ReskillableBonuses.isMatureCrop(state)) {
+        } else if (ReskillableBonuses.isMatureCrop(state) && !PerkDrops.isTomatoVine(state)) {
             double k = ArcanaQuestTweaksConfig.ReskillableModuleConfig.farming.extraDropChancePerLevel;
             if (ReskillableBonuses.roll(event.getWorld(), player, "farming", k)) {
                 addOneExtra(drops);
             }
-            return;
+        } else if (!ReskillableBonuses.hasSilkTouch(player) && ReskillableBonuses.isForageBlock(event.getWorld(), state)) {
+            double k = ArcanaQuestTweaksConfig.ReskillableModuleConfig.gathering.extraDropChancePerLevel;
+            if (ReskillableBonuses.roll(event.getWorld(), player, "gathering", k)) {
+                addOneExtra(drops);
+            }
         }
-
-        if (ReskillableBonuses.hasSilkTouch(player)) return;
-        if (!ReskillableBonuses.isForageBlock(event.getWorld(), state)) return;
-        double k = ArcanaQuestTweaksConfig.ReskillableModuleConfig.gathering.extraDropChancePerLevel;
-        if (ReskillableBonuses.roll(event.getWorld(), player, "gathering", k)) {
-            addOneExtra(drops);
-        }
+        PerkDrops.afterCoreRolls(event);
     }
 
     @SubscribeEvent
@@ -355,6 +349,9 @@ public class ReskillableModule {
                 ReskillableBonuses.MOD_SPEED, "agility",
                 ArcanaQuestTweaksConfig.ReskillableModuleConfig.agility.speedPerLevel);
         stampBloodPactHealth(player);
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("dynamicstealth")) {
+            PerkThreat.apply(player);
+        }
     }
 
     private static void stampBloodPactHealth(EntityPlayer player) {
