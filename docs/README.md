@@ -80,7 +80,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 
 **preInit**
 
-- Register SimpleNetworkWrapper messages 0–2 (stamina climb/grapple). See [stamina.md](stamina.md).
+- Register SimpleNetworkWrapper messages 0–2 (stamina climb/grapple), 3 (prospector marks), and 4 (temperature feather cap). See [stamina.md](stamina.md).
 - `ArcanaQuestTweaksConfig.normalizePinned()` — forces `DepthsModuleConfig.general.minWorldY` to `DEPTHS_FLOOR_Y` (−64) even if an instance cfg was hand-edited.
 - `ComfortConfigLoader.load`, `GaiaDamageConfig.load`, `SpawnTypeLists.load`, `SpawnStructureLists.load`, `SpawnParties.load`, and `SpawnGroupCounts.load` from the Forge config directory.
 - `PortalModule.preInit` (`ForgeChunkManager` callback). Item/entity register via `RegistryEvent` (not init).

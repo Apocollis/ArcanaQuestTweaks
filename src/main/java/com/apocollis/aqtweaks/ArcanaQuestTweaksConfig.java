@@ -516,6 +516,48 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Thirst exhaustion added per half-feather regenerated (4.0 exhaustion consumes 1 point of thirst saturation/level)")
         @Config.RangeDouble(min = 0.0, max = 4.0)
         public double thirstExhaustionPerFeather = 0.25;
+
+        @Config.Name("Enable Temperature Effects")
+        @Config.Comment("Hypothermia and hyperthermia replace Simple Difficulty's periodic thermia damage with a temporary max-stamina cap, slowness, and thirst.")
+        public boolean enableTemperatureEffects = true;
+
+        @Config.Name("Disable Thermia Damage")
+        @Config.Comment("Cancel Simple Difficulty hypothermia and hyperthermia attack ticks while temperature effects are on. The zero-max kill still uses those damage sources.")
+        public boolean disableThermiaDamage = true;
+
+        @Config.Name("Hypothermia Slowness")
+        public boolean hypothermiaSlowness = true;
+
+        @Config.Name("Hypothermia Max Slowness Amplifier")
+        @Config.Comment("0 is Slowness I. 2 is Slowness III.")
+        @Config.RangeInt(min = 0, max = 4)
+        public int hypothermiaMaxSlownessAmplifier = 2;
+
+        @Config.Name("Hypothermia Slowness Ramp Ticks")
+        @Config.Comment("Exposure ticks per slowness amplifier step.")
+        @Config.RangeInt(min = 1)
+        public int hypothermiaSlownessRampTicks = 200;
+
+        @Config.Name("Hypothermia Max Stamina Ramp Ticks")
+        @Config.Comment("Exposure ticks per half-feather of max stamina lost. 100 is about 5 seconds.")
+        @Config.RangeInt(min = 1)
+        public int hypothermiaMaxStaminaReductionRampTicks = 100;
+
+        @Config.Name("Hypothermia Lethal At Zero Max Stamina")
+        public boolean hypothermiaLethalZeroMaxStamina = true;
+
+        @Config.Name("Hyperthermia Thirst Exhaustion Per Second")
+        @Config.Comment("Passive thirst exhaustion each second while hyperthermic. 4.0 exhaustion consumes 1 thirst point, so 0.4 is 1 point per 10 seconds.")
+        @Config.RangeDouble(min = 0.0, max = 4.0)
+        public double hyperthermiaThirstExhaustionPerSecond = 0.4;
+
+        @Config.Name("Hyperthermia Max Stamina Ramp Ticks")
+        @Config.Comment("Exposure ticks per half-feather of max stamina lost while hyperthermic.")
+        @Config.RangeInt(min = 1)
+        public int hyperthermiaMaxStaminaReductionRampTicks = 100;
+
+        @Config.Name("Hyperthermia Lethal At Zero Max Stamina")
+        public boolean hyperthermiaLethalZeroMaxStamina = true;
     }
 
     public static class LedgeClimb {

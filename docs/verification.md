@@ -111,7 +111,7 @@ Log snippets if debug on: `veto chunk=`, `forget chunk=`, `flatten chunk=`, `sea
 
 ## Stamina
 
-Use the full list in [stamina.md](stamina.md) **Verify**. Minimum: jump costs/blocks, melee hit spend, bow draw, climb slide when empty, grapple hang vs climb vs grounded, HUD when dodge locked. With armor + toughness + thirst: toughness **left-to-right** one row above **armor** (left); feathers above **thirst** (right), not overlapping. Iron pick tooltip: `Vanilla Tools` + harvest stars + durability + efficiency. Metallurgy pick: no duplicate Tweaks harvest line. See [client.md](client.md).
+Use the full list in [stamina.md](stamina.md) **Verify**. Minimum: jump costs/blocks, melee hit spend, bow draw, climb slide when empty, grapple hang vs climb vs grounded, HUD when dodge locked. Temperature: while hypothermic or hyperthermic, no periodic thermia hearts, gold feathers and the Feathers potion stay off, the feather cap falls about one half-feather every 5 seconds and returns when the potion ends. At cap 0 the death message is that Simple Difficulty source (hyperthermia, not dehydration). Hyperthermia also drops about one thirst point per 10 seconds. Slowness ramps I → III in the cold and clears when hypothermia ends. With armor + toughness + thirst: toughness **left-to-right** one row above **armor** (left); feathers above **thirst** (right), not overlapping. Iron pick tooltip: `Vanilla Tools` + harvest stars + durability + efficiency. Metallurgy pick: no duplicate Tweaks harvest line. See [client.md](client.md).
 
 ## Other modules (one-line)
 

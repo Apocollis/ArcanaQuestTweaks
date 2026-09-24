@@ -35,6 +35,9 @@ public class CommonProxy {
         ArcanaQuestTweaks.NETWORK.registerMessage(
                 com.apocollis.aqtweaks.reskillable.client.PacketProspectorMarks.Handler.class,
                 com.apocollis.aqtweaks.reskillable.client.PacketProspectorMarks.class, 3, Side.CLIENT);
+        ArcanaQuestTweaks.NETWORK.registerMessage(
+                com.apocollis.aqtweaks.simpledifficulty.PacketTemperatureMax.Handler.class,
+                com.apocollis.aqtweaks.simpledifficulty.PacketTemperatureMax.class, 4, Side.CLIENT);
         ComfortConfigLoader.load(event.getModConfigurationDirectory());
         GaiaDamageConfig.load(event.getModConfigurationDirectory());
         com.apocollis.aqtweaks.spawning.SpawnTypeLists.load(event.getModConfigurationDirectory());

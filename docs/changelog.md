@@ -2,6 +2,10 @@
 
 Stay on version **1.8** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-09-24 — Dark Vision flat mix and sight
+
+- Dark Vision holds the lightmap at 0.4 everywhere the perk is on. Dynamic Stealth treats that player as having night vision. Spec: [reskillable.md](reskillable.md).
+
 ## 2026-09-24 — Prospecting pick outline, Dark Vision curve
 
 - Prospector outlines ores a Prospectus pick counted, for 7 seconds, and raises that pick's accuracy by 25. Every pick uses the Tweaks base chances. Dark Vision mixes at 0.8 in pitch dark and eases over 5 ticks. Spec: [reskillable.md](reskillable.md).

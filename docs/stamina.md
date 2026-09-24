@@ -1,6 +1,6 @@
 # Stamina module (1.8)
 
-Last updated: 2026-09-14.
+Last updated: 2026-09-24.
 
 Config: `config/arcanaquesttweaks/aqtweaks_stamina.cfg`. Compile against **Elenai Dodge 2 Extended** (`ElenaiDodge2Extended-1.12.2-1.1.3.jar`). Forge modid is still `elenaidodge2`.
 
@@ -12,7 +12,7 @@ Creative and spectator players are skipped everywhere. Spectator is not billed; 
 
 Spend Elenai feathers for jump, sprint, melee, bow, throwing, climb, ledge mantle, shield, mine, glider, grapple, and DSS skills. Gate those actions when the pool cannot pay. Do **not** replace Elenai regen, dodge, or HUD icons. Do **not** post `SpendFeatherEvent`.
 
-Optional parents: Grapple motor Ember, Open Glider undeploy, Reskillable stamina perks (ids in stamina cfg; Tweaks **registers** Melee/Ranged/Shield/Adrenaline/Climber/Cardio/Evasion/Power Attack/Armor Mastery/Mining Efficiency), Simple Difficulty thirst on feather regen.
+Optional parents: Grapple motor Ember, Open Glider undeploy, Reskillable stamina perks (ids in stamina cfg; Tweaks **registers** Melee/Ranged/Shield/Adrenaline/Climber/Cardio/Evasion/Power Attack/Armor Mastery/Mining Efficiency), Simple Difficulty thirst on feather regen and hypothermia / hyperthermia feather drain.
 
 ## Hard constraints
 
@@ -233,6 +233,24 @@ Mining: `BreakEvent` — registry string contains `ore` or block is obsidian →
 
 Each server player tick, if `enableThirstCost` and regular feathers increased vs `StaminaTweaksPrevFeathers`, add thirst exhaustion `diff × thirstExhaustionPerFeather` (default 0.25; 4.0 exhaustion ≈ 1 thirst point). Then store current feathers. First tick only seeds the key.
 
+### Simple Difficulty temperature
+
+`SimpleDifficultyModule` (registered only when `simpledifficulty` is loaded) replaces periodic `SDDamageSources.HYPOTHERMIA` / `HYPERTHERMIA` ticks while `enableTemperatureEffects` and `disableThermiaDamage` are on. Cold resist and heat resist stay Simple Difficulty's: the hooks key off `SDPotions.hypothermia` and `SDPotions.hyperthermia`.
+
+Server `PlayerTickEvent` **START**. Creative, spectator, and dead players are skipped.
+
+`Utils.getMaxDodges` posts `MaxFeathersEvent`. The handler subtracts `exposureTicks / rampTicks` (default ramp 100, one half-feather about every 5 seconds) from the max while that potion is active. It does not call `getMaxDodges`. Elenai regen already stops at that max. Do not call `FeathersHelper.syncMaxFeathers` or `Utils.updateClientConfig`: both send `CUpdateConfigMessage` with the full weights list, which overflows on this pack.
+
+When the penalty integer changes, and gold is already 0, `FeathersHelper.decreaseFeathers` drops regular feathers that sit above the new max. Message 4 `PacketTemperatureMax` writes `ClientStorage.maxDodges` (the HUD cap). `DodgeGui` reads that field. When the potion ends the counter is cleared and message 4 sends the baseline max.
+
+Both potions, every tick: set Elenai absorption to 0 when it is above 0, remove `elenaidodge2:feathers` if that potion is active, and send `CUpdateAbsorptionMessage` only when one of those changed. Do not post `SpendFeatherEvent`. Do not `IDodges.set`.
+
+At reduced max 0 there is no grace. The tick sets `aqt_lethal_freeze` or `aqt_lethal_heat`, calls `attackEntityFrom` with that Simple Difficulty source for `maxHealth × 2` (the source bypasses armor), then clears the flag. `LivingAttackEvent` HIGH cancels every other hypothermia / hyperthermia hit. Dehydration is not the heat kill.
+
+Hypothermia also ramps `MobEffects.SLOWNESS` (ambient, no particles, 60 ticks). Amplifier is `min(maxAmp, exposureTicks / rampTicks)` with max 2 and ramp 200. Reapply only when the effect is missing, the amplifier is lower, or the duration is ≤ 20. `aqt_hypothermia_slowness` stores the amplifier Tweaks applied. When the potion ends, remove slowness only if it is still that ambient effect with duration ≤ 60.
+
+Hyperthermia also adds `hyperthermiaThirstExhaustionPerSecond` (default 0.4) once per second through `SDCapabilities.getThirstData`. That is one thirst point per 10 seconds. Feather-regen thirst in `StaminaModule` is unchanged.
+
 ### Grapple stamina and motor Ember
 
 Client `InputUpdateEvent` **LOWEST** (after Grapple zeros forward) → `GrappleClientInput` → `PacketSyncGrappleInput` on change + **10-tick** heartbeat.
@@ -331,6 +349,12 @@ All live unless noted. Nested Forge categories.
 | Power Attack extra / medium × / heavy × | 2 / 1.5 / 2.0 | Full bar; not light |
 | Enable Thirst Cost | true | Regen → SD exhaustion |
 | Thirst Exhaustion Per Feather | 0.25 | Per half-feather gained |
+| Enable Temperature Effects | true | Hypothermia / hyperthermia feather drain |
+| Disable Thermia Damage | true | Cancels stock thermia ticks; zero-stamina kill still uses those sources |
+| Hypothermia slowness / max amp / ramp | true / 2 / 200 ticks | Slowness I, then one step per 10s, cap III |
+| Hypothermia max-stamina ramp / lethal | 100 ticks / true | One half-feather of cap per 5s; kill at cap 0 |
+| Hyperthermia thirst per second | 0.4 | One thirst point per 10s |
+| Hyperthermia max-stamina ramp / lethal | 100 ticks / true | Same cap; kill with the hyperthermia source |
 | Enable Ledge Climbing | true | Client FSM + packet |
 | Ledge Climb Cost | 2 | Grab (short mantle) |
 | Ledge Climb Extra Cost | 1 | Each extra interval |
@@ -344,6 +368,9 @@ All live unless noted. Nested Forge categories.
 | Key | Side | Use |
 | --- | --- | --- |
 | `PrevFeathers` | server | Thirst-on-regen |
+| `aqt_hypothermia_ticks` / `aqt_hypothermia_slowness` / `aqt_hypo_max_penalty` | server | Cold exposure, owned slowness amplifier, last cap step |
+| `aqt_hyperthermia_ticks` / `aqt_hyper_thirst_ticks` / `aqt_hyper_max_penalty` | server | Heat exposure, thirst drip, last cap step |
+| `aqt_lethal_freeze` / `aqt_lethal_heat` | server | Set only for the zero-stamina thermia hit |
 | `SprintTicks` | server | Sprint interval counter |
 | `AttackPenalty` | server | Empty-stamina melee damage multiplier until next hurt |
 | `BowTicks` / `ThrowTicks` | server | Hold timers |
@@ -427,7 +454,7 @@ Sideways `dx/dz * 0.005` pushed the AABB into the 1.5-tall post before feet were
 
 ## Do not regress
 
-- Spend only via `Reflect.decreaseFeathers`. Never post `SpendFeatherEvent`. Gold HUD must update via `CUpdateAbsorptionMessage`.
+- Spend only via `Reflect.decreaseFeathers`, except the temperature cap clamp in `SimpleDifficultyModule`. That calls `FeathersHelper.decreaseFeathers` only after absorption is already 0, and only for feathers above the reduced max. Never `FeathersHelper.syncMaxFeathers` or `Utils.updateClientConfig`. Never post `SpendFeatherEvent`. Never `IDodges.set`. Gold HUD must update via `CUpdateAbsorptionMessage`. The feather cap HUD is message 4 writing `ClientStorage.maxDodges`.
 - HUD = Extended `DodgeGui`, not 1.1.0 icons. Respawn = `increaseFeathers` to max, never `fillFeathers`.
 - Compile jar **Extended 1.1.3**. Grapple, DSS, and Toughness Bar mixins stay `required: false`.
 - Do not move Elenai feathers off the hunger/thirst column. Toughness Bar (when the flag is on) uses `left_height + 10` so it clears Overloaded Armor Bar’s unreserved armor row, then PUT `+ 10`.
