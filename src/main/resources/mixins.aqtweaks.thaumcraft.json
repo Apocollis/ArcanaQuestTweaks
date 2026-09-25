@@ -10,8 +10,7 @@
     "MixinCasterManager",
     "MixinWarpEvents",
     "MixinItemCaster",
-    "MixinToolEvents",
-    "MixinPlayerEventsRunicInfo"
+    "MixinToolEvents"
   ],
   "client": [
     "MixinGuiIngameForgeRunicShield",

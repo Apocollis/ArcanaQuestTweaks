@@ -1,6 +1,7 @@
 package com.apocollis.aqtweaks.thaumcraft;
 
-import com.apocollis.aqtweaks.mixin.thaumcraft.MixinPlayerEventsRunicInfo;
+import baubles.api.BaublesApi;
+import hellfirepvp.astralsorcery.common.event.RunicShieldingCalculateEvent;
 import mod.emt.thaumictweaker.events.RunicShieldingHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
@@ -10,12 +11,12 @@ import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.MobEffects;
+import net.minecraft.inventory.IInventory;
 import net.minecraft.util.math.MathHelper;
 import net.minecraftforge.client.GuiIngameForge;
 import thaumcraft.client.fx.ParticleEngine;
 import thaumcraft.client.lib.UtilsFX;
-
-import java.util.HashMap;
+import thaumcraft.common.lib.events.PlayerEvents;
 
 /**
  * Client HUD for Thaumcraft runic shielding while Thaumic Tweaker stores the charge as absorption.
@@ -162,12 +163,21 @@ public final class RunicShieldHud {
         return player != null && cap(player) > 0 && !RunicShieldingHandler.ENABLE_NEW_RUNIC_SHIELDING;
     }
 
+    /**
+     * Same total {@code handleRunicArmor} stores in {@code runicInfo}, which that method only fills on the server.
+     * Armor and baubles, then Astral's calculate event (its listener is safe on the client).
+     */
     private static int cap(EntityPlayer player) {
-        HashMap<Integer, Integer> info = MixinPlayerEventsRunicInfo.aqtweaks$runicInfo();
-        if (info == null) {
-            return 0;
+        int total = 0;
+        for (int slot = 0; slot < 4; slot++) {
+            total += PlayerEvents.getRunicCharge(player.inventory.armorInventory.get(slot));
         }
-        Integer value = info.get(player.getEntityId());
-        return value == null ? 0 : value;
+        IInventory baubles = BaublesApi.getBaubles(player);
+        if (baubles != null) {
+            for (int slot = 0; slot < baubles.getSizeInventory(); slot++) {
+                total += PlayerEvents.getRunicCharge(baubles.getStackInSlot(slot));
+            }
+        }
+        return RunicShieldingCalculateEvent.fire(player, total);
     }
 }
