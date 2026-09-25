@@ -122,7 +122,7 @@ public final class StaminaPerks {
 
     public static boolean tryEvasion(LivingAttackEvent event) {
         if (!(event.getEntityLiving() instanceof EntityPlayerMP player)) return false;
-        if (player.world.isRemote || player.capabilities.isCreativeMode || player.isSpectator()) return false;
+        if (player.capabilities.isCreativeMode || player.isSpectator()) return false;
         if (event.getAmount() <= 0.0f) return false;
 
         Entity source = event.getSource() != null ? event.getSource().getTrueSource() : null;

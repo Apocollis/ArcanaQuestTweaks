@@ -36,6 +36,8 @@ public class StaminaModuleClient {
     /** Wall probe heights for the mantle scan. Read-only — never write into this array. */
     private static final double[] LEDGE_CHECK_HEIGHTS = {0.4D, 0.7D, 1.0D, 1.3D, 1.6D};
 
+    private boolean lastSentClimbJump = false;
+
     @SubscribeEvent
     @SideOnly(Side.CLIENT)
     public void onRenderDodgeGUI(RenderGameOverlayEvent.Post event) {
@@ -190,7 +192,10 @@ public class StaminaModuleClient {
         if (player.isOnLadder()) {
             // Keep jump input synced (used by other climb edge cases / older servers)
             boolean isJumpPressed = Reflect.isJumpPressed(player);
-            ArcanaQuestTweaks.NETWORK.sendToServer(new PacketSyncClimbingInput(isJumpPressed));
+            if (isJumpPressed != lastSentClimbJump) {
+                ArcanaQuestTweaks.NETWORK.sendToServer(new PacketSyncClimbingInput(isJumpPressed));
+                lastSentClimbJump = isJumpPressed;
+            }
             player.getEntityData().setBoolean("StaminaTweaksLastJumpInput", isJumpPressed);
 
             if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.fallOnDepleted) return;
@@ -211,6 +216,7 @@ public class StaminaModuleClient {
                 ArcanaQuestTweaks.NETWORK.sendToServer(new PacketSyncClimbingInput(false));
                 clientData.setBoolean("StaminaTweaksLastJumpInput", false);
             }
+            lastSentClimbJump = false;
         }
     }
 

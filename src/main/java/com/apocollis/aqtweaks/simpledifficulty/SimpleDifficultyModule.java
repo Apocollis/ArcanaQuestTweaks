@@ -88,12 +88,15 @@ public class SimpleDifficultyModule {
 
     private static final int SLOWNESS_DURATION = 60;
     private static final int SLOWNESS_REFRESH_TICKS = 20;
+    private static final int RECOVERY_TICKS = 10;
     private static final String NBT_HYPO_TICKS = "aqt_hypothermia_ticks";
     private static final String NBT_HYPO_SLOWNESS = "aqt_hypothermia_slowness";
     private static final String NBT_HYPO_PENALTY = "aqt_hypo_max_penalty";
+    private static final String NBT_HYPO_RECOVER = "aqt_hypo_recover_ticks";
     private static final String NBT_HYPER_TICKS = "aqt_hyperthermia_ticks";
     private static final String NBT_HYPER_PENALTY = "aqt_hyper_max_penalty";
     private static final String NBT_HYPER_THIRST = "aqt_hyper_thirst_ticks";
+    private static final String NBT_HYPER_RECOVER = "aqt_hyper_recover_ticks";
     private static final String NBT_LETHAL_FREEZE = "aqt_lethal_freeze";
     private static final String NBT_LETHAL_HEAT = "aqt_lethal_heat";
 
@@ -129,15 +132,17 @@ public class SimpleDifficultyModule {
         }
 
         if (playerMP.isPotionActive(SDPotions.hypothermia)) {
+            data.setInteger(NBT_HYPO_RECOVER, 0);
             applyHypothermia(playerMP, data, cfg);
         } else {
-            clearHypothermiaState(playerMP, data);
+            easeHypothermia(playerMP, data, cfg);
         }
 
         if (playerMP.isPotionActive(SDPotions.hyperthermia)) {
+            data.setInteger(NBT_HYPER_RECOVER, 0);
             applyHyperthermia(playerMP, data, cfg);
         } else {
-            clearHyperthermiaState(playerMP, data);
+            easeHyperthermia(playerMP, data, cfg);
         }
     }
 
@@ -153,9 +158,11 @@ public class SimpleDifficultyModule {
             penalty = data.getInteger(NBT_HYPO_TICKS) / Math.max(1, cfg.hypothermiaMaxStaminaReductionRampTicks);
         } else if (player.isPotionActive(SDPotions.hyperthermia)) {
             penalty = data.getInteger(NBT_HYPER_TICKS) / Math.max(1, cfg.hyperthermiaMaxStaminaReductionRampTicks);
+        } else {
+            penalty = Math.max(data.getInteger(NBT_HYPO_PENALTY), data.getInteger(NBT_HYPER_PENALTY));
         }
         if (penalty > 0) {
-            event.setMaximum(Math.max(0, event.getMaximum() - penalty));
+            event.setMaximum(Math.max(1, event.getMaximum() - penalty));
         }
     }
 
@@ -174,10 +181,8 @@ public class SimpleDifficultyModule {
         }
         clearGoldFeathers(player);
         int penalty = ticks / Math.max(1, cfg.hypothermiaMaxStaminaReductionRampTicks);
-        stepMaxStamina(player, data, NBT_HYPO_PENALTY, penalty);
-        if (cfg.hypothermiaLethalZeroMaxStamina && Utils.getMaxDodges(player) <= 0) {
-            lethalThermia(player, data, NBT_LETHAL_FREEZE, SDDamageSources.HYPOTHERMIA);
-        }
+        stepMaxStamina(player, data, NBT_HYPO_PENALTY, penalty,
+                cfg.hypothermiaLethalZeroMaxStamina, NBT_LETHAL_FREEZE, SDDamageSources.HYPOTHERMIA);
     }
 
     private static void applyHyperthermia(EntityPlayerMP player, NBTTagCompound data,
@@ -196,10 +201,8 @@ public class SimpleDifficultyModule {
 
         clearGoldFeathers(player);
         int penalty = ticks / Math.max(1, cfg.hyperthermiaMaxStaminaReductionRampTicks);
-        stepMaxStamina(player, data, NBT_HYPER_PENALTY, penalty);
-        if (cfg.hyperthermiaLethalZeroMaxStamina && Utils.getMaxDodges(player) <= 0) {
-            lethalThermia(player, data, NBT_LETHAL_HEAT, SDDamageSources.HYPERTHERMIA);
-        }
+        stepMaxStamina(player, data, NBT_HYPER_PENALTY, penalty,
+                cfg.hyperthermiaLethalZeroMaxStamina, NBT_LETHAL_HEAT, SDDamageSources.HYPERTHERMIA);
     }
 
     private static void clearGoldFeathers(EntityPlayerMP player) {
@@ -226,23 +229,66 @@ public class SimpleDifficultyModule {
     }
 
     private static void clearHypothermiaState(EntityPlayerMP player, NBTTagCompound data) {
-        if (data.hasKey(NBT_HYPO_SLOWNESS)) {
-            PotionEffect active = player.getActivePotionEffect(MobEffects.SLOWNESS);
-            int owned = data.getInteger(NBT_HYPO_SLOWNESS);
-            if (active != null
-                    && active.getIsAmbient()
-                    && active.getAmplifier() == owned
-                    && active.getDuration() <= SLOWNESS_DURATION) {
-                player.removePotionEffect(MobEffects.SLOWNESS);
-            }
-            data.removeTag(NBT_HYPO_SLOWNESS);
-        }
+        clearOwnedSlowness(player, data);
         boolean hadCap = data.getInteger(NBT_HYPO_PENALTY) > 0 || data.getInteger(NBT_HYPO_TICKS) > 0;
         data.setInteger(NBT_HYPO_TICKS, 0);
         data.setInteger(NBT_HYPO_PENALTY, 0);
+        data.setInteger(NBT_HYPO_RECOVER, 0);
         if (hadCap) {
             syncMaxToClient(player);
         }
+    }
+
+    private static void easeHypothermia(EntityPlayerMP player, NBTTagCompound data,
+            ArcanaQuestTweaksConfig.SimpleDifficulty cfg) {
+        clearOwnedSlowness(player, data);
+        easePenalty(player, data, NBT_HYPO_TICKS, NBT_HYPO_PENALTY, NBT_HYPO_RECOVER,
+                cfg.hypothermiaMaxStaminaReductionRampTicks);
+    }
+
+    private static void easeHyperthermia(EntityPlayerMP player, NBTTagCompound data,
+            ArcanaQuestTweaksConfig.SimpleDifficulty cfg) {
+        data.setInteger(NBT_HYPER_THIRST, 0);
+        easePenalty(player, data, NBT_HYPER_TICKS, NBT_HYPER_PENALTY, NBT_HYPER_RECOVER,
+                cfg.hyperthermiaMaxStaminaReductionRampTicks);
+    }
+
+    private static void easePenalty(EntityPlayerMP player, NBTTagCompound data,
+            String ticksKey, String penaltyKey, String recoverKey, int rampTicks) {
+        int penalty = data.getInteger(penaltyKey);
+        if (penalty <= 0 && data.getInteger(ticksKey) <= 0) {
+            data.setInteger(recoverKey, 0);
+            return;
+        }
+        int recover = data.getInteger(recoverKey) + 1;
+        if (recover < RECOVERY_TICKS) {
+            data.setInteger(recoverKey, recover);
+            return;
+        }
+        data.setInteger(recoverKey, 0);
+        int next = Math.max(0, penalty - 1);
+        int ramp = Math.max(1, rampTicks);
+        int ticks = Math.max(0, data.getInteger(ticksKey) - ramp);
+        data.setInteger(ticksKey, next == 0 ? 0 : ticks);
+        data.setInteger(penaltyKey, next);
+        if (next >= Utils.getBaseDodges()) {
+            ArcanaQuestTweaks.NETWORK.sendTo(new PacketTemperatureMax(0), player);
+        } else {
+            syncMaxToClient(player);
+        }
+    }
+
+    private static void clearOwnedSlowness(EntityPlayer player, NBTTagCompound data) {
+        if (!data.hasKey(NBT_HYPO_SLOWNESS)) return;
+        PotionEffect active = player.getActivePotionEffect(MobEffects.SLOWNESS);
+        int owned = data.getInteger(NBT_HYPO_SLOWNESS);
+        if (active != null
+                && active.getIsAmbient()
+                && active.getAmplifier() == owned
+                && active.getDuration() <= SLOWNESS_DURATION) {
+            player.removePotionEffect(MobEffects.SLOWNESS);
+        }
+        data.removeTag(NBT_HYPO_SLOWNESS);
     }
 
     private static void clearHyperthermiaState(EntityPlayerMP player, NBTTagCompound data) {
@@ -250,14 +296,27 @@ public class SimpleDifficultyModule {
         data.setInteger(NBT_HYPER_TICKS, 0);
         data.setInteger(NBT_HYPER_PENALTY, 0);
         data.setInteger(NBT_HYPER_THIRST, 0);
+        data.setInteger(NBT_HYPER_RECOVER, 0);
         if (hadCap) {
             syncMaxToClient(player);
         }
     }
 
-    private static void stepMaxStamina(EntityPlayerMP player, NBTTagCompound data, String penaltyKey, int penalty) {
+    private static void stepMaxStamina(EntityPlayerMP player, NBTTagCompound data, String penaltyKey, int penalty,
+            boolean lethalEnabled, String lethalFlag, DamageSource source) {
         if (data.getInteger(penaltyKey) == penalty) return;
         data.setInteger(penaltyKey, penalty);
+        if (penalty >= Utils.getBaseDodges()) {
+            int level = FeathersHelper.getFeatherLevel(player);
+            if (level > 0) {
+                FeathersHelper.decreaseFeathers(player, level);
+            }
+            ArcanaQuestTweaks.NETWORK.sendTo(new PacketTemperatureMax(0), player);
+            if (lethalEnabled) {
+                lethalThermia(player, data, lethalFlag, source);
+            }
+            return;
+        }
         int max = Utils.getMaxDodges(player);
         int level = FeathersHelper.getFeatherLevel(player);
         int drop = level - max;

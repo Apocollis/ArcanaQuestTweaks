@@ -43,6 +43,7 @@ $deps = @(
     "Reskillable-1.12.2-1.13.1.jar",
     "effortlessbuilding-1.12.2-2.16.jar",
     "Thaumcraft-1.12.2-6.1.BETA26.jar",
+    "thaumictweaker-1.3.4.jar",
     "incontrol-1.12-3.10.4.jar",
     "animania-1.12.2-base-2.0.3.28.jar",
     "animania-1.12.2-farm-1.0.2.28.jar",

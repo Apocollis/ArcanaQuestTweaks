@@ -298,34 +298,12 @@ public class Reflect {
     private static Method grappleUnattachMethod;
     private static Method grappleReceiveEndMethod;
 
-    // Elenai Dodge 2 Absorption capability reflection
-    private static net.minecraftforge.common.capabilities.Capability<?> absorptionCap;
-    private static Method getAbsorptionMethod;
-
-    // Reskillable reflection
+    // Reskillable / Simple Difficulty: flags only. Types live on the compile-hard helpers.
     private static boolean isReskillableLoaded = false;
-    private static Class<?> playerDataHandlerClass;
-    private static Method playerDataGetMethod;
-    private static Class<?> reskillableRegistriesClass;
-    private static Object skillsRegistry;
-    private static Object unlockablesRegistry;
-    private static Method registryGetValueMethod;
-    private static Class<?> playerDataClass;
-    private static Method getSkillInfoMethod;
-    private static Class<?> unlockableClass;
-    private static Method getParentSkillMethod;
-    private static Class<?> playerSkillInfoClass;
-    private static Method isUnlockedMethod;
-
-    // Simple Difficulty reflection
     private static boolean isSimpleDifficultyLoaded = false;
-    private static Class<?> sdCapabilitiesClass;
-    private static Method getThirstDataMethod;
-    private static Class<?> thirstCapabilityClass;
-    private static Method addThirstExhaustionMethod;
-    private static Method getThirstLevelMethod;
-    private static Method getTemperatureDataMethod;
-    private static Method getTemperatureLevelMethod;
+
+    private static Map<Item, Double> weightCache = new java.util.HashMap<>();
+    private static String[] lastWeightsArray;
 
     static {
         // isSprinting
@@ -1277,61 +1255,8 @@ public class Reflect {
             // Grappling Hook Mod not loaded
         }
 
-        // Elenai Dodge 2 Absorption Cap
-        try {
-            Class<?> providerClass = Class.forName("com.elenai.elenaidodge2.capability.absorption.AbsorptionProvider");
-            Field capField = providerClass.getField("ABSORPTION_CAP");
-            absorptionCap = (net.minecraftforge.common.capabilities.Capability<?>) capField.get(null);
-            
-            Class<?> iAbsClass = Class.forName("com.elenai.elenaidodge2.capability.absorption.IAbsorption");
-            getAbsorptionMethod = iAbsClass.getMethod("getAbsorption");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        // Reskillable reflection initialization
-        try {
-            playerDataHandlerClass = Class.forName("codersafterdark.reskillable.api.data.PlayerDataHandler");
-            playerDataGetMethod = playerDataHandlerClass.getMethod("get", EntityPlayer.class);
-            
-            reskillableRegistriesClass = Class.forName("codersafterdark.reskillable.api.ReskillableRegistries");
-            skillsRegistry = reskillableRegistriesClass.getField("SKILLS").get(null);
-            unlockablesRegistry = reskillableRegistriesClass.getField("UNLOCKABLES").get(null);
-            
-            Class<?> forgeRegistryClass = Class.forName("net.minecraftforge.registries.IForgeRegistry");
-            registryGetValueMethod = forgeRegistryClass.getMethod("getValue", net.minecraft.util.ResourceLocation.class);
-            
-            playerDataClass = Class.forName("codersafterdark.reskillable.api.data.PlayerData");
-            Class<?> skillClass = Class.forName("codersafterdark.reskillable.api.skill.Skill");
-            getSkillInfoMethod = playerDataClass.getMethod("getSkillInfo", skillClass);
-            
-            unlockableClass = Class.forName("codersafterdark.reskillable.api.unlockable.Unlockable");
-            getParentSkillMethod = unlockableClass.getMethod("getParentSkill");
-            
-            playerSkillInfoClass = Class.forName("codersafterdark.reskillable.api.data.PlayerSkillInfo");
-            isUnlockedMethod = playerSkillInfoClass.getMethod("isUnlocked", unlockableClass);
-            
-            isReskillableLoaded = true;
-        } catch (Exception e) {
-            // Not loaded or failed
-        }
-
-        // Simple Difficulty reflection
-        try {
-            if (net.minecraftforge.fml.common.Loader.isModLoaded("simpledifficulty")) {
-                sdCapabilitiesClass = Class.forName("com.charles445.simpledifficulty.api.SDCapabilities");
-                getThirstDataMethod = sdCapabilitiesClass.getMethod("getThirstData", EntityPlayer.class);
-                thirstCapabilityClass = Class.forName("com.charles445.simpledifficulty.api.thirst.IThirstCapability");
-                addThirstExhaustionMethod = thirstCapabilityClass.getMethod("addThirstExhaustion", float.class);
-                getThirstLevelMethod = thirstCapabilityClass.getMethod("getThirstLevel");
-                getTemperatureDataMethod = sdCapabilitiesClass.getMethod("getTemperatureData", EntityPlayer.class);
-                Class<?> temperatureCapabilityClass = Class.forName("com.charles445.simpledifficulty.api.temperature.ITemperatureCapability");
-                getTemperatureLevelMethod = temperatureCapabilityClass.getMethod("getTemperatureLevel");
-                isSimpleDifficultyLoaded = true;
-            }
-        } catch (Exception e) {
-            // Not loaded or failed
-        }
+        isReskillableLoaded = net.minecraftforge.fml.common.Loader.isModLoaded("reskillable");
+        isSimpleDifficultyLoaded = net.minecraftforge.fml.common.Loader.isModLoaded("simpledifficulty");
     }
 
     public static boolean isSprinting(Entity player) {
@@ -1555,17 +1480,13 @@ public class Reflect {
         if (Reflect.isRemote(player)) {
             return com.elenai.elenaidodge2.util.ClientStorage.absorption;
         }
-        if (absorptionCap != null && getAbsorptionMethod != null) {
-            try {
-                Object capObj = player.getCapability(absorptionCap, null);
-                if (capObj != null) {
-                    return (Integer) getAbsorptionMethod.invoke(capObj);
-                }
-            } catch (Exception e) {
-                // ignore
-            }
-        }
-        return 0;
+        com.elenai.elenaidodge2.capability.absorption.IAbsorption cap = player.getCapability(
+                com.elenai.elenaidodge2.capability.absorption.AbsorptionProvider.ABSORPTION_CAP, null);
+        return cap != null ? cap.getAbsorption() : 0;
+    }
+
+    public static void invalidateWeightCache() {
+        lastWeightsArray = null;
     }
 
     public static void decreaseFeathers(EntityPlayerMP player, int amount) {
@@ -1579,36 +1500,28 @@ public class Reflect {
     public static int getBaseWeight(EntityPlayer player) {
         String[] weights = com.elenai.elenaidodge2.ModConfig.common.weights.weights;
         if (weights == null || weights.length == 0) return 0;
+        if (weights != lastWeightsArray) {
+            Map<Item, Double> rebuilt = new java.util.HashMap<>();
+            for (String entry : weights) {
+                String[] itemAndVal = entry.split("=");
+                if (itemAndVal.length < 2) continue;
+                Item item = Item.getByNameOrId(itemAndVal[0]);
+                if (item == null || rebuilt.containsKey(item)) continue;
+                rebuilt.put(item, Double.parseDouble(itemAndVal[1]));
+            }
+            weightCache = rebuilt;
+            lastWeightsArray = weights;
+        }
 
         double totalWeight = 0.0;
-        boolean head = false;
-        boolean chest = false;
-        boolean legs = false;
-        boolean feet = false;
-
-        for (String entry : weights) {
-            String[] itemAndVal = entry.split("=");
-            if (itemAndVal.length < 2) continue;
-            net.minecraft.item.Item item = net.minecraft.item.Item.getByNameOrId(itemAndVal[0]);
-            if (item == null) continue;
-
-            if (!head && player.getItemStackFromSlot(net.minecraft.inventory.EntityEquipmentSlot.HEAD).getItem() == item) {
-                totalWeight += Double.parseDouble(itemAndVal[1]);
-                head = true;
-            }
-            if (!chest && player.getItemStackFromSlot(net.minecraft.inventory.EntityEquipmentSlot.CHEST).getItem() == item) {
-                totalWeight += Double.parseDouble(itemAndVal[1]);
-                chest = true;
-            }
-            if (!legs && player.getItemStackFromSlot(net.minecraft.inventory.EntityEquipmentSlot.LEGS).getItem() == item) {
-                totalWeight += Double.parseDouble(itemAndVal[1]);
-                legs = true;
-            }
-            if (!feet && player.getItemStackFromSlot(net.minecraft.inventory.EntityEquipmentSlot.FEET).getItem() == item) {
-                totalWeight += Double.parseDouble(itemAndVal[1]);
-                feet = true;
-            }
-        }
+        Double head = weightCache.get(player.getItemStackFromSlot(net.minecraft.inventory.EntityEquipmentSlot.HEAD).getItem());
+        Double chest = weightCache.get(player.getItemStackFromSlot(net.minecraft.inventory.EntityEquipmentSlot.CHEST).getItem());
+        Double legs = weightCache.get(player.getItemStackFromSlot(net.minecraft.inventory.EntityEquipmentSlot.LEGS).getItem());
+        Double feet = weightCache.get(player.getItemStackFromSlot(net.minecraft.inventory.EntityEquipmentSlot.FEET).getItem());
+        if (head != null) totalWeight += head;
+        if (chest != null) totalWeight += chest;
+        if (legs != null) totalWeight += legs;
+        if (feet != null) totalWeight += feet;
 
         int intWeight = (int) Math.round(totalWeight);
         int lightweightLevel = com.elenai.elenaidodge2.util.Utils.getTotalEnchantmentLevel(
@@ -1621,24 +1534,11 @@ public class Reflect {
     public static boolean hasUnlockable(EntityPlayer player, String registryId) {
         if (!isReskillableLoaded || registryId == null || registryId.isEmpty()) return false;
         try {
-            net.minecraft.util.ResourceLocation res = new net.minecraft.util.ResourceLocation(registryId);
-            Object unlockable = registryGetValueMethod.invoke(unlockablesRegistry, res);
-            if (unlockable != null) {
-                Object data = playerDataGetMethod.invoke(null, player);
-                if (data != null) {
-                    Object skill = getParentSkillMethod.invoke(unlockable);
-                    if (skill != null) {
-                        Object info = getSkillInfoMethod.invoke(data, skill);
-                        if (info != null) {
-                            return (Boolean) isUnlockedMethod.invoke(info, unlockable);
-                        }
-                    }
-                }
-            }
-        } catch (Exception e) {
-            // ignore
+            return com.apocollis.aqtweaks.reskillable.ReskillableUnlockHelper.hasUnlockable(player, registryId);
+        } catch (Throwable t) {
+            warnOnce("hasUnlockable", t);
+            return false;
         }
-        return false;
     }
 
     public static int getWeight(EntityPlayer player) {
@@ -1711,50 +1611,25 @@ public class Reflect {
 
     public static void addThirstExhaustion(EntityPlayer player, float amount) {
         if (!isSimpleDifficultyLoaded) return;
-        try {
-            Object thirst = getThirstDataMethod.invoke(null, player);
-            if (thirst != null) {
-                addThirstExhaustionMethod.invoke(thirst, amount);
-            }
-        } catch (Exception e) {
-            // ignore
-        }
+        com.apocollis.aqtweaks.simpledifficulty.SimpleDifficultyHelper.addThirstExhaustion(player, amount);
     }
 
     /**
      * Simple Difficulty thirst 0–20, or {@code null} if the mod/cap is absent.
      */
     public static Integer getSdThirstLevel(EntityPlayer player) {
-        if (!isSimpleDifficultyLoaded || getThirstDataMethod == null || getThirstLevelMethod == null) {
-            return null;
-        }
-        try {
-            Object thirst = getThirstDataMethod.invoke(null, player);
-            if (thirst == null) {
-                return null;
-            }
-            return (Integer) getThirstLevelMethod.invoke(thirst);
-        } catch (Exception e) {
-            return null;
-        }
+        if (!isSimpleDifficultyLoaded) return null;
+        int level = com.apocollis.aqtweaks.simpledifficulty.SimpleDifficultyHelper.getThirstLevel(player);
+        return level < 0 ? null : level;
     }
 
     /**
      * Simple Difficulty body temperature 0–25, or {@code null} if the mod/cap is absent.
      */
     public static Integer getSdTemperatureLevel(EntityPlayer player) {
-        if (!isSimpleDifficultyLoaded || getTemperatureDataMethod == null || getTemperatureLevelMethod == null) {
-            return null;
-        }
-        try {
-            Object temp = getTemperatureDataMethod.invoke(null, player);
-            if (temp == null) {
-                return null;
-            }
-            return (Integer) getTemperatureLevelMethod.invoke(temp);
-        } catch (Exception e) {
-            return null;
-        }
+        if (!isSimpleDifficultyLoaded) return null;
+        int level = com.apocollis.aqtweaks.simpledifficulty.SimpleDifficultyHelper.getTemperatureLevel(player);
+        return level < 0 ? null : level;
     }
 
     public static net.minecraft.client.Minecraft getMinecraft() {

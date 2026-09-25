@@ -28,8 +28,12 @@ public class ClientProxy extends CommonProxy {
     public void init(FMLInitializationEvent event) {
         super.init(event);
         MinecraftForge.EVENT_BUS.register(new StaminaModuleClient());
-        DssSkillsGuiClient.register();
-        BaublesMenuClient.register();
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("dynamicswordskills")) {
+            DssSkillsGuiClient.register();
+        }
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("baubles")) {
+            BaublesMenuClient.register();
+        }
         MinecraftForge.EVENT_BUS.register(new DepthsFogHandler());
         MinecraftForge.EVENT_BUS.register(new ClientModule());
         MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.reskillable.client.ProspectorOutline());

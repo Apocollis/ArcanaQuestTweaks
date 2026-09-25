@@ -1,6 +1,6 @@
 # Grimoire of Gaia module (1.8)
 
-Last updated: 2026-09-17.
+Last updated: 2026-09-25.
 
 Config: `config/arcanaquesttweaks/aqtweaks_grimoireofgaia.cfg` (master switch) and `config/arcanaquesttweaks/gaia_mob_damage.json` (per-mob **base** + type multipliers). Soft dependency (`after:grimoireofgaia`). Optional `mixins.aqtweaks.gaia.json` (`required: false`). Parent jar: `GrimoireOfGaia3-1.12.2-1.7.2`.
 
@@ -8,7 +8,7 @@ Config: `config/arcanaquesttweaks/aqtweaks_grimoireofgaia.cfg` (master switch) a
 
 Tweaks owns **outgoing base amount** and **damage type** for stock Gaia mobs, plus the Tweaks-owned **Deep Dwarf** clone (`aqtweaks:deep_dwarf`). Gaia still owns stock dwarf AI, models, who swings, held weapons, and Strength-style buffs. **Deathword** is the exception: Tweaks replaces its melee with ranged Gaia magic.
 
-Deep Dwarf is a hostile `EntityMobHostileBase` copy of dwarf combat (axe / bow / miner). Flesh on the face/neck is hue-shifted blue-purple; head hair and the beard overlay on that baked sheet are recast to white / light gray; gear stays Gaia’s palette; eyes are a red additive glow on every class. Attack base is `Deep Dwarf Attack Damage` in `aqtweaks_grimoireofgaia.cfg` (default 10). Tweaks lists the id in pack `mob_overworldspawntype.json` `underground` (layer filter) and `mob_tier.json` rare. **InControl `spawn.json` / `potentialspawn.json` are externally managed** — Tweaks does not write them; natural spawn only after those lists include `aqtweaks:deep_dwarf`. `/summon` works without that.
+Deep Dwarf is a hostile `EntityMobHostileBase` copy of dwarf combat (axe / bow / miner). Flesh on the face/neck is hue-shifted blue-purple; head hair and the beard overlay on that baked sheet are recast to white / light gray; gear stays Gaia’s palette; eyes are a red additive glow on every class. Attack base is `gaia_mob_damage.json` `mobs["aqtweaks:deep_dwarf"]` (default **10**), same path as other listed ids. Tweaks lists the id in pack `mob_overworldspawntype.json` `underground` (layer filter) and `mob_tier.json` rare. **InControl `spawn.json` / `potentialspawn.json` are externally managed** — Tweaks does not write them; natural spawn only after those lists include `aqtweaks:deep_dwarf`. `/summon` works without that.
 
 `gaia_mob_damage.json` `mobs[id]` is `ATTACK_DAMAGE` **base** (`setBaseValue`). `health` / `armor` are max-health and armor **bases** (pack spawn seeds: T1 30/4, T2 60/8, T3 120/12, plus Gaia half-HP exceptions). Orc `4` plus an iron sword / Strength still hits harder than 4 — raise or lower JSON to compensate. Spell = `getAttributeValue()` × `spellMultiplier` (includes gear/buffs); bomb same with `bombMultiplier`.
 
@@ -65,7 +65,7 @@ No tick tracker. No `LivingHurtEvent` correlation.
 
 **Cleanroom INVOKE rule:** mixin **class** stays `remap = false` (Gaia methods are SRG: `func_70652_k`, `func_70227_a`, `func_70184_a`, `rangedAttack`). Vanilla **INVOKE** targets must be **MCP + `remap = true`** (`addPotionEffect`, `attackEntityFrom`, `addEffect`). SRG on those INVOKEs fails `InvalidInjectionPointException` and the json is `required: false`, so the game boots **with mixins off**. Same class of bug as `WorldGenLakes`. After deploy, `latest.log` must have **zero** `mixins.aqtweaks.gaia.json` injection failures before tuning JSON.
 
-**Per-mob JSON:** keys `grimoireofgaia:<path>` (e.g. `orc`). Attack seeds are Gaia **100%** constants (T1 **4**, T2 **8**, T3 **12** by class). HP/armor seeds are **pack live spawn** (Gaia `tierNmaxHealth=75` → 30/60/120; armor 4/8/12; feral/butler/inquisitor 15/4; sporeling 15/2; Deep Dwarf 60/8). Unlisted ids keep Gaia’s attribute. `EntityJoinWorldEvent` (server) `setBaseValue` only — weapons and buffs stack. Missing keys on upgrade are merged from defaults. Attack JSON still requires pierce-on; HP/armor always apply when listed.
+**Per-mob JSON:** keys `grimoireofgaia:<path>` (e.g. `orc`) plus `aqtweaks:deep_dwarf`. Attack seeds are Gaia **100%** constants (T1 **4**, T2 **8**, T3 **12** by class); Deep Dwarf attack seed is **10**. HP/armor seeds are **pack live spawn** (Gaia `tierNmaxHealth=75` → 30/60/120; armor 4/8/12; feral/butler/inquisitor 15/4; sporeling 15/2; Deep Dwarf 60/8). Unlisted ids keep Gaia’s attribute. `EntityJoinWorldEvent` (server) `setBaseValue` only — weapons and buffs stack. Missing keys on upgrade are merged from defaults. Attack JSON still requires pierce-on; HP/armor always apply when listed.
 
 Master switch `Disable Piercing Damage` (default **true**): false → Gaia vanilla (no JSON overwrite, mixins call through).
 
@@ -77,15 +77,14 @@ Player-only for melee skip and bolt/bomb retype. Archer tip skip is at shoot tim
 | --- | --- | --- | --- |
 | Disable Piercing Damage (`aqtweaks_grimoireofgaia.cfg`) | true | yes (Forge sync) | Drop extras + retype bolts/bombs + apply JSON bases |
 | Enable Deep Dwarf | true | no (register at load) | Register `aqtweaks:deep_dwarf` when Gaia is loaded |
-| Deep Dwarf Attack Damage | 10 | new joins after Forge sync | `ATTACK_DAMAGE` base for Deep Dwarf; wins over JSON for this id |
-| `gaia_mob_damage.json` | T1/T2/T3 attack seeds; HP/armor pack-live; Deep Dwarf attack cfg | no (preInit) | Per-id melee **base**; `health`/`armor` bases; spell/bomb multipliers |
+| `gaia_mob_damage.json` | T1/T2/T3 attack seeds; Deep Dwarf attack **10**; HP/armor pack-live | no (preInit) | Per-id attack **base** (including Deep Dwarf); `health`/`armor` bases; spell/bomb multipliers |
 
 ## Files
 
 - `gaia/GaiaPierce.java` — skip potion/tip; retype MAGIC; Deathword wither +30 on remaining
 - `gaia/GaiaDamageSources.java` — `Bomb` only
 - `gaia/GaiaDamageConfig.java` — JSON attack + health + armor
-- `gaia/GaiaDamageHandler.java` — join-world `setBaseValue` (HP/armor always; attack pierce-gated except Deep Dwarf cfg); `PotionApplicableEvent` pierce backup
+- `gaia/GaiaDamageHandler.java` — join-world `setBaseValue` (HP/armor always; attack pierce-gated, including Deep Dwarf); `PotionApplicableEvent` pierce backup
 - `gaia/GaiaEntityEvents.java` — load-gated `EntityEntry` (no Gaia import)
 - `gaia/GaiaDeepDwarfRegistry.java` / `gaia/EntityDeepDwarf.java` — hostile clone
 - `gaia/client/RenderDeepDwarf.java`, `ModelDeepDwarf.java`, `DeepDwarfSkin.java` — purple flesh bake, white hair and beard, red eyes
@@ -103,7 +102,7 @@ Player-only for melee skip and bolt/bomb retype. Archer tip skip is at shoot tim
 - JSON is **base** (`setBaseValue`). Do not strip weapon/Strength modifiers.
 - HP JSON: fresh spawn at old max → `setHealth(newMax)`; wounded chunk-load does not snap to full.
 - Mixin APPLY in the log does not prove pierce is skipped — diamond must not take a flat MAGIC 6.
-- Deep Dwarf: do not subclass `EntityGaiaDwarf`; do not `GlStateManager.color` the whole mesh; do not tint helm lamp or gear. Cfg wins over JSON for Deep Dwarf **attack**. HP/armor JSON still apply when pierce is off. Do not edit InControl `spawn.json` / `potentialspawn.json` from Tweaks.
+- Deep Dwarf: do not subclass `EntityGaiaDwarf`; do not `GlStateManager.color` the whole mesh; do not tint helm lamp or gear. Attack is JSON `mobs` only (no cfg override). HP/armor JSON still apply when pierce is off. Do not edit InControl `spawn.json` / `potentialspawn.json` from Tweaks.
 - Deathword: ranged `Ranged.magic` only; do not leave `EntityAIAttackMelee` on the task list; do not wither non-Deathword magic; wither **adds** 30 ticks (do not overwrite remaining). Do not import `EntityGaiaDeathword` from always-loaded `GaiaPierce`.
 
 ## Out of scope unless asked
@@ -123,4 +122,4 @@ Player-only for melee skip and bolt/bomb retype. Archer tip skip is at shoot tim
 - JSON edit + restart moves orc melee and orc bolts together. HP/armor JSON edit + restart moves max health / armor; wounded loads stay wounded.
 - `/summon` orc: 30 HP, 4 armor at default seeds. Dwarf / Deep Dwarf: 60 HP, 8 armor. Feral goblin 15/4. Sporeling 15/2.
 - `/summon grimoireofgaia:deathword`: shoots Gaia magic (no slap); diamond takes piercing magic like an orc bolt; wither +30 ticks per hit (two hits can pulse); summons/beacon still happen. Orc magic has no wither.
-- `/summon aqtweaks:deep_dwarf`: attacks on sight; face/neck purple-blue; **white/gray hair and beard** on the purple bake; red glow eyes; armor/weapons stock; diamond no MAGIC 6. Cfg damage moves new summons. Gaia off: Tweaks still boots. Natural spawn is out of Tweaks (external InControl lists).
+- `/summon aqtweaks:deep_dwarf`: attacks on sight; face/neck purple-blue; **white/gray hair and beard** on the purple bake; red glow eyes; armor/weapons stock; diamond no MAGIC 6. JSON `mobs` attack (default 10) moves new summons when pierce is on. Gaia off: Tweaks still boots. Natural spawn is out of Tweaks (external InControl lists).

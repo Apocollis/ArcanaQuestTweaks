@@ -149,7 +149,7 @@ Herbalist: always +1 on listed block namespaces. Bountiful Harvest: always +1 ma
 
 Gathering Efficiency: −1 forage `BreakEvent` stamina only.
 
-Rancher: tended Animania (`handFed` or `interacted`) within 16 of the perk player extra-tick gestation, dry, growth, drink recovery, wool, hen lay, mating AI delay. No extra milk bucket.
+Rancher: tended Animania (`handFed` or `interacted`) within 16 of the perk player get one extra clock step per living tick, applied as 20 steps once per second. Gestation stops at 1 so Animania can birth on its own step to 0. Dry stops at -1. Wool and hen lay stop at 0. Age and drink recovery have no Tweaks floor. Mating AI delay is unchanged. No extra milk bucket.
 
 Herd Abundance: always +1 Farm breed wool after a successful Animania sheep/goat shear; always +1 egg on empty-hand nest extract. Not milk, not clocks.
 

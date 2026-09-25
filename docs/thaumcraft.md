@@ -1,6 +1,6 @@
 # Thaumcraft module (1.8)
 
-Last updated: 2026-09-22.
+Last updated: 2026-09-25.
 
 Config: `config/arcanaquesttweaks/aqtweaks_thaumcraft.cfg`. Event handler registers only if `thaumcraft` is loaded (`CommonProxy.init`). Warp API is reflection (`ThaumcraftHelper`, raw `Class`) so Comfort can call it without importing TC types. Focus mixins **compile-hard** TC **6.1 BETA26** (`libs/`); missing that jar fails compile. Optional `mixins.aqtweaks.thaumcraft.json` (`required: false`) skips at runtime if TC is absent.
 
@@ -99,6 +99,17 @@ Optional `mixins.aqtweaks.thaumcraft.json`. Vanilla INVOKEs MCP + `remap = true`
 
 Do **not** add `thrown` to Reskillable allow-prefixes. Java default prefix `fireball` is ghast/Lich only (instance cfg may still be empty).
 
+### Runic shielding HUD
+
+Thaumic Tweaker with **Runic Shielding Overhaul** off stores the shield in vanilla absorption, so damage is absorbed before armor. `PlayerEvents.runicInfo` is the gear cap (armor, baubles, Astral). Recharge fills up to that cap. A golden apple adds to the same number and stays when it sits above the cap.
+
+Client mixins in `mixins.aqtweaks.thaumcraft.json`. `MixinGuiIngameForgeRunicShield` reports absorption 0 from `renderHealth` while that cap is above 0, then `RunicShieldHud` draws the rune overlay. `MixinRunicShieldingHudHandler` cancels Tweaker's ten-rune bar. `MixinPlayerEventsRunicInfo` reads the cap. Compile-hard Thaumcraft and Thaumic Tweaker.
+
+- Shield points `min(absorption, cap)` are runes (`ParticleEngine.particleTexture`, `UtilsFX.drawTexturedQuad`). The first 10 sit on the red health hearts. Further points are rows above the health stack, each on an empty heart socket.
+- Surplus `max(0, absorption - cap)` is gold absorption hearts above those rows (full offset 144, half 153), with the same socket.
+- Extra rows add to `left_height` so the armor bar sits above them.
+- Overhaul on: Tweaker's attribute and overlay stay. No cap in `runicInfo`: absorption stays gold hearts. An apple that only fills a partial shield stays runes.
+
 ## Config (`aqtweaks_thaumcraft.cfg`)
 
 | Name | Default | Live? | Meaning |
@@ -138,6 +149,8 @@ Do **not** add `thrown` to Reskillable allow-prefixes. Java default prefix `fire
 - `thaumcraft/ThaumcraftFocusHooks.java` — `markMagic`, Heal scale (Reskillable via reflection)
 - `thaumcraft/ThaumcraftPerkHooks.java` — Vis Thrift / Quiet Mind (no Reskillable import)
 - `mixin/thaumcraft/MixinFocusEffectExecute.java`, `MixinFocusEffectHeal.java`, `MixinCasterManager.java`, `MixinWarpEvents.java`
+- `thaumcraft/RunicShieldHud.java` — rune rows and gold surplus. Not `@SideOnly`
+- `mixin/thaumcraft/MixinGuiIngameForgeRunicShield.java`, `MixinRunicShieldingHudHandler.java`, `MixinPlayerEventsRunicInfo.java`
 - `mixins.aqtweaks.thaumcraft.json`
 
 ## Do not regress
@@ -153,6 +166,7 @@ Do **not** add `thrown` to Reskillable allow-prefixes. Java default prefix `fire
 - Focus mixin: stamp magic only on `attackEntityFrom`; do not double-scale hurt. Heal scale is Heal-only (other foci have no `heal` invoke).
 - Snowballs stay non-magic (`thrown` is not an allow prefix).
 - Vis Thrift still injects `getTotalVisDiscount` RETURN. Focus-pouch bauble offset is only the three pouch methods.
+- Runic HUD does not change recharge, vis cost, or the overhaul attribute. Overhaul off keeps absorption for damage. First 10 runes sit on the red hearts. Past 10 uses empty sockets above the health stack. Gold hearts are only the surplus above `runicInfo`.
 
 ## Out of scope unless asked
 

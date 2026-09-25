@@ -1,6 +1,6 @@
 # Compatibility matrix (1.8)
 
-Last updated: 2026-09-21.
+Last updated: 2026-09-25.
 
 This is the compile / mixin-apply / runtime contract. Module behavior lives in the per-module docs. Do not treat “required vs optional” as one bit.
 
@@ -44,7 +44,8 @@ Use Extended 1.1.3, not Elenai 1.1.0.
 | Effortless Building (`effortlessbuilding`) | Building reach |
 | Simple Difficulty (`simpledifficulty`) | Canteen / thirst util mixins |
 | Grimoire of Gaia (`grimoireofgaia`) | Entity / projectile mixins |
-| Thaumcraft (`thaumcraft`) | Focus / caster mixins |
+| Thaumcraft (`thaumcraft`) | Focus / caster mixins, runic shielding HUD |
+| Thaumic Tweaker (`thaumictweaker`) | Runic shielding HUD |
 | Rustic (`rustic`) | Iron Gut `FluidBooze` |
 | Bewitchment (`bewitchment`) | Ritual, Cambion, spinning wheel |
 | CraftTweaker (`crafttweaker`) | Zen spinning-wheel |
@@ -102,7 +103,8 @@ Jar names below are from the **Arcana Quest DEVBOX** instance on 2026-08-20 unle
 | `effortlessbuilding` | `effortlessbuilding-1.12.2-2.16.jar` | after | optional `mixins.aqtweaks.effortlessbuilding.json` | **yes** (`ReachHelper` mixin) | yes | **yes** | [reskillable.md](reskillable.md) | `MixinReachHelper` → `getPlacementReach` + `getMaxBlocksPlacedAtOnce` RETURN. Not `getMaxReach` |
 | `simpledifficulty` | `SimpleDifficulty-1.12.2-0.3.9.jar` | omitted | optional `mixins.aqtweaks.simpledifficulty.json` | **yes** (`ThirstUtilInternal`, `ItemCanteen`, `SDItems`, `TemperatureCapability`) | yes | **yes** | stamina, comfort, [reskillable.md](reskillable.md) | Water Collector: dirty-drink skip, canteen purify, glass-bottle fill. Cinder Ward / Astral Warmth clamp `setTemperatureLevel` after `tickUpdate`. Thirst potions still runtime ids for Comfort |
 | `grimoireofgaia` | `GrimoireOfGaia3-1.12.2-1.7.2.jar` | after | optional `mixins.aqtweaks.gaia.json` | **yes** (Gaia entity/projectile classes) | yes | **yes** | [grimoire-of-gaia.md](grimoire-of-gaia.md) | Melee/assist skip instant damage; MAGIC bolts → `causeIndirectMagicDamage`; bomb explosion; skip archer tip. Vanilla INVOKEs MCP + `remap = true` |
-| `thaumcraft` | `Thaumcraft-1.12.2-6.1.BETA26.jar` | after | optional `mixins.aqtweaks.thaumcraft.json` | **yes** (focus effect classes, `ItemCaster`, `AuraHandler`) | yes | **yes** | [thaumcraft.md](thaumcraft.md) | Warp still `ThaumcraftHelper` reflection. `MixinFocusEffectExecute` stamps `setMagicDamage` on Fire/Frost/Air/Earth/Flux/Curse/Heal `attackEntityFrom`. `MixinFocusEffectHeal` scales `heal`. `MixinItemCaster.consumeVis` Full Font. Vanilla INVOKE MCP + `remap = true`. Pack also has Fix / ResearchPatcher |
+| `thaumcraft` | `Thaumcraft-1.12.2-6.1.BETA26.jar` | after | optional `mixins.aqtweaks.thaumcraft.json` | **yes** (focus effect classes, `ItemCaster`, `AuraHandler`, `PlayerEvents`, `UtilsFX`, `ParticleEngine`) | yes | **yes** | [thaumcraft.md](thaumcraft.md) | Warp still `ThaumcraftHelper` reflection. `MixinFocusEffectExecute` stamps `setMagicDamage` on Fire/Frost/Air/Earth/Flux/Curse/Heal `attackEntityFrom`. `MixinFocusEffectHeal` scales `heal`. `MixinItemCaster.consumeVis` Full Font. Runic HUD reads `runicInfo` and draws the rune overlay. Vanilla INVOKE MCP + `remap = true`. Pack also has Fix / ResearchPatcher |
+| `thaumictweaker` | `thaumictweaker-1.3.4.jar` | omitted | mixin in `mixins.aqtweaks.thaumcraft.json` | **yes** (`RunicShieldingHandler`, `RunicShieldingHudHandler`) | yes | **yes** | [thaumcraft.md](thaumcraft.md) | Overhaul off keeps absorption. `MixinRunicShieldingHudHandler` cancels the ten-rune bar. Overhaul on leaves Tweaker's attribute HUD |
 | `rustic` | `rustic-1.2.0.jar` | omitted | optional `mixins.aqtweaks.rustic.json` | **yes** (`FluidBooze`, `PotionFeather`, fruit leaves) | yes | **yes** | [reskillable.md](reskillable.md) | Iron Gut cancels `inebriate` (tipsy). Slow Fall and Orchard compile-hard the potion and leaf blocks. Not Rustichromia |
 | `potioncore` | `PotionCore-1.9_for_1.12.2.jar` | omitted | — | **yes** (`PotionBrokenMagicShield`) | yes | **yes** | [reskillable.md](reskillable.md) | Aura Breaker applies Broken Magic Shield III |
 | `lycanitesmobs` | `lycanitesmobs-1.12.2-2.0.8.10.jar` | omitted | — | **yes** (`PotionEffects`) | yes | **yes** | [reskillable.md](reskillable.md) | Bleeding Edge applies `lycanitesmobs:bleed` |

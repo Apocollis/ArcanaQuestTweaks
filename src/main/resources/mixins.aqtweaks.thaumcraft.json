@@ -4,12 +4,17 @@
   "refmap": "mixins.aqtweaks.refmap.json",
   "package": "com.apocollis.aqtweaks.mixin.thaumcraft",
   "compatibilityLevel": "JAVA_21",
-    "mixins": [
+  "mixins": [
     "MixinFocusEffectExecute",
     "MixinFocusEffectHeal",
     "MixinCasterManager",
     "MixinWarpEvents",
     "MixinItemCaster",
-    "MixinToolEvents"
+    "MixinToolEvents",
+    "MixinPlayerEventsRunicInfo"
+  ],
+  "client": [
+    "MixinGuiIngameForgeRunicShield",
+    "MixinRunicShieldingHudHandler"
   ]
 }

@@ -1,7 +1,6 @@
 package com.apocollis.aqtweaks.gaia;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
-import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig.GrimoireOfGaiaConfig;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityList;
 import net.minecraft.entity.EntityLivingBase;
@@ -17,7 +16,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 /**
  * JSON {@code ATTACK_DAMAGE} / max health / armor bases on join. Weapons and Strength still stack.
  * Potion deny is a backup if the melee mixin redirect does not skip Gaia pierce.
- * Deep Dwarf attack uses the Gaia cfg knob; HP/armor use JSON. HP/armor are not gated on pierce.
+ * Attack JSON is pierce-gated. HP/armor JSON always apply when listed.
  */
 public class GaiaDamageHandler {
 
@@ -43,10 +42,6 @@ public class GaiaDamageHandler {
     private static void applyAttack(EntityLivingBase living, String key) {
         IAttributeInstance attr = living.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE);
         if (attr == null) {
-            return;
-        }
-        if (GaiaDeepDwarfRegistry.ID_STRING.equals(key)) {
-            attr.setBaseValue(GrimoireOfGaiaConfig.deepDwarfAttackDamage);
             return;
         }
         if (!ArcanaQuestTweaksConfig.GrimoireOfGaiaConfig.disablePiercingDamage) {

@@ -13,18 +13,18 @@ public final class AnimaniaFarmClocks {
 
     private AnimaniaFarmClocks() {}
 
-    public static void extraProduction(Entity entity) {
+    public static void extraProductionBulk(Entity entity, int steps) {
         if (entity instanceof EntityAnimaniaSheep sheep) {
             int wool = sheep.getWoolRegrowthTimer();
-            if (wool > 0) sheep.setWoolRegrowthTimer(wool - 1);
+            if (wool > 0) sheep.setWoolRegrowthTimer(Math.max(wool - steps, 0));
         }
         if (entity instanceof EntityAnimaniaGoat goat) {
             int wool = goat.getWoolRegrowthTimer();
-            if (wool > 0) goat.setWoolRegrowthTimer(wool - 1);
+            if (wool > 0) goat.setWoolRegrowthTimer(Math.max(wool - steps, 0));
         }
         if (entity instanceof EntityHenBase hen) {
             int laid = hen.getLaidTimer();
-            if (laid > 0) hen.setLaidTimer(laid - 1);
+            if (laid > 0) hen.setLaidTimer(Math.max(laid - steps, 0));
         }
     }
 }

@@ -99,11 +99,15 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 - If `randomportals` **and** `twilightforest`: `TfPortalLandingHandler` (TF dest biome/landmark/grass landing; [twilightforest.md](twilightforest.md)).
 - If `randomportals` **and** `aether_legacy`: `AetherPortalLandingHandler` (Aether island snap; [aether.md](aether.md)).
 - If `qualitytools`: `QualityToolsModule` (loot/drop stamp). `postInit` registers Dawnstone rune recipes when `embers` is also loaded. See [qualitytools.md](qualitytools.md).
+- If `simpledifficulty`: `SimpleDifficultyModule`.
+- If `animania`: `AnimaniaModule`.
+- If `reskillable`: `RespiteHandler` and `PerkWishlist`.
+- If `reskillable` and `dynamicstealth`: `PerkStealth`.
 - Game Stages / Chisel: no bus handler (mixins only; [gamestages.md](gamestages.md)).
 
 **init (client)**
 
-- `StaminaModuleClient`, `DssSkillsGuiClient` (Skills GUI `isPressed()` when DSS did not already send, plus client `/dssgui`; compile-hard DSS), `BaublesMenuClient` (Baubles `isPressed()` → `PacketOpen(EXPANSION)` when Baubles did not already send; compile-hard BaublesEX), `DepthsFogHandler`, `ClientModule`.
+- `StaminaModuleClient`, `DssSkillsGuiClient` (Skills GUI `isPressed()` when DSS did not already send, plus client `/dssgui`; compile-hard DSS; registered only if `dynamicswordskills`), `BaublesMenuClient` (Baubles `isPressed()` → `PacketOpen(EXPANSION)` when Baubles did not already send; compile-hard BaublesEX; registered only if `baubles`), `DepthsFogHandler`, `ClientModule`, `ProspectorOutline`.
 - Entity renderer for `EntityArcaneRift` in **client preInit**. If `grimoireofgaia` and Deep Dwarf enabled: `RenderDeepDwarf`. Item models on `ModelRegistryEvent`.
 
 `postInit` registers `SpawnLayerFilter` (after InControl `PotentialSpawns`), enables structure cave exemption if `incontrol` is loaded, and runs `Reflect.auditUnresolved()`. `ArcanaQuestTweaks.serverStarting` (`@Mod.EventHandler` on `FMLServerStartingEvent`) registers `/aqvillage` (`CommandAqVillage`, [rtg.md](rtg.md)) and `/aqcomfort` (`CommandAqComfort`, [comfort.md](comfort.md)).
@@ -121,6 +125,7 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `
 | `mixins.aqtweaks.json` | **true** | Depths, RTG villages, Recipes | Load fails |
 | `mixins.aqtweaks.grapple.json` | false | Stamina | Skip |
 | `mixins.aqtweaks.dss.json` | false | Stamina | Skip |
+| `mixins.aqtweaks.elenaidodge.json` | false | Stamina feather colors | Skip |
 | `mixins.aqtweaks.baubles.json` | false | MineMenu | Skip |
 | `mixins.aqtweaks.toughnessbar.json` | false | Client HUD | Skip |
 | `mixins.aqtweaks.astral.json` | false | RTG shrines + Reskillable Astromancer altar | Skip |
@@ -129,7 +134,7 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `
 | `mixins.aqtweaks.biomesoplenty.json` | false | RTG BOP water/quicksand village skip | Skip |
 | `mixins.aqtweaks.gaia.json` | false | Grimoire of Gaia drop pierce + recast bolts/bombs + Deathword ranged | Skip |
 | `mixins.aqtweaks.effortlessbuilding.json` | false | Reskillable Building EB place reach + max blocks | Skip |
-| `mixins.aqtweaks.thaumcraft.json` | false | Thaumcraft focus HP magic flag + Heal scale | Skip |
+| `mixins.aqtweaks.thaumcraft.json` | false | Thaumcraft focus HP magic flag + Heal scale + runic shielding HUD | Skip |
 | `mixins.aqtweaks.animania.json` | false | Advancement: cancel Animania `onWorldLoad` | Skip |
 | `mixins.aqtweaks.somnia.json` | false | Somnia: chunk light fix, 3-tier SMP sleep (Case A/B/C), Case B 2x time, fatigue tuning & chat notifications | Skip |
 | `mixins.aqtweaks.incontrol.json` | false | Spawning: `StructureCache.parseStructureData` BB chunk expand | Skip |
@@ -139,6 +144,7 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `
 | `mixins.aqtweaks.recipestages.json` | false | Game Stages: capture `setRecipeStage` | Skip |
 | `mixins.aqtweaks.qualitytools.json` | false | Quality Tools living-update skip, reforge base, Dawnstone mismatch | Skip |
 | `mixins.aqtweaks.simpledifficulty.json` | false | Reskillable Water Collector + Cinder/Astral temp clamp | Skip |
+| `mixins.aqtweaks.playerrevive.json` | false | Reskillable Fast Revive | Skip |
 | `mixins.aqtweaks.rustic.json` | false | Reskillable Iron Gut | Skip |
 | `mixins.aqtweaks.botania.json` | false | Reskillable Druid mana thrift + Grove | Skip |
 | `mixins.aqtweaks.embers.json` | false | Reskillable Artificer Ember thrift + Foundry Pulse | Skip |
@@ -183,9 +189,9 @@ Forge `@Config` on nested classes in `ArcanaQuestTweaksConfig`. Comfort is JSON,
 | `aqtweaks_comfort_settings.json` | `ComfortConfigLoader` (not `@Config`) |
 | `aqtweaks_comfort_blocks.json` | `ComfortConfigLoader` (not `@Config`) |
 
-`ConfigEventHandler` runs `ConfigManager.sync` on any `aqtweaks` cfg change, then `normalizePinned()`, invalidates DSS skill-cost cache, reloads spawn-type, spawn-party, and spawn-tier JSON plus spawn-rules cfg, rebuilds spawn group overrides, and restamps Reskillable attributes if that mod is loaded. Existing instance files keep old keys when Java defaults change.
+`ConfigEventHandler` runs `ConfigManager.sync` on any `aqtweaks` cfg change, then `normalizePinned()`, invalidates the DSS skill-cost cache and the Elenai weight cache, reloads spawn-structure, spawn-party, and spawn-group-counts JSON plus spawn-rules cfg, invalidates spawn-group-sizes, restamps Reskillable attributes if that mod is loaded, and applies Somnia config overrides if that mod is loaded. Existing instance files keep old keys when Java defaults change.
 
-Its reach is narrower than it looks. It subscribes to `ConfigChangedEvent.OnConfigChangedEvent`, which Forge fires from the **client in-game config GUI only** — never on a dedicated server, and never from hand-editing a cfg file. The only JSON it reloads is spawn-type, spawn-party, and spawn-tier (plus `mob_spawnrules.cfg`); comfort (`aqtweaks_comfort_settings.json`, `aqtweaks_comfort_blocks.json`) and `gaia_mob_damage.json` are preInit-only and need a **restart**.
+Its reach is narrower than it looks. It subscribes to `ConfigChangedEvent.OnConfigChangedEvent`, which Forge fires from the **client in-game config GUI only** — never on a dedicated server, and never from hand-editing a cfg file. The only JSON it reloads is spawn-structure, spawn-party, and spawn-group-counts (plus `mob_spawnrules.cfg`); comfort (`aqtweaks_comfort_settings.json`, `aqtweaks_comfort_blocks.json`) and `gaia_mob_damage.json` are preInit-only and need a **restart**.
 
 `aqtweaks_grimoireofgaia.cfg`, `aqtweaks_thaumcraft.cfg`, and `aqtweaks_bewitchment.cfg` wrap their keys in a `general { }` block because those three `@Config` annotations omit `category = ""`. `aqtweaks_spawning.cfg`, `aqtweaks_statskeeper.cfg`, `aqtweaks_gamestages.cfg`, `aqtweaks_qualitytools.cfg`, `aqtweaks_twilightforest.cfg`, `aqtweaks_aether.cfg`, `aqtweaks_bettermineshafts.cfg`, and `aqtweaks_minemenu.cfg` also nest a `General` object (still `category = ""`) so their keys sit in `general { }` too. Files with `category = ""` and no nested General keep keys at file root. That asymmetry is **intentional** — normalizing the three omit-category files would reset tuned values in existing instance files.
 

@@ -654,11 +654,6 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Enable Deep Dwarf")
         @Config.Comment("Register aqtweaks:deep_dwarf, a hostile Gaia dwarf clone. Requires Grimoire of Gaia.")
         public static boolean enableDeepDwarf = true;
-
-        @Config.Name("Deep Dwarf Attack Damage")
-        @Config.Comment("ATTACK_DAMAGE base for aqtweaks:deep_dwarf. Weapons and Strength still stack. Wins over gaia_mob_damage.json for this id.")
-        @Config.RangeDouble(min = 0.0, max = 40.0)
-        public static double deepDwarfAttackDamage = 10.0;
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_thaumcraft")
@@ -2003,6 +1998,7 @@ public class ArcanaQuestTweaksConfig {
                 ConfigManager.sync(ArcanaQuestTweaks.MODID, Config.Type.INSTANCE);
                 normalizePinned();
                 DssSkillCosts.invalidate();
+                com.apocollis.aqtweaks.util.Reflect.invalidateWeightCache();
                 com.apocollis.aqtweaks.spawning.SpawnTypeLists.reload();
                 com.apocollis.aqtweaks.spawning.SpawnStructureLists.reload();
                 com.apocollis.aqtweaks.spawning.SpawnParties.reload();
