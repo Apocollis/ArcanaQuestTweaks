@@ -1,6 +1,6 @@
 # Bewitchment module (1.8)
 
-Last updated: 2026-09-16.
+Last updated: 2026-09-25.
 
 Config: `config/arcanaquesttweaks/aqtweaks_bewitchment.cfg`. `BewitchmentRegistryHandler` registers on the Forge bus only if `bewitchment` is loaded.
 
@@ -61,12 +61,12 @@ One list, `ritualWarpList`. Format: `registry_name=normal,temporary[,permanent]`
 | Id | Normal | Temp | Permanent |
 | --- | --- | --- | --- |
 | `bewitchment:conjure_imp` | 1 | 3 | 0 |
-| `bewitchment:conjure_demon` | 2 | 5 | 0 |
+| `bewitchment:conjure_demon` | 2 | 5 | 1 |
 | `bewitchment:conjure_baphomet` | 5 | 15 | 2 |
 | `bewitchment:conjure_leonard` | 5 | 15 | 2 |
 | `bewitchment:lesser_hellmouth` | 2 | 5 | 0 |
 | `bewitchment:hellmouth` | 3 | 8 | 0 |
-| `bewitchment:greater_hellmouth` | 4 | 10 | 0 |
+| `bewitchment:greater_hellmouth` | 4 | 10 | 1 |
 | `bewitchment:sowing_salt` | 2 | 4 | 0 |
 | `bewitchment:drought` | 2 | 4 | 0 |
 | `bewitchment:hungry_flames` | 2 | 4 | 0 |

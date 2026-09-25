@@ -803,12 +803,12 @@ public class ArcanaQuestTweaksConfig {
         })
         public static String[] ritualWarpList = new String[] {
             "bewitchment:conjure_imp=1,3",
-            "bewitchment:conjure_demon=2,5",
+            "bewitchment:conjure_demon=2,5,1",
             "bewitchment:conjure_baphomet=5,15,2",
             "bewitchment:conjure_leonard=5,15,2",
             "bewitchment:lesser_hellmouth=2,5",
             "bewitchment:hellmouth=3,8",
-            "bewitchment:greater_hellmouth=4,10",
+            "bewitchment:greater_hellmouth=4,10,1",
             "bewitchment:sowing_salt=2,4",
             "bewitchment:drought=2,4",
             "bewitchment:hungry_flames=2,4",

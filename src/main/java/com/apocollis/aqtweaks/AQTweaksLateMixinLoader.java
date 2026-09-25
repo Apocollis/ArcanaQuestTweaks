@@ -10,6 +10,7 @@ public class AQTweaksLateMixinLoader implements ILateMixinLoader {
     public List<String> getMixinConfigs() {
         return Arrays.asList(
                 "mixins.aqtweaks.json",
+                "mixins.aqtweaks.vanilla.json",
                 "mixins.aqtweaks.grapple.json",
                 "mixins.aqtweaks.dss.json",
                 "mixins.aqtweaks.elenaidodge.json",
