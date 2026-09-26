@@ -1,10 +1,12 @@
 package com.apocollis.aqtweaks.somnia;
 
+import com.apocollis.aqtweaks.mixin.vanilla.AccessorChunk;
 import com.kingrunes.somnia.Somnia;
 import com.kingrunes.somnia.common.SomniaConfig;
 import com.kingrunes.somnia.common.util.SomniaState;
 import com.kingrunes.somnia.server.ServerTickHandler;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.world.World;
 import net.minecraft.world.chunk.Chunk;
 
@@ -19,6 +21,21 @@ public class SomniaOptimizationHandler {
 
     private static long chunkKey(int dim, int x, int z) {
         return (((long) dim) << 48) ^ (((long) x & 0xFFFFFFL) << 24) ^ ((long) z & 0xFFFFFFL);
+    }
+
+    private static boolean isNearAwakePlayer(World world, int chunkX, int chunkZ, int chunkRadius) {
+        double maxDistSq = (chunkRadius * 16.0 + 8.0) * (chunkRadius * 16.0 + 8.0);
+        double chunkMidX = (chunkX << 4) + 8.0;
+        double chunkMidZ = (chunkZ << 4) + 8.0;
+        for (EntityPlayer player : world.playerEntities) {
+            if (player.isSpectator()) continue;
+            double dx = player.posX - chunkMidX;
+            double dz = player.posZ - chunkMidZ;
+            if (dx * dx + dz * dz <= maxDistSq) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static synchronized void chunkLightCheck(Chunk chunk) {
@@ -66,12 +83,21 @@ public class SomniaOptimizationHandler {
             return;
         }
 
-        // 3. Player is awake: throttle checkLight even when queuedLightChecks < 4096.
-        // Depths tall columns rarely return to vanilla idle 4096, so a backlog flush every
-        // tick never drains; the 20-tick round-robin still processes the queue over time.
-        if (Math.floorMod(currentTick + chunk.x + chunk.z, 20L) != 0) {
-            return;
+        // 3. Player is awake:
+        // Direct accessor check for queued light checks (4096 = idle).
+        // If the chunk has a backlog (< 4096) AND is within player proximity (2 chunks / ~32 blocks),
+        // drain priority every tick so village houses and immediate surroundings relight within seconds.
+        // Distant background chunks (> 2 chunks away) and already idle chunks stay throttled to once
+        // every 20 ticks to eliminate exploration / flight hitching.
+        int queued = ((AccessorChunk) chunk).getQueuedLightChecks();
+        boolean needsPriority = queued < 4096 && isNearAwakePlayer(world, chunk.x, chunk.z, 2);
+
+        if (!needsPriority) {
+            if (Math.floorMod(currentTick + chunk.x + chunk.z, 20L) != 0) {
+                return;
+            }
         }
+
         LAST_CHECK_TICKS.put(key, currentTick);
         chunk.checkLight();
     }

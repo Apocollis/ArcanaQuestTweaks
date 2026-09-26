@@ -1,6 +1,6 @@
 # Somnia module (1.8)
 
-Last updated: 2026-09-18.
+Last updated: 2026-09-25.
 
 Optional mixin layer if Somnia Refreshed is present (`mixins.aqtweaks.somnia.json`, `required: false`).
 Configured via `config/arcanaquesttweaks/aqtweaks_somnia.cfg`.
@@ -10,7 +10,8 @@ Configured via `config/arcanaquesttweaks/aqtweaks_somnia.cfg`.
 1. **Chunk Light Bottleneck Optimization**: Eliminate the server tick performance bottleneck caused by Somnia Refreshed's ASM light checks interacting with Depths Update's expanded chunk height (Y = -64 to 320).
    - Ensure `chunk.checkLight()` is never invoked more than once per tick for any given chunk.
    - When sleep is active, respect `disableMoodSoundAndLightCheck`.
-   - When awake, throttle `checkLight` to once every 20 ticks (1s) round-robin. Do **not** flush every tick when `queuedLightChecks < 4096`: vanilla idle is 4096, but Depths tall columns rarely finish that queue in one call, so a backlog flush never idles.
+   - When awake, prioritize backlogged chunks (`queuedLightChecks < 4096`) within player proximity ($\le 2$ chunks / ~32 blocks) to drain every tick so village houses and immediate surroundings relight within seconds without requiring a torch.
+   - For distant chunks ($> 2$ chunks away) or chunks whose lighting queue has reached idle (`>= 4096`), throttle `checkLight` to once every 20 ticks (1s) round-robin. This avoids server tick hitches and stuttering during high-speed exploration or chunk generation.
 2. **3-Tier SMP Sleep System**:
    - **Case A (100% Sleeping)**: Full fast-forward simulation. All world, tile, entity, and player ticks accelerate together.
    - **Case B (50%–99% Sleeping)**: Time-only fast-forward. Vanilla `WorldServer.tick` already ran (`+1` world time, one fatigue recover). Tweaks adds `(caseBTimeMultiplier - 1)` extra time and fatigue so default `2.0` is **double per world tick**, not triple. Awake players and mobs stay at 20 TPS; no extra entity/tile ticks.
@@ -34,7 +35,7 @@ Configured via `config/arcanaquesttweaks/aqtweaks_somnia.cfg`.
 
 ## Design plan
 
-- `MixinSomniaUtil` (@Overwrite) delegates to `SomniaOptimizationHandler.chunkLightCheck(chunk)`.
+- `MixinSomniaUtil` (@Overwrite) delegates to `SomniaOptimizationHandler.chunkLightCheck(chunk)`.\
 - `MixinSomniaState` (@Overwrite) delegates to `SomniaSleepHandler.getState(handler)` to filter spectators, evaluate the 50% threshold, route to `ACTIVE` vs `WAITING_PLAYERS`, and broadcast activation.
 - `MixinServerTickHandler` (@Inject at HEAD of `doMultipliedTicking`) intercepts multiplied ticking. During Case B, it steps `worldServer.setWorldTime` by `(caseBTimeMultiplier - 1)` (vanilla world tick already applied `+1`), recovers that extra fatigue on sleepers, syncs `SPacketTimeUpdate`, and cancels the full entity/world tick loop. During Case A (100% sleeping), it lets normal multiplied ticking proceed.
 - `SomniaSleepHandler` listens to Forge `PlayerTickEvent`, `PlayerWakeUpEvent`, `PlayerLoggedOutEvent`, and `PlayerChangedDimensionEvent` for Morpheus chat notifications and state tracking.
@@ -44,13 +45,14 @@ Configured via `config/arcanaquesttweaks/aqtweaks_somnia.cfg`.
 
 | Piece | Role |
 | --- | --- |
-| `somnia/SomniaOptimizationHandler.java` | Core lighting check optimization, duplicate tracker, sleep check, and 20-tick awake throttle |
+| `somnia/SomniaOptimizationHandler.java` | Core lighting check optimization, duplicate tracker, sleep check, and proximity-priority awake drain |
 | `somnia/SomniaSleepHandler.java` | 3-tier sleep state logic, Case B time advancement & fatigue recovery, and Morpheus notifications |
 | `mixin/somnia/MixinSomniaUtil.java` | `@Overwrite SomniaUtil.chunkLightCheck` |
 | `mixin/somnia/MixinSomniaState.java` | `@Overwrite SomniaState.getState` |
 | `mixin/somnia/MixinServerTickHandler.java` | `@Inject doMultipliedTicking` to handle Case B time-only advancement |
+| `mixin/vanilla/AccessorChunk.java` | Direct accessor for `queuedLightChecks` (`field_76649_t`) on `Chunk` |
 | `mixins.aqtweaks.somnia.json` | Optional late mixin config (`required: false`) |
-| `util/Reflect.java` | Cached reflection accessor `getQueuedLightChecks(Chunk)` for `field_76649_t` |
+| `mixins.aqtweaks.vanilla.json` | Required late mixin config for vanilla accessors/mixins |
 
 ## Live config (`config/arcanaquesttweaks/aqtweaks_somnia.cfg`)
 
@@ -68,12 +70,12 @@ Configured via `config/arcanaquesttweaks/aqtweaks_somnia.cfg`.
 - Do not add `@Mod required-after:somnia`.
 - Do not import Somnia classes in `ArcanaQuestTweaksConfig` or always-on event handlers.
 - Do not disable Somnia's daytime / anytime sleep capability (`SleepingTimeCheckEvent` remains untouched).
-- Do not check `queuedLightChecks > 0` directly for backlogs (4096 is idle). Do not use `queuedLightChecks < 4096` as an every-tick flush under Depths.
+- Do not check `queuedLightChecks > 0` directly for backlogs (4096 is idle). Do not use `queuedLightChecks < 4096` as an uncapped global flush every tick across all loaded chunks.
 
 ## Verify
 
 1. Build succeeds with `options.release = 21` via `build_gradle.ps1`.
-2. Spark profile confirms `SomniaUtil.chunkLightCheck` stays small while flying awake; new chunks still relight within a few seconds of stay-loaded.
+2. Spark profile confirms `SomniaUtil.chunkLightCheck` stays small while flying awake; new chunks near player relight within a few seconds of arrival.
 3. Sleeping with 100% players in bed runs Case A full acceleration.
 4. Sleeping with $\ge 50\%$ but $< 100\%$ players in bed runs Case B: world time `+2` and sleeper fatigue `2 × (fatigueRecoveredPerHour / 1000)` per world tick; awake players stay at 20 TPS (no extra entity/tile ticks).
 5. Sleeping with $< 50\%$ players in bed runs Case C (time does not speed up, resting in bed clears 10 fatigue per in-game hour).

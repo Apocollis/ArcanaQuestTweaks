@@ -5,6 +5,7 @@
   "package": "com.apocollis.aqtweaks.mixin.vanilla",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "AccessorChunk",
     "MixinEntityAITasks",
     "MixinEntityGhastAIFireballAttack"
   ]
