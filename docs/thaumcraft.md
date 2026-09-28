@@ -1,6 +1,6 @@
 # Thaumcraft module (1.8)
 
-Last updated: 2026-09-25.
+Last updated: 2026-09-28.
 
 Config: `config/arcanaquesttweaks/aqtweaks_thaumcraft.cfg`. Event handler registers only if `thaumcraft` is loaded (`CommonProxy.init`). Warp API is reflection (`ThaumcraftHelper`, raw `Class`) so Comfort can call it without importing TC types. Focus mixins **compile-hard** TC **6.1 BETA26** (`libs/`); missing that jar fails compile. Optional `mixins.aqtweaks.thaumcraft.json` (`required: false`) skips at runtime if TC is absent.
 
@@ -110,6 +110,15 @@ Client mixins in `mixins.aqtweaks.thaumcraft.json`. `MixinGuiIngameForgeRunicShi
 - Extra rows add to `left_height` so the armor bar sits above them.
 - Overhaul on: Tweaker's attribute and overlay stay. No cap in `runicInfo`: absorption stays gold hearts. An apple that only fills a partial shield stays runes.
 
+### Ring models
+
+BaublesEX `MixinItemBaubles.getModel` builds `ModelBelt` for `thaumcraft:baubles` meta 2 and 6. Every other meta gets `ModelAmulet`. `switchTex` only has textures for meta 0 and 4, so rings (meta 1, 3, 5) get `texture == null` and `render` draws a `ModelBiped` body on the player skin.
+
+Client mixins in `mixins.aqtweaks.baubles.json` (`required: false`). Targets live in BaublesEX, so they stay out of the Thaumcraft json.
+
+- `MixinItemBaublesRingModel` — `getModel` HEAD: meta 1, 3, or 5 returns null. `BaublesRenderLayer` skips a null model. Meta 0 and 4 stay amulets; 2 and 6 stay belts.
+- `MixinModelAmulet` — `render` HEAD: return when `texture` is null, so a null-texture amulet model does not draw that body.
+
 ## Config (`aqtweaks_thaumcraft.cfg`)
 
 | Name | Default | Live? | Meaning |
@@ -152,6 +161,7 @@ Client mixins in `mixins.aqtweaks.thaumcraft.json`. `MixinGuiIngameForgeRunicShi
 - `thaumcraft/RunicShieldHud.java` — client gear cap, rune rows, and gold surplus. Not `@SideOnly`
 - `mixin/thaumcraft/MixinGuiIngameForgeRunicShield.java`, `MixinRunicShieldingHudHandler.java`
 - `mixins.aqtweaks.thaumcraft.json`
+- `mixin/baubles/MixinItemBaublesRingModel.java`, `MixinModelAmulet.java` — ring skip; `mixins.aqtweaks.baubles.json` client array
 
 ## Do not regress
 
@@ -167,6 +177,7 @@ Client mixins in `mixins.aqtweaks.thaumcraft.json`. `MixinGuiIngameForgeRunicShi
 - Snowballs stay non-magic (`thrown` is not an allow prefix).
 - Vis Thrift still injects `getTotalVisDiscount` RETURN. Focus-pouch bauble offset is only the three pouch methods.
 - Runic HUD does not change recharge, vis cost, or the overhaul attribute. Overhaul off keeps absorption for damage. The client cap is worn `TC.RUNIC` plus Astral's calculate event, not `runicInfo`. First 10 runes sit on the red hearts. Past 10 uses empty sockets above the health stack. Gold hearts are only the surplus above that cap.
+- Ring skip is only `thaumcraft:baubles` meta 1, 3, and 5. Amulets (0, 4) and girdles (2, 6) keep BaublesEX models.
 
 ## Out of scope unless asked
 

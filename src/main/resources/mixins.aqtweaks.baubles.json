@@ -5,6 +5,8 @@
   "package": "com.apocollis.aqtweaks.mixin.baubles",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "MixinClientEventHandler"
+    "MixinClientEventHandler",
+    "MixinItemBaublesRingModel",
+    "MixinModelAmulet"
   ]
 }

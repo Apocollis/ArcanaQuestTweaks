@@ -126,7 +126,7 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `
 | `mixins.aqtweaks.grapple.json` | false | Stamina | Skip |
 | `mixins.aqtweaks.dss.json` | false | Stamina | Skip |
 | `mixins.aqtweaks.elenaidodge.json` | false | Stamina feather colors | Skip |
-| `mixins.aqtweaks.baubles.json` | false | MineMenu | Skip |
+| `mixins.aqtweaks.baubles.json` | false | MineMenu + Thaumcraft ring models | Skip |
 | `mixins.aqtweaks.toughnessbar.json` | false | Client HUD | Skip |
 | `mixins.aqtweaks.astral.json` | false | RTG shrines + Reskillable Astromancer altar | Skip |
 | `mixins.aqtweaks.bewitchment.json` | false | RTG Cambion + circle/menhir/wickerman; Reskillable Witch drain/Hearth/Stitch | Skip |
