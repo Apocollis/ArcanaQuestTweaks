@@ -2,6 +2,10 @@
 
 Stay on version **1.8** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-09-28 — Dawnstone rune reroll skips current Name
+
+- Same-tier rune hammers pick equally among other qualities of that color (loot weight unused). Step-up still uses the full next-color pool. Type match prefers the file that lists the live quality Name.
+
 ## 2026-09-28 — Thaumcraft rings skip amulet model
 
 - `thaumcraft:baubles` meta 1, 3, and 5 no longer get `ModelAmulet`, so rings do not draw a second player skin. A null amulet texture also skips that body draw. Spec: [thaumcraft.md](thaumcraft.md).

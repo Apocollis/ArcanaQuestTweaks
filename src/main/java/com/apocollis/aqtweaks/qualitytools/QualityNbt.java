@@ -70,12 +70,82 @@ public final class QualityNbt {
         if (stack == null || stack.isEmpty() || ConfigLoader.qualityTypes == null) {
             return null;
         }
+        String liveName = liveName(stack);
+        NBTTagList liveSlots = liveSlots(stack);
+        QualityType first = null;
+        QualityType byName = null;
+        QualityType bySlots = null;
         for (QualityType type : ConfigLoader.qualityTypes.values()) {
-            if (type != null && type.itemMatches(stack)) {
-                return type;
+            if (type == null || !type.itemMatches(stack)) {
+                continue;
+            }
+            if (first == null) {
+                first = type;
+            }
+            if (byName == null && liveName != null && typeHasName(type, liveName)) {
+                byName = type;
+            }
+            if (bySlots == null && slotsOverlap(type, liveSlots)) {
+                bySlots = type;
             }
         }
-        return null;
+        if (byName != null) {
+            return byName;
+        }
+        if (bySlots != null) {
+            return bySlots;
+        }
+        return first;
+    }
+
+    public static String liveName(ItemStack stack) {
+        if (!QualityToolsHelper.hasQualityTag(stack)) {
+            return null;
+        }
+        NBTTagCompound quality = QualityToolsHelper.getQualityTag(stack);
+        if (quality == null || quality.isEmpty()) {
+            return null;
+        }
+        String name = quality.getString("Name");
+        return name == null || name.isEmpty() ? null : name;
+    }
+
+    private static NBTTagList liveSlots(ItemStack stack) {
+        if (!QualityToolsHelper.hasQualityTag(stack)) {
+            return null;
+        }
+        NBTTagCompound quality = QualityToolsHelper.getQualityTag(stack);
+        if (quality == null || !quality.hasKey("Slots", 9)) {
+            return null;
+        }
+        return quality.getTagList("Slots", 8);
+    }
+
+    private static boolean typeHasName(QualityType type, String name) {
+        if (type.qualities == null) {
+            return false;
+        }
+        for (QualityEntry entry : type.qualities) {
+            if (entry != null && entry.name != null && entry.name.equalsIgnoreCase(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean slotsOverlap(QualityType type, NBTTagList slots) {
+        if (type.slots == null || slots == null || slots.tagCount() == 0) {
+            return false;
+        }
+        for (int i = 0; i < slots.tagCount(); i++) {
+            String slot = slots.getStringTagAt(i);
+            for (String typeSlot : type.slots) {
+                if (typeSlot != null && typeSlot.equalsIgnoreCase(slot)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     public static String liveColor(ItemStack stack) {
@@ -248,23 +318,34 @@ public final class QualityNbt {
     }
 
     public static boolean applyColor(ItemStack stack, String color) {
+        return applyColor(stack, color, null);
+    }
+
+    public static boolean applyColor(ItemStack stack, String color, String excludeName) {
         QualityType type = matchingType(stack);
         if (type == null || type.qualities == null) {
             return false;
         }
         List<QualityEntry> matches = new ArrayList<>();
+        List<QualityEntry> others = new ArrayList<>();
         for (QualityEntry entry : type.qualities) {
             if (entry == null || entry.color == null) {
                 continue;
             }
-            if (color.equalsIgnoreCase(entry.color.getFriendlyName())) {
-                matches.add(entry);
+            if (!color.equalsIgnoreCase(entry.color.getFriendlyName())) {
+                continue;
+            }
+            matches.add(entry);
+            if (excludeName == null || excludeName.isEmpty()
+                    || entry.name == null || !entry.name.equalsIgnoreCase(excludeName)) {
+                others.add(entry);
             }
         }
-        if (matches.isEmpty()) {
+        List<QualityEntry> pool = !others.isEmpty() ? others : matches;
+        if (pool.isEmpty()) {
             return false;
         }
-        QualityEntry pick = matches.get(QualityType.RAND.nextInt(matches.size()));
+        QualityEntry pick = pool.get(QualityType.RAND.nextInt(pool.size()));
         applyEntry(stack, type, pick);
         return true;
     }

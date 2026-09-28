@@ -1,6 +1,6 @@
 # Quality Tools module (1.8)
 
-Last updated: 2026-09-21. Vanilla loot/durability mixins in `mixins.aqtweaks.early.json`.
+Last updated: 2026-09-28. Vanilla loot/durability mixins in `mixins.aqtweaks.early.json`.
 
 Loot stamp, wear/Broken overlays, Dawnstone rune upgrades. Tweaks cfg: `config/arcanaquesttweaks/aqtweaks_qualitytools.cfg`. Mixins: vanilla loot/durability in **`mixins.aqtweaks.early.json`** (jar `MixinConfigs`; pack ships QT). QT + Embers targets in optional `mixins.aqtweaks.qualitytools.json`. Soft `@Mod` `after:qualitytools` (not `required-after`). Embers already `after:`.
 
@@ -14,7 +14,7 @@ Loot stamp, wear/Broken overlays, Dawnstone rune upgrades. Tweaks cfg: `config/a
 - Wear (default ≤20% remaining): unique `gray` only. **Never** if live is `dark_gray`. Wear never applies `dark_gray`.
 - Repair to default ≥75%: strip only live `gray` / `dark_gray`; restore QualityBase (including `red`) or `normal`. Do **not** strip `red`.
 - Lethal damage: apply unique `dark_gray`, drop the stack, keep QualityBase, play `ENTITY_ITEM_BREAK` at volume 0.5 / pitch 1.5±0.15 — **except** `charm:salvage`, which Charm already salvages. Tweaks does not cancel that destroy, does not stamp Broken, and does not drop a second copy. Wear still applies. Do not mixin Charm.
-- Dawnstone Anvil: **strict** ladder, no skip: `red` → white (`normal`) → `yellow` → `green` → `blue` → `gold`. Common does the first two hammers. Uncommon/Rare/Legendary are yellow→green, green→blue, blue→gold. The **same** rune also rerolls that tier’s color (Common yellow, Uncommon green, Rare blue, Legendary gold). **One rune consumed** per success. Place the **tool/gear first** (slot 0), then the rune (slot 1), same as stock repair. Unwritten Rune (`sccraftingrunes:itemmatbag`) is never matched.
+- Dawnstone Anvil: **strict** ladder, no skip: `red` → white (`normal`) → `yellow` → `green` → `blue` → `gold`. Common does the first two hammers. Uncommon/Rare/Legendary are yellow→green, green→blue, blue→gold. The **same** rune also rerolls that tier’s color (Common yellow, Uncommon green, Rare blue, Legendary gold), equal chance among other Names of that color (weight unused). **One rune consumed** per success. Place the **tool/gear first** (slot 0), then the rune (slot 1), same as stock repair. Unwritten Rune (`sccraftingrunes:itemmatbag`) is never matched.
 - Do not compile-hard `sccraftingrunes`; cfg defaults are registry names.
 - Do not cancel all of `CommonEventHandler.onLivingUpdate` (attribute reapply must stay).
 - Do not globally no-op `generateQualityTag(..., false)` (chest/drop stamping uses it).
@@ -22,7 +22,7 @@ Loot stamp, wear/Broken overlays, Dawnstone rune upgrades. Tweaks cfg: `config/a
 
 ## How the parents work
 
-Quality Tools `1.0.7` (`qualitytools`, `QualityTools-1.0.7_for_1.12.2.jar`) stores `Quality` `{Name, Color, Slots, AttributeModifiers}`. `normal` writes **no** tag. `QualityToolsHelper.generateQualityTag(stack, boolean)`: `false` = first apply (stock living-update lambda); `true` = `TileEntityReforgingStation.reforgeTool`. Apply API is `ConfigLoader.qualityTypes` + `QualityType.itemMatches` / `QualityEntry`.
+Quality Tools `1.0.7` (`qualitytools`, `QualityTools-1.0.7_for_1.12.2.jar`) stores `Quality` `{Name, Color, Slots, AttributeModifiers}`. `normal` writes **no** tag. `QualityToolsHelper.generateQualityTag(stack, boolean)`: `false` = first apply (stock living-update lambda); `true` = `TileEntityReforgingStation.reforgeTool`. Apply API is `ConfigLoader.qualityTypes` + `QualityType.itemMatches` / `QualityEntry`. Tweaks `matchingType` prefers a matching type that lists the live quality Name, else overlapping `Quality.Slots`, else first `itemMatches` (QT `baubles_trinket` matches every `IBauble`).
 
 Embers `1.26.1` `DawnstoneAnvilRecipe.getResult` copies recipe output stacks, not input NBT. `TileEntityDawnstoneAnvil.getResult` **empties both slots first**, then asks the recipe. Leftover runes must be written back onto slot 1 inside `getResult`, not returned as a second output (those eject as item entities). `RecipeRegistry.getDawnstoneAnvilRecipe` returns the first `matches`. Tweaks recipes are inserted at index 0.
 
@@ -63,7 +63,7 @@ If untagged and `isQualityItem`: `generateQualityTag(stack, false)`. Then pre-da
 | Legendary | `sccraftingrunes:itemlegendarymat` | `blue` | `gold` + QualityBase |
 | Legendary | same | `gold` | reroll `gold` + QualityBase |
 
-`gray` / `dark_gray` refuse every rune except Common when QualityBase is `red` (gray overlay still counts as red→white). Failed match (quality gear in slot 0 + configured rune in slot 1, `matches` false): action bar `chat.aqtweaks.quality.rune_mismatch`, 40-tick cooldown, rune not consumed. No message for stock repair, empty slots, Unwritten Rune, rune-first placement, or auto-hammers with no nearby player.
+Rune apply is **unweighted**. Same-color reroll skips the live quality Name when another entry of that color exists. Step-up (e.g. green→blue) uses the full next-color pool. `gray` / `dark_gray` refuse every rune except Common when QualityBase is `red` (gray overlay still counts as red→white). Failed match (quality gear in slot 0 + configured rune in slot 1, `matches` false): action bar `chat.aqtweaks.quality.rune_mismatch`, 40-tick cooldown, rune not consumed. No message for stock repair, empty slots, Unwritten Rune, rune-first placement, or auto-hammers with no nearby player.
 
 JEI: a few example bottoms (iron sword/pick/chestplate). Missing rune item → that recipe does not register.
 
@@ -117,6 +117,7 @@ Quality JSON must keep **one** `dark_gray` and **one** `gray` per type. **`Quail
 - Do not mixin Charm; Salvage and Tweaks-Broken are mutually exclusive on the lethal hit.
 - Do not consume Unwritten Rune / `itemmatbag` (`mat_bag`).
 - Do not skip rungs (Common cannot turn `red` or `yellow` into `green` in one hammer). Same-tier reroll is not a skip.
+- Do not use QT loot weights on Dawnstone runes. Same-tier reroll must not keep the current Name when another same-color entry exists.
 - Do not stamp `ContainerPlayer` crafting slots or merchant trades.
 - Do not put QT or Embers types on `CommonProxy` / `ArcanaQuestTweaksConfig`.
 - Do not put `MixinTileEntityLockableLoot` / `MixinItemStackQualityDurability` in late `mixins.aqtweaks.json`.
@@ -129,7 +130,7 @@ Quality JSON must keep **one** `dark_gray` and **one** `gray` per type. **`Quail
 
 1. Craft a sword: no Quality in chest/hotbar.
 2. Open a loot chest: `dark_gray` ~25% remaining, `gray` ~50%; pickup does not reroll.
-3. Dawnstone: tool first, then the next rune; same rune again rerolls that color. Wrong rune: action bar, rune not consumed. Second Common after red→white → yellow.
+3. Dawnstone: tool first, then the next rune; same rune again rerolls that color and changes Name when the pool has another entry (e.g. bauble Graceful → Athletic). Wrong rune: action bar, rune not consumed. Second Common after red→white → yellow.
 4. Wear below 20%: stone/iron ~50% per eligible 40-tick damage hit; diamond pick ~0.29 at 90% used. Crafted untagged sword/shovel still eligible. QualityBase unchanged; repair to 75% restores base. `Wear Chance` 0 never stamps. Armor with a null damager stamps in-slot (Broken stays equipped).
 5. Break without Salvage: drop `dark_gray`; QualityBase intact; Salvage-matching sound. Break with Salvage: Charm drop at 0 durability; no Tweaks second copy.
 6. Boot without `qualitytools`: Tweaks mixin json for QT classes skipped; vanilla loot/durability mixins still apply (NCDFE if those helpers run — pack ships QT).

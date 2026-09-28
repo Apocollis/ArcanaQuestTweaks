@@ -228,7 +228,8 @@ public class QualityRuneAnvilRecipe extends DawnstoneAnvilRecipe {
                 case RARE -> QualityNbt.COLOR_BLUE;
                 case LEGENDARY -> QualityNbt.COLOR_GOLD;
             };
-            QualityNbt.applyColor(out, to);
+            String exclude = to.equals(kept) ? QualityNbt.liveName(out) : null;
+            QualityNbt.applyColor(out, to, exclude);
             QualityNbt.setQualityBaseFromLive(out);
             QualityNbt.setWearFlag(out, false);
         }
