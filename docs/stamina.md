@@ -1,6 +1,6 @@
 # Stamina module (1.8)
 
-Last updated: 2026-09-25.
+Last updated: 2026-09-28.
 
 Config: `config/arcanaquesttweaks/aqtweaks_stamina.cfg`. Compile against **Elenai Dodge 2 Extended** (`ElenaiDodge2Extended-1.12.2-1.1.3.jar`). Forge modid is still `elenaidodge2`.
 
@@ -86,6 +86,8 @@ This jar **registers** `aqtweaks:armor_mastery` and `aqtweaks:mining_efficiency`
 
 On join (`EntityJoinWorldEvent`): **HIGHEST** backup + clear Elenai’s weight array for `EntityPlayerMP`; **LOWEST** restore. That window is so Elenai’s join handler does not apply weight first. Client tick restores `ClientStorage.weightValues` if emptied and clears `ArmorTickEventListener.previousArmor` so weight re-evaluates. Armor Mastery also sends Elenai `SWeightMessage` when `ClientStorage.weight` disagrees (`ClientTickEvent` END LOWEST).
 
+Armor tooltips: `MixinTooltipEventListener` replaces `TooltipEventListener.getWeight`. Stock appends `ClientStorage.weightValues` onto a static `ArrayList` and `clear`s it during the walk, so a nested tooltip throws `ConcurrentModificationException` (Baubles `GuiPlayerExpanded` hover). The mixin splits that string locally. A matching `item=weight` returns `floor(weight)`. Otherwise `(damageReduceAmount / 2) * 1.8` with integer division, then floor. `weightValues == null` still returns 1. Construct's Armory is not called (this pack has no `conarm`). Join blank/restore of the config array is unchanged. Icons stay on.
+
 Respawn: `PlayerRespawnEvent` → `FeathersHelper.increaseFeathers(player, getMaxFeatherLevel(player))` (caps at max, `CUpdateDodgeMessage` only). Do **not** call `fillFeathers` (that also runs `updateClientConfig` and can overflow `CUpdateConfigMessage` on this pack’s weight list). Do not set the pool by hand.
 
 ## Files
@@ -98,6 +100,7 @@ Respawn: `PlayerRespawnEvent` → `FeathersHelper.increaseFeathers(player, getMa
 | `stamina/StaminaModuleClient.java` | HUD if dodge locked; climb fall + jump packet; ledge FSM; grapple `InputUpdateEvent` LOWEST |
 | `stamina/ElenaiFeatherHudColors.java` | Blue / green / gold draw for Extended’s layered bar |
 | `mixin/elenaidodge/MixinDodgeGui.java` | Client cancel of `renderLayeredBar` and `renderBaseWeightBar`. `mixins.aqtweaks.elenaidodge.json` |
+| `mixin/elenaidodge/MixinTooltipEventListener.java` | Client replace of `getWeight`. Local split of `weightValues`; static list unused |
 | `stamina/GrappleClientInput.java` | Climb / descend / swing / motor / grounded from Grapple keys + controller |
 | `stamina/PacketSyncClimbingInput` | Channel **0** — climb jump held |
 | `stamina/PacketLedgeClimb` | Channel **1** — mantle request (empty payload) |
@@ -484,6 +487,7 @@ Extended layer 0 multiplies the light-gray sprites by pure red, so a half feathe
 - Sprint uses Tweaks `hasEnoughStamina` and a sprint-only interval. Keep Universal Tweaks **Sprinting Feather Consumption** and **Requirement** at **0** so feathers are not billed twice. Hunger sprint threshold is a different UT tweak.
 - Ledge grace / jump packet must keep `fallOnDepleted` from cancelling a mantle. Mantle lip uses **collision-list** maxY (fence/wall 1.5, not the 1.0 outline). Grab 2 + extras cap 5. Client and server both refuse the grab when stamina is short. Server mantle state must clear on land. Fence/wall rise is Y-only then finish on the nearest lip collision XZ (not block center); `fallDistance` must stay 0 while climbing. Successful land pauses jump/WASD (`ledgeClimbLandPauseTicks`); abort does not.
 - Mining break is never cancelled. Fatigue uses **regular** feathers.
+- Armor weight tooltips read a local split of `ClientStorage.weightValues`. Do not iterate or clear `TooltipEventListener.weights`. Do not call `ConstructsArmory`. Join blank/restore of the config weight array stays. `hud.tooltips` stays on.
 
 ## Verify
 
