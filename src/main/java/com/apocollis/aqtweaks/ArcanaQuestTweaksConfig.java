@@ -1166,10 +1166,15 @@ public class ArcanaQuestTweaksConfig {
         @Config.RangeDouble(min = 0.01, max = 1.0)
         public double lowDurability = 0.20;
 
-        @Config.Name("High Durability")
-        @Config.Comment("Repair to this remaining/max ratio clears gray/dark_gray overlays and restores QualityBase.")
+        @Config.Name("Broken To Wear")
+        @Config.Comment("Broken (dark_gray) repaired to at least this remaining/max ratio, and still below Clear Wear, becomes the wear tier (gray). QualityBase is kept.")
         @Config.RangeDouble(min = 0.01, max = 1.0)
-        public double highDurability = 0.75;
+        public double brokenToGray = 0.26;
+
+        @Config.Name("Clear Wear")
+        @Config.Comment("Wear (gray), or Broken repaired in one step past this remaining/max ratio, drops the damage stamp and restores QualityBase. Exactly this ratio does neither.")
+        @Config.RangeDouble(min = 0.01, max = 1.0)
+        public double clearWear = 0.51;
 
         @Config.Name("Wear Chance")
         @Config.Comment("Multiplier on used × (ref / (max/2)). 0 disables wear. 1 is the default curve.")

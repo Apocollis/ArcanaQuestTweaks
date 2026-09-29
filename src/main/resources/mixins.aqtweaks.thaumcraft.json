@@ -13,7 +13,6 @@
     "MixinToolEvents"
   ],
   "client": [
-    "MixinGuiIngameForgeRunicShield",
     "MixinRunicShieldingHudHandler"
   ]
 }

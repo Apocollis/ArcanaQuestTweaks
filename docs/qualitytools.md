@@ -1,6 +1,6 @@
 # Quality Tools module (1.8)
 
-Last updated: 2026-09-28. Vanilla loot/durability mixins in `mixins.aqtweaks.early.json`.
+Last updated: 2026-09-29. Vanilla loot/durability mixins in `mixins.aqtweaks.early.json`.
 
 Loot stamp, wear/Broken overlays, Dawnstone rune upgrades. Tweaks cfg: `config/arcanaquesttweaks/aqtweaks_qualitytools.cfg`. Mixins: vanilla loot/durability in **`mixins.aqtweaks.early.json`** (jar `MixinConfigs`; pack ships QT). QT + Embers targets in optional `mixins.aqtweaks.qualitytools.json`. Soft `@Mod` `after:qualitytools` (not `required-after`). Embers already `after:`.
 
@@ -12,8 +12,8 @@ Loot stamp, wear/Broken overlays, Dawnstone rune upgrades. Tweaks cfg: `config/a
 - No QT living-update first stamp. Craft, `/give`, JEI, trades stay untagged until loot/drop/equipment hooks or a rune.
 - World loot and drops stamp **before** pickup (`generateQualityTag(stack, false)`). First-gen `dark_gray` starts at **25%** remaining durability; first-gen `gray` at **50%**. Already-worse damage is kept. `red` is not forced to a fraction.
 - Wear (default ≤20% remaining): unique `gray` only. **Never** if live is `dark_gray`. Wear never applies `dark_gray`.
-- Repair to default ≥75%: strip only live `gray` / `dark_gray`; restore QualityBase (including `red`) or `normal`. Do **not** strip `red`.
-- Lethal damage: apply unique `dark_gray`, drop the stack, keep QualityBase, play `ENTITY_ITEM_BREAK` at volume 0.5 / pitch 1.5±0.15 — **except** `charm:salvage`, which Charm already salvages. Tweaks does not cancel that destroy, does not stamp Broken, and does not drop a second copy. Wear still applies. Do not mixin Charm.
+- Repair: Broken at **≥ 26% and < 51%** remaining becomes wear `gray` (QualityBase kept). Wear, or Broken repaired in one step **past 51%**, clears that stamp and restores QualityBase (including `red`) or `normal`. Exactly 51% does neither. Do **not** strip `red`.
+- Lethal damage: apply unique `dark_gray`, leave **one use** (`max - 1`), drop the stack, keep QualityBase, play `ENTITY_ITEM_BREAK` at volume 0.5 / pitch 1.5±0.15 — **except** `charm:salvage`, which Charm already salvages. Tweaks does not cancel that destroy, does not stamp Broken, and does not drop a second copy. A later hit that spends the last use of an already Broken tool is a real destroy. Wear still applies. Do not mixin Charm.
 - Dawnstone Anvil: **strict** ladder, no skip: `red` → white (`normal`) → `yellow` → `green` → `blue` → `gold`. Common does the first two hammers. Uncommon/Rare/Legendary are yellow→green, green→blue, blue→gold. The **same** rune also rerolls that tier’s color (Common yellow, Uncommon green, Rare blue, Legendary gold), equal chance among other Names of that color (weight unused). **One rune consumed** per success. Place the **tool/gear first** (slot 0), then the rune (slot 1), same as stock repair. Unwritten Rune (`sccraftingrunes:itemmatbag`) is never matched.
 - Do not compile-hard `sccraftingrunes`; cfg defaults are registry names.
 - Do not cancel all of `CommonEventHandler.onLivingUpdate` (attribute reapply must stay).
@@ -43,11 +43,12 @@ If untagged and `isQualityItem`: `generateQualityTag(stack, false)`. Then pre-da
 **Wear / break** (`ItemStack.attemptDamageItem`, server, quality-capable; not creative when a player is present):  
 - `isQualityItem` is the JSON whitelist **or** an existing Quality tag (including blank `Quality:{}`). Do not cache while `qualityTypes` is null or empty; never cache false.  
 - Lethal + `charm:salvage`: do not cancel, do not Broken, do not Tweaks-drop.  
-- Else lethal **with a player**: cancel destroy; durability 1; save QualityBase if empty and live is not gray/Broken; unique `dark_gray`; drop; clear the stack; `ENTITY_ITEM_BREAK`.  
-- Else lethal **with a null player** (typical armor `attemptDamageItem`): same stamp + clamp; **leave the piece in the slot** (no drop). Skip the client thread (`FMLCommonHandler` effective side).  
-- Missing `dark_gray`: log once, let vanilla destroy.  
+- Else lethal **with a player**: cancel destroy; item damage `max - 1` (one use left; `max == 1` stays at 0); save QualityBase if empty and live is not gray/Broken; unique `dark_gray`; drop; clear the stack; `ENTITY_ITEM_BREAK`. Vanilla `damageItem` may then write `itemDamage = 0`; the `damageItem` RETURN inject puts `max - 1` back only for that kept Broken stack.
+- Else lethal **with a null player** (typical armor `attemptDamageItem`): same stamp + one use left; **leave the piece in the slot** (no drop). Skip the client thread (`FMLCommonHandler` effective side).
+- Already `dark_gray` and the hit would destroy: do not cancel. Vanilla removes the stack.
+- Missing `dark_gray`: log once, let vanilla destroy.
 - Else remaining/max ≤ `lowDurability`, not Broken, no wear-flag: at most one roll per `wearCheckIntervalTicks` (40) when a player/world is present; null-player armor skips that interval and uses the mixin `Random`. Success p = `(damage/max) × (wearDurabilityRef / max(1, max/2)) × wearChance`, then clamp to `[wearChanceFloor, wearChanceCeiling]` (defaults 0.05–0.50) unless `wearChance` is 0. Then unique `gray`. Missing `gray`: log once.  
-- `setItemDamage`: **quality items only** (`isQualityItem`). Leaving the low band clears the wear-flag only. ≥ `highDurability` restores QualityBase if live is gray/Broken. Use the `damage` argument; do not call `getItemDamage()` from the RETURN inject (items such as CR Technomancer Scribing Tools write NBT in `getDamage` and re-enter `setItemDamage`). Re-entry is ThreadLocal-guarded.
+- `setItemDamage`: **quality items only** (`isQualityItem`). Leaving the low band clears the wear-flag only. Remaining **> `clearWear`** (0.51) restores QualityBase if live is gray or Broken. Remaining **≥ `brokenToGray` and < `clearWear`** (0.26) turns Broken into unique `gray` and leaves QualityBase. The one-use break write does not run this. Use the `damage` argument; do not call `getItemDamage()` from the RETURN inject (items such as CR Technomancer Scribing Tools write NBT in `getDamage` and re-enter `setItemDamage`). Re-entry is ThreadLocal-guarded.
 
 **Rune anvil**
 
@@ -95,7 +96,8 @@ Vanilla durability/loot mixins FQCN into `QualityStamp` / `QualityDurability` (c
 | --- | --- | --- | --- |
 | `general` / `Enable Quality Tools Module` | bool | true | Master switch. False: living-update stamp is not skipped; Tweaks wear/break/runes/loot stamp off |
 | `general` / `Low Durability` | double | 0.20 | Wear at or below this remaining/max |
-| `general` / `High Durability` | double | 0.75 | Repair ratio that clears gray/dark_gray |
+| `general` / `Broken To Wear` | double | 0.26 | Broken becomes `gray` at or above this, while still below Clear Wear |
+| `general` / `Clear Wear` | double | 0.51 | Past this, `gray` or Broken restores QualityBase. Exactly this ratio does neither |
 | `general` / `Wear Chance` | double | 1.0 | Multiplier on used × (ref / (max/2)). 0 disables wear |
 | `general` / `Wear Chance Floor` | double | 0.05 | Minimum p when Wear Chance > 0 |
 | `general` / `Wear Chance Ceiling` | double | 0.50 | Maximum p when Wear Chance > 0 |
@@ -123,6 +125,7 @@ Quality JSON must keep **one** `dark_gray` and **one** `gray` per type. **`Quail
 - Do not put `MixinTileEntityLockableLoot` / `MixinItemStackQualityDurability` in late `mixins.aqtweaks.json`.
 - Do not cache `isQualityItem` while `qualityTypes` is null or empty; never cache a false miss.
 - Do not require a live Quality tag (or a player) before wear/Broken; armor often calls `attemptDamageItem` with a null damager.
+- Do not treat the one-use Broken write as a repair, and do not put that bar back after a real destroy of an already Broken tool.
 - Do not call `getItemDamage()` from `setItemDamage` RETURN. Do not run wear/restore on non-quality items.
 - Do not call `getStackInSlot` from `fillWithLoot` RETURN. Nested `fillWithLoot` (loot table already null) must not stamp.
 
@@ -131,7 +134,7 @@ Quality JSON must keep **one** `dark_gray` and **one** `gray` per type. **`Quail
 1. Craft a sword: no Quality in chest/hotbar.
 2. Open a loot chest: `dark_gray` ~25% remaining, `gray` ~50%; pickup does not reroll.
 3. Dawnstone: tool first, then the next rune; same rune again rerolls that color and changes Name when the pool has another entry (e.g. bauble Graceful → Athletic). Wrong rune: action bar, rune not consumed. Second Common after red→white → yellow.
-4. Wear below 20%: stone/iron ~50% per eligible 40-tick damage hit; diamond pick ~0.29 at 90% used. Crafted untagged sword/shovel still eligible. QualityBase unchanged; repair to 75% restores base. `Wear Chance` 0 never stamps. Armor with a null damager stamps in-slot (Broken stays equipped).
-5. Break without Salvage: drop `dark_gray`; QualityBase intact; Salvage-matching sound. Break with Salvage: Charm drop at 0 durability; no Tweaks second copy.
+4. Wear below 20%: stone/iron ~50% per eligible 40-tick damage hit; diamond pick ~0.29 at 90% used. Crafted untagged sword/shovel still eligible. QualityBase unchanged. Broken repaired to 26–51% becomes `gray`. `gray`, or Broken repaired past 51%, restores the saved quality. `Wear Chance` 0 never stamps. Armor with a null damager stamps in-slot (Broken stays equipped with one use left).
+5. Break without Salvage: drop `dark_gray` at `damage == max - 1`; QualityBase intact; Salvage-matching sound. Spending that last use destroys the stack. Break with Salvage: Charm drop at 0 durability; no Tweaks second copy.
 6. Boot without `qualitytools`: Tweaks mixin json for QT classes skipped; vanilla loot/durability mixins still apply (NCDFE if those helpers run — pack ships QT).
 7. `.\build_gradle.ps1`: Java 21, QT + Embers jars in `libs/`.

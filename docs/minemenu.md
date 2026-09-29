@@ -38,7 +38,7 @@ Overlays that never set `currentScreen` and never call `displayGuiScreen` are un
 | `mixin/MixinMinecraftMouseGrab.java` | Ungrab, center, re-grab on the outermost return to play. Early client json |
 | `client/BaublesMenuClient.java` | `isPressed()` → `PacketOpen(EXPANSION)` when Baubles did not already send. Registered from `ClientProxy` |
 | `mixin/baubles/MixinClientEventHandler.java` | Marks `onKeyInput` when it sends `PacketOpen`. Optional client json |
-| `mixin/baubles/MixinItemBaublesRingModel.java`, `MixinModelAmulet.java` | Same json. Thaumcraft rings skip `ModelAmulet`. Spec: [thaumcraft.md](thaumcraft.md) |
+| `mixin/baubles/MixinItemBaublesRingModel.java`, `MixinModelBaubleNullTexture.java` | Same json. Thaumcraft rings skip a null texture before it is bound. Spec: [thaumcraft.md](thaumcraft.md) |
 
 ## Live config
 

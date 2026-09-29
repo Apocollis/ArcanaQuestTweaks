@@ -103,7 +103,7 @@ Do **not** add `thrown` to Reskillable allow-prefixes. Java default prefix `fire
 
 Thaumic Tweaker with **Runic Shielding Overhaul** off stores the shield in vanilla absorption, so damage is absorbed before armor. `handleRunicArmor` fills `PlayerEvents.runicInfo` on the **server only** (`!isRemote`). The client cap is the same sum: `getRunicCharge` on the four armor slots and baubles, then `RunicShieldingCalculateEvent.fire` (Astral). Recharge fills up to that cap. A golden apple adds to the same number and stays when it sits above the cap.
 
-Client mixins in `mixins.aqtweaks.thaumcraft.json`. `MixinGuiIngameForgeRunicShield` reports absorption 0 from `renderHealth` while that cap is above 0, then `RunicShieldHud` draws the rune overlay. `MixinRunicShieldingHudHandler` cancels Tweaker's ten-rune bar. Compile-hard Thaumcraft, Thaumic Tweaker, Baubles, and Astral.
+`MixinGuiIngameForgeRunicShield` is in **`mixins.aqtweaks.early.json`** (client). A late mixin on `GuiIngameForge` is refused (`loaded too early`) and the gold hearts stay. It reports absorption 0 from `renderHealth` while the client cap is above 0, then `RunicShieldHud` draws the rune overlay. `MixinRunicShieldingHudHandler` stays in `mixins.aqtweaks.thaumcraft.json` and cancels Tweaker's ten-rune bar. Compile-hard Thaumcraft, Thaumic Tweaker, Baubles, and Astral. The early mixin class does not import those parents; `RunicShieldHud` does.
 
 - Shield points `min(absorption, cap)` are runes (`ParticleEngine.particleTexture`, `UtilsFX.drawTexturedQuad`). The first 10 sit on the red health hearts. Further points are rows above the health stack, each on an empty heart socket.
 - Surplus `max(0, absorption - cap)` is gold absorption hearts above those rows (full offset 144, half 153), with the same socket. The cap is computed on the client; do not read `runicInfo` there.
@@ -112,12 +112,12 @@ Client mixins in `mixins.aqtweaks.thaumcraft.json`. `MixinGuiIngameForgeRunicShi
 
 ### Ring models
 
-BaublesEX `MixinItemBaubles.getModel` builds `ModelBelt` for `thaumcraft:baubles` meta 2 and 6. Every other meta gets `ModelAmulet`. `switchTex` only has textures for meta 0 and 4, so rings (meta 1, 3, 5) get `texture == null` and `render` draws a `ModelBiped` body on the player skin.
+BaublesEX `MixinItemBaubles.getModel` builds `ModelBelt` for `thaumcraft:baubles` meta 2 and 6. Every other meta gets `ModelAmulet`. `switchTex` only has textures for meta 0 and 4, so rings (meta 1, 3, 5) get `texture == null`. `ModelBauble.renderWithTexture` then calls `TextureManager.bindTexture(null)`, which throws. `BaublesRenderLayer` never pops its matrix, and later baubles in that pass are not drawn.
 
-Client mixins in `mixins.aqtweaks.baubles.json` (`required: false`). Targets live in BaublesEX, so they stay out of the Thaumcraft json.
+Client mixins in `mixins.aqtweaks.baubles.json` (`required: false`). The `getModel` hook targets `ItemBaubles` (priority 500, after BaublesEX). The texture hook targets `ModelBauble`, which lives in BaublesEX. They stay out of the Thaumcraft json.
 
-- `MixinItemBaublesRingModel` — `getModel` HEAD: meta 1, 3, or 5 returns null. `BaublesRenderLayer` skips a null model. Meta 0 and 4 stay amulets; 2 and 6 stay belts.
-- `MixinModelAmulet` — `render` HEAD: return when `texture` is null, so a null-texture amulet model does not draw that body.
+- `MixinItemBaublesRingModel` — `getModel` HEAD: meta 1, 3, or 5 returns null. `BaublesRenderLayer` skips a null model before `pushMatrix`. Meta 0 and 4 stay amulets; 2 and 6 stay belts.
+- `MixinModelBaubleNullTexture` — `renderWithTexture` HEAD: cancel when `getTexture` is null, before `bindTexture`. Models with a texture still draw. Do not cancel `ModelAmulet.render` after the bind.
 
 ## Config (`aqtweaks_thaumcraft.cfg`)
 
@@ -159,9 +159,10 @@ Client mixins in `mixins.aqtweaks.baubles.json` (`required: false`). Targets liv
 - `thaumcraft/ThaumcraftPerkHooks.java` — Vis Thrift / Quiet Mind (no Reskillable import)
 - `mixin/thaumcraft/MixinFocusEffectExecute.java`, `MixinFocusEffectHeal.java`, `MixinCasterManager.java`, `MixinWarpEvents.java`
 - `thaumcraft/RunicShieldHud.java` — client gear cap, rune rows, and gold surplus. Not `@SideOnly`
-- `mixin/thaumcraft/MixinGuiIngameForgeRunicShield.java`, `MixinRunicShieldingHudHandler.java`
+- `mixin/thaumcraft/MixinGuiIngameForgeRunicShield.java` — early json client, `GuiIngameForge.renderHealth`
+- `mixin/thaumcraft/MixinRunicShieldingHudHandler.java` — late thaumcraft json
 - `mixins.aqtweaks.thaumcraft.json`
-- `mixin/baubles/MixinItemBaublesRingModel.java`, `MixinModelAmulet.java` — ring skip; `mixins.aqtweaks.baubles.json` client array
+- `mixin/baubles/MixinItemBaublesRingModel.java`, `MixinModelBaubleNullTexture.java` — ring skip before the null texture bind; `mixins.aqtweaks.baubles.json` client array
 
 ## Do not regress
 
@@ -176,8 +177,8 @@ Client mixins in `mixins.aqtweaks.baubles.json` (`required: false`). Targets liv
 - Focus mixin: stamp magic only on `attackEntityFrom`; do not double-scale hurt. Heal scale is Heal-only (other foci have no `heal` invoke).
 - Snowballs stay non-magic (`thrown` is not an allow prefix).
 - Vis Thrift still injects `getTotalVisDiscount` RETURN. Focus-pouch bauble offset is only the three pouch methods.
-- Runic HUD does not change recharge, vis cost, or the overhaul attribute. Overhaul off keeps absorption for damage. The client cap is worn `TC.RUNIC` plus Astral's calculate event, not `runicInfo`. First 10 runes sit on the red hearts. Past 10 uses empty sockets above the health stack. Gold hearts are only the surplus above that cap.
-- Ring skip is only `thaumcraft:baubles` meta 1, 3, and 5. Amulets (0, 4) and girdles (2, 6) keep BaublesEX models.
+- Runic HUD does not change recharge, vis cost, or the overhaul attribute. The health redirect stays in the early json. A late mixin on `GuiIngameForge` does not apply. Overhaul off keeps absorption for damage. The client cap is worn `TC.RUNIC` plus Astral's calculate event, not `runicInfo`. First 10 runes sit on the red hearts. Past 10 uses empty sockets above the health stack. Gold hearts are only the surplus above that cap.
+- Ring skip is only `thaumcraft:baubles` meta 1, 3, and 5. Amulets (0, 4) and girdles (2, 6) keep BaublesEX models. A null texture cancels `renderWithTexture` before `bindTexture`. Do not cancel `ModelAmulet.render` after that bind.
 
 ## Out of scope unless asked
 

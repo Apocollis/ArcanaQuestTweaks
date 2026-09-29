@@ -22,6 +22,9 @@ public final class QualityDurability {
     private static final Logger LOGGER = LogManager.getLogger("aqtweaks");
     private static final ResourceLocation SALVAGE = new ResourceLocation("charm", "salvage");
     private static final ThreadLocal<Boolean> SET_DAMAGE_REENTRY = ThreadLocal.withInitial(() -> Boolean.FALSE);
+    private static final ThreadLocal<Boolean> SKIP_REPAIR = ThreadLocal.withInitial(() -> Boolean.FALSE);
+    private static final ThreadLocal<Boolean> IN_DAMAGE_ITEM = ThreadLocal.withInitial(() -> Boolean.FALSE);
+    private static final ThreadLocal<Boolean> KEEP_ONE_USE = ThreadLocal.withInitial(() -> Boolean.FALSE);
     private static boolean loggedMissingGray;
     private static boolean loggedMissingDarkGray;
 
@@ -64,11 +67,10 @@ public final class QualityDurability {
 
         if (QualityNbt.isDarkGray(stack)) {
             if (wouldDestroy) {
-                clampToOneUse(stack);
-                trace(stack, player, wouldDestroy, "break_clamp", "");
-                return true;
+                trace(stack, player, wouldDestroy, "break_destroy", "");
+            } else {
+                trace(stack, player, wouldDestroy, "skip:broken_live", "");
             }
-            trace(stack, player, wouldDestroy, "skip:broken_live", "");
             return false;
         }
 
@@ -88,7 +90,13 @@ public final class QualityDurability {
                 trace(stack, player, wouldDestroy, "skip:no_dark_gray", "");
                 return false;
             }
-            clampToOneUse(stack);
+            applyOneUseLeft(stack);
+            if (stack.getCount() <= 0) {
+                stack.setCount(1);
+            }
+            if (Boolean.TRUE.equals(IN_DAMAGE_ITEM.get())) {
+                KEEP_ONE_USE.set(Boolean.TRUE);
+            }
             if (player != null) {
                 ItemStack drop = stack.copy();
                 stack.setCount(0);
@@ -107,8 +115,27 @@ public final class QualityDurability {
         return false;
     }
 
+    public static void onDamageItemHead() {
+        IN_DAMAGE_ITEM.set(Boolean.TRUE);
+    }
+
+    public static void onDamageItemReturn(ItemStack stack) {
+        try {
+            if (!Boolean.TRUE.equals(KEEP_ONE_USE.get())) {
+                return;
+            }
+            if (stack == null || stack.isEmpty() || !QualityNbt.isDarkGray(stack)) {
+                return;
+            }
+            applyOneUseLeft(stack);
+        } finally {
+            KEEP_ONE_USE.set(Boolean.FALSE);
+            IN_DAMAGE_ITEM.set(Boolean.FALSE);
+        }
+    }
+
     public static void afterSetDamage(ItemStack stack, int damage) {
-        if (Boolean.TRUE.equals(SET_DAMAGE_REENTRY.get())) {
+        if (Boolean.TRUE.equals(SET_DAMAGE_REENTRY.get()) || Boolean.TRUE.equals(SKIP_REPAIR.get())) {
             return;
         }
         if (!enabled() || stack == null || stack.isEmpty() || !stack.isItemStackDamageable()) {
@@ -128,10 +155,18 @@ public final class QualityDurability {
             if (remaining > cfg.lowDurability) {
                 QualityNbt.setWearFlag(stack, false);
             }
-            if (remaining >= cfg.highDurability) {
-                String live = QualityNbt.liveColor(stack);
+            String live = QualityNbt.liveColor(stack);
+            if (remaining > cfg.clearWear) {
                 if (QualityNbt.COLOR_GRAY.equals(live) || QualityNbt.COLOR_DARK_GRAY.equals(live)) {
                     QualityNbt.restoreFromBaseOrStrip(stack);
+                }
+            } else if (remaining >= cfg.brokenToGray && remaining < cfg.clearWear
+                    && QualityNbt.COLOR_DARK_GRAY.equals(live)) {
+                if (!QualityNbt.applyUniqueColor(stack, QualityNbt.COLOR_GRAY)) {
+                    if (!loggedMissingGray) {
+                        loggedMissingGray = true;
+                        LOGGER.warn("Quality Tools Module: no gray (wear) entry for {}", stack.getItem().getRegistryName());
+                    }
                 }
             }
         } finally {
@@ -206,13 +241,16 @@ public final class QualityDurability {
         return p;
     }
 
-    private static void clampToOneUse(ItemStack stack) {
+    private static void applyOneUseLeft(ItemStack stack) {
         int max = stack.getMaxDamage();
-        if (max > 0) {
-            stack.setItemDamage(Math.max(0, max - 1));
+        if (max <= 1) {
+            return;
         }
-        if (stack.getCount() <= 0) {
-            stack.setCount(1);
+        SKIP_REPAIR.set(Boolean.TRUE);
+        try {
+            stack.setItemDamage(max - 1);
+        } finally {
+            SKIP_REPAIR.set(Boolean.FALSE);
         }
     }
 

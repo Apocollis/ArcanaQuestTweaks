@@ -9,13 +9,14 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import thaumcraft.common.items.baubles.ItemBaubles;
 
 /**
  * Mundane, apprentice, and fancy rings are {@code thaumcraft:baubles} meta 1, 3, and 5.
- * BaublesEX otherwise builds {@code ModelAmulet} with a null texture and draws a body on the player skin.
- * A null model skips that layer.
+ * BaublesEX adds {@code getModel} and otherwise builds {@code ModelAmulet} with a null texture.
+ * Priority 500 applies after that default-1000 mixin. A null model skips the slot before {@code pushMatrix}.
  */
-@Mixin(targets = "baubles.mixin.late.thaumicperiphery.MixinItemBaubles", remap = false)
+@Mixin(value = ItemBaubles.class, priority = 500, remap = false)
 public class MixinItemBaublesRingModel {
 
     @Inject(method = "getModel", at = @At("HEAD"), cancellable = true, remap = false)

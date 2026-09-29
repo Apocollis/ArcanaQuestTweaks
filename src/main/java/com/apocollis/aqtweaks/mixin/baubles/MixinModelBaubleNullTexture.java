@@ -11,16 +11,16 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * {@code ModelAmulet.switchTex} returns null for bauble metas that are not amulets.
- * {@code render} would still draw a {@code ModelBiped} body on the bound player skin.
+ * A null texture must not reach {@code TextureManager.bindTexture}. That throws inside
+ * {@code BaublesRenderLayer} and the rest of the bauble pass is not drawn.
  */
-@Mixin(targets = "baubles.compat.thaumicperiphery.ModelAmulet", remap = false)
-public class MixinModelAmulet {
+@Mixin(targets = "baubles.api.model.ModelBauble", remap = false)
+public abstract class MixinModelBaubleNullTexture {
 
     @Shadow(remap = false)
-    protected ResourceLocation texture;
+    public abstract ResourceLocation getTexture(ItemStack stack, EntityLivingBase entity, RenderPlayer renderPlayer);
 
-    @Inject(method = "render", at = @At("HEAD"), cancellable = true, remap = false)
+    @Inject(method = "renderWithTexture", at = @At("HEAD"), cancellable = true, remap = false)
     private void aqtweaks$skipNullTexture(
             RenderPlayer renderPlayer,
             EntityLivingBase entity,
@@ -33,7 +33,7 @@ public class MixinModelAmulet {
             float scale,
             float partialTicks,
             CallbackInfo ci) {
-        if (this.texture == null) {
+        if (this.getTexture(stack, entity, renderPlayer) == null) {
             ci.cancel();
         }
     }

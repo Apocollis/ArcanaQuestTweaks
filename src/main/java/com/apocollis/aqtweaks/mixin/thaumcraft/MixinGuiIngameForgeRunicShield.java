@@ -13,6 +13,7 @@ import com.apocollis.aqtweaks.thaumcraft.RunicShieldHud;
 /**
  * While runic gear is charging the absorption pool, keep Forge from painting that pool as gold hearts.
  * The rune overlay is drawn from the same method after the red hearts.
+ * Early json: Cleanroom has already defined {@code GuiIngameForge} when late mixins prepare.
  */
 @Mixin(GuiIngameForge.class)
 public abstract class MixinGuiIngameForgeRunicShield {

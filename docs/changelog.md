@@ -2,6 +2,14 @@
 
 Stay on version **1.8** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-09-29 — Broken one use, then destroy; repair bands
+
+- The first break leaves Broken with one use (`max - 1`). Spending that use destroys the stack. Repair from 26% up to 51% turns Broken into wear `gray`. Past 51%, wear or Broken restores the saved quality. Spec: [qualitytools.md](qualitytools.md).
+
+## 2026-09-28 — Thaumcraft ring null texture bind
+
+- A null bauble texture is skipped before `bindTexture`, so a worn Thaumcraft ring no longer aborts the rest of the bauble pass. Spec: [thaumcraft.md](thaumcraft.md).
+
 ## 2026-09-28 — Elenai armor tooltip weight list
 
 - Armor tooltips read the weight string locally, so hovering armor in the Baubles screen no longer throws `ConcurrentModificationException` from Elenai's static list. Spec: [stamina.md](stamina.md).

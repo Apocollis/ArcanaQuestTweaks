@@ -28,4 +28,14 @@ public abstract class MixinItemStackQualityDurability {
     private void aqtweaks$qualityAfterSetDamage(int damage, CallbackInfo ci) {
         com.apocollis.aqtweaks.qualitytools.QualityDurability.afterSetDamage((ItemStack) (Object) this, damage);
     }
+
+    @Inject(method = "damageItem", at = @At("HEAD"))
+    private void aqtweaks$qualityDamageItemHead(int amount, net.minecraft.entity.EntityLivingBase entity, CallbackInfo ci) {
+        com.apocollis.aqtweaks.qualitytools.QualityDurability.onDamageItemHead();
+    }
+
+    @Inject(method = "damageItem", at = @At("RETURN"))
+    private void aqtweaks$qualityDamageItemReturn(int amount, net.minecraft.entity.EntityLivingBase entity, CallbackInfo ci) {
+        com.apocollis.aqtweaks.qualitytools.QualityDurability.onDamageItemReturn((ItemStack) (Object) this);
+    }
 }
