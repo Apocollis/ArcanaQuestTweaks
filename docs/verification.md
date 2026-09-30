@@ -49,6 +49,7 @@ These json files are `required: false`. Removing the parent should skip that jso
 | Recipe Stages | No `setRecipeStage` capture; Chisel gate has no CT index (fallback map also missing) |
 | Game Stages | `lockedStage` no-ops; Chisel mixins still apply if Chisel is present |
 | Quality Tools | No `mixins.aqtweaks.qualitytools.json`; vanilla loot/durability mixins still apply (pack ships QT); no rune recipes |
+| Simple Tomb | No `mixins.aqtweaks.simpletomb.json`; stock tomb placement and vanilla giveInventory restore |
 
 ### Do not treat as optional
 
@@ -134,6 +135,7 @@ Use the full list in [stamina.md](stamina.md) **Verify**. Minimum: jump costs/bl
 | Aether | New Overworld→Aether RandomPortals trip into open sky lands on island grass/dirt/holystone, not a floating Y≥70 frame. Return through the same sending portal stays linked. TF and Nether RP unchanged. See [aether.md](aether.md) |
 | Game Stages | No `apprentice_builder`: chiseling a staged output (GUI and in-world) fails, red action bar, input remains. After the stage is granted, that tier chisels; higher builder tiers stay locked. Unstaged variants and crafting-table Recipe Stages unchanged. See [gamestages.md](gamestages.md) |
 | Quality Tools | Crafted sword has no Quality tag. Loot chest stamps before pickup (`dark_gray` ~25% remaining, `gray` ~50%). Dawnstone: tool then rune; same-tier reroll changes Name when another same-color exists; wrong rung action bar, rune kept. Break without Salvage drops Broken with one use left; the next break destroys it. Repair 26–51% turns Broken into `gray`; past 51% restores the saved quality. Salvage uses Charm. See [qualitytools.md](qualitytools.md) |
+| Simple Tomb | Death preserves main inventory, hotbar, armor, offhand, and BaublesEX slot positions. Retrieving tomb restores items to matching slots. Occupied slots displace existing item non-destructively to first available main inventory slot or player feet if inventory full. Overworld saves rolling backup to `aqtweaks_death_backups.dat`. OP command `/aqtomb list <player>` and `/aqtomb recover <player> [backupIndex] [targetPlayer]` restores backup non-destructively. See [simpletomb.md](simpletomb.md) |
 
 ## Edge cases
 

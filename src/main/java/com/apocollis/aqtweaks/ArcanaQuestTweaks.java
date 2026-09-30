@@ -1,5 +1,6 @@
 package com.apocollis.aqtweaks;
 
+import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.SidedProxy;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
@@ -9,7 +10,7 @@ import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
 import net.minecraftforge.fml.common.network.NetworkRegistry;
 import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 
-@Mod(modid = ArcanaQuestTweaks.MODID, name = ArcanaQuestTweaks.NAME, version = ArcanaQuestTweaks.VERSION, dependencies = "required-after:elenaidodge2;required-after:charm;after:incontrol;after:grimoireofgaia;after:thaumcraft;after:bewitchment;after:grapplemod;after:dynamicswordskills;after:baubles;after:embers;after:qualitytools;after:reskillable;after:effortlessbuilding;after:stats_keeper;after:randomportals;after:twilightforest;after:aether_legacy;after:chisel;after:gamestages;after:recipestages")
+@Mod(modid = ArcanaQuestTweaks.MODID, name = ArcanaQuestTweaks.NAME, version = ArcanaQuestTweaks.VERSION, dependencies = "required-after:elenaidodge2;required-after:charm;after:incontrol;after:grimoireofgaia;after:thaumcraft;after:bewitchment;after:grapplemod;after:dynamicswordskills;after:baubles;after:embers;after:qualitytools;after:reskillable;after:effortlessbuilding;after:stats_keeper;after:randomportals;after:twilightforest;after:aether_legacy;after:chisel;after:gamestages;after:recipestages;after:simpletomb")
 public class ArcanaQuestTweaks {
     public static final String MODID = "aqtweaks";
     public static final String NAME = "Arcana Quest Tweaks";
@@ -42,5 +43,8 @@ public class ArcanaQuestTweaks {
     public void serverStarting(FMLServerStartingEvent event) {
         event.registerServerCommand(new com.apocollis.aqtweaks.rtg.CommandAqVillage());
         event.registerServerCommand(new com.apocollis.aqtweaks.comfort.CommandAqComfort());
+        if (Loader.isModLoaded("simpletomb")) {
+            event.registerServerCommand(new com.apocollis.aqtweaks.simpletomb.CommandAqTomb());
+        }
     }
 }

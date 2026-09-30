@@ -2,6 +2,13 @@
 
 Stay on version **1.8** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-09-30 — Simple Tomb slot restoration, displacement, Baubles, and admin backups
+
+- Death captures player inventory and BaublesEX slot indices in NBT. On grave retrieval, items return to exact original slots. If an occupied slot cannot accept the grave item, existing items are non-destructively displaced into empty main inventory slots, or dropped safely at the player's feet if inventory is full.
+- Death events also record up to 3 rolling death backups per player in Overworld WorldSavedData (`aqtweaks_death_backups.dat`).
+- Added `/aqtomb <list|recover>` OP level 2 admin command for recovering inventory if graves are lost or fail placement.
+- Cosmetic Armor is preserved on death by Corpse Complex and explicitly excluded from tomb handling. Spec: [simpletomb.md](simpletomb.md).
+
 ## 2026-09-29 — Broken one use, then destroy; repair bands
 
 - The first break leaves Broken with one use (`max - 1`). Spending that use destroys the stack. Repair from 26% up to 51% turns Broken into wear `gray`. Past 51%, wear or Broken restores the saved quality. Spec: [qualitytools.md](qualitytools.md).

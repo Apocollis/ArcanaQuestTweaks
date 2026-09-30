@@ -40,6 +40,7 @@ Each file covers: what Tweaks changes, how the **parent mod** implements the fea
 | Game Stages | Game Stages + Recipe Stages + Chisel | [gamestages.md](gamestages.md) |
 | Quality Tools | Quality Tools + Embers (Dawnstone) + Crafting Runes (registry names) | [qualitytools.md](qualitytools.md) |
 | Better Mineshafts | YUNG’s Better Mineshafts + RTG locate | [bettermineshafts.md](bettermineshafts.md) |
+| Simple Tomb | Simple Tomb death drop slot restore, displacement, Baubles, and admin backups | [simpletomb.md](simpletomb.md) |
 | Compatibility / jars | Compile vs mixin vs runtime vs copy script | [compatibility-matrix.md](compatibility-matrix.md) |
 | Build / deploy | `gradlew build` vs `build_gradle.ps1` | [build-and-release.md](build-and-release.md) |
 | Release smoke | Boot, optional absences, worldgen, stamina | [verification.md](verification.md) |
@@ -52,7 +53,7 @@ Astral surface shrines, Bewitchment Cambion houses, and Mystical World thatch hu
 
 `ArcanaQuestTweaks` declares:
 
-`required-after:elenaidodge2;required-after:charm;after:incontrol;after:grimoireofgaia;after:thaumcraft;after:bewitchment;after:grapplemod;after:dynamicswordskills;after:baubles;after:embers;after:qualitytools;after:reskillable;after:effortlessbuilding;after:stats_keeper;after:randomportals;after:twilightforest;after:aether_legacy;after:chisel;after:gamestages;after:recipestages`
+`required-after:elenaidodge2;required-after:charm;after:incontrol;after:grimoireofgaia;after:thaumcraft;after:bewitchment;after:grapplemod;after:dynamicswordskills;after:baubles;after:embers;after:qualitytools;after:reskillable;after:effortlessbuilding;after:stats_keeper;after:randomportals;after:twilightforest;after:aether_legacy;after:chisel;after:gamestages;after:recipestages;after:simpletomb`
 
 That is **not** the full parent list. Soft parents that Tweaks mixins or events against, without `after:` / `required-after:`:
 
@@ -75,6 +76,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 | Chisel + Game Stages + Recipe Stages | Chisel output gated on Recipe Stages | Mixin json skipped; stock Chisel; crafting-table stages unchanged |
 | Quality Tools | Loot stamp, wear/Broken, Dawnstone runes | Optional json skipped; vanilla early mixins still apply (pack ships QT); handler not registered |
 | Quark | Depths lower-cavern speleothem primer decor | Helper not called; +Y stock Quark unchanged; Deepslate columns/spikes still generate |
+| Simple Tomb | Death drop origin slot restore + Baubles + admin backup | Module not registered; mixin json skipped; stock Simple Tomb behavior |
 
 ### Init (`CommonProxy` / `ClientProxy`)
 
@@ -104,6 +106,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 - If `reskillable`: `RespiteHandler` and `PerkWishlist`.
 - If `reskillable` and `dynamicstealth`: `PerkStealth`.
 - Game Stages / Chisel: no bus handler (mixins only; [gamestages.md](gamestages.md)).
+- If simpletomb: SimpleTombModule. Server starting: /aqtomb (CommandAqTomb, [simpletomb.md](simpletomb.md)).
 
 **init (client)**
 
@@ -149,6 +152,7 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `
 | `mixins.aqtweaks.botania.json` | false | Reskillable Druid mana thrift + Grove | Skip |
 | `mixins.aqtweaks.embers.json` | false | Reskillable Artificer Ember thrift + Foundry Pulse | Skip |
 | `mixins.aqtweaks.prospectus.json` | false | Reskillable Prospector pick accuracy + ore outline | Skip |
+| mixins.aqtweaks.simpletomb.json | false | Simple Tomb: origin slot mapping + Baubles + non-destructive restore | Skip |
 
 `mixins.aqtweaks.json` contents (package `com.apocollis.aqtweaks.mixin`):
 

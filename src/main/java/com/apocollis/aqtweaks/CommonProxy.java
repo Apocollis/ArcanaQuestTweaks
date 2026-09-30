@@ -109,6 +109,10 @@ public class CommonProxy {
         if (net.minecraftforge.fml.common.Loader.isModLoaded("qualitytools")) {
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.qualitytools.QualityToolsModule());
         }
+
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("simpletomb")) {
+            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.simpletomb.SimpleTombModule());
+        }
     }
 
     public void postInit(FMLPostInitializationEvent event) {

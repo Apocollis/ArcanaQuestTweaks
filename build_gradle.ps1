@@ -73,7 +73,8 @@ $deps = @(
     "PlayerRevive_v1.2.40_mc1.12.2.jar",
     "FarmersDelightLegacy-1.1.7.jar",
     "extra-delight-legacy-1.1.6.jar",
-    "prospectus-1.8.jar"
+    "prospectus-1.8.jar",
+    "simpletomb-1.12.2-1.0.0.jar"
 )
 foreach ($dep in $deps) {
     $src = "$localModsDir/$dep"
