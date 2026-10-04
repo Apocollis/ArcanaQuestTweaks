@@ -23,7 +23,7 @@ RTG does not flatten under villages. Tweaks rewrites `landscape.noise` **between
 
 - `func_75047_a` — can this chunk be a village start (well)?
 - `func_75049_b` — create `StructureVillagePieces.Start` (well + piece list)
-- `func_151539_a` (`MapGenBase`) — generate into a primer/world
+- `func_186125_a` (`MapGenBase.generate(World, int, int, ChunkPrimer)`) — generate into a primer/world. (`func_151539_a` is the 1.7/1.8 name and does not exist in 1.12.2.)
 - Houses: `StructureVillagePieces.func_176066_d`
 - `MapGenStructure.func_175797_c` — `isInsideStructure` / InControl “Village”
 
@@ -58,7 +58,7 @@ Keep **what** villages create (vanilla pieces + Recurrent Complex, plus at most 
 - Mixin targets use SRG names. Do not use DeferredRegister / 1.16-style registries.
 - Village mixins live in **required** `mixins.aqtweaks.json` (Forge, RTG, Recurrent Complex assumed present). Astral / Cambion / Mystical hut mixins are **optional** json (`required: false`).
 - Two mixins target `ChunkGeneratorRTG`: village flatten **before** `generateTerrain` and pad **seal before `new Chunk`**; Depths Deepslate fill at **TAIL** of `generateTerrain` (Y min..-1, not Y=0). See [depths.md](depths.md). Do not merge them.
-- Player/world/block access in remapped Tweaks classes is direct vanilla (same as Comfort). `util/Reflect.java` is for `remap = false` mixin bodies, MapGen `structureMap` internals, and soft-mod APIs. Landscape samples still must not use raw `World.getChunkProvider()` when looking up RTG — use the stashed generator.
+- Player/world/block access in remapped Tweaks classes is direct vanilla (same as Comfort). MapGen `structureMap` internals and other protected members go through `rtg/StructureAccess` (Mixin accessors). Landscape samples still must not use raw `World.getChunkProvider()` when looking up RTG — use the stashed generator.
 
 ## Design plan (placement vs flatten)
 
@@ -86,7 +86,7 @@ If we wait until populate, the land is already carved. So we:
 2. Sample plate Y from the **well column** in RTG `landscape.noise`.
 3. Rewrite `landscape.noise` under the land footprint (12-pad, fill non-ocean water).
 4. Let RTG `generateTerrain` build blocks from that noise.
-5. After caves/ravines, refill village-pad columns up to plate Y.
+5. After caves/ravines, refill village-pad columns from `max(Village Plate Min Y, plate Y - Village Plate Depth)` (defaults 50 and 15) up to plate Y. Caves and ravines below that Y stay open under the village.
 6. Populate still places the same pieces.
 
 Layout must be cheap. `layoutVillageGrid` runs **once per chunk** at **RETURN** of RTG `generateLandscape` (after `BiomeAnalyzer.newRepair`, so F3 Ocean/River is already on `landscape.biome`), or at flatten if that chunk never ran landscape, for the current chunk plus the **vanilla well chunk** of each nearby village cell (spacing from the map gen, UT default 25, radius 8 chunks). Nested `getLandscape` during flatten/plate/wet samples increments `SAMPLING` so `generateLandscape` does not layout again. Flatten writes `landscape.noise` **once** before `generateTerrain` (no second `ModifyArg` pass). The well is `cellOrigin + random(0, spacing - minTown)` with seed `setRandomSeed(cellX, cellZ, 10387312)`, not the cell origin. Generating only origins almost never created the `Start`, so hill-side chunks flattened as raw RTG and buildings stepped. It does **not** call `generate()` on all 289 neighbors. Do not layout at `getNewerNoise` RETURN — biomes are unrepaired there and coasts look like Beach/Plains. Do not layout at `func_185932_a` HEAD — noise is empty there and unknown-as-wet omitted every road.
@@ -106,7 +106,7 @@ Flatten looks up `VillagePlate` records by **land-box overlap** first, via a per
 | `mixin/bettercaves/MixinChunkGeneratorRTGVillage.java` | Stash gens on RTG construct; layout once per chunk after `generateLandscape` RETURN + flatten noise once + seal pad after caves/ravines |
 | `mixin/MixinMapGenVillageSpawn.java` | Well veto (`func_75047_a`) |
 | `mixin/MixinMapGenVillageStart.java` | Remember start after create (`func_75049_b`) |
-| `mixin/MixinMapGenVillageWorld.java` | Push/pop `World` around village `generate`; unwrap RTG from wrapped chunk gens |
+| `mixin/MixinMapGenVillageWorld.java` | Push/pop `World` around village `generate` (`MapGenBase.func_186125_a`, HEAD and RETURN); unwrap RTG from wrapped chunk gens. Per-thread stack tracks which nested call pushed a generator, because layout re-enters `generate` for neighbouring well chunks |
 | `rtg/VillagePieceVillagePlate.java` | Non-placing pad children saved on the Start (`AQTVillagePlate`). Houses/paths/RC stay separate |
 | `mixin/MixinMapGenVillageInside.java` | Flatten plate as “inside village” on vanilla miss; hull/XZ before sample |
 | `rtg/CommandAqVillage.java` | OP `/aqvillage` (level 2): TP on generated ground ~6 off the well; prefers unexplored. Miss logs provider/generator to `latest.log` |
@@ -165,7 +165,7 @@ Entry: `MixinChunkGeneratorRTGVillage.aqtweaks$flattenNoise`, once, immediately 
 
 Dock water (ocean/river roads omitted from land boxes; mostly-lake roads omitted) stays water. Land within pad of a house or mixed road still plates.
 
-After `generateTerrain`, caves and ravines can punch the plate. Before `new Chunk`, **shore-mask** columns are refilled solid up to plate Y (stone near bedrock, dirt). Interior plate top stays biome `topBlock` (sand, grass, …). Only `biomesoplenty:mud` is replaced with loamy grass (`biomesoplenty:grass` meta 2). Cave holes at plate Y use the biome `topBlock`. `Village Ocean Wall` (default on) writes stone brick on plated columns that **cliff**: an **unplated** 8-connected neighbor’s surface is **≥ 2** below plate Y, `y = 1 .. plateY` including the coping. Shore-plated neighbors never count (seal refills them; the primer still has cave/ravine bites). In this chunk the neighbor height is the **flattened** `landscape.noise`, not the primer. Across the chunk edge the neighbor noise is still raw, so only a water neighbor (`isVillageWaterColumn`) counts there. Level pad rims (farm/path flush with grass) and yards stay biome top. Inland Hermite 1-block ramps are not bricked.
+After `generateTerrain`, caves and ravines can punch the plate. Before `new Chunk`, **shore-mask** columns are refilled solid from `max(Village Plate Min Y, plate Y - Village Plate Depth)` (defaults 50 and 15, capped at the plate Y) up to plate Y (stone up to Y4, dirt above; the floor is normally above Y4, so dirt). Interior plate top stays biome `topBlock` (sand, grass, …). Only `biomesoplenty:mud` is replaced with loamy grass (`biomesoplenty:grass` meta 2). Cave holes at plate Y use the biome `topBlock`. `Village Ocean Wall` (default on) writes stone brick on plated columns that **cliff**: an **unplated** 8-connected neighbor’s surface is **≥ 2** below plate Y, `y = 1 .. plateY` including the coping. Shore-plated neighbors never count (seal refills them; the primer still has cave/ravine bites). In this chunk the neighbor height is the **flattened** `landscape.noise`, not the primer. Across the chunk edge the neighbor noise is still raw, so only a water neighbor (`isVillageWaterColumn`) counts there. Level pad rims (farm/path flush with grass) and yards stay biome top. Inland Hermite 1-block ramps are not bricked.
 
 ### Plate Y
 
@@ -250,6 +250,8 @@ Teleport is **on the generated ground** at that column (`world.getHeight`, skip 
 | Village Component Pad | 12 | yes | Full plate around each land component, including roads. Overlap fills yards |
 | Village Edge Falloff | 12 | yes | Hermite **beyond** the component pad. Live cfg may still be **48** — set to 12 if yards ramp |
 | Village Water Bank | 16 | yes | Outer-rim ease toward skipped ocean/river; 0 = old waterline cliffs |
+| Village Plate Depth | 15 | yes | Blocks below the plate height the seal refills (1..255). The plate is this deep |
+| Village Plate Min Y | 50 | yes | Lowest Y the seal may refill, whatever the depth. Seal floor = `max(Min Y, plate Y - Depth)`, capped at the plate Y and at least Y1. 1 = no floor. Wall bricks start at the same floor. Examples: plate Y68 seals Y53-68; plate Y64 seals Y50-64; plate Y45 seals only Y45 |
 | Village Ocean Wall | true | yes | Stone brick only on plate cliffs (unplated neighbor ≥2 below plate Y; water only across a chunk edge), including coping |
 | Village Shore Smooth | true | yes | Open 1-block jetties on the coastal plate; interiors stay plated |
 | Village Shore Smooth Radius | 1 | yes | Chebyshev opening kernel. `0` = no opening |

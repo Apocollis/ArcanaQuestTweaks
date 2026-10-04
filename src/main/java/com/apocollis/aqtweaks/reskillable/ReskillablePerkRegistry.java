@@ -41,6 +41,9 @@ public class ReskillablePerkRegistry {
         event.getRegistry().register(new AqtweaksTrait("rancher", perks.rancher));
         event.getRegistry().register(new AqtweaksTrait("drafter", perks.drafter));
         event.getRegistry().register(new AqtweaksTrait("sculptor", perks.sculptor));
+        event.getRegistry().register(new AqtweaksTrait("reach1", perks.reach1));
+        event.getRegistry().register(new AqtweaksTrait("reach2", perks.reach2));
+        event.getRegistry().register(new AqtweaksTrait("reach3", perks.reach3));
         event.getRegistry().register(new AqtweaksTrait("transpose", perks.transpose));
         event.getRegistry().register(new AqtweaksTrait("vis_thrift", perks.visThrift));
         event.getRegistry().register(new AqtweaksTrait("quiet_mind", perks.quietMind));

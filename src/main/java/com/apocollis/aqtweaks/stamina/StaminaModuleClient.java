@@ -1,10 +1,10 @@
 package com.apocollis.aqtweaks.stamina;
 
+import com.apocollis.aqtweaks.reskillable.PerkAccess;
 import com.apocollis.aqtweaks.ArcanaQuestTweaks;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 
-import com.apocollis.aqtweaks.util.Reflect;
 
 import com.elenai.elenaidodge2.ModConfig;
 import com.elenai.elenaidodge2.gui.DodgeGui;
@@ -14,6 +14,7 @@ import com.elenai.elenaidodge2.util.Utils;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.entity.Entity;
@@ -128,7 +129,7 @@ public class StaminaModuleClient {
         if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.sprinting.enableSprintCost) return;
 
         int threshold = ArcanaQuestTweaksConfig.StaminaModuleConfig.sprinting.sprintThreshold;
-        if (Reflect.hasEnoughStamina(player, threshold)) return;
+        if (StaminaFeathers.hasEnoughStamina(player, threshold)) return;
 
         player.setSprinting(false);
         Minecraft mc = Minecraft.getMinecraft();
@@ -148,8 +149,8 @@ public class StaminaModuleClient {
 
         // Enforce Armor Mastery weight reduction on the client side
         if (ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.enableReskillable && 
-            Reflect.hasUnlockable(player, ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.armorMasteryPerkId)) {
-            int reducedWeight = Reflect.getWeight(player);
+            PerkAccess.has(player, ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.armorMasteryPerkId)) {
+            int reducedWeight = StaminaFeathers.getWeight(player);
             if (ClientStorage.weight != reducedWeight) {
                 ClientStorage.weight = reducedWeight;
                 com.elenai.elenaidodge2.network.PacketHandler.instance.sendToServer(
@@ -157,6 +158,16 @@ public class StaminaModuleClient {
                 );
             }
         }
+    }
+
+    @SideOnly(Side.CLIENT)
+    private static boolean jumpPressed(EntityPlayer player) {
+        return player instanceof EntityPlayerSP sp && sp.movementInput != null && sp.movementInput.jump;
+    }
+
+    @SideOnly(Side.CLIENT)
+    private static float moveForward(EntityPlayer player) {
+        return player instanceof EntityPlayerSP sp && sp.movementInput != null ? sp.movementInput.moveForward : 0.0F;
     }
 
     /**
@@ -174,7 +185,7 @@ public class StaminaModuleClient {
         net.minecraft.world.World world = player.world;
         net.minecraft.block.Block block = world != null ? world.getBlockState(pos).getBlock() : net.minecraft.init.Blocks.AIR;
 
-        boolean isRope = Reflect.isRopeBlock(block);
+        boolean isRope = StaminaFeathers.isRopeBlock(block);
         boolean isVine = !isRope && (block instanceof net.minecraft.block.BlockVine
                 || block.getClass().getSimpleName().toLowerCase().contains("vine"));
 
@@ -191,7 +202,7 @@ public class StaminaModuleClient {
 
         if (player.isOnLadder()) {
             // Keep jump input synced (used by other climb edge cases / older servers)
-            boolean isJumpPressed = Reflect.isJumpPressed(player);
+            boolean isJumpPressed = jumpPressed(player);
             if (isJumpPressed != lastSentClimbJump) {
                 ArcanaQuestTweaks.NETWORK.sendToServer(new PacketSyncClimbingInput(isJumpPressed));
                 lastSentClimbJump = isJumpPressed;
@@ -205,9 +216,9 @@ public class StaminaModuleClient {
 
             NBTTagCompound climbData = player.getEntityData();
             boolean ledgeActive = climbData.getInteger("StaminaTweaksLedgeClimbState") == 1;
-            boolean mantleIntent = Reflect.isJumpPressed(player) && Reflect.getMoveForward(player) > 0.0F;
+            boolean mantleIntent = jumpPressed(player) && moveForward(player) > 0.0F;
 
-            if (!ledgeActive && !mantleIntent && cost > 0 && !Reflect.hasEnoughStamina(player, cost)) {
+            if (!ledgeActive && !mantleIntent && cost > 0 && !StaminaFeathers.hasEnoughStamina(player, cost)) {
                 player.motionY = -0.15;
             }
         } else {
@@ -224,10 +235,10 @@ public class StaminaModuleClient {
     private void handleClientGrappling(EntityPlayer player) {
         ArcanaQuestTweaksConfig.Grapple grapple = ArcanaQuestTweaksConfig.StaminaModuleConfig.grapple;
         if (!grapple.enableGrappleCost && !grapple.motorRequiresEmber) return;
-        if (!Reflect.isGrappleLoaded()) return;
+        if (!GrappleHelper.isLoaded()) return;
 
         NBTTagCompound data = player.getEntityData();
-        if (!Reflect.isGrappling(player)) {
+        if (!GrappleHelper.isGrappling(player)) {
             if (data.getInteger("StaminaTweaksGrappleClientSentTick") > 0) {
                 data.setInteger("StaminaTweaksGrappleClientSentTick", 0);
             }
@@ -282,13 +293,15 @@ public class StaminaModuleClient {
 
         int cost = clientClimbCost(player);
 
-        if (cost > 0 && !Reflect.hasEnoughStamina(player, cost)) {
+        if (cost > 0 && !StaminaFeathers.hasEnoughStamina(player, cost)) {
             NBTTagCompound climbData = player.getEntityData();
             boolean ledgeActive = climbData.getInteger("StaminaTweaksLedgeClimbState") == 1;
-            boolean mantleIntent = Reflect.isJumpPressed(player) && Reflect.getMoveForward(player) > 0.0F;
+            boolean mantleIntent = jumpPressed(player) && moveForward(player) > 0.0F;
             if (!ledgeActive && !mantleIntent) {
-                Reflect.setJumpPressed(player, false);
-                Reflect.setSneakPressed(player, false);
+                if (player instanceof EntityPlayerSP sp && sp.movementInput != null) {
+                    sp.movementInput.jump = false;
+                    sp.movementInput.sneak = false;
+                }
             }
         }
     }
@@ -313,7 +326,7 @@ public class StaminaModuleClient {
             }
 
             // Must hold forward and jump
-            if (!Reflect.isJumpPressed(player) || Reflect.getMoveForward(player) <= 0.0F) {
+            if (!jumpPressed(player) || moveForward(player) <= 0.0F) {
                 clientData.setInteger("StaminaTweaksLedgeClimbHeldTicks", 0);
                 return;
             }
@@ -361,7 +374,7 @@ public class StaminaModuleClient {
             if (lip != null) {
                 int grabCost = StaminaPerks.climbCost(player,
                         ArcanaQuestTweaksConfig.StaminaModuleConfig.ledgeClimb.ledgeClimbCost);
-                if (grabCost > 0 && !Reflect.hasEnoughStamina(player, grabCost)) {
+                if (grabCost > 0 && !StaminaFeathers.hasEnoughStamina(player, grabCost)) {
                     return;
                 }
 
@@ -389,7 +402,7 @@ public class StaminaModuleClient {
                 return;
             }
 
-            if (!Reflect.isJumpPressed(player) || Reflect.getMoveForward(player) <= 0.0F) {
+            if (!jumpPressed(player) || moveForward(player) <= 0.0F) {
                 clientData.setInteger("StaminaTweaksLedgeClimbState", 0);
                 clientData.setInteger("StaminaTweaksLedgeMantleTicks", 0);
                 player.fallDistance = 0.0F;
@@ -404,7 +417,7 @@ public class StaminaModuleClient {
                     && ticks > ledge.ledgeClimbExtraAfterTicks
                     && ticks <= ledge.ledgeClimbExtraAfterTicks + ledge.ledgeClimbExtraInterval * ledge.ledgeClimbMaxExtraSpends
                     && (ticks - ledge.ledgeClimbExtraAfterTicks) % ledge.ledgeClimbExtraInterval == 0
-                    && !Reflect.hasEnoughStamina(player, extraCost)) {
+                    && !StaminaFeathers.hasEnoughStamina(player, extraCost)) {
                 clientData.setInteger("StaminaTweaksLedgeClimbState", 0);
                 clientData.setInteger("StaminaTweaksLedgeMantleTicks", 0);
                 player.motionY = -0.15D;

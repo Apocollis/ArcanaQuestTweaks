@@ -6,7 +6,7 @@ import com.animania.addons.farm.common.entity.sheep.EntityAnimaniaSheep;
 import net.minecraft.entity.Entity;
 
 /**
- * Farm addon clocks. Class is only entered after {@link Class#forName} succeeds
+ * Farm addon clocks. Only entered when {@link AnimaniaAddons#FARM} is true
  * so a missing Farm jar does not crash Tweaks load.
  */
 public final class AnimaniaFarmClocks {

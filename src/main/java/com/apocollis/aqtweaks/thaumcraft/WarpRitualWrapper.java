@@ -1,8 +1,8 @@
 package com.apocollis.aqtweaks.thaumcraft;
 
+import com.apocollis.aqtweaks.reskillable.PerkAccess;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 
-import com.apocollis.aqtweaks.util.Reflect;
 
 import com.bewitchment.api.registry.Ritual;
 import net.minecraft.entity.player.EntityPlayer;
@@ -55,12 +55,12 @@ public class WarpRitualWrapper extends Ritual {
     public void onFinished(World world, BlockPos altarPos, BlockPos glyphPos, EntityPlayer player, ItemStackHandler inventory) {
         parent.onFinished(world, altarPos, glyphPos, player, inventory);
 
-        if (player != null && !Reflect.isRemote(world)) {
+        if (player != null && !world.isRemote) {
             boolean added = false;
 
             if (warpNormal > 0) {
                 int n = warpNormal;
-                if (Reflect.hasUnlockable(player, "aqtweaks:cold_iron_mind")
+                if (PerkAccess.has(player, "aqtweaks:cold_iron_mind")
                         && ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.coldIronMind.enable) {
                     n = n / 2;
                 }
@@ -72,7 +72,7 @@ public class WarpRitualWrapper extends Ritual {
 
             if (warpTemp > 0) {
                 int n = warpTemp;
-                if (Reflect.hasUnlockable(player, "aqtweaks:cold_iron_mind")
+                if (PerkAccess.has(player, "aqtweaks:cold_iron_mind")
                         && ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.coldIronMind.enable) {
                     n = n / 2;
                 }
@@ -84,7 +84,7 @@ public class WarpRitualWrapper extends Ritual {
 
             if (warpPerm > 0) {
                 int n = warpPerm;
-                if (Reflect.hasUnlockable(player, "aqtweaks:cold_iron_mind")
+                if (PerkAccess.has(player, "aqtweaks:cold_iron_mind")
                         && ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.coldIronMind.enable) {
                     n = n / 2;
                 }

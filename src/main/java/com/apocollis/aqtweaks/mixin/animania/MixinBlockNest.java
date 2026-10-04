@@ -1,9 +1,9 @@
 package com.apocollis.aqtweaks.mixin.animania;
 
+import com.apocollis.aqtweaks.reskillable.PerkAccess;
 import com.animania.common.blocks.BlockNest;
 import com.animania.common.helper.AnimaniaHelper;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
-import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.common.util.FakePlayer;
@@ -27,7 +27,7 @@ public abstract class MixinBlockNest {
         if (player.world == null || player.world.isRemote) return;
         if (stack == null || stack.isEmpty()) return;
         if (!ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.herdAbundance.enable) return;
-        if (!Reflect.hasUnlockable(player, "aqtweaks:herd_abundance")) return;
+        if (!PerkAccess.has(player, "aqtweaks:herd_abundance")) return;
         AnimaniaHelper.addItem(player, stack.copy());
     }
 }

@@ -1,7 +1,7 @@
 package com.apocollis.aqtweaks.mixin.rustic;
 
+import com.apocollis.aqtweaks.reskillable.PerkAccess;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
-import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.world.World;
 import net.minecraftforge.common.util.FakePlayer;
@@ -18,7 +18,7 @@ public abstract class MixinFluidBooze {
     private void aqtweaks$ironGut(World world, EntityPlayer player, float quality, CallbackInfo ci) {
         if (player == null || player instanceof FakePlayer) return;
         if (!ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.ironGut.enable) return;
-        if (!Reflect.hasUnlockable(player, "aqtweaks:iron_gut")) return;
+        if (!PerkAccess.has(player, "aqtweaks:iron_gut")) return;
         ci.cancel();
     }
 }

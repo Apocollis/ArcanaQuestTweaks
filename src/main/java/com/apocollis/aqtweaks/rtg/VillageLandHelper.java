@@ -1,7 +1,6 @@
 package com.apocollis.aqtweaks.rtg;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
-import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.util.EnumFacing;
@@ -278,7 +277,7 @@ public final class VillageLandHelper {
     public static boolean isBuildingWet(Object villageStart, int x, int z) {
         World world = currentWorld();
         if (world == null) {
-            world = Reflect.getVillageStartWorld(villageStart);
+            world = StructureAccess.getVillageStartWorld(villageStart);
         }
         if (world == null) {
             return isNeverRaiseAt(null, villageStart, x, z);
@@ -298,7 +297,7 @@ public final class VillageLandHelper {
     public static boolean isFloodedAt(Object villageStart, int x, int z) {
         World world = currentWorld();
         if (world == null) {
-            world = Reflect.getVillageStartWorld(villageStart);
+            world = StructureAccess.getVillageStartWorld(villageStart);
         }
         if (world != null) {
             if (isNeverRaiseAt(world, x, z, columnLandscapeCache())) return true;
@@ -322,7 +321,7 @@ public final class VillageLandHelper {
         int wellX = chunkX * 16 + 2;
         int wellZ = chunkZ * 16 + 2;
         BiomeProvider provider = world.getBiomeProvider();
-        Biome biome = Reflect.getBiome(provider, wellX, wellZ);
+        Biome biome = StructureAccess.getBiome(provider, wellX, wellZ);
         if (isNeverRaiseAt(world, wellX, wellZ)) {
             if (findDryWell(world, wellX, wellZ) != null) {
                 return null;
@@ -374,10 +373,10 @@ public final class VillageLandHelper {
 
     public static void offsetStructureStart(Object start, int dx, int dz) {
         if (start == null || (dx == 0 && dz == 0)) return;
-        for (Object piece : Reflect.getStructureStartComponents(start)) {
-            Reflect.offsetStructureComponent(piece, dx, 0, dz);
+        for (Object piece : StructureAccess.getStructureStartComponents(start)) {
+            StructureAccess.offsetStructureComponent(piece, dx, 0, dz);
         }
-        Reflect.updateStructureStartBoundingBox(start);
+        StructureAccess.updateStructureStartBoundingBox(start);
     }
 
     /**
@@ -389,13 +388,13 @@ public final class VillageLandHelper {
         if (gen == null || world == null) return;
         if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.rejectCoastalVillageStarts) return;
         List<Object> snapshot = new ArrayList<>();
-        for (Object start : Reflect.getMapGenStructureStarts(gen)) {
+        for (Object start : StructureAccess.getMapGenStructureStarts(gen)) {
             snapshot.add(start);
         }
         long seed = world.getSeed();
         for (Object start : snapshot) {
-            int cx = Reflect.getStructureStartChunkX(start);
-            int cz = Reflect.getStructureStartChunkZ(start);
+            int cx = StructureAccess.getStructureStartChunkX(start);
+            int cz = StructureAccess.getStructureStartChunkZ(start);
             if (cx == Integer.MIN_VALUE || cz == Integer.MIN_VALUE) continue;
             String key = seed + ":" + cx + "," + cz;
             if (VETTED_STARTS.contains(key)) continue;
@@ -406,7 +405,7 @@ public final class VillageLandHelper {
                 }
                 continue;
             }
-            Reflect.removeStructureStart(gen, cx, cz);
+            StructureAccess.removeStructureStart(gen, cx, cz);
             VillagePlate.forget(world, start, cx, cz);
             if (VillageDebug.once("forget:" + seed + ":" + cx + "," + cz)) {
                 VillageDebug.log("forget chunk=%d,%d well=%d,%d %s",
@@ -424,8 +423,8 @@ public final class VillageLandHelper {
     public static boolean relocateOrDropWetWell(MapGenVillage gen, World world, Object start) {
         if (gen == null || world == null || start == null) return false;
         if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.rejectCoastalVillageStarts) return false;
-        int cx = Reflect.getStructureStartChunkX(start);
-        int cz = Reflect.getStructureStartChunkZ(start);
+        int cx = StructureAccess.getStructureStartChunkX(start);
+        int cz = StructureAccess.getStructureStartChunkZ(start);
         if (cx == Integer.MIN_VALUE || cz == Integer.MIN_VALUE) return false;
         long seed = world.getSeed();
         int wellX = cx * 16 + 2;
@@ -455,7 +454,7 @@ public final class VillageLandHelper {
             VETTED_STARTS.add(key);
             return false;
         }
-        Reflect.removeStructureStart(gen, cx, cz);
+        StructureAccess.removeStructureStart(gen, cx, cz);
         VillagePlate.forget(world, start, cx, cz);
         if (VillageDebug.once("forget-paste:" + seed + ":" + cx + "," + cz)) {
             VillageDebug.log("forget paste chunk=%d,%d well=%d,%d ocean_well",
@@ -511,7 +510,7 @@ public final class VillageLandHelper {
             for (int dz = -limit; dz <= limit; dz += 2) {
                 if (dx == 0 && dz == 0) continue;
                 if (Math.max(Math.abs(dx), Math.abs(dz)) >= buffer) continue;
-                Biome nearby = Reflect.getBiome(provider, wellX + dx, wellZ + dz);
+                Biome nearby = StructureAccess.getBiome(provider, wellX + dx, wellZ + dz);
                 if (isOceanBiome(nearby)) {
                     return "coast_ocean " + biomeId(nearby);
                 }
@@ -536,8 +535,8 @@ public final class VillageLandHelper {
         if (world != null) {
             return isNeverRaiseAt(world, x, z, null);
         }
-        BiomeProvider provider = Reflect.getVillageStartBiomeProvider(villageStart);
-        return isNeverRaiseBiome(Reflect.getBiome(provider, x, z));
+        BiomeProvider provider = StructureAccess.getVillageStartBiomeProvider(villageStart);
+        return isNeverRaiseBiome(StructureAccess.getBiome(provider, x, z));
     }
 
     public static boolean isNeverRaiseColumn(Biome biome, ChunkLandscape landscape, int index) {
@@ -601,7 +600,7 @@ public final class VillageLandHelper {
 
     private static boolean isOceanColumn(World world, BiomeProvider provider,
                                          ChunkLandscape landscape, int x, int z) {
-        if (isOceanBiome(Reflect.getBiome(provider, x, z))) return true;
+        if (isOceanBiome(StructureAccess.getBiome(provider, x, z))) return true;
         if (isOceanBiome(landscapeBaseBiome(landscape, (x & 15) * 16 + (z & 15)))) return true;
         if (chunkExists(world, x >> 4, z >> 4)) {
             try {
@@ -613,7 +612,7 @@ public final class VillageLandHelper {
 
     private static boolean isOceanOrRiverBiomeSources(World world, BiomeProvider provider,
                                                       ChunkLandscape landscape, int x, int z) {
-        if (isNeverRaiseBiome(Reflect.getBiome(provider, x, z))) return true;
+        if (isNeverRaiseBiome(StructureAccess.getBiome(provider, x, z))) return true;
         int index = (x & 15) * 16 + (z & 15);
         if (isNeverRaiseBiome(landscapeBaseBiome(landscape, index))) return true;
         if (chunkExists(world, x >> 4, z >> 4)) {
@@ -848,9 +847,9 @@ public final class VillageLandHelper {
     private static void layoutVillageGridBody(MapGenVillage gen, World world, int cx, int cz, ChunkPrimer primer) {
         int startsBefore = structureStartCount(gen);
         gen.generate(world, cx, cz, primer);
-        int spacing = Reflect.getVillageDistance(gen);
+        int spacing = StructureAccess.getVillageDistance(gen);
         if (spacing < 9) spacing = 32;
-        int minTown = Reflect.getVillageMinDistance(gen);
+        int minTown = StructureAccess.getVillageMinDistance(gen);
         if (minTown < 1 || minTown >= spacing) minTown = 8;
         int minCellX = villageCell(cx - VILLAGE_LAYOUT_RADIUS, spacing);
         int maxCellX = villageCell(cx + VILLAGE_LAYOUT_RADIUS, spacing);
@@ -889,7 +888,7 @@ public final class VillageLandHelper {
 
     private static int structureStartCount(MapGenVillage gen) {
         int n = 0;
-        for (Object ignored : Reflect.getMapGenStructureStarts(gen)) {
+        for (Object ignored : StructureAccess.getMapGenStructureStarts(gen)) {
             n++;
         }
         return n;
@@ -930,8 +929,8 @@ public final class VillageLandHelper {
         int wellZ = chunkZ * 16 + 2;
         for (VillagePlate.Record rec : VillagePlate.starts(world.getSeed())) {
             if (rec.wellX == wellX && rec.wellZ == wellZ) return true;
-            int cx = Reflect.getStructureStartChunkX(rec.start);
-            int cz = Reflect.getStructureStartChunkZ(rec.start);
+            int cx = StructureAccess.getStructureStartChunkX(rec.start);
+            int cz = StructureAccess.getStructureStartChunkZ(rec.start);
             if (cx == chunkX && cz == chunkZ) return true;
         }
         return false;
@@ -970,12 +969,12 @@ public final class VillageLandHelper {
      * land does not drop the path (those columns still plate inside the component pad).
      */
     public static boolean isAabbTouchesOceanOrRiver(Object villageStart, Object component) {
-        int[] box = Reflect.getStructureComponentBoxXZ(component);
+        int[] box = StructureAccess.getStructureComponentBoxXZ(component);
         if (box == null) return false;
-        BiomeProvider provider = Reflect.getVillageStartBiomeProvider(villageStart);
+        BiomeProvider provider = StructureAccess.getVillageStartBiomeProvider(villageStart);
         World world = currentWorld();
         if (world == null) {
-            world = Reflect.getVillageStartWorld(villageStart);
+            world = StructureAccess.getVillageStartWorld(villageStart);
         }
         BiomeProvider biomes = provider;
         if (biomes == null && world != null) {
@@ -1019,14 +1018,14 @@ public final class VillageLandHelper {
      * A slice is wet if any column across the road width is {@link #isVillageWaterColumn}.
      */
     public static int bridgeRun(Object villageStart, Object component) {
-        int[] box = Reflect.getStructureComponentBoxXZ(component);
+        int[] box = StructureAccess.getStructureComponentBoxXZ(component);
         if (box == null) return -1;
         World world = currentWorld();
         if (world == null) {
-            world = Reflect.getVillageStartWorld(villageStart);
+            world = StructureAccess.getVillageStartWorld(villageStart);
         }
         if (world == null) return -1;
-        BiomeProvider provider = Reflect.getVillageStartBiomeProvider(villageStart);
+        BiomeProvider provider = StructureAccess.getVillageStartBiomeProvider(villageStart);
         if (provider == null) {
             provider = world.getBiomeProvider();
         }
@@ -1067,9 +1066,9 @@ public final class VillageLandHelper {
 
     public static String pathOmitReason(Object villageStart, Object component) {
         if (isAabbTouchesOceanOrRiver(villageStart, component)) {
-            int[] box = Reflect.getStructureComponentBoxXZ(component);
-            BiomeProvider provider = Reflect.getVillageStartBiomeProvider(villageStart);
-            Biome biome = box == null ? null : Reflect.getBiome(provider, box[0], box[2]);
+            int[] box = StructureAccess.getStructureComponentBoxXZ(component);
+            BiomeProvider provider = StructureAccess.getVillageStartBiomeProvider(villageStart);
+            Biome biome = box == null ? null : StructureAccess.getBiome(provider, box[0], box[2]);
             return "ocean_or_river " + biomeId(biome) + " bridgeRun=" + bridgeRun(villageStart, component);
         }
         return String.format("mostly_wet %.2f", wetFraction(villageStart, component, true));
@@ -1080,7 +1079,7 @@ public final class VillageLandHelper {
     }
 
     private static float wetFraction(Object villageStart, Object component, boolean flooded) {
-        int[] box = Reflect.getStructureComponentBoxXZ(component);
+        int[] box = StructureAccess.getStructureComponentBoxXZ(component);
         if (box == null) return 0.0F;
         int wet = 0;
         int total = 0;
@@ -1110,7 +1109,7 @@ public final class VillageLandHelper {
         if (world == null || world.isRemote || component == null) return false;
         if (!(component instanceof StructureVillagePieces.Village)) return false;
         if (isVillageRoad(component)) return false;
-        int[] box = Reflect.getStructureComponentBoxXZ(component);
+        int[] box = StructureAccess.getStructureComponentBoxXZ(component);
         if (box == null) return false;
         int minX = box[0];
         int maxX = box[1];
@@ -1142,7 +1141,7 @@ public final class VillageLandHelper {
     }
 
     public static boolean withinVillageCap(Object villageStart, int x, int z) {
-        int[] box = Reflect.getStructureComponentBoxXZ(villageStart);
+        int[] box = StructureAccess.getStructureComponentBoxXZ(villageStart);
         if (box == null) return true;
         return Math.abs(x - box[0]) <= 112 && Math.abs(z - box[2]) <= 112;
     }
@@ -1206,7 +1205,7 @@ public final class VillageLandHelper {
         }
         int wellX = x;
         int wellZ = z;
-        int[] startBox = Reflect.getStructureComponentBoxXZ(villageStart);
+        int[] startBox = StructureAccess.getStructureComponentBoxXZ(villageStart);
         if (startBox != null) {
             wellX = (startBox[0] + startBox[1]) >> 1;
             wellZ = (startBox[2] + startBox[3]) >> 1;

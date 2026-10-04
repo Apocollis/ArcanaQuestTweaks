@@ -1,8 +1,8 @@
 package com.apocollis.aqtweaks.simpledifficulty;
 
+import com.apocollis.aqtweaks.reskillable.PerkAccess;
 import com.apocollis.aqtweaks.ArcanaQuestTweaks;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
-import com.apocollis.aqtweaks.util.Reflect;
 import com.charles445.simpledifficulty.api.SDCapabilities;
 import com.charles445.simpledifficulty.api.SDDamageSources;
 import com.charles445.simpledifficulty.api.SDItems;
@@ -68,7 +68,7 @@ public class SimpleDifficultyModule {
         ItemStack held = event.getItemStack();
         if (held.isEmpty() || held.getItem() != Items.GLASS_BOTTLE) return;
         if (!ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.waterCollector.enable) return;
-        if (!Reflect.hasUnlockable(player, "aqtweaks:water_collector")) return;
+        if (!PerkAccess.has(player, "aqtweaks:water_collector")) return;
         RayTraceResult hit = rayWater(world, player);
         if (hit == null || hit.typeOfHit != RayTraceResult.Type.BLOCK) return;
         BlockPos pos = hit.getBlockPos();

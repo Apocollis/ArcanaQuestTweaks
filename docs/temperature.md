@@ -18,7 +18,7 @@ Scope boundaries:
 - `mixin/simpledifficulty/MixinWorldUtil.java` — boat position lift
 - `mixins.aqtweaks.simpledifficulty.json` — `required: false`
 - `ArcanaQuestTweaksConfig.SimpleDifficulty` — the seven cfg keys below
-- `util/Reflect.java` — `getRidingEntity` (`func_184187_bx`)
+- `entity.getRidingEntity()` is called directly (`func_184187_bx` after remap)
 
 ## How Simple Difficulty calculates temperature
 
@@ -114,7 +114,7 @@ At factor 1.0 this lands exactly on `targetTemp + nonEnvironmentModifiers`; at t
 
 `getSidedBlockPos` floors `posY + 0.5` on both sides (server `entity.getPosition()`, client `BlockPos(positionVector + (0, 0.5, 0))`). A player riding a boat sits at `boat.posY - 0.45` — `EntityBoat.getMountedYOffset()` is `-0.1`, `EntityPlayer.getYOffset()` is `-0.35` — so that block is the water under the hull. This pack's `fluidTemperatures.json` has no `"water"` entry, so `ModifierWet` falls through the `IFluidBlock` branch (vanilla water is `BlockLiquid`, not `IFluidBlock`) and returns `wetValue` `-6` from `Material.WATER`.
 
-The lift applies only when the entity is an `EntityPlayer`, `Reflect.getRidingEntity` is an `EntityBoat` (subclasses included), and **all** of:
+The lift applies only when the entity is an `EntityPlayer`, `entity.getRidingEntity()` is an `EntityBoat` (subclasses included), and **all** of:
 
 - the returned block is `Material.WATER`, and
 - the block above is **not** `Material.WATER` (a submerged boat keeps the original position), and
@@ -122,7 +122,7 @@ The lift applies only when the entity is an `EntityPlayer`, `Reflect.getRidingEn
 
 The lift moves **every** sample one block up while riding, not only wetness: altitude, nearby blocks, rain, and the shelter test all run at the returned position. Rain is still `isRainingAt` on that returned position, so an open boat in the rain stays wet. Horses and other mounts are out of scope and stay wet in water; swimming stays wet.
 
-Vanilla access inside this `remap = false` mixin goes through `Reflect`: `getBlockState`, `getMaterial`, `getMaterialWater`, `getCollisionBoundingBox`, `up`, `getRidingEntity` (`func_184187_bx`). Do not put raw MCP names in the mixin body.
+Vanilla access inside this `remap = false` mixin is direct (`getBlockState`, `getMaterial`, `Material.WATER`, `getCollisionBoundingBox`, `up`, `getRidingEntity`); `remapJar` maps the body. Only the annotation strings need SRG.
 
 ## Config (`aqtweaks_stamina.cfg` → `Simple Difficulty Integration`)
 
@@ -195,4 +195,4 @@ Lifting the sample whenever the block above was not water pushed it inside the s
 - Rays stop as open on `!world.isBlockLoaded(checkPos)`. A temperature sample must never force a chunk load or generation. The shelter memo clears on `getTotalWorldTime()` change; do not turn it into an unbounded cache.
 - Insulation registers once in the `SimpleDifficultyModule` **constructor** behind a static guard, never from `CommonProxy`.
 - The modifier is **one shared instance** (single static registry map). Keep the two `isRemote`-selected memos and the `volatile` greenhouse fields with value-before-flag ordering. A single memo map is a single-player data race.
-- The boat lift requires the block above to be non-water **and** passable. `Reflect` only inside `MixinWorldUtil`; `DynamicModifierInsulation` is a normal class and may call vanilla directly.
+- The boat lift requires the block above to be non-water **and** passable. `MixinWorldUtil` and `DynamicModifierInsulation` both call vanilla directly.

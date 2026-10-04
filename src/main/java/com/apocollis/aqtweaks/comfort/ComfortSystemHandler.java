@@ -1,7 +1,7 @@
 package com.apocollis.aqtweaks.comfort;
 
+import com.apocollis.aqtweaks.simpledifficulty.SimpleDifficultyHelper;
 import com.apocollis.aqtweaks.thaumcraft.ThaumcraftHelper;
-import com.apocollis.aqtweaks.util.Reflect;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -395,7 +395,7 @@ public class ComfortSystemHandler {
         return new CozyScan(totalScore, hasEntryFurniture, capped);
     }
 
-    /** The block-centred box {@code Reflect.grow(BlockPos, double)} built: one block plus radius. */
+    /** The block-centred box the old {@code Reflect.grow(BlockPos, double)} built: one block plus radius. */
     private static AxisAlignedBB petSearchBox(BlockPos center) {
         int x = center.getX();
         int y = center.getY();
@@ -433,7 +433,7 @@ public class ComfortSystemHandler {
 
     private static float temperaturePenalty(EntityPlayer player) {
         if (TEMP_PENALTY == null || !TEMP_PENALTY.enabled) return 0.0f;
-        Integer temp = Reflect.getSdTemperatureLevel(player);
+        Integer temp = SimpleDifficultyHelper.temperatureOrNull(player);
         if (temp == null) return 0.0f;
         int t = temp;
         if (t >= TEMP_PENALTY.comfort_min && t <= TEMP_PENALTY.comfort_max) return 0.0f;
@@ -447,7 +447,7 @@ public class ComfortSystemHandler {
 
     private static float thirstPenalty(EntityPlayer player) {
         if (THIRST_PENALTY == null || !THIRST_PENALTY.enabled) return 0.0f;
-        Integer thirst = Reflect.getSdThirstLevel(player);
+        Integer thirst = SimpleDifficultyHelper.thirstOrNull(player);
         if (thirst == null) return 0.0f;
         int missing = Math.max(0, 20 - thirst);
         return missing * THIRST_PENALTY.per_missing_point;
@@ -575,6 +575,57 @@ public class ComfortSystemHandler {
             }
             persisted.setInteger(WARP_CLEANSE_TAG, currentProgress);
         }
+    }
+
+    /**
+     * Credit Homestead temporary-warp cleansing for game time the player ticks did not cover, for
+     * example Somnia's time-only fast-forward while asleep. One 30s scan ({@code CHECK_INTERVAL_TICKS})
+     * is worth 2 / 3 / 6 progress at granted band I / II / III and 12 progress clears 1 temporary warp,
+     * the same counter and rates as {@link #applyComfortBenefits}. The band is the granted band when the
+     * player is resting, else a fresh evaluation (furniture required).
+     *
+     * @return temporary warp points cleared
+     */
+    public static int applyAcceleratedWarpCleanse(EntityPlayer player, long uncoveredTicks) {
+        if (player == null || player.world == null || player.world.isRemote || player instanceof FakePlayer) return 0;
+        if (uncoveredTicks < CHECK_INTERVAL_TICKS || !thaumcraftLoaded()) return 0;
+
+        int band;
+        if (isComfortResting(player)) {
+            band = getGrantedBand(player);
+        } else {
+            ComfortEval eval = evaluate(player);
+            band = eval.furniture ? eval.scoreBand : 0;
+        }
+        int perScan = band == 1 ? 2 : (band == 2 ? 3 : (band >= 3 ? 6 : 0));
+        if (perScan == 0) return 0;
+
+        NBTTagCompound data = player.getEntityData();
+        if (!data.hasKey(EntityPlayer.PERSISTED_NBT_TAG)) {
+            data.setTag(EntityPlayer.PERSISTED_NBT_TAG, new NBTTagCompound());
+        }
+        NBTTagCompound persisted = data.getCompoundTag(EntityPlayer.PERSISTED_NBT_TAG);
+        int stored = persisted.getInteger(WARP_CLEANSE_TAG);
+        if (stored > WARP_CLEANSE_THRESHOLD) {
+            stored = 0;
+        }
+        long total = stored + uncoveredTicks * perScan / CHECK_INTERVAL_TICKS;
+        int due = (int) (total / WARP_CLEANSE_THRESHOLD);
+        int remainder = (int) (total % WARP_CLEANSE_THRESHOLD);
+        int cleared = 0;
+        if (due > 0) {
+            int warp = ThaumcraftHelper.getWarp(player, 1);
+            cleared = Math.min(due, warp);
+            if (cleared > 0) {
+                ThaumcraftHelper.reduceWarp(player, 1, cleared);
+                ThaumcraftHelper.syncWarp(player);
+            }
+            if (cleared < due) {
+                remainder = 0; // no warp left to clear: do not bank progress
+            }
+        }
+        persisted.setInteger(WARP_CLEANSE_TAG, remainder);
+        return cleared;
     }
 
     static final class ComfortEval {

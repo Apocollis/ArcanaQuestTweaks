@@ -1,6 +1,5 @@
 package com.apocollis.aqtweaks.depths;
 
-import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockStone;
 import net.minecraft.block.state.IBlockState;
@@ -45,8 +44,8 @@ public final class QuarkSpeleothemDecor {
                 ^ ((long) chunkZ * 132897987541L)
                 ^ 0x51E10E1L);
 
-        Block airBlock = Reflect.getAirBlock();
-        Block bedrockBlock = Reflect.getBedrockBlock();
+        Block airBlock = DepthsBlocks.AIR;
+        Block bedrockBlock = DepthsBlocks.BEDROCK;
 
         for (int i = 0; i < TRIES; i++) {
             int lx = random.nextInt(16);
@@ -157,7 +156,7 @@ public final class QuarkSpeleothemDecor {
         Block block = PrimerAccess.getBlock(state);
         if (block == null) return null;
 
-        Block deepslate = Reflect.getDeepslateBlock();
+        Block deepslate = DepthsBlocks.deepslate();
         if (deepslate != null && block == deepslate) {
             return Speleothems.stone_speleothem;
         }

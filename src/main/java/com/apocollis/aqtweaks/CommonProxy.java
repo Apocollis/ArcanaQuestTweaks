@@ -124,8 +124,5 @@ public class CommonProxy {
             com.apocollis.aqtweaks.spawning.SpawnLayerFilter.enableStructureExemption();
         }
         MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.spawning.SpawnLayerFilter());
-        // Every optional-mod and vanilla handle has had its chance to resolve by now. Say which
-        // ones did not, so a mapping break is a log line instead of a module that quietly no-ops.
-        com.apocollis.aqtweaks.util.Reflect.auditUnresolved();
     }
 }

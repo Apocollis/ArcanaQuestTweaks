@@ -1,7 +1,7 @@
 package com.apocollis.aqtweaks.mixin.simpledifficulty;
 
+import com.apocollis.aqtweaks.reskillable.PerkAccess;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
-import com.apocollis.aqtweaks.util.Reflect;
 import com.charles445.simpledifficulty.util.internal.ThirstUtilInternal;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraftforge.common.util.FakePlayer;
@@ -18,7 +18,7 @@ public abstract class MixinThirstUtilInternal {
             float ignored) {
         if (player == null || player instanceof FakePlayer) return dirty;
         if (!ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.waterCollector.enable) return dirty;
-        if (!Reflect.hasUnlockable(player, "aqtweaks:water_collector")) return dirty;
+        if (!PerkAccess.has(player, "aqtweaks:water_collector")) return dirty;
         return 0.0f;
     }
 }

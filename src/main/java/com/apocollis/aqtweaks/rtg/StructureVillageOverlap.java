@@ -1,7 +1,6 @@
 package com.apocollis.aqtweaks.rtg;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
-import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.chunk.IChunkProvider;
@@ -165,7 +164,7 @@ public final class StructureVillageOverlap {
         MapGenVillage stashed = VillageLandHelper.stashedVillage(world);
         if (stashed != null) return stashed;
         IdentityHashMap<Object, Boolean> seen = new IdentityHashMap<>();
-        Object found = findVillageGenerator(Reflect.getChunkGenerator(world), seen, 0);
+        Object found = findVillageGenerator(StructureAccess.getChunkGenerator(world), seen, 0);
         if (found != null) return found;
         try {
             return findVillageGenerator(world.getChunkProvider(), seen, 0);
@@ -178,7 +177,7 @@ public final class StructureVillageOverlap {
         ChunkGeneratorRTG stashed = VillageLandHelper.stashedRtg(world);
         if (stashed != null) return stashed;
         IdentityHashMap<Object, Boolean> seen = new IdentityHashMap<>();
-        ChunkGeneratorRTG found = findRtgGenerator(Reflect.getChunkGenerator(world), seen, 0);
+        ChunkGeneratorRTG found = findRtgGenerator(StructureAccess.getChunkGenerator(world), seen, 0);
         if (found != null) return found;
         try {
             return findRtgGenerator(world.getChunkProvider(), seen, 0);

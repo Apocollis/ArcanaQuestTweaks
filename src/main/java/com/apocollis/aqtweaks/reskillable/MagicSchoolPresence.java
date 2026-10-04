@@ -1,7 +1,6 @@
 package com.apocollis.aqtweaks.reskillable;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
-import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -29,7 +28,7 @@ public final class MagicSchoolPresence {
         if (player == null || player instanceof FakePlayer || !enabled) {
             return false;
         }
-        return Reflect.hasUnlockable(player, perkId);
+        return PerkAccess.has(player, perkId);
     }
 
     public static boolean nearby(World world, BlockPos pos, double range, String perkId, boolean enabled) {

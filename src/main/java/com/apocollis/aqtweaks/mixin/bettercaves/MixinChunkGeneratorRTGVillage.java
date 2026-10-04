@@ -1,11 +1,12 @@
 package com.apocollis.aqtweaks.mixin.bettercaves;
 
+import com.apocollis.aqtweaks.depths.PrimerAccess;
+import com.apocollis.aqtweaks.rtg.StructureAccess;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.rtg.VillageDebug;
 import com.apocollis.aqtweaks.rtg.VillageLandHelper;
 import com.apocollis.aqtweaks.rtg.VillagePlate;
 import com.apocollis.aqtweaks.rtg.VillageShoreMask;
-import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
@@ -85,7 +86,7 @@ public abstract class MixinChunkGeneratorRTGVillage {
         if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.enableVillageSmoothing) {
             return;
         }
-        BiomeProvider biomeProvider = Reflect.getBiomeProvider(world);
+        BiomeProvider biomeProvider = StructureAccess.getBiomeProvider(world);
         if (biomeProvider == null) return;
         ChunkLandscape landscape = aqtweaks$sampleLandscape(biomeProvider, cx, cz);
         if (landscape != null && landscape.noise != null) {
@@ -127,7 +128,7 @@ public abstract class MixinChunkGeneratorRTGVillage {
             return;
         }
         try {
-            if (!Reflect.isMapFeaturesEnabled(world, true)) {
+            if (!StructureAccess.isMapFeaturesEnabled(world, true)) {
                 aqtweaks$laidOutCx = cx;
                 aqtweaks$laidOutCz = cz;
                 return;
@@ -156,7 +157,7 @@ public abstract class MixinChunkGeneratorRTGVillage {
                 || villageGenerator == null || world == null || noise == null) {
             return;
         }
-        BiomeProvider biomeProvider = Reflect.getBiomeProvider(world);
+        BiomeProvider biomeProvider = StructureAccess.getBiomeProvider(world);
         if (biomeProvider == null) return;
 
         if (landscape == null) {
@@ -176,7 +177,7 @@ public abstract class MixinChunkGeneratorRTGVillage {
         int startZ = cz * 16;
         int chunkMaxX = startX + 15;
         int chunkMaxZ = startZ + 15;
-        long seed = Reflect.getSeed(world);
+        long seed = world.getSeed();
 
         boolean recovered = false;
         List<VillagePlate.Record> hits = aqtweaks$villageHits(cx, cz, reach, true);
@@ -257,7 +258,7 @@ public abstract class MixinChunkGeneratorRTGVillage {
                 int colZ = startZ + localZ;
                 int index = localX * 16 + localZ;
                 if (index < 0 || index >= n) continue;
-                Biome biome = Reflect.getBiome(biomeProvider, colX, colZ);
+                Biome biome = StructureAccess.getBiome(biomeProvider, colX, colZ);
                 biomes[index] = biome;
                 int thisLandIdx = landIdx[index];
                 double thisLandDist = thisLandIdx >= 0 ? landDist[index] : Double.MAX_VALUE;
@@ -448,7 +449,7 @@ public abstract class MixinChunkGeneratorRTGVillage {
                 || primer == null || villageGenerator == null || world == null) {
             return;
         }
-        BiomeProvider biomeProvider = Reflect.getBiomeProvider(world);
+        BiomeProvider biomeProvider = StructureAccess.getBiomeProvider(world);
         if (biomeProvider == null) return;
 
         int componentPad = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageComponentPad);
@@ -456,8 +457,10 @@ public abstract class MixinChunkGeneratorRTGVillage {
         int reach = Math.max(componentPad, shrinePad);
         int startX = cx * 16;
         int startZ = cz * 16;
-        long seed = Reflect.getSeed(world);
+        long seed = world.getSeed();
         boolean oceanWall = ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageOceanWall;
+        int sealMinY = ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villagePlateMinY;
+        int sealDepth = ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villagePlateDepth;
 
         List<VillagePlate.Record> hits = aqtweaks$villageHits(cx, cz, reach, false);
         if (hits.isEmpty()) return;
@@ -500,7 +503,7 @@ public abstract class MixinChunkGeneratorRTGVillage {
                 double landDist = landIdx >= 0 ? distScratch[0] : Double.MAX_VALUE;
                 int shrineIdx = aqtweaks$nearestBox(colX, colZ, shrineBoxes, distScratch);
                 double shrineDist = shrineIdx >= 0 ? distScratch[0] : Double.MAX_VALUE;
-                Biome padBiome = Reflect.getBiome(biomeProvider, colX, colZ);
+                Biome padBiome = StructureAccess.getBiome(biomeProvider, colX, colZ);
                 float target;
                 if (shrineIdx >= 0 && shrineDist <= shrinePad && shrineDist <= landDist) {
                     target = shrineTargets.get(shrineIdx);
@@ -519,18 +522,21 @@ public abstract class MixinChunkGeneratorRTGVillage {
                 boolean edge = oceanWall && aqtweaks$isPlateCliff(
                         primer, landscape, shore, biomeProvider, localX, localZ, startX, startZ, plateY);
                 boolean wrote = false;
-                for (int y = 1; y <= plateY; y++) {
-                    IBlockState cur = Reflect.getBlockState(primer, localX, y, localZ);
+                // Seal only a slab at the top of the column: sealDepth below the plate height, never
+                // below sealMinY. Filling from Y1 erased every cave under the village.
+                int sealFloor = Math.max(1, Math.min(plateY, Math.max(sealMinY, plateY - sealDepth)));
+                for (int y = sealFloor; y <= plateY; y++) {
+                    IBlockState cur = PrimerAccess.getBlockState(primer, localX, y, localZ);
                     if (y == plateY) {
                         if (edge) {
                             if (cur != null && cur.getMaterial().isLiquid()) continue;
-                            Reflect.setBlockState(primer, localX, y, localZ, brick);
+                            PrimerAccess.setBlockState(primer, localX, y, localZ, brick);
                             wrote = true;
                             continue;
                         }
                         if (VillageLandHelper.isBopMud(cur)) {
                             if (loamy != null) {
-                                Reflect.setBlockState(primer, localX, y, localZ, loamy);
+                                PrimerAccess.setBlockState(primer, localX, y, localZ, loamy);
                                 wrote = true;
                             }
                             continue;
@@ -540,20 +546,20 @@ public abstract class MixinChunkGeneratorRTGVillage {
                             if (VillageLandHelper.isBopMud(top) && loamy != null) {
                                 top = loamy;
                             }
-                            Reflect.setBlockState(primer, localX, y, localZ, top);
+                            PrimerAccess.setBlockState(primer, localX, y, localZ, top);
                             wrote = true;
                         }
                         continue;
                     }
                     if (edge) {
                         if (cur != null && cur.getMaterial().isLiquid()) continue;
-                        Reflect.setBlockState(primer, localX, y, localZ, brick);
+                        PrimerAccess.setBlockState(primer, localX, y, localZ, brick);
                         wrote = true;
                         continue;
                     }
                     if (!aqtweaks$replaceable(cur)) continue;
                     IBlockState fill = y <= 4 ? stone : dirt;
-                    Reflect.setBlockState(primer, localX, y, localZ, fill);
+                    PrimerAccess.setBlockState(primer, localX, y, localZ, fill);
                     wrote = true;
                 }
                 if (wrote) sealed++;
@@ -572,7 +578,7 @@ public abstract class MixinChunkGeneratorRTGVillage {
         int startZ = cz * 16;
         int chunkMaxX = startX + 15;
         int chunkMaxZ = startZ + 15;
-        long seed = Reflect.getSeed(world);
+        long seed = world.getSeed();
         List<VillagePlate.Record> hits = VillagePlate.overlappingRecords(
                 seed, startX, chunkMaxX, startZ, chunkMaxZ, reach);
         if (!hits.isEmpty()) {
@@ -638,7 +644,7 @@ public abstract class MixinChunkGeneratorRTGVillage {
     private static int aqtweaks$primerSurfaceY(ChunkPrimer primer, int localX, int localZ, int plateY) {
         int maxY = Math.min(255, plateY + 8);
         for (int y = maxY; y >= 1; y--) {
-            IBlockState cur = Reflect.getBlockState(primer, localX, y, localZ);
+            IBlockState cur = PrimerAccess.getBlockState(primer, localX, y, localZ);
             if (cur == null) {
                 continue;
             }
@@ -654,7 +660,7 @@ public abstract class MixinChunkGeneratorRTGVillage {
 
     @Unique
     private int aqtweaks$noiseSurfaceY(int worldX, int worldZ) {
-        BiomeProvider provider = Reflect.getBiomeProvider(world);
+        BiomeProvider provider = StructureAccess.getBiomeProvider(world);
         float n = VillageLandHelper.sampleNoise((ChunkGeneratorRTG) (Object) this, provider, worldX, worldZ);
         if (!VillageLandHelper.isUsableHeight(n)) {
             return Integer.MAX_VALUE / 4;
@@ -677,15 +683,15 @@ public abstract class MixinChunkGeneratorRTGVillage {
 
     @Unique
     private float getOrComputePlateHeight(VillagePlate.Record rec) {
-        long seed = world != null ? Reflect.getSeed(world) : 0L;
+        long seed = world != null ? world.getSeed() : 0L;
         Float cached = VillagePlate.get(seed, rec);
         if (cached != null) return cached;
 
-        BiomeProvider biomeProvider = Reflect.getBiomeProvider(world);
+        BiomeProvider biomeProvider = StructureAccess.getBiomeProvider(world);
         if (biomeProvider == null) {
             return Float.NaN;
         }
-        Biome wellBiome = Reflect.getBiome(biomeProvider, rec.wellX, rec.wellZ);
+        Biome wellBiome = StructureAccess.getBiome(biomeProvider, rec.wellX, rec.wellZ);
         boolean swampWell = VillageLandHelper.isSwampLikeForRaise(wellBiome);
         boolean neverRaiseWell = VillageLandHelper.isNeverRaiseAt(world, rec.wellX, rec.wellZ);
         int minWell = VillageLandHelper.minWellHeight();

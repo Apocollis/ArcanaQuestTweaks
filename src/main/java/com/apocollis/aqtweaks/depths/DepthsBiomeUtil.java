@@ -1,6 +1,6 @@
 package com.apocollis.aqtweaks.depths;
 
-import com.apocollis.aqtweaks.util.Reflect;
+import net.minecraft.init.Biomes;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
@@ -52,7 +52,7 @@ public final class DepthsBiomeUtil {
     private static boolean lookupColumn(World world, int x, int z) {
         try {
             Biome biome = null;
-            Biome fallback = Reflect.getPlainsBiome();
+            Biome fallback = Biomes.PLAINS;
             if (world.getBiomeProvider() != null) {
                 biome = world.getBiomeProvider().getBiome(POS.get().setPos(x, 64, z), fallback);
             }

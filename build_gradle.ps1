@@ -11,7 +11,8 @@ Write-Output "Script Dir: $scriptDir"
 # 1. Create libs folder and copy dependencies
 $libsDir = Join-Path $scriptDir "libs"
 if (!(Test-Path $libsDir)) { New-Item -ItemType Directory $libsDir | Out-Null }
-$localModsDir = "c:/Users/hughe/curseforge/minecraft/Instances/Arcana Quest DEVBOX/mods"
+# Override with AQ_DEVBOX_MODS / AQ_JAVA_HOME when this machine differs.
+$localModsDir = if ($env:AQ_DEVBOX_MODS) { $env:AQ_DEVBOX_MODS } else { "c:/Users/hughe/curseforge/minecraft/Instances/Arcana Quest DEVBOX/mods" }
 
 Write-Output "Checking dependencies in libs..."
 # Stale/unlisted jars. build.gradle puts EVERY jar in libs/ on the compile classpath,
@@ -74,7 +75,11 @@ $deps = @(
     "FarmersDelightLegacy-1.1.7.jar",
     "extra-delight-legacy-1.1.6.jar",
     "prospectus-1.8.jar",
-    "simpletomb-1.12.2-1.0.0.jar"
+    "simpletomb-1.12.2-1.0.0.jar",
+    "grappling_hook_mod-1.12.2-v13.jar",
+    "OpenGlider-1.12.1-1.1.0.jar",
+    "Waystones_1.12.2-4.1.0.jar",
+    "TreeChopper-1.12.2-1.2.4.jar"
 )
 foreach ($dep in $deps) {
     $src = "$localModsDir/$dep"
@@ -105,7 +110,7 @@ if (Test-Path $incontrolJar) {
 }
 
 # 2. Configure Java 25 JDK path
-$env:JAVA_HOME = "C:\Program Files\Zulu\zulu-25"
+$env:JAVA_HOME = if ($env:AQ_JAVA_HOME) { $env:AQ_JAVA_HOME } else { "C:\Program Files\Zulu\zulu-25" }
 Write-Output "JAVA_HOME set to: $env:JAVA_HOME"
 
 # 3. Run gradlew build
@@ -113,22 +118,43 @@ Write-Output "Running Gradle build task..."
 # Execute gradlew.bat in the script directory
 $oldPwd = pwd
 cd $scriptDir
+# Gradle's launcher JVM (JDK 25) prints a "restricted method" warning to stderr. Silence it at the
+# source, and judge success by the exit code only: under $ErrorActionPreference = "Stop", callers that
+# merge stderr (2>&1) would otherwise see a NativeCommandError although Gradle succeeded.
+$priorGradleOpts = $env:GRADLE_OPTS
+$env:GRADLE_OPTS = (($priorGradleOpts, "--enable-native-access=ALL-UNNAMED") | Where-Object { $_ }) -join " "
+$priorErrorPreference = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
 try {
     & .\gradlew.bat build
-    if ($LASTEXITCODE -ne 0) {
-        throw "Gradle build failed with exit code $LASTEXITCODE"
-    }
+    $gradleExit = $LASTEXITCODE
 } finally {
+    $ErrorActionPreference = $priorErrorPreference
+    $env:GRADLE_OPTS = $priorGradleOpts
     cd $oldPwd
+}
+if ($gradleExit -ne 0) {
+    throw "Gradle build failed with exit code $gradleExit"
 }
 
 # 4. Copy remapped output jar to mods folders (workspace + CurseForge instance)
 # Prefer the primary artifact; skip sources/dev/javadoc classifiers if present.
 $buildLibs = Join-Path $scriptDir "build/libs"
 if (!(Test-Path $workspaceDir/mods)) { New-Item -ItemType Directory -Path "$workspaceDir/mods" | Out-Null }
-$buildJars = Get-ChildItem -Path $buildLibs -Filter "ArcanaQuestTweaks-*.jar" |
-    Where-Object { $_.Name -notmatch "(sources|javadoc|dev)" } |
-    Sort-Object LastWriteTime -Descending
+# Pick the jar for the version in build.gradle, not merely the newest file (build/libs also holds old
+# versions). Falls back to the newest primary jar if the version cannot be read.
+$buildVersion = $null
+$versionLine = Select-String -Path (Join-Path $scriptDir "build.gradle") -Pattern "^version\s*=\s*'([^']+)'" | Select-Object -First 1
+if ($versionLine) { $buildVersion = $versionLine.Matches[0].Groups[1].Value }
+$buildJars = @()
+if ($buildVersion) {
+    $buildJars = @(Get-ChildItem -Path $buildLibs -Filter "ArcanaQuestTweaks-$buildVersion.jar")
+}
+if ($buildJars.Count -eq 0) {
+    $buildJars = @(Get-ChildItem -Path $buildLibs -Filter "ArcanaQuestTweaks-*.jar" |
+        Where-Object { $_.Name -notmatch "(sources|javadoc|dev)" } |
+        Sort-Object LastWriteTime -Descending)
+}
 if ($buildJars.Count -gt 0) {
     $latestJar = $buildJars[0]
     Write-Output "Latest compiled jar: $($latestJar.FullName)"

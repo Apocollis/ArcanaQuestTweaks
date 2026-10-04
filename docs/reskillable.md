@@ -4,7 +4,7 @@ Last updated: 2026-09-21.
 
 Config: `config/arcanaquesttweaks/aqtweaks_reskillable.cfg`. Handler registers only if `reskillable` is loaded (`CommonProxy.init`). Compile-hard CAD Reskillable **1.13.1** API; types live only in `com.apocollis.aqtweaks.reskillable`. Soft `@Mod` `after:reskillable` (not `required-after`).
 
-Stamina Armor Mastery / Mining Efficiency **perk id lookups** stay in [stamina.md](stamina.md) (`Reflect.hasUnlockable`, `aqtweaks_stamina.cfg`). This jar **registers** those traits (same ids as the old pack CrT). Remove pack `stamina_perks.zs` or the duplicate registry will conflict.
+Stamina Armor Mastery / Mining Efficiency **perk id lookups** stay in [stamina.md](stamina.md) (`PerkAccess.has`, `aqtweaks_stamina.cfg`). This jar **registers** those traits (same ids as the old pack CrT). Remove pack `stamina_perks.zs` or the duplicate registry will conflict.
 
 Effortless Building placement bonuses need both `reskillable` and `effortlessbuilding`. Optional `mixins.aqtweaks.effortlessbuilding.json` (`required: false`). Parent jar: `effortlessbuilding-1.12.2-2.16`. Soft `after:effortlessbuilding`.
 
@@ -41,6 +41,7 @@ Creative still uses EB’s creative limits (no Tweaks add).
 | Defense | `generic.armor` op 0 | `level × 0.25` |
 | Agility | `generic.movementSpeed` op 0 | `level × 0.0003125` |
 | Building | EB getters above | place `floor(level × 0.125)`; blocks `floor(level × 1)` |
+| Building | `generic.reachDistance` op 0 (`UUID_REACH`, not saved) | `min(Vanilla Reach Max, level × Vanilla Reach Per Level)` (0.0625 → +1 at 16, +2 at 32; max 3). Block place / break / use only; attack and mob range unchanged. Works in EB Normal mode, which is plain vanilla placement |
 | Mining | `PlayerEvent.BreakSpeed` | `speed × (1 + level × 0.01)` |
 | Gathering | harvest / shear / fish | `min(1.0, level × 0.00625)` chance of +1 |
 | Farming | mature crop `HarvestDropsEvent` | same k as Gathering |
@@ -123,6 +124,9 @@ Register in **preInit** (`ReskillablePerkRegistry`). CAD `getTraitConfig` still 
 | `aqtweaks:drafter` | building | 2,1 | 2 | building 12 |
 | `aqtweaks:glass_cutter` | building | 2,2 | 2 | building 8 |
 | `aqtweaks:sculptor` | building | 2,3 | 3 | building 16 |
+| `aqtweaks:reach1` | building | 0,1 | 2 | building 10 (EB reach 20) |
+| `aqtweaks:reach2` | building | 0,2 | 3 | building 20, trait reach1 (EB reach 50) |
+| `aqtweaks:reach3` | building | 0,3 | 4 | building 28, trait reach2 (EB reach 100) |
 | `aqtweaks:transpose` | building | 3,1 | 3 | building 20, magic 20 |
 | `aqtweaks:vis_thrift` | magic | 2,1 | 3 | magic 16 |
 | `aqtweaks:quiet_mind` | magic | 2,2 | 3 | magic 16, defense 12 |
@@ -163,6 +167,8 @@ Water Collector: SD world-drink dirty chance 0; canteen fill NORMAL/RAIN → PUR
 
 Drafter / Sculptor / Transpose: EB `sanitize` snaps locked modes / quick replace.
 
+Reach I / II / III: `MixinReachHelper` injects `getMaxReach` RETURN into `EffortlessBuildingHooks.maxReach`. With `Disable EB Reach Upgrade Items` (default true) the result is the highest owned perk tier (`BuildConfig.reach.maxReachLevel1/2/3`, default 20/50/100), else `maxReachLevel0`; the stored item upgrade level is ignored; creative and `enableReachUpgrades=false` are untouched. The three `effortlessbuilding:reach_upgrade*` recipes are skipped (`RecipeJsonSkip`) and `ReskillableModule.onReachItemUse` cancels right-click on the items. Icons are the EB item textures (`textures/unlockables/reach1-3.png`). `getPlacementReach` and max blocks derive from `getMaxReach`, so they follow the tier.
+
 Vis Thrift: +0.30 on `getTotalVisDiscount`. Quiet Mind: −round(0.35×bound) warp severity after visor.
 
 ### Magic schools (mutex)
@@ -183,8 +189,8 @@ Drop spikes use `skillLevel × 0.02`, one extra item. The forage and farming dri
 | `motherlode` | mining | 3 | mining 16 |
 | `lithomancy` | mining | 3 | mining 16, magic 12 |
 | `stone_cleaver` | mining | 4 | mining 20 |
-| `lumberjack` | gathering | 3 | gathering 16 |
-| `reforester` | gathering | 2 | gathering 12 |
+| `lumberjack` | gathering | 3 | gathering 16 (+1 log, gathering x 2% per log; also on Tree Chopper trees) |
+| `reforester` | gathering | 2 | gathering 12 (sapling chance per leaf = gathering x `Reforester Chance Per Level`, default 0.03; `Reforester Guaranteed` restores one per leaf; `Reforester Max Per Tree` default 64) |
 | `sifter` | gathering | 2 | gathering 8 |
 | `wood_splitter` | gathering | 4 | gathering 20 |
 | `orchard` | farming | 2 | farming 12 |
@@ -242,7 +248,7 @@ Lang: `reskillable.unlock.aqtweaks.<path>` / `.desc`. Icons: `aqtweaks:textures/
 - `potion/PotionPerkCooldown.java` — Adrenaline / Evasion / Respite CD HUD
 - `stamina/StaminaPerks.java` — spend reductions, Adrenaline, Evasion, Power Attack
 - `reskillable/ReskillableBonuses.java` — levels, classify, EB add
-- `reskillable/EffortlessBuildingHooks.java` — mixin bridge (no Reskillable imports)
+- `reskillable/EffortlessBuildingHooks.java` — mixin bridge; direct `ReskillableBonuses.addBuildingPlaceReach` / `addBuildingMaxBlocks` behind `isModLoaded("reskillable")`
 - `animania/AnimaniaModule.java`, `AnimaniaFarmClocks.java`, `AnimaniaFarmProducts.java`
 - `thaumcraft/ThaumcraftPerkHooks.java`
 - `simpledifficulty/SimpleDifficultyModule.java`
@@ -272,9 +278,9 @@ Lang: `reskillable.unlock.aqtweaks.<path>` / `.desc`. Icons: `aqtweaks:textures/
 
 - Do not put vanilla-target mixins (`ItemStack`, `BlockCrops`, …) in late `mixins.aqtweaks.json` (`loaded too early` at boot)
 
-- Stamina `aqtweaks_stamina.cfg` Reskillable perk section and `Reflect.hasUnlockable`
+- Stamina `aqtweaks_stamina.cfg` Reskillable perk section and `PerkAccess.has`
 - Duplicate registry if pack CrT still registers Armor Mastery / Mining Efficiency
-- No Reskillable `import` from `StaminaModule` / `Reflect` / config class body
+- No Reskillable `import` from `StaminaModule` / `StaminaFeathers` / config class body
 - No vanilla `REACH_DISTANCE`; do not mixin EB `getMaxReach`
 - Attack/Defense not extra-multiplied in `LivingHurtEvent` except Power Attack’s tagged multiplier
 - Comfort still only cancels rest; Gaia bolt retype still runs before this NORMAL hurt
@@ -288,7 +294,7 @@ Lang: `reskillable.unlock.aqtweaks.<path>` / `.desc`. Icons: `aqtweaks:textures/
 - Attack 16 → +2.0 `attackDamage`; 32 → +4.0; login/respawn keep it; sword tooltip/F3
 - Defense: armor bar up, max health unchanged
 - Agility: move speed up; Elenai dodge unchanged
-- Building: EB placement ray +2 / +4 at 16 / 32; max blocks +16 / +32 survival; creative unchanged; melee reach unchanged; EB jar absent → no mixin crash
+- Building: vanilla block reach +1 / +2 at 16 / 32 in Normal mode (server rejects past about 6 to 8 blocks); EB placement ray +2 / +4 at 16 / 32 in EB non-Normal modes; max blocks +16 / +32 survival; creative unchanged; melee reach unchanged; EB jar absent → no mixin crash
 - Mining: faster break; server-authoritative, so the client shows no bonus preview; stamina break cost unchanged (perk still does)
 - Farming: extra wheat on mature crop; not on stone or ore
 - Gathering: extra log/leaf/flint, extra wool, extra fish; **not** ore; silk touch no extra

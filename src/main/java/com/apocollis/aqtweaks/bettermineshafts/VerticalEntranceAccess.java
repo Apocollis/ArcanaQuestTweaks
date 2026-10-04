@@ -8,4 +8,7 @@ import net.minecraft.util.math.BlockPos;
  */
 public interface VerticalEntranceAccess {
     BlockPos aqtweaks$getCenterPos();
+
+    /** True once Better Mineshafts refused to build this entrance and Tweaks kept a stub instead. */
+    boolean aqtweaks$isFallback();
 }

@@ -14,7 +14,7 @@ Layout does **not** place blocks. Populate does. RTG only changes **when** those
 
 | Pass | When | Vanilla entry | What it does |
 | --- | --- | --- | --- |
-| **Mark / layout** | During chunk creation | `MapGenVillage.func_186125_a` → `MapGenBase.func_151539_a` | `canSpawn` + `getStructureStart`. Stores a `Start` in `structureMap`. Pieces are AABBs only. Y is still template Y (logs often `minY=64 maxY=151`). |
+| **Mark / layout** | During chunk creation | `MapGenBase.generate` (`func_186125_a`, inherited by `MapGenVillage`) → `MapGenStructure.recursiveGenerate` (`func_180701_a`) | `canSpawn` + `getStructureStart`. Stores a `Start` in `structureMap`. Pieces are AABBs only. Y is still template Y (logs often `minY=64 maxY=151`). |
 | **Paste** | `populate` | `MapGenVillage.func_175794_a` (`generateStructure`) | Each piece `addComponentParts`. `getAverageGroundLevel` averages **world** columns, then the box is offset to that Y. |
 
 ```

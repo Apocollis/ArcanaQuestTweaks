@@ -20,7 +20,7 @@ Optional parents: Grapple motor Ember, Open Glider undeploy, Reskillable stamina
 - Hard `@Mod` dependency: `required-after:elenaidodge2`. Soft: `after:grapplemod;after:embers`.
 - Grapple mixin `mixins.aqtweaks.grapple.json`, DSS mixin `mixins.aqtweaks.dss.json`, and feather-color mixin `mixins.aqtweaks.elenaidodge.json` are late, **`required: false`**. Toughness Bar HUD is the [client module](client.md).
 - Packets 0–2 register on **SERVER** in `CommonProxy.preInit`. Each handler is an inner class on its own packet type — `PacketSyncClimbingInput.Handler` (0), `PacketLedgeClimb.Handler` (1), `PacketSyncGrappleInput.Handler` (2) — all `Side.SERVER`. `StaminaModuleClient` only **sends**; there is no client-side handler.
-- Spend only via `Reflect.decreaseFeathers` (`FeathersHelper.decreaseFeathers` plus `CUpdateAbsorptionMessage`). Never post `SpendFeatherEvent` ourselves.
+- Spend only via `StaminaFeathers.decreaseFeathers` (`FeathersHelper.decreaseFeathers` plus `CUpdateAbsorptionMessage`). Never post `SpendFeatherEvent` ourselves.
 - Compile jar is Extended **1.1.3**, not 1.1.0 (HUD internals differ).
 
 ## How the parent mods work
@@ -29,7 +29,7 @@ Optional parents: Grapple motor Ember, Open Glider undeploy, Reskillable stamina
 
 Feather pool (`getFeatherLevel`), absorption capability, regen, dodge trait, `DodgeGui`, armor weight list `ModConfig.common.weights.weights` (`item=value` per slot), Lightweight enchantment, `half` feather rounding. Join handlers apply weight from that list — Tweaks briefly empties the array so those handlers do not stamp weight before Tweaks’ Armor Mastery path.
 
-`SpendFeatherEvent` exists in Extended. Tweaks must **not** post it; spend only through `Reflect.decreaseFeathers`. That wrapper calls `FeathersHelper.decreaseFeathers` then sends `CUpdateAbsorptionMessage` so gold feathers (`elenaidodge2:feathers`) update on the HUD. The helper only syncs the regular bar.
+`SpendFeatherEvent` exists in Extended. Tweaks must **not** post it; spend only through `StaminaFeathers.decreaseFeathers`. That wrapper calls `FeathersHelper.decreaseFeathers` then sends `CUpdateAbsorptionMessage` so gold feathers (`elenaidodge2:feathers`) update on the HUD. The helper only syncs the regular bar.
 
 ### Grappling Hook Mod v13 (`grapplemod`)
 
@@ -49,11 +49,11 @@ Skills GUI key (`keys[KEY_SKILLS_GUI]`, default P) is handled in `DSSKeyHandler.
 
 ### Open Glider
 
-Deployed / gliding flags. Tweaks `Reflect.isGliding` = deployed and not ground/water/lava. Empty feathers → `undeployGlider`.
+Deployed / gliding flags. Tweaks `OpenGliderHelper.isGliding` = deployed and not ground/water/lava. Empty feathers → `OpenGliderHelper.undeploy`, which clears the server capability **and** sends Open Glider's `PacketClientGliding(false)` to the player: gliding movement runs on the client from its own flag, so the capability setters alone left the player gliding while billing stopped and feathers regenerated.
 
 ### Reskillable / Simple Difficulty
 
-Perk lookup is `ReskillableUnlockHelper.hasUnlockable` (compile-hard Reskillable API, delegated from `Reflect.hasUnlockable`). Thirst is `addThirstExhaustion` on SD’s thirst cap. Both no-op if the mod is absent. Linear Attack/Defense/… bonuses are **not** this cfg; see [reskillable.md](reskillable.md) (`aqtweaks_reskillable.cfg`).
+Perk lookup is `ReskillableUnlockHelper.hasUnlockable` (compile-hard Reskillable API, delegated from `PerkAccess.has`). Thirst is `addThirstExhaustion` on SD’s thirst cap. Both no-op if the mod is absent. Linear Attack/Defense/… bonuses are **not** this cfg; see [reskillable.md](reskillable.md) (`aqtweaks_reskillable.cfg`).
 
 ## Design plan (spend and gate)
 
@@ -64,14 +64,14 @@ Perk lookup is `ReskillableUnlockHelper.hasUnlockable` (compile-hard Reskillable
 
 ## Feather accounting
 
-`Reflect.hasEnoughStamina(player, cost)` (same model as Elenai spend):
+`StaminaFeathers.hasEnoughStamina(player, cost)` (same model as Elenai spend):
 
 1. Creative always passes.
 2. Absorption feathers cover as much of `cost` as they can.
 3. Remainder must fit in **usable regular feathers** = `getFeatherLevel − weight` (client uses `ClientStorage.dodges`).
 4. Resulting regular pool must stay ≥ 0 **and** ≥ weight.
 
-`Reflect.getWeight`:
+`StaminaFeathers.getWeight`:
 
 1. If Elenai **Weight** potion is active, return Elenai’s cap (`ClientStorage.weight` / `FeathersHelper.getWeight`, typically 200). Do not recompute from armor or apply Mastery.
 2. Sum Elenai weight list for equipped armor (one match per slot).
@@ -105,12 +105,14 @@ Respawn: `PlayerRespawnEvent` → `FeathersHelper.increaseFeathers(player, getMa
 | `stamina/PacketSyncClimbingInput` | Channel **0** — climb jump held |
 | `stamina/PacketLedgeClimb` | Channel **1** — mantle request (empty payload) |
 | `stamina/PacketSyncGrappleInput` | Channel **2** — mode, motor, grounded |
-| `stamina/EmberMotorHelper.java` | Reflect Ember total/remove; `hasEmber` true if Ember not required or Embers absent |
+| `stamina/EmberMotorHelper.java` | Compile-hard Ember total/remove (`EmberInventoryUtil`); `hasEmber` true if Ember not required or Embers absent |
 | `stamina/DssSkillCosts.java` | `registry_name=N` map |
 | `stamina/DssSkillsGuiClient.java` | Client tick `isPressed()` → `OpenGuiPacket(0)` when DSS did not already send; client `/dssgui`. Imports `DSSKeyHandler` and `OpenGuiPacket`. Registered from `ClientProxy` |
 | `mixin/dss/MixinDSSKeyHandler.java` | Cancel `onKeyPressed` for key 0. Mark a real skills-key press. Client array of `mixins.aqtweaks.dss.json` |
-| `util/Reflect.java` | Feathers (including absorption HUD sync after spend), weight, Grapple query/detach, glider, ropes, thirst, `hasEnoughStamina` |
-| `mixin/grapple/MixinGrappleController.java` | Redirect `GrappleCustomization.motor` GET in `updatePlayerPos` |
+| `stamina/StaminaFeathers.java` | Elenai feathers (including absorption HUD sync after spend), weight, ropes, `hasEnoughStamina` |
+| `stamina/GrappleHelper.java` | Compile-hard Grappling Hook: controller, customization, `isGrappling`, `detach`. Guarded by `isModLoaded("grapplemod")` |
+| `stamina/OpenGliderHelper.java` | Compile-hard Open Glider: `isGliding`, `undeploy`. Guarded by `isModLoaded("openglider")` |
+| `mixin/grapple/MixinGrappleController.java` | Class-target mixin on `grappleController`; Redirect `GrappleCustomization.motor` GET in `updatePlayerPos` (direct field read, `@Shadow entity`) |
 | `mixin/dss/MixinSkillActive.java` | Gate/spend/exhaustion on `trigger` |
 
 ## Default costs (half-feathers)
@@ -198,7 +200,7 @@ Toughness Bar overlay (armor column, LTR) is the [client module](client.md), not
 
 ### Sprint
 
-Replaces Universal Tweaks `UTED2Sprinting`. Server: while `isSprinting`, NBT `StaminaTweaksSprintTicks`; at `sprintInterval` spend `sprintCost` if `hasEnoughStamina(cost)`, else cancel sprint. Below `sprintThreshold` cancel immediately (no spend). Timer resets when not sprinting. Client: same threshold → `setSprinting(false)` and sprint key up. Creative/spectator skipped. Armor Mastery / Endurance apply via `Reflect.getWeight`. Keep UT sprint consumption and requirement at 0 (leave UT interval at 20 so `% 0` cannot throw if their handler still runs).
+Replaces Universal Tweaks `UTED2Sprinting`. Server: while `isSprinting`, NBT `StaminaTweaksSprintTicks`; at `sprintInterval` spend `sprintCost` if `hasEnoughStamina(cost)`, else cancel sprint. Below `sprintThreshold` cancel immediately (no spend). Timer resets when not sprinting. Client: same threshold → `setSprinting(false)` and sprint key up. Creative/spectator skipped. Armor Mastery / Endurance apply via `StaminaFeathers.getWeight`. Keep UT sprint consumption and requirement at 0 (leave UT interval at 20 so `% 0` cannot throw if their handler still runs).
 
 ### Melee
 
@@ -415,7 +417,7 @@ The seven `indoorInsulation*` / `greenhouseGlass*` keys also live in this file (
 | DSS per-skill costs | cfg `Skill Costs` lines `dynamicswordskills:id=N` |
 | Weapon exceptions | cfg custom registry lists |
 | New spend **state** (new mode, new packet field) | Java + packet + this doc |
-| New parent mod hook | Reflect or late mixin `required: false` |
+| New parent mod hook | Compile-hard helper behind `isModLoaded`, or late mixin `required: false` |
 
 Rebuild (`.\build_gradle.ps1`) only for code/mixin/packet changes.
 
@@ -455,11 +457,11 @@ Empty-stamina slide cancelled the mantle. **Fix:** grace ticks + jump packet + c
 
 ### 9. Armor Mastery overwrote Endurance
 
-Tweaks `ClientTickEvent` END LOWEST wrote `Reflect.getWeight` (armor + Lightweight + Mastery, no Endurance) into `ClientStorage.weight` and `SWeightMessage`, after Elenai had already subtracted Endurance. **Fix:** Endurance in `getWeight` before half rounding and Mastery; do not overwrite while Weight potion owns 200.
+Tweaks `ClientTickEvent` END LOWEST wrote `StaminaFeathers.getWeight` (armor + Lightweight + Mastery, no Endurance) into `ClientStorage.weight` and `SWeightMessage`, after Elenai had already subtracted Endurance. **Fix:** Endurance in `getWeight` before half rounding and Mastery; do not overwrite while Weight potion owns 200.
 
 ### 10. Absorption HUD stale after Tweaks spend
 
-`FeathersHelper.decreaseFeathers` spends gold feathers first but only sends `CUpdateDodgeMessage`. Native dodge also sends `CDodgeEffectsMessage` with absorption. Tweaks spends looked frozen until the potion snapped off. **Fix:** `Reflect.decreaseFeathers` sends `CUpdateAbsorptionMessage` after the helper.
+`FeathersHelper.decreaseFeathers` spends gold feathers first but only sends `CUpdateDodgeMessage`. Native dodge also sends `CDodgeEffectsMessage` with absorption. Tweaks spends looked frozen until the potion snapped off. **Fix:** `StaminaFeathers.decreaseFeathers` sends `CUpdateAbsorptionMessage` after the helper.
 
 ### 11. Ledge target was always +1.0; mantle was a flat cost
 
@@ -479,7 +481,7 @@ Extended layer 0 multiplies the light-gray sprites by pure red, so a half feathe
 
 ## Do not regress
 
-- Spend only via `Reflect.decreaseFeathers`, except the temperature cap clamp in `SimpleDifficultyModule`. That calls `FeathersHelper.decreaseFeathers` only after absorption is already 0, and only for feathers above the reduced max, or for the remaining feathers on the step where `penalty >= Utils.getBaseDodges()`. Never `FeathersHelper.syncMaxFeathers` or `Utils.updateClientConfig`. Never post `SpendFeatherEvent`. Never `IDodges.set`. Gold HUD must update via `CUpdateAbsorptionMessage`. The feather cap HUD is message 4 writing `ClientStorage.maxDodges`. Do not call `getMaxDodges` from the `MaxFeathersEvent` handler.
+- Spend only via `StaminaFeathers.decreaseFeathers`, except the temperature cap clamp in `SimpleDifficultyModule`. That calls `FeathersHelper.decreaseFeathers` only after absorption is already 0, and only for feathers above the reduced max, or for the remaining feathers on the step where `penalty >= Utils.getBaseDodges()`. Never `FeathersHelper.syncMaxFeathers` or `Utils.updateClientConfig`. Never post `SpendFeatherEvent`. Never `IDodges.set`. Gold HUD must update via `CUpdateAbsorptionMessage`. The feather cap HUD is message 4 writing `ClientStorage.maxDodges`. Do not call `getMaxDodges` from the `MaxFeathersEvent` handler.
 - HUD placement is Extended `DodgeGui` on the right column, not a 1.1.0 icon fork. Layer 0 stays the painted blue pair (UV 34 / 25). Past 20 stays green on UV 43 / 52, with no third color. Absorption stays the painted gold pair (UV 88 / 79), clamped to 20, with no brown tint. Weight-blocked icons stay the gray `v + 9` row. Respawn = `increaseFeathers` to max, never `fillFeathers`.
 - Compile jar **Extended 1.1.3**. Grapple, DSS, and Toughness Bar mixins stay `required: false`.
 - Do not move Elenai feathers off the hunger/thirst column. Toughness Bar (when the flag is on) uses `left_height + 10` so it clears Overloaded Armor Bar’s unreserved armor row, then PUT `+ 10`.

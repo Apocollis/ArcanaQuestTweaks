@@ -1,7 +1,6 @@
 package com.apocollis.aqtweaks.rtg;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
-import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
 import net.minecraft.world.gen.structure.StructureBoundingBox;
@@ -146,14 +145,14 @@ public final class VillagePlate {
     }
 
     private static void remember(World world, Object start, boolean replace) {
-        int cx = Reflect.getStructureStartChunkX(start);
-        int cz = Reflect.getStructureStartChunkZ(start);
+        int cx = StructureAccess.getStructureStartChunkX(start);
+        int cz = StructureAccess.getStructureStartChunkZ(start);
         rememberResolved(world, start, cx, cz, replace);
     }
 
     private static void rememberResolved(World world, Object start, int chunkX, int chunkZ, boolean replace) {
         if (start == null) return;
-        int[] xz = Reflect.getStructureStartBoxXZ(start);
+        int[] xz = StructureAccess.getStructureStartBoxXZ(start);
         if (xz == null) return;
         int wellX = chunkX > Integer.MIN_VALUE ? chunkX * 16 + 2 : (xz[0] + xz[1]) >> 1;
         int wellZ = chunkZ > Integer.MIN_VALUE ? chunkZ * 16 + 2 : (xz[2] + xz[3]) >> 1;
@@ -168,10 +167,10 @@ public final class VillagePlate {
     private static void putRecord(World world, Object start, int chunkX, int chunkZ,
                                   int wellX, int wellZ, boolean replace) {
         if (start == null) return;
-        int[] xz = Reflect.getStructureStartBoxXZ(start);
+        int[] xz = StructureAccess.getStructureStartBoxXZ(start);
         if (xz == null) return;
-        int startChunkX = chunkX > Integer.MIN_VALUE ? chunkX : Reflect.getStructureStartChunkX(start);
-        int startChunkZ = chunkZ > Integer.MIN_VALUE ? chunkZ : Reflect.getStructureStartChunkZ(start);
+        int startChunkX = chunkX > Integer.MIN_VALUE ? chunkX : StructureAccess.getStructureStartChunkX(start);
+        int startChunkZ = chunkZ > Integer.MIN_VALUE ? chunkZ : StructureAccess.getStructureStartChunkZ(start);
         if (startChunkX == Integer.MIN_VALUE) startChunkX = wellX >> 4;
         if (startChunkZ == Integer.MIN_VALUE) startChunkZ = wellZ >> 4;
         long seed = world != null ? world.getSeed() : 0L;
@@ -181,8 +180,8 @@ public final class VillagePlate {
                 Record existing = list.get(i);
                 if (existing.startChunkX == startChunkX && existing.startChunkZ == startChunkZ) {
                     if (!replace) return;
-                    int minY = Reflect.getStructureStartMinY(start);
-                    int maxY = Reflect.getStructureStartMaxY(start);
+                    int minY = StructureAccess.getStructureStartMinY(start);
+                    int maxY = StructureAccess.getStructureStartMaxY(start);
                     Record next = new Record(start, xz, landBoxesOf(start), buildingBoxesOf(start),
                             shrineBoxesOf(start), wellX, wellZ, minY, maxY,
                             startChunkX, startChunkZ, true);
@@ -192,8 +191,8 @@ public final class VillagePlate {
                     return;
                 }
             }
-            int minY = Reflect.getStructureStartMinY(start);
-            int maxY = Reflect.getStructureStartMaxY(start);
+            int minY = StructureAccess.getStructureStartMinY(start);
+            int maxY = StructureAccess.getStructureStartMaxY(start);
             Record next = new Record(start, xz, landBoxesOf(start), buildingBoxesOf(start),
                     shrineBoxesOf(start), wellX, wellZ, minY, maxY,
                     startChunkX, startChunkZ, replace);
@@ -217,10 +216,10 @@ public final class VillagePlate {
      */
     public static void rememberNearby(World world, Object mapGen, int cx, int cz) {
         if (world == null || mapGen == null) return;
-        Reflect.initializeStructureData(mapGen, world);
-        int spacing = Reflect.getVillageDistance(mapGen);
+        StructureAccess.initializeStructureData(mapGen, world);
+        int spacing = StructureAccess.getVillageDistance(mapGen);
         if (spacing < 9) spacing = 32;
-        int minTown = Reflect.getVillageMinDistance(mapGen);
+        int minTown = StructureAccess.getVillageMinDistance(mapGen);
         if (minTown < 1 || minTown >= spacing) minTown = 8;
         long seed = world.getSeed();
         int minCellX = VillageLandHelper.villageCell(cx - VillageLandHelper.VILLAGE_LAYOUT_RADIUS, spacing);
@@ -240,7 +239,7 @@ public final class VillagePlate {
         for (int cellX = minCellX; cellX <= maxCellX; cellX++) {
             for (int cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
                 int[] well = VillageLandHelper.villageWellChunk(seed, cellX, cellZ, spacing, minTown);
-                Object start = Reflect.getStructureStart(mapGen, well[0], well[1]);
+                Object start = StructureAccess.getStructureStart(mapGen, well[0], well[1]);
                 if (start != null) {
                     rememberIfAbsent(world, start);
                 }
@@ -250,21 +249,21 @@ public final class VillagePlate {
 
     public static void rememberAll(World world, Object mapGen) {
         if (mapGen == null) return;
-        Reflect.initializeStructureData(mapGen, world);
+        StructureAccess.initializeStructureData(mapGen, world);
         if (mapGen instanceof net.minecraft.world.gen.structure.MapGenVillage) {
             VillageLandHelper.forgetRejectedStarts(
                     (net.minecraft.world.gen.structure.MapGenVillage) mapGen, world);
         }
-        for (Object start : Reflect.getMapGenStructureStarts(mapGen)) {
+        for (Object start : StructureAccess.getMapGenStructureStarts(mapGen)) {
             rememberIfAbsent(world, start);
         }
     }
 
     public static void forget(World world, Object start, int chunkX, int chunkZ) {
         long seed = world != null ? world.getSeed() : 0L;
-        int startChunkX = chunkX > Integer.MIN_VALUE ? chunkX : Reflect.getStructureStartChunkX(start);
-        int startChunkZ = chunkZ > Integer.MIN_VALUE ? chunkZ : Reflect.getStructureStartChunkZ(start);
-        int[] xz = start != null ? Reflect.getStructureStartBoxXZ(start) : null;
+        int startChunkX = chunkX > Integer.MIN_VALUE ? chunkX : StructureAccess.getStructureStartChunkX(start);
+        int startChunkZ = chunkZ > Integer.MIN_VALUE ? chunkZ : StructureAccess.getStructureStartChunkZ(start);
+        int[] xz = start != null ? StructureAccess.getStructureStartBoxXZ(start) : null;
         int wellX = chunkX > Integer.MIN_VALUE ? chunkX * 16 + 2 : Integer.MIN_VALUE;
         int wellZ = chunkZ > Integer.MIN_VALUE ? chunkZ * 16 + 2 : Integer.MIN_VALUE;
         List<Record> list = STARTS.get(seed);
@@ -496,10 +495,10 @@ public final class VillagePlate {
 
     private static Record replaceBoxes(long seed, Record rec) {
         if (rec == null || rec.start == null) return rec;
-        int[] xz = Reflect.getStructureStartBoxXZ(rec.start);
+        int[] xz = StructureAccess.getStructureStartBoxXZ(rec.start);
         if (xz == null) xz = rec.xz;
-        int minY = Reflect.getStructureStartMinY(rec.start);
-        int maxY = Reflect.getStructureStartMaxY(rec.start);
+        int minY = StructureAccess.getStructureStartMinY(rec.start);
+        int maxY = StructureAccess.getStructureStartMaxY(rec.start);
         if (minY == Integer.MIN_VALUE) minY = rec.minY;
         if (maxY == Integer.MIN_VALUE) maxY = rec.maxY;
         Record next = new Record(rec.start, xz, landBoxesOf(rec.start), buildingBoxesOf(rec.start),
@@ -743,7 +742,7 @@ public final class VillagePlate {
                 || !VillageLandHelper.isUsableHeight(wellHeight)) {
             try {
                 if (VillageLandHelper.isSwampLikeForRaise(
-                        Reflect.getBiome(world.getBiomeProvider(), rec.wellX, rec.wellZ))) {
+                        StructureAccess.getBiome(world.getBiomeProvider(), rec.wellX, rec.wellZ))) {
                     put(seed, rec, (float) minWell);
                     return minWell;
                 }
@@ -769,7 +768,7 @@ public final class VillagePlate {
     public static void stampDetectionPieces(World world, Record rec, Object mapGen) {
         if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.enableVillageBoxDetection) return;
         if (world == null || rec == null || rec.start == null) return;
-        for (Object piece : Reflect.getStructureStartComponents(rec.start)) {
+        for (Object piece : StructureAccess.getStructureStartComponents(rec.start)) {
             if (VillageLandHelper.isVillagePlatePad(piece)) return;
         }
         float plate = resolvePlateOrSample(world, rec);
@@ -791,8 +790,8 @@ public final class VillagePlate {
             any |= addPadPiece(rec.start, well, box, shrineR, floor, maxY);
         }
         if (!any) return;
-        Reflect.updateStructureStartBoundingBox(rec.start);
-        Reflect.saveMapGenStructureStart(mapGen, world, rec.start);
+        StructureAccess.updateStructureStartBoundingBox(rec.start);
+        StructureAccess.saveMapGenStructureStart(mapGen, world, rec.start);
         if (VillageDebug.once("stampPlate:" + wellKey(world.getSeed(), rec))) {
             VillageDebug.log("stamp village plate well=%d,%d floor=%d maxY=%d landR=%d",
                     rec.wellX, rec.wellZ, floor, maxY, landR);
@@ -800,7 +799,7 @@ public final class VillagePlate {
     }
 
     private static StructureVillagePieces.Start villageWellStart(Object start) {
-        for (Object piece : Reflect.getStructureStartComponents(start)) {
+        for (Object piece : StructureAccess.getStructureStartComponents(start)) {
             if (piece instanceof StructureVillagePieces.Start) {
                 return (StructureVillagePieces.Start) piece;
             }
@@ -816,7 +815,7 @@ public final class VillagePlate {
                 box[0] - r, minY, box[2] - r,
                 box[1] + r, maxY, box[3] + r);
         VillagePieceVillagePlate pad = new VillagePieceVillagePlate(well, aabb);
-        return Reflect.addStructureStartComponent(start, pad);
+        return StructureAccess.addStructureStartComponent(start, pad);
     }
 
     public static boolean yInVillageVolume(int y, float plateHeight, int heightAbove, Record rec) {
@@ -865,9 +864,9 @@ public final class VillagePlate {
 
     private static int[] wellPieceMinMaxY(Object start) {
         if (start == null) return null;
-        for (Object piece : Reflect.getStructureStartComponents(start)) {
+        for (Object piece : StructureAccess.getStructureStartComponents(start)) {
             if (VillageLandHelper.isVillageWellOrStart(piece)) {
-                int[] y = Reflect.getStructureComponentMinMaxY(piece);
+                int[] y = StructureAccess.getStructureComponentMinMaxY(piece);
                 if (y != null) return y;
             }
         }
@@ -901,7 +900,7 @@ public final class VillagePlate {
 
         float height = sampleWorldSurface(world, box);
         if (Float.isNaN(height)) {
-            int minY = Reflect.getStructureStartMinY(start);
+            int minY = StructureAccess.getStructureStartMinY(start);
             height = minY > Integer.MIN_VALUE ? minY : 64.0F;
         }
         long seed = world != null ? world.getSeed() : 0L;
@@ -920,9 +919,9 @@ public final class VillagePlate {
         VillageLandHelper.pushColumnLandscapeCache();
         try {
             List<int[]> out = new ArrayList<>();
-            for (Object piece : Reflect.getStructureStartComponents(start)) {
+            for (Object piece : StructureAccess.getStructureStartComponents(start)) {
                 if (VillageLandHelper.isVillagePlatePad(piece)) continue;
-                int[] box = Reflect.getStructureComponentBoxXZ(piece);
+                int[] box = StructureAccess.getStructureComponentBoxXZ(piece);
                 if (box == null) continue;
                 if (VillageLandHelper.isVillageRoad(piece) && VillageLandHelper.isAabbFullyFlooded(start, piece)) {
                     continue;
@@ -943,9 +942,9 @@ public final class VillagePlate {
         VillageLandHelper.pushColumnLandscapeCache();
         try {
             List<int[]> out = new ArrayList<>();
-            for (Object piece : Reflect.getStructureStartComponents(start)) {
+            for (Object piece : StructureAccess.getStructureStartComponents(start)) {
                 if (VillageLandHelper.isVillagePlatePad(piece)) continue;
-                int[] box = Reflect.getStructureComponentBoxXZ(piece);
+                int[] box = StructureAccess.getStructureComponentBoxXZ(piece);
                 if (box == null || VillageLandHelper.isVillageRoad(piece)) continue;
                 if (VillageLandHelper.isPasteSkippedPiece(start, piece)) continue;
                 out.add(box);
@@ -958,9 +957,9 @@ public final class VillagePlate {
 
     public static List<int[]> shrineBoxesOf(Object start) {
         List<int[]> out = new ArrayList<>();
-        for (Object piece : Reflect.getStructureStartComponents(start)) {
+        for (Object piece : StructureAccess.getStructureStartComponents(start)) {
             if (!(piece instanceof VillagePieceAstralSmallShrine)) continue;
-            int[] box = Reflect.getStructureComponentBoxXZ(piece);
+            int[] box = StructureAccess.getStructureComponentBoxXZ(piece);
             if (box != null) out.add(box);
         }
         return out;

@@ -1,7 +1,7 @@
 package com.apocollis.aqtweaks.bettermineshafts;
 
+import com.apocollis.aqtweaks.rtg.StructureAccess;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
-import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.BiomeProvider;
@@ -26,7 +26,7 @@ public final class BetterMineshaftCanSpawn {
         if (!ArcanaQuestTweaksConfig.BetterMineshaftsModuleConfig.general.enable) {
             return null;
         }
-        World world = Reflect.getMapGenWorld(mapGen);
+        World world = StructureAccess.getMapGenWorld(mapGen);
         if (world == null) {
             return null;
         }
@@ -35,21 +35,21 @@ public final class BetterMineshaftCanSpawn {
             return Boolean.FALSE;
         }
         if (ArcanaQuestTweaksConfig.BetterMineshaftsModuleConfig.general.skipOceanAndBeach) {
-            BiomeProvider provider = Reflect.getBiomeProvider(world);
+            BiomeProvider provider = StructureAccess.getBiomeProvider(world);
             int x = (chunkX << 4) + 8;
             int z = (chunkZ << 4) + 8;
-            Biome biome = Reflect.getBiome(provider, x, z);
+            Biome biome = StructureAccess.getBiome(provider, x, z);
             if (biome != null && (BiomeDictionary.hasType(biome, BiomeDictionary.Type.OCEAN)
                     || BiomeDictionary.hasType(biome, BiomeDictionary.Type.BEACH))) {
                 return Boolean.FALSE;
             }
         }
-        long seed = Reflect.getSeed(world);
+        long seed = world.getSeed();
         Random decision = new Random((chunkX * 341873128712L) ^ (chunkZ * 132897987541L) ^ seed);
         decision.nextInt();
         double rate = ArcanaQuestTweaksConfig.BetterMineshaftsModuleConfig.general.mineshaftSpawnRate;
         boolean spawn = decision.nextDouble() < Math.max(0.0, Math.min(1.0, rate));
-        Random layout = Reflect.getMapGenRandom(mapGen);
+        Random layout = StructureAccess.getMapGenRandom(mapGen);
         if (layout != null) {
             layout.nextDouble();
         }

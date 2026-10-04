@@ -4,6 +4,8 @@ import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import codersafterdark.reskillable.api.event.CacheInvalidatedEvent;
 import codersafterdark.reskillable.api.event.LevelUpEvent;
 import net.minecraft.block.state.IBlockState;
+import com.apocollis.aqtweaks.animania.AnimaniaAddons;
+import com.apocollis.aqtweaks.animania.AnimaniaFarmProducts;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
@@ -17,7 +19,6 @@ import net.minecraft.init.Blocks;
 import net.minecraft.item.ItemShears;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.DamageSource;
-import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.world.World;
 import net.minecraftforge.common.util.FakePlayer;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
@@ -56,6 +57,26 @@ public class ReskillableModule {
     @SubscribeEvent
     public void onLogin(PlayerLoggedInEvent event) {
         refresh(event.player);
+    }
+
+    /** Reach upgrade items are replaced by the Reach I/II/III perks. */
+    @SubscribeEvent
+    public void onReachItemUse(net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickItem event) {
+        net.minecraft.item.ItemStack stack = event.getItemStack();
+        if (stack.isEmpty() || !ArcanaQuestTweaksConfig.ReskillableModuleConfig.building.disableReachUpgradeItems) return;
+        net.minecraft.util.ResourceLocation id = stack.getItem().getRegistryName();
+        if (id != null && "effortlessbuilding".equals(id.getNamespace())
+                && id.getPath().startsWith("reach_upgrade")) {
+            event.setCanceled(true);
+        }
+    }
+
+    /** Safety net: never let a Tree Chopper felling actor outlive the tick that set it. */
+    @SubscribeEvent
+    public void onServerTick(net.minecraftforge.fml.common.gameevent.TickEvent.ServerTickEvent event) {
+        if (event.phase == net.minecraftforge.fml.common.gameevent.TickEvent.Phase.END && HarvestActor.felling()) {
+            HarvestActor.endFell();
+        }
     }
 
     @SubscribeEvent
@@ -102,7 +123,7 @@ public class ReskillableModule {
         if (event.canHarvest()) return;
         EntityPlayer player = event.getEntityPlayer();
         if (skipPlayer(player)) return;
-        if (!Reflect.hasUnlockable(player, "aqtweaks:mining_expert")) return;
+        if (!PerkAccess.has(player, "aqtweaks:mining_expert")) return;
         if (!ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.miningExpert.enable) return;
         ItemStack held = player.getHeldItemMainhand();
         if (held.isEmpty()) return;
@@ -120,13 +141,13 @@ public class ReskillableModule {
     @SubscribeEvent
     public void onHarvest(BlockEvent.HarvestDropsEvent event) {
         if (!ReskillableBonuses.enabled()) return;
-        EntityPlayer player = event.getHarvester();
+        EntityPlayer player = HarvestActor.of(event);
         if (skipPlayer(player) || event.getWorld() == null || event.getWorld().isRemote) return;
         IBlockState state = event.getState();
         List<ItemStack> drops = event.getDrops();
         if (state == null || drops == null) return;
 
-        if (Reflect.hasUnlockable(player, "aqtweaks:glass_cutter")
+        if (PerkAccess.has(player, "aqtweaks:glass_cutter")
                 && ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.glassCutter.enable
                 && ReskillableBonuses.isCuttableGlass(event.getWorld(), event.getPos(), state)) {
             ItemStack self = ReskillableBonuses.glassSelfDrop(state);
@@ -139,14 +160,14 @@ public class ReskillableModule {
 
         if (drops.isEmpty()) return;
 
-        boolean herbalist = Reflect.hasUnlockable(player, "aqtweaks:herbalist")
+        boolean herbalist = PerkAccess.has(player, "aqtweaks:herbalist")
                 && ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.herbalist.enable
                 && ReskillableBonuses.isHerbalistBlock(state);
         if (herbalist) {
             addOneExtra(drops);
         } else if (ReskillableBonuses.isBountifulCrop(state)
                 && !PerkDrops.isTomatoVine(state)
-                && Reflect.hasUnlockable(player, "aqtweaks:bountiful_harvest")
+                && PerkAccess.has(player, "aqtweaks:bountiful_harvest")
                 && ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.bountifulHarvest.enable) {
             addOneExtra(drops);
         } else if (ReskillableBonuses.isMatureCrop(state) && !PerkDrops.isTomatoVine(state)) {
@@ -187,7 +208,7 @@ public class ReskillableModule {
         if (event.isCanceled()) return;
         World world = event.getWorld();
         if (world.getMinecraftServer() == null) return;
-        if (Reflect.hasUnlockable(player, "aqtweaks:herd_abundance")
+        if (PerkAccess.has(player, "aqtweaks:herd_abundance")
                 && ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.herdAbundance.enable) {
             extraFarmWoolAfterShear(world, target);
         }
@@ -219,39 +240,18 @@ public class ReskillableModule {
     }
 
     private static boolean isFarmWoolAnimal(Entity entity) {
-        try {
-            Object out = Class.forName("com.apocollis.aqtweaks.animania.AnimaniaFarmProducts")
-                    .getMethod("isWoolAnimal", Entity.class)
-                    .invoke(null, entity);
-            return Boolean.TRUE.equals(out);
-        } catch (Throwable ignored) {
-            return false;
-        }
+        return AnimaniaAddons.FARM && AnimaniaFarmProducts.isWoolAnimal(entity);
     }
 
     private static boolean isEntitySheared(Entity entity) {
         if (entity instanceof EntitySheep) {
             return ((EntitySheep) entity).getSheared();
         }
-        try {
-            Object out = Class.forName("com.apocollis.aqtweaks.animania.AnimaniaFarmProducts")
-                    .getMethod("isSheared", Entity.class)
-                    .invoke(null, entity);
-            return Boolean.TRUE.equals(out);
-        } catch (Throwable ignored) {
-            return false;
-        }
+        return AnimaniaAddons.FARM && AnimaniaFarmProducts.isSheared(entity);
     }
 
     private static ItemStack farmWoolStack(Entity entity) {
-        try {
-            Object out = Class.forName("com.apocollis.aqtweaks.animania.AnimaniaFarmProducts")
-                    .getMethod("woolStack", Entity.class)
-                    .invoke(null, entity);
-            return out instanceof ItemStack ? (ItemStack) out : ItemStack.EMPTY;
-        } catch (Throwable ignored) {
-            return ItemStack.EMPTY;
-        }
+        return AnimaniaAddons.FARM ? AnimaniaFarmProducts.woolStack(entity) : ItemStack.EMPTY;
     }
 
     @SubscribeEvent(priority = EventPriority.NORMAL)
@@ -303,7 +303,7 @@ public class ReskillableModule {
     public void onArrowLoose(net.minecraftforge.event.entity.player.ArrowLooseEvent event) {
         EntityPlayer player = event.getEntityPlayer();
         if (skipPlayer(player) || player.world == null || player.world.isRemote) return;
-        if (!Reflect.hasUnlockable(player, "aqtweaks:precision_shot")) return;
+        if (!PerkAccess.has(player, "aqtweaks:precision_shot")) return;
         if (!ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.precisionShot.enable) return;
         if (!(event.getBow().getItem() instanceof net.minecraft.item.ItemBow)) return;
         if (event.getCharge() < 20) return;
@@ -337,6 +337,7 @@ public class ReskillableModule {
             clearModifier(player, SharedMonsterAttributes.ARMOR, ReskillableBonuses.UUID_ARMOR);
             clearModifier(player, SharedMonsterAttributes.MOVEMENT_SPEED, ReskillableBonuses.UUID_SPEED);
             clearModifier(player, SharedMonsterAttributes.MAX_HEALTH, ReskillableBonuses.UUID_MAX_HEALTH);
+            clearModifier(player, EntityPlayer.REACH_DISTANCE, ReskillableBonuses.UUID_REACH);
             return;
         }
         stampAdd(player, SharedMonsterAttributes.ATTACK_DAMAGE, ReskillableBonuses.UUID_ATTACK,
@@ -348,6 +349,7 @@ public class ReskillableModule {
         stampAdd(player, SharedMonsterAttributes.MOVEMENT_SPEED, ReskillableBonuses.UUID_SPEED,
                 ReskillableBonuses.MOD_SPEED, "agility",
                 ArcanaQuestTweaksConfig.ReskillableModuleConfig.agility.speedPerLevel);
+        stampReach(player);
         stampBloodPactHealth(player);
         if (net.minecraftforge.fml.common.Loader.isModLoaded("dynamicstealth")) {
             PerkThreat.apply(player);
@@ -357,7 +359,7 @@ public class ReskillableModule {
     private static void stampBloodPactHealth(EntityPlayer player) {
         double amount = 0.0;
         if (ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.bloodPact.enable
-                && Reflect.hasUnlockable(player, "aqtweaks:blood_pact")) {
+                && PerkAccess.has(player, "aqtweaks:blood_pact")) {
             amount = ArcanaQuestTweaksConfig.ReskillableModuleConfig.magic.bloodPactMaxHealth;
         }
         IAttributeInstance instance = player.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH);
@@ -408,6 +410,33 @@ public class ReskillableModule {
         }
         instance.removeModifier(uuid);
         instance.applyModifier(new AttributeModifier(uuid, name, amount, 0).setSaved(false));
+    }
+
+    /**
+     * Building skill: extra block reach on the Forge {@code generic.reachDistance} attribute, which
+     * covers placing, breaking and using blocks. It does not change attack range or mob interaction
+     * (survival clients discard entity targets past 3 blocks). Capped by {@code Vanilla Reach Max},
+     * because the server rejects block interactions beyond roughly 6 to 8 blocks.
+     */
+    private static void stampReach(EntityPlayer player) {
+        IAttributeInstance instance = player.getEntityAttribute(EntityPlayer.REACH_DISTANCE);
+        if (instance == null) return;
+        var cfg = ArcanaQuestTweaksConfig.ReskillableModuleConfig.building;
+        double k = cfg.vanillaReachPerLevel;
+        double amount = k <= 0.0 ? 0.0
+                : Math.min(cfg.vanillaReachMax, ReskillableBonuses.skillLevel(player, "building") * k);
+        AttributeModifier existing = instance.getModifier(ReskillableBonuses.UUID_REACH);
+        if (amount <= 0.0) {
+            if (existing != null) instance.removeModifier(ReskillableBonuses.UUID_REACH);
+            return;
+        }
+        if (existing != null && existing.getAmount() == amount && existing.getOperation() == 0
+                && !existing.isSaved()) {
+            return;
+        }
+        instance.removeModifier(ReskillableBonuses.UUID_REACH);
+        instance.applyModifier(new AttributeModifier(ReskillableBonuses.UUID_REACH,
+                ReskillableBonuses.MOD_REACH, amount, 0).setSaved(false));
     }
 
     private static void clearModifier(EntityPlayer player, IAttribute attribute, UUID uuid) {

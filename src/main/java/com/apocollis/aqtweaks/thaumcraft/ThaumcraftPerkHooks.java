@@ -1,12 +1,14 @@
 package com.apocollis.aqtweaks.thaumcraft;
 
+import com.apocollis.aqtweaks.reskillable.PerkAccess;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
-import com.apocollis.aqtweaks.util.Reflect;
+import com.apocollis.aqtweaks.reskillable.ReskillableBonuses;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.common.util.FakePlayer;
+import net.minecraftforge.fml.common.Loader;
 import thaumcraft.common.world.aura.AuraHandler;
 
 public final class ThaumcraftPerkHooks {
@@ -18,7 +20,7 @@ public final class ThaumcraftPerkHooks {
 
     public static float visDiscount(EntityPlayer player, float base) {
         if (player == null || player instanceof FakePlayer) return base;
-        if (!Reflect.hasUnlockable(player, "aqtweaks:vis_thrift")) return base;
+        if (!PerkAccess.has(player, "aqtweaks:vis_thrift")) return base;
         double add = ArcanaQuestTweaksConfig.ReskillableModuleConfig.magic.visThriftAdd;
         return (float) Math.min(0.9, base + add);
     }
@@ -32,7 +34,7 @@ public final class ThaumcraftPerkHooks {
         Integer bound = WARP_BOUND.get();
         WARP_BOUND.remove();
         if (player == null || player instanceof FakePlayer) return event;
-        if (!Reflect.hasUnlockable(player, "aqtweaks:quiet_mind")) return event;
+        if (!PerkAccess.has(player, "aqtweaks:quiet_mind")) return event;
         int usedBound = bound != null ? bound : 0;
         if (usedBound <= 0) return event;
         double frac = ArcanaQuestTweaksConfig.ReskillableModuleConfig.magic.quietMindBoundFraction;
@@ -50,7 +52,7 @@ public final class ThaumcraftPerkHooks {
         FULL_FONT_APPLIED.remove();
         if (crafting || player == null || player instanceof FakePlayer) return amount;
         if (!ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.fullFont.enable) return amount;
-        if (!Reflect.hasUnlockable(player, "aqtweaks:full_font")) return amount;
+        if (!PerkAccess.has(player, "aqtweaks:full_font")) return amount;
         if (!auraFull(player)) return amount;
         FULL_FONT_APPLIED.set(Boolean.TRUE);
         return (float) (amount * ArcanaQuestTweaksConfig.ReskillableModuleConfig.magic.fullFontVisCost);
@@ -60,10 +62,10 @@ public final class ThaumcraftPerkHooks {
         boolean applied = Boolean.TRUE.equals(FULL_FONT_APPLIED.get());
         FULL_FONT_APPLIED.remove();
         if (!applied || crafting || player == null || player instanceof FakePlayer) return;
+        if (!Loader.isModLoaded("reskillable")) return;
         try {
-            Class<?> bonuses = Class.forName("com.apocollis.aqtweaks.reskillable.ReskillableBonuses");
-            bonuses.getMethod("stampFullFont", EntityPlayer.class).invoke(null, player);
-        } catch (Throwable ignored) {
+            ReskillableBonuses.stampFullFont(player);
+        } catch (RuntimeException | LinkageError ignored) {
         }
     }
 

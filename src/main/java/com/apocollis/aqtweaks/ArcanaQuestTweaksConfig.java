@@ -1,5 +1,6 @@
 package com.apocollis.aqtweaks;
 
+import com.apocollis.aqtweaks.stamina.StaminaFeathers;
 import com.apocollis.aqtweaks.stamina.DssSkillCosts;
 import com.apocollis.aqtweaks.reskillable.ReskillablePerkLayout;
 import com.apocollis.aqtweaks.thaumcraft.ThaumcraftModule;
@@ -700,6 +701,15 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Should sleeping in a bed clear a small amount of Thaumcraft warp?")
         public static boolean enableWarpCleansing = true;
 
+        @Config.Name("Sleep Minimum Hours")
+        @Config.Comment("In-game hours a player must have slept (bed to wake, counting Somnia fast-forward time) for the cleanse to apply. 1 hour = 1000 ticks. No morning or full-night requirement. 0 = any sleep that was recorded.")
+        @Config.RangeInt(min = 0, max = 24)
+        public static int sleepMinHours = 6;
+
+        @Config.Name("Sleep Comfort Temporary Warp Clear")
+        @Config.Comment("While sleeping, Somnia time-only fast-forward skips the player ticks that Comfort needs to clear temporary warp. When on, the skipped time is credited on waking at the player's current Homestead rate (2 / 3 / 6 progress per 30s scan, 12 progress clears 1 temporary warp). Time already covered by real player ticks is not counted twice.")
+        public static boolean sleepComfortTempClear = true;
+
         @Config.Name("Clear Normal Warp")
         @Config.Comment("Should normal (sticky) warp be reduced on successful sleep?")
         public static boolean clearNormalWarp = true;
@@ -959,6 +969,16 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Blocks of slope from the plate down to water or shore. 0 = old vertical cutoff at the waterline.")
         @Config.RangeInt(min = 0, max = 64)
         public int villageWaterBank = 16;
+
+        @Config.Name("Village Plate Depth")
+        @Config.Comment("How many blocks below the plate height the seal refills (the plate is this deep). Caves and ravines below that stay open under villages. Never deeper than Village Plate Min Y.")
+        @Config.RangeInt(min = 1, max = 255)
+        public int villagePlateDepth = 15;
+
+        @Config.Name("Village Plate Min Y")
+        @Config.Comment("Lowest Y the village plate seal may refill, whatever the depth. The seal runs from max(Min Y, plate height - Plate Depth) up to the plate height, never lower than Y1 and never above the plate. 1 = no floor.")
+        @Config.RangeInt(min = 1, max = 255)
+        public int villagePlateMinY = 50;
 
         @Config.Name("Village Ocean Wall")
         @Config.Comment("Stone brick wall with a brick top on plate columns that drop 2+ blocks to non-plate ground or to water across a chunk edge. Level rims and yards keep the biome top.")
@@ -1505,6 +1525,18 @@ public class ArcanaQuestTweaksConfig {
         public ReskillablePerkLayout sculptor = new ReskillablePerkLayout(
                 2, 3, 3, "reskillable:building", "reskillable:building|16");
 
+        @Config.Name("Reach I")
+        public ReskillablePerkLayout reach1 = new ReskillablePerkLayout(
+                0, 1, 2, "reskillable:building", "reskillable:building|10");
+
+        @Config.Name("Reach II")
+        public ReskillablePerkLayout reach2 = new ReskillablePerkLayout(
+                0, 2, 3, "reskillable:building", "reskillable:building|20", "trait|aqtweaks:reach1");
+
+        @Config.Name("Reach III")
+        public ReskillablePerkLayout reach3 = new ReskillablePerkLayout(
+                0, 3, 4, "reskillable:building", "reskillable:building|28", "trait|aqtweaks:reach2");
+
         @Config.Name("Transpose")
         public ReskillablePerkLayout transpose = new ReskillablePerkLayout(
                 3, 1, 3, "reskillable:building", "reskillable:building|20", "reskillable:magic|20");
@@ -1785,10 +1817,24 @@ public class ArcanaQuestTweaksConfig {
     }
 
     public static class ReskillableBuilding {
+        @Config.Name("Disable EB Reach Upgrade Items")
+        @Config.Comment("True = the Effortless Building reach upgrade items cannot be crafted or used, and the Reach I/II/III perks set the reach tier (20/50/100 by EB config). False = EB's own item upgrades work and perks are ignored. Restart after change.")
+        public boolean disableReachUpgradeItems = true;
+
         @Config.Name("EB Place Reach Per Level")
-        @Config.Comment("Added to Effortless Building getPlacementReach only (not vanilla REACH_DISTANCE, not attack reach). 0.125 → +2 at 16, +4 at 32.")
+        @Config.Comment("Added to Effortless Building getPlacementReach (its non-Normal build modes). Separate from Vanilla Reach Per Level. 0.125 → +2 at 16, +4 at 32.")
         @Config.RangeDouble(min = 0.0, max = 4.0)
         public double placeReachPerLevel = 0.125;
+
+        @Config.Name("Vanilla Reach Per Level")
+        @Config.Comment("Building skill: blocks added to the Forge block reach attribute (placing, breaking and using blocks, in Normal mode too). Not attack or mob-interaction range. 0.0625 → +1 at 16, +2 at 32. Limited by Vanilla Reach Max.")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public double vanillaReachPerLevel = 0.0625;
+
+        @Config.Name("Vanilla Reach Max")
+        @Config.Comment("Most blocks the Building skill can add to vanilla block reach. The server rejects block interactions beyond roughly 6 to 8 blocks, so keep this small.")
+        @Config.RangeDouble(min = 0.0, max = 4.0)
+        public double vanillaReachMax = 3.0;
 
         @Config.Name("EB Max Blocks Per Level")
         @Config.Comment("Added to Effortless Building getMaxBlocksPlacedAtOnce in survival. 1 → +16 at 16, +32 at 32.")
@@ -1813,6 +1859,20 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Chance of +1 forage / extra wool / extra fish. 0.00625 → 10% at 16, 20% at 32. Not ores, not crops.")
         @Config.RangeDouble(min = 0.0, max = 1.0)
         public double extraDropChancePerLevel = 0.00625;
+
+        @Config.Name("Reforester Chance Per Level")
+        @Config.Comment("Reforester: chance per broken leaf of a sapling = Gathering level x this, capped at 1. 0.03 -> 36% at 12, 96% at 32. Ignored when Reforester Guaranteed is on.")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public double reforesterChancePerLevel = 0.03;
+
+        @Config.Name("Reforester Guaranteed")
+        @Config.Comment("True = every broken leaf drops its sapling (the old behavior), still limited by Reforester Max Per Tree when a tree is felled.")
+        public boolean reforesterGuaranteed = false;
+
+        @Config.Name("Reforester Max Per Tree")
+        @Config.Comment("Most saplings Reforester grants from one felled tree (Tree Chopper). 64 = one stack. 0 = unlimited. Hand-broken single leaves are not limited.")
+        @Config.RangeInt(min = 0, max = 4096)
+        public int reforesterMaxPerTree = 64;
 
         @Config.Name("Herbalist Namespaces")
         @Config.Comment("Block registry namespaces that always +1 with Herbalist. Restart after edit.")
@@ -1980,6 +2040,10 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Skip biome-provider ocean and beach at the chunk center (Y=64). Off lets shafts roll there.")
         public boolean skipOceanAndBeach = true;
 
+        @Config.Name("Surface Shaft Fallback")
+        @Config.Comment("When Better Mineshafts cannot build its own entrance (common on RTG terrain), build a ladder shaft from the tunnel up to the ground with a plank collar so the mineshaft can be entered. Off keeps the closed underground stub. New chunks only.")
+        public boolean surfaceShaftFallback = true;
+
         @Config.Name("Tunnel Min Y")
         @Config.Comment("Lowest Y for the start tunnel (local copy; does not rewrite Better Mineshafts variant settings). Clamped to 1. New chunks only.")
         @Config.RangeInt(min = 1, max = 255)
@@ -2041,7 +2105,7 @@ public class ArcanaQuestTweaksConfig {
                 ConfigManager.sync(ArcanaQuestTweaks.MODID, Config.Type.INSTANCE);
                 normalizePinned();
                 DssSkillCosts.invalidate();
-                com.apocollis.aqtweaks.util.Reflect.invalidateWeightCache();
+                StaminaFeathers.invalidateWeightCache();
                 com.apocollis.aqtweaks.spawning.SpawnTypeLists.reload();
                 com.apocollis.aqtweaks.spawning.SpawnStructureLists.reload();
                 com.apocollis.aqtweaks.spawning.SpawnParties.reload();

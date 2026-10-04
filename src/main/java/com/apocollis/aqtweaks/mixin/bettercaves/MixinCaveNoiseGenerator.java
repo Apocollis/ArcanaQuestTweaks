@@ -1,10 +1,10 @@
 package com.apocollis.aqtweaks.mixin.bettercaves;
 
+import com.apocollis.aqtweaks.depths.DepthsBlocks;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.depths.PrimerAccess;
 import com.apocollis.aqtweaks.depths.QuarkSpeleothemDecor;
 import com.apocollis.aqtweaks.depths.UpperTunnelNetwork;
-import com.apocollis.aqtweaks.util.Reflect;
 import com.yungnickyoung.minecraft.bettercaves.noise.FastNoise;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.util.math.MathHelper;
@@ -93,7 +93,7 @@ public abstract class MixinCaveNoiseGenerator {
     @Inject(method = "<init>(Lnet/minecraft/world/World;)V", remap = false, at = @At("RETURN"))
     private void onInitDepthsBetterCaves(World world, CallbackInfo ci) {
         this.capturedWorld = world;
-        long seed = world != null ? Reflect.getSeed(world) : 1337L;
+        long seed = world != null ? world.getSeed() : 1337L;
         initNoiseIfNeeded(seed);
         UpperTunnelNetwork.init(seed);
     }
@@ -357,7 +357,7 @@ public abstract class MixinCaveNoiseGenerator {
         int minY = ArcanaQuestTweaksConfig.DepthsModuleConfig.general.minWorldY;
         if (minY >= 0) return;
 
-        long seed = Reflect.getSeed(this.capturedWorld);
+        long seed = this.capturedWorld.getSeed();
         initNoiseIfNeeded(seed);
         UpperTunnelNetwork.init(seed);
 
@@ -370,13 +370,13 @@ public abstract class MixinCaveNoiseGenerator {
         int bedrockTop = minY + 3;
         int lavaLevel = -55;
 
-        IBlockState bedrockState = Reflect.getBedrockState();
-        IBlockState airState = Reflect.getAirState();
-        IBlockState lavaState = Reflect.getLavaState();
-        IBlockState deepslateState = Reflect.getDeepslateState();
-        net.minecraft.block.Block airBlock = Reflect.getAirBlock();
-        net.minecraft.block.Block bedrockBlock = Reflect.getBedrockBlock();
-        net.minecraft.block.Block lavaBlock = Reflect.getLavaBlock();
+        IBlockState bedrockState = DepthsBlocks.BEDROCK_STATE;
+        IBlockState airState = DepthsBlocks.AIR_STATE;
+        IBlockState lavaState = DepthsBlocks.LAVA_STATE;
+        IBlockState deepslateState = DepthsBlocks.deepslateState();
+        net.minecraft.block.Block airBlock = DepthsBlocks.AIR;
+        net.minecraft.block.Block bedrockBlock = DepthsBlocks.BEDROCK;
+        net.minecraft.block.Block lavaBlock = DepthsBlocks.LAVA;
 
         if (deepslateState == null) {
             LOGGER.error("[AQ-DEPTHS] Deepslate NULL in primer — decor skipped");

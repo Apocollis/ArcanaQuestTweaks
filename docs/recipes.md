@@ -38,6 +38,10 @@ Otherwise wrap (lambda lives in Tweaks, not Forge): if `file` is a `Path` and `s
    - Checks for `"<id>"` for any entry in `SKIP_ITEMS` (40 known missing items).
    - If matched, logs once per missing item ID at INFO (`Skipping recipe JSON with known-missing item {}`) via a thread-safe set and returns `true`.
 
+Unqualified ids: a mod's own recipes may write `"item": "tape"`, which Forge resolves to `<modid>:tape`. For files under `.../assets/<modid>/recipes/`, entries of the skip list in that namespace also match the quoted bare path (`"tape"`). Without this, `bibliocraft:tapemeasure` (which reads `"tape"`) was parsed and logged a stack trace.
+
+Also skipped: `assets/effortlessbuilding/recipes/reach_upgrade*` while `Disable EB Reach Upgrade Items` is on (replaced by the Reach I/II/III perks).
+
 Keep the `/recipes` gate so unrelated `findFiles` walks are untouched.
 
 ## Files

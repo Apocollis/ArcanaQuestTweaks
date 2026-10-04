@@ -1,6 +1,5 @@
 package com.apocollis.aqtweaks.rtg;
 
-import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
@@ -83,7 +82,7 @@ public final class CommandAqVillage extends CommandBase {
         }
         Object rawGen = StructureVillageOverlap.findVillageGenerator(world);
         if (!(rawGen instanceof MapGenVillage)) {
-            Object chunkGen = Reflect.getChunkGenerator(world);
+            Object chunkGen = StructureAccess.getChunkGenerator(world);
             Object provider = null;
             try {
                 provider = world.getChunkProvider();
@@ -100,8 +99,8 @@ public final class CommandAqVillage extends CommandBase {
             throw new CommandException("No village generator on this world");
         }
         MapGenVillage village = (MapGenVillage) rawGen;
-        Reflect.setMapGenWorld(village, world);
-        Reflect.initializeStructureData(village, world);
+        StructureAccess.setMapGenWorld(village, world);
+        StructureAccess.initializeStructureData(village, world);
 
         ChunkGeneratorRTG rtg = StructureVillageOverlap.findRtgGenerator(world);
         boolean pushedGen = false;
@@ -133,7 +132,7 @@ public final class CommandAqVillage extends CommandBase {
         int standZ = stand[1];
         int y = stand[2];
         world.getChunk(standX >> 4, standZ >> 4);
-        Biome biome = Reflect.getBiome(world.getBiomeProvider(), wellX, wellZ);
+        Biome biome = StructureAccess.getBiome(world.getBiomeProvider(), wellX, wellZ);
         String kind = hit.unexplored ? "unexplored" : "known";
         TextComponentString message = new TextComponentString(String.format(
                 "Village well (%s) at %d %d %d biome=%s",
@@ -163,9 +162,9 @@ public final class CommandAqVillage extends CommandBase {
     }
 
     private static Hit nearestUnexplored(World world, MapGenVillage village, BlockPos from) {
-        int spacing = Reflect.getVillageDistance(village);
+        int spacing = StructureAccess.getVillageDistance(village);
         if (spacing < 9) spacing = 32;
-        int minTown = Reflect.getVillageMinDistance(village);
+        int minTown = StructureAccess.getVillageMinDistance(village);
         if (minTown < 1 || minTown >= spacing) minTown = 8;
         int originCx = from.getX() >> 4;
         int originCz = from.getZ() >> 4;
@@ -179,10 +178,10 @@ public final class CommandAqVillage extends CommandBase {
                 int[] well = VillageLandHelper.villageWellChunk(seed, cellX, cellZ, spacing, minTown);
                 int gx = well[0];
                 int gz = well[1];
-                if (world.isChunkGeneratedAt(gx, gz) || Reflect.hasStructureStart(village, gx, gz)) {
+                if (world.isChunkGeneratedAt(gx, gz) || StructureAccess.hasStructureStart(village, gx, gz)) {
                     continue;
                 }
-                if (!Reflect.canSpawnVillage(village, gx, gz)) {
+                if (!StructureAccess.canSpawnVillage(village, gx, gz)) {
                     continue;
                 }
                 int[] wellXZ = VillageLandHelper.resolvedWellForChunk(world, gx, gz);
@@ -199,9 +198,9 @@ public final class CommandAqVillage extends CommandBase {
     private static Hit nearestKnown(World world, MapGenVillage village, BlockPos from) {
         Hit best = null;
         double bestDist = Double.MAX_VALUE;
-        for (Object start : Reflect.getMapGenStructureStarts(village)) {
-            int cx = Reflect.getStructureStartChunkX(start);
-            int cz = Reflect.getStructureStartChunkZ(start);
+        for (Object start : StructureAccess.getMapGenStructureStarts(village)) {
+            int cx = StructureAccess.getStructureStartChunkX(start);
+            int cz = StructureAccess.getStructureStartChunkZ(start);
             if (cx == Integer.MIN_VALUE || cz == Integer.MIN_VALUE) continue;
             String reason = VillageLandHelper.startRejectReason(world, cx, cz);
             if (reason != null) continue;

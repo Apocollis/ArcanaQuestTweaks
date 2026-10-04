@@ -62,11 +62,24 @@ public final class RecipeJsonSkip {
     };
 
     private static final String[] SKIP_ITEM_NEEDLES = new String[SKIP_ITEMS.length];
+    /**
+     * Quoted bare path of each id ({@code "tape"} for {@code bibliocraft:tape}). Forge resolves an
+     * unqualified {@code "item": "tape"} in a mod's own recipe to that mod's namespace, so such a file
+     * never contains the full id. Only matched inside the owning mod's recipes.
+     */
+    private static final String[] SKIP_ITEM_BARE_NEEDLES = new String[SKIP_ITEMS.length];
+    private static final String[] SKIP_ITEM_NAMESPACE = new String[SKIP_ITEMS.length];
     static {
         for (int i = 0; i < SKIP_ITEMS.length; i++) {
             SKIP_ITEM_NEEDLES[i] = "\"" + SKIP_ITEMS[i] + "\"";
+            int colon = SKIP_ITEMS[i].indexOf(':');
+            SKIP_ITEM_NAMESPACE[i] = SKIP_ITEMS[i].substring(0, colon);
+            SKIP_ITEM_BARE_NEEDLES[i] = "\"" + SKIP_ITEMS[i].substring(colon + 1) + "\"";
         }
     }
+
+    private static final java.util.regex.Pattern RECIPE_OWNER =
+            java.util.regex.Pattern.compile("/assets/([^/]+)/recipes/");
 
     private static final AtomicBoolean LOGGED = new AtomicBoolean(false);
     private static final java.util.Set<String> LOGGED_ITEMS = java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
@@ -85,11 +98,19 @@ public final class RecipeJsonSkip {
             }
         }
 
+        if (path.contains("/assets/effortlessbuilding/recipes/reach_upgrade")
+                && com.apocollis.aqtweaks.ArcanaQuestTweaksConfig.ReskillableModuleConfig.building.disableReachUpgradeItems) {
+            return true;
+        }
+
         if (path.endsWith(".json")) {
             try {
                 String content = java.nio.file.Files.readString(file, java.nio.charset.StandardCharsets.UTF_8);
+                java.util.regex.Matcher owner = RECIPE_OWNER.matcher(path);
+                String modId = owner.find() ? owner.group(1) : null;
                 for (int i = 0; i < SKIP_ITEM_NEEDLES.length; i++) {
-                    if (content.contains(SKIP_ITEM_NEEDLES[i])) {
+                    if (content.contains(SKIP_ITEM_NEEDLES[i])
+                            || (SKIP_ITEM_NAMESPACE[i].equals(modId) && content.contains(SKIP_ITEM_BARE_NEEDLES[i]))) {
                         String itemId = SKIP_ITEMS[i];
                         if (LOGGED_ITEMS.add(itemId)) {
                             LOGGER.info("Skipping recipe JSON with known-missing item {}", itemId);

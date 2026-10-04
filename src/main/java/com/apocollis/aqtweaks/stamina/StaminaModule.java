@@ -1,8 +1,9 @@
 package com.apocollis.aqtweaks.stamina;
 
+import com.apocollis.aqtweaks.simpledifficulty.SimpleDifficultyHelper;
+import com.apocollis.aqtweaks.reskillable.PerkAccess;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 
-import com.apocollis.aqtweaks.util.Reflect;
 
 import com.elenai.elenaidodge2.api.FeathersHelper;
 import net.minecraft.block.Block;
@@ -208,7 +209,7 @@ public class StaminaModule {
                     if (currentFeathers > prevFeathers) {
                         int diff = currentFeathers - prevFeathers;
                         float exhaustion = diff * (float) ArcanaQuestTweaksConfig.StaminaModuleConfig.simpleDifficulty.thirstExhaustionPerFeather;
-                        Reflect.addThirstExhaustion(playerMP, exhaustion);
+                        SimpleDifficultyHelper.addThirstExhaustion(playerMP, exhaustion);
                     }
                 }
                 pData.setInteger(key, currentFeathers);
@@ -231,8 +232,8 @@ public class StaminaModule {
 
             if (ticks >= interval) {
                 int cost = ArcanaQuestTweaksConfig.StaminaModuleConfig.bowDrawing.bowHoldCost;
-                if (Reflect.hasEnoughStamina(player, cost)) {
-                    Reflect.decreaseFeathers(player, cost);
+                if (StaminaFeathers.hasEnoughStamina(player, cost)) {
+                    StaminaFeathers.decreaseFeathers(player, cost);
                     ticks = 0;
                 } else {
                     player.resetActiveHand();
@@ -261,8 +262,8 @@ public class StaminaModule {
 
             if (ticks >= interval) {
                 int cost = ArcanaQuestTweaksConfig.StaminaModuleConfig.bowDrawing.bowHoldCost;
-                if (Reflect.hasEnoughStamina(player, cost)) {
-                    Reflect.decreaseFeathers(player, cost);
+                if (StaminaFeathers.hasEnoughStamina(player, cost)) {
+                    StaminaFeathers.decreaseFeathers(player, cost);
                     ticks = 0;
                 } else {
                     player.resetActiveHand();
@@ -304,7 +305,7 @@ public class StaminaModule {
         BlockPos pos = new BlockPos(x, y, z);
         Block block = world.getBlockState(pos).getBlock();
 
-        boolean isRope = Reflect.isRopeBlock(block);
+        boolean isRope = StaminaFeathers.isRopeBlock(block);
         boolean isVine = !isRope && (block instanceof net.minecraft.block.BlockVine
                 || block.getClass().getSimpleName().toLowerCase().contains("vine"));
 
@@ -345,8 +346,8 @@ public class StaminaModule {
             int ticks = pData.getInteger(ticksKey) + 1;
 
             if (ticks >= interval) {
-                if (cost > 0 && Reflect.hasEnoughStamina(player, cost)) {
-                    Reflect.decreaseFeathers(player, cost);
+                if (cost > 0 && StaminaFeathers.hasEnoughStamina(player, cost)) {
+                    StaminaFeathers.decreaseFeathers(player, cost);
                 }
                 ticks = 0; // always reset — avoid latching when spend fails
             }
@@ -357,7 +358,7 @@ public class StaminaModule {
 
         if (ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.fallOnDepleted
                 && cost > 0
-                && !Reflect.hasEnoughStamina(player, cost)
+                && !StaminaFeathers.hasEnoughStamina(player, cost)
                 && pData.getInteger("StaminaTweaksLedgeClimbState") != 1
                 && pData.getInteger("StaminaTweaksLedgeClimbGrace") <= player.ticksExisted
                 && !pData.getBoolean("StaminaTweaksClimbJumpInput")) {
@@ -394,8 +395,8 @@ public class StaminaModule {
                 && (ticks - ledge.ledgeClimbExtraAfterTicks) % ledge.ledgeClimbExtraInterval == 0;
 
         if (extraDue) {
-            if (Reflect.hasEnoughStamina(player, extraCost)) {
-                Reflect.decreaseFeathers(player, extraCost);
+            if (StaminaFeathers.hasEnoughStamina(player, extraCost)) {
+                StaminaFeathers.decreaseFeathers(player, extraCost);
                 pData.setInteger("StaminaTweaksLedgeExtraSpends", extras + 1);
             } else {
                 clearLedgeMantle(pData);
@@ -413,7 +414,7 @@ public class StaminaModule {
         ArcanaQuestTweaksConfig.Grapple grapple = ArcanaQuestTweaksConfig.StaminaModuleConfig.grapple;
         if (!grapple.enableGrappleCost && !grapple.motorRequiresEmber) return;
 
-        if (!Reflect.isGrappling(player)) {
+        if (!GrappleHelper.isGrappling(player)) {
             if (pData.getInteger("StaminaTweaksGrappleTicks") > 0) {
                 pData.setInteger("StaminaTweaksGrappleTicks", 0);
             }
@@ -506,10 +507,10 @@ public class StaminaModule {
         int ticks = pData.getInteger("StaminaTweaksGrappleTicks") + 1;
         if (ticks >= interval) {
             if (cost > 0) {
-                if (Reflect.hasEnoughStamina(player, cost)) {
-                    Reflect.decreaseFeathers(player, cost);
+                if (StaminaFeathers.hasEnoughStamina(player, cost)) {
+                    StaminaFeathers.decreaseFeathers(player, cost);
                 } else {
-                    Reflect.detachGrapple(player);
+                    GrappleHelper.detach(player);
                 }
             }
             ticks = 0;
@@ -549,17 +550,17 @@ public class StaminaModule {
     private void handleServerGliding(EntityPlayerMP player, NBTTagCompound pData) {
         if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.glider.enableGliderCost) return;
 
-        if (Reflect.isGliding(player)) {
+        if (OpenGliderHelper.isGliding(player)) {
             int ticks = pData.getInteger("StaminaTweaksGliderTicks") + 1;
             int interval = ArcanaQuestTweaksConfig.StaminaModuleConfig.glider.gliderInterval;
 
             if (ticks >= interval) {
                 int cost = ArcanaQuestTweaksConfig.StaminaModuleConfig.glider.gliderCost;
-                if (Reflect.hasEnoughStamina(player, cost)) {
-                    Reflect.decreaseFeathers(player, cost);
+                if (StaminaFeathers.hasEnoughStamina(player, cost)) {
+                    StaminaFeathers.decreaseFeathers(player, cost);
                     ticks = 0;
                 } else {
-                    Reflect.undeployGlider(player);
+                    OpenGliderHelper.undeploy(player);
                     ticks = 0;
                 }
             }
@@ -582,7 +583,7 @@ public class StaminaModule {
         }
 
         int threshold = ArcanaQuestTweaksConfig.StaminaModuleConfig.sprinting.sprintThreshold;
-        if (!Reflect.hasEnoughStamina(player, threshold)) {
+        if (!StaminaFeathers.hasEnoughStamina(player, threshold)) {
             player.setSprinting(false);
             pData.setInteger("StaminaTweaksSprintTicks", 0);
             return;
@@ -594,8 +595,8 @@ public class StaminaModule {
                 ArcanaQuestTweaksConfig.StaminaModuleConfig.sprinting.sprintCost);
 
         if (ticks >= interval) {
-            if (cost > 0 && Reflect.hasEnoughStamina(player, cost)) {
-                Reflect.decreaseFeathers(player, cost);
+            if (cost > 0 && StaminaFeathers.hasEnoughStamina(player, cost)) {
+                StaminaFeathers.decreaseFeathers(player, cost);
             } else if (cost > 0) {
                 player.setSprinting(false);
             }
@@ -618,9 +619,9 @@ public class StaminaModule {
         int cost = StaminaPerks.jumpCost(playerMP,
                 ArcanaQuestTweaksConfig.StaminaModuleConfig.jumping.jumpCost);
 
-        if (Reflect.hasEnoughStamina(playerMP, threshold)) {
+        if (StaminaFeathers.hasEnoughStamina(playerMP, threshold)) {
             if (cost > 0) {
-                Reflect.decreaseFeathers(playerMP, cost);
+                StaminaFeathers.decreaseFeathers(playerMP, cost);
             }
         } else {
             // Block the jump by setting vertical velocity to 0
@@ -654,17 +655,17 @@ public class StaminaModule {
 
         int currentFeathers = FeathersHelper.getFeatherLevel(playerMP);
 
-        if (cost <= 0 || Reflect.hasEnoughStamina(playerMP, cost)) {
+        if (cost <= 0 || StaminaFeathers.hasEnoughStamina(playerMP, cost)) {
             if (cost > 0) {
-                Reflect.decreaseFeathers(playerMP, cost);
+                StaminaFeathers.decreaseFeathers(playerMP, cost);
             }
         } else {
             // Drain remaining usable feathers
-            int absorption = Reflect.getAbsorptionFeathers(playerMP);
-            int weight = Reflect.getWeight(playerMP);
+            int absorption = StaminaFeathers.getAbsorptionFeathers(playerMP);
+            int weight = StaminaFeathers.getWeight(playerMP);
             int totalUsable = (currentFeathers - weight) + absorption;
             if (totalUsable > 0) {
-                Reflect.decreaseFeathers(playerMP, totalUsable);
+                StaminaFeathers.decreaseFeathers(playerMP, totalUsable);
             }
             // Set attack penalty
             playerMP.getEntityData().setDouble("StaminaTweaksAttackPenalty", multiplier);
@@ -694,8 +695,8 @@ public class StaminaModule {
                    (type == WeaponType.HEAVY ? ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.heavyCost : ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.mediumCost);
         cost = StaminaPerks.meleeCost(playerMP, cost);
 
-        if (cost > 0 && Reflect.hasEnoughStamina(playerMP, cost)) {
-            Reflect.decreaseFeathers(playerMP, cost);
+        if (cost > 0 && StaminaFeathers.hasEnoughStamina(playerMP, cost)) {
+            StaminaFeathers.decreaseFeathers(playerMP, cost);
         }
     }
 
@@ -713,8 +714,8 @@ public class StaminaModule {
             if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.bowDrawing.enableBowCost) return;
             int drawCost = StaminaPerks.bowDrawCost(playerMP,
                     ArcanaQuestTweaksConfig.StaminaModuleConfig.bowDrawing.bowDrawCost);
-            if (Reflect.hasEnoughStamina(playerMP, drawCost)) {
-                Reflect.decreaseFeathers(playerMP, drawCost);
+            if (StaminaFeathers.hasEnoughStamina(playerMP, drawCost)) {
+                StaminaFeathers.decreaseFeathers(playerMP, drawCost);
             } else {
                 event.setCanceled(true);
             }
@@ -740,8 +741,8 @@ public class StaminaModule {
                     ArcanaQuestTweaksConfig.StaminaModuleConfig.bowDrawing.bowHoldInterval);
             if (ticksUsed > 0 && ticksUsed % interval == 0) {
                 int cost = ArcanaQuestTweaksConfig.StaminaModuleConfig.bowDrawing.bowHoldCost;
-                if (Reflect.hasEnoughStamina(playerMP, cost)) {
-                    Reflect.decreaseFeathers(playerMP, cost);
+                if (StaminaFeathers.hasEnoughStamina(playerMP, cost)) {
+                    StaminaFeathers.decreaseFeathers(playerMP, cost);
                 } else {
                     event.setCanceled(true);
                 }
@@ -762,8 +763,8 @@ public class StaminaModule {
         if (isThrowingWeapon(stack)) {
             if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.throwingWeapons.enableThrowingCost) return;
             int releaseCost = ArcanaQuestTweaksConfig.StaminaModuleConfig.throwingWeapons.throwingReleaseCost;
-            if (Reflect.hasEnoughStamina(playerMP, releaseCost)) {
-                Reflect.decreaseFeathers(playerMP, releaseCost);
+            if (StaminaFeathers.hasEnoughStamina(playerMP, releaseCost)) {
+                StaminaFeathers.decreaseFeathers(playerMP, releaseCost);
             } else {
                 event.setCanceled(true);
                 playerMP.resetActiveHand();
@@ -815,8 +816,8 @@ public class StaminaModule {
 
                 int ticks = data.getInteger("StaminaTweaksShieldTicks") + 1;
                 if (ticks >= interval) {
-                    if (Reflect.hasEnoughStamina(player, cost)) {
-                        Reflect.decreaseFeathers(player, cost);
+                    if (StaminaFeathers.hasEnoughStamina(player, cost)) {
+                        StaminaFeathers.decreaseFeathers(player, cost);
                         ticks = 0;
                     } else {
                         player.resetActiveHand();
@@ -849,21 +850,21 @@ public class StaminaModule {
 
         EntityPlayerMP playerMP = (EntityPlayerMP) player;
         if (ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.enableReskillable && 
-            Reflect.hasUnlockable(playerMP, ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.miningEfficiencyPerkId)) {
+            PerkAccess.has(playerMP, ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.miningEfficiencyPerkId)) {
             cost = Math.max(0, cost - ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.miningEfficiencyReduction);
         }
         cost = StaminaPerks.gatheringForageCost(playerMP, cost, event.getWorld(), event.getState());
         if (cost <= 0) return;
-        if (Reflect.hasEnoughStamina(playerMP, cost)) {
-            Reflect.decreaseFeathers(playerMP, cost);
+        if (StaminaFeathers.hasEnoughStamina(playerMP, cost)) {
+            StaminaFeathers.decreaseFeathers(playerMP, cost);
         } else {
             int currentFeathers = FeathersHelper.getFeatherLevel(playerMP);
-            int weight = Reflect.getWeight(playerMP);
+            int weight = StaminaFeathers.getWeight(playerMP);
             int usable = currentFeathers - weight;
-            int absorption = Reflect.getAbsorptionFeathers(playerMP);
+            int absorption = StaminaFeathers.getAbsorptionFeathers(playerMP);
             int totalUsable = usable + absorption;
             if (totalUsable > 0) {
-                Reflect.decreaseFeathers(playerMP, totalUsable);
+                StaminaFeathers.decreaseFeathers(playerMP, totalUsable);
             }
         }
     }

@@ -11,6 +11,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(value = ReachHelper.class, remap = false)
 public abstract class MixinReachHelper {
 
+    @Inject(method = "getMaxReach", at = @At("RETURN"), cancellable = true)
+    private static void aqtweaks$reachPerks(EntityPlayer player, CallbackInfoReturnable<Integer> cir) {
+        cir.setReturnValue(EffortlessBuildingHooks.maxReach(player, cir.getReturnValueI()));
+    }
+
     @Inject(method = "getPlacementReach", at = @At("RETURN"), cancellable = true)
     private static void aqtweaks$buildingPlaceReach(EntityPlayer player, CallbackInfoReturnable<Integer> cir) {
         cir.setReturnValue(EffortlessBuildingHooks.placementReach(player, cir.getReturnValueI()));

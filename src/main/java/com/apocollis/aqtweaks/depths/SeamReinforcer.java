@@ -1,66 +1,54 @@
-package com.apocollis.aqtweaks.mixin;
+package com.apocollis.aqtweaks.depths;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
-import com.apocollis.aqtweaks.depths.ChunkAccess;
-import com.apocollis.aqtweaks.depths.DepthsBiomeUtil;
-import com.apocollis.aqtweaks.depths.PrimerAccess;
-import com.apocollis.aqtweaks.depths.UpperTunnelNetwork;
-import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.world.World;
-import net.minecraft.world.WorldServer;
 import net.minecraft.world.chunk.Chunk;
-import net.minecraft.world.gen.ChunkProviderServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Chunk-side duties (Y≥0 safe):
- * - Reinforce breach tunnels through Y0–4 so +Y Better Caves connect (never refill land Y0)
- * - Water biomes: seal Y0
+ * Chunk-side Depths duties (Y 0-4 only):
+ * <ul>
+ *   <li>Reinforce breach tunnels through Y0-4 so +Y Better Caves connect (never refill land Y0).</li>
+ *   <li>Water biomes: seal Y0 with Deepslate.</li>
+ * </ul>
+ * All -Y cavern carve/decor lives in the primer (MixinCaveNoiseGenerator); Chunk -Y writes are
+ * unreliable.
  *
- * All -Y cavern carve/decor lives in primer (MixinCaveNoiseGenerator) — Chunk -Y writes are unreliable.
+ * <p>Called once per newly generated chunk from the RETURN of {@code ChunkGeneratorRTG.generateChunk}
+ * ({@code func_185932_a}) in {@code MixinChunkGeneratorRTG}. It used to hang off
+ * {@code ChunkProviderServer}, which does not declare that method, so it never ran.
  */
-@Mixin(value = ChunkProviderServer.class, remap = false)
-public class MixinChunkProviderServer {
+public final class SeamReinforcer {
 
     private static final Logger LOGGER = LogManager.getLogger("AQTweaks-BetterCavesUniversal");
     private static boolean loggedOnce = false;
 
-    @Shadow
-    public WorldServer field_73251_h;
+    private SeamReinforcer() {}
 
-    @Inject(method = "func_185932_a", at = @At("RETURN"))
-    private void onProvideChunkBreachReinforce(int chunkX, int chunkZ, CallbackInfoReturnable<Chunk> cir) {
+    public static void reinforce(World world, Chunk chunk, int chunkX, int chunkZ) {
         if (!ArcanaQuestTweaksConfig.DepthsModuleConfig.general.enableDepthsModule
                 || !ArcanaQuestTweaksConfig.DepthsModuleConfig.general.enableBetterDepthsCaves) {
             return;
         }
-
-        Chunk chunk = cir.getReturnValue();
-        if (chunk == null) return;
+        if (chunk == null || world == null || PrimerAccess.dimensionOf(world) != 0) return;
 
         int minY = ArcanaQuestTweaksConfig.DepthsModuleConfig.general.minWorldY;
         if (minY >= 0) return;
 
-        World world = this.field_73251_h != null ? this.field_73251_h : chunk.getWorld();
         long seed = ChunkAccess.getSeed(world);
         UpperTunnelNetwork.init(seed);
 
         if (!loggedOnce) {
-            LOGGER.info("[AQ-DEPTHS] Chunk pass: tunnel-path seam reinforce Y0–4 after BC");
+            LOGGER.info("[AQ-DEPTHS] Chunk pass: tunnel-path seam reinforce Y0-4 after BC");
             loggedOnce = true;
         }
 
-        IBlockState airState = Reflect.getAirState();
-        IBlockState deepslateState = Reflect.getDeepslateState();
-        net.minecraft.block.Block airBlock = Reflect.getAirBlock();
-        net.minecraft.block.Block bedrockBlock = Reflect.getBedrockBlock();
+        IBlockState airState = DepthsBlocks.AIR_STATE;
+        IBlockState deepslateState = DepthsBlocks.deepslateState();
+        net.minecraft.block.Block airBlock = DepthsBlocks.AIR;
+        net.minecraft.block.Block bedrockBlock = DepthsBlocks.BEDROCK;
 
         int startX = chunkX * 16;
         int startZ = chunkZ * 16;

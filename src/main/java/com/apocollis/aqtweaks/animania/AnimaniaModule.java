@@ -1,10 +1,10 @@
 package com.apocollis.aqtweaks.animania;
 
+import com.apocollis.aqtweaks.reskillable.PerkAccess;
 import com.animania.api.interfaces.IChild;
 import com.animania.api.interfaces.IFoodEating;
 import com.animania.api.interfaces.IImpregnable;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
-import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.math.AxisAlignedBB;
@@ -13,14 +13,9 @@ import net.minecraftforge.common.util.FakePlayer;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
-import java.lang.reflect.Method;
-
 public class AnimaniaModule {
 
     private static final int RANCHER_THROTTLE = 20;
-
-    private static Method extraProductionBulkMethod;
-    private static boolean farmClocksResolved;
 
     @SubscribeEvent
     public void onLivingUpdate(LivingEvent.LivingUpdateEvent event) {
@@ -45,20 +40,8 @@ public class AnimaniaModule {
     }
 
     private static void extraFarmClocksBulk(Entity entity, int steps) {
-        if (!farmClocksResolved) {
-            farmClocksResolved = true;
-            try {
-                extraProductionBulkMethod = Class.forName("com.apocollis.aqtweaks.animania.AnimaniaFarmClocks")
-                        .getMethod("extraProductionBulk", Entity.class, int.class);
-            } catch (Throwable ignored) {
-            }
-        }
-        if (extraProductionBulkMethod != null) {
-            try {
-                extraProductionBulkMethod.invoke(null, entity, steps);
-            } catch (Throwable ignored) {
-            }
-        }
+        if (!AnimaniaAddons.FARM) return;
+        AnimaniaFarmClocks.extraProductionBulk(entity, steps);
     }
 
     public static boolean rancherNearby(Entity entity) {
@@ -69,7 +52,7 @@ public class AnimaniaModule {
         for (EntityPlayer player : world.getEntitiesWithinAABB(EntityPlayer.class, box)) {
             if (player instanceof FakePlayer) continue;
             if (player.getDistanceSq(entity) > range * range) continue;
-            if (Reflect.hasUnlockable(player, "aqtweaks:rancher")) return true;
+            if (PerkAccess.has(player, "aqtweaks:rancher")) return true;
         }
         return false;
     }

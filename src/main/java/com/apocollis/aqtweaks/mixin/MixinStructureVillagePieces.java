@@ -3,6 +3,7 @@ package com.apocollis.aqtweaks.mixin;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.rtg.VillageDebug;
 import com.apocollis.aqtweaks.rtg.VillageLandHelper;
+import com.apocollis.aqtweaks.rtg.WaystoneBridge;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.world.gen.structure.StructureComponent;
 import net.minecraft.world.gen.structure.StructureVillagePieces;
@@ -13,7 +14,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Random;
 
@@ -25,9 +25,6 @@ public abstract class MixinStructureVillagePieces {
 
     @Unique
     private static final ThreadLocal<Boolean> AQTWEAKS$RETRYING_PATH = ThreadLocal.withInitial(() -> Boolean.FALSE);
-
-    @Unique
-    private static Method AQTWEAKS$WAYSTONE_BUILD;
 
     @Shadow(remap = false)
     private static StructureComponent func_176066_d(StructureVillagePieces.Start start, List<StructureComponent> structureComponents,
@@ -110,30 +107,9 @@ public abstract class MixinStructureVillagePieces {
     }
 
     @Unique
-    @SuppressWarnings("unchecked")
     private static StructureComponent aqtweaks$buildWaystone(StructureVillagePieces.Start start, List<StructureComponent> pieces,
                                                             Random rand, int x, int y, int z, EnumFacing facing, int type) {
-        try {
-            Method method = AQTWEAKS$WAYSTONE_BUILD;
-            if (method == null) {
-                Class<?> clazz = Class.forName("net.blay09.mods.waystones.worldgen.ComponentVillageWaystone");
-                method = clazz.getMethod("buildComponent",
-                        StructureVillagePieces.PieceWeight.class,
-                        StructureVillagePieces.Start.class,
-                        List.class,
-                        Random.class,
-                        int.class, int.class, int.class,
-                        EnumFacing.class,
-                        int.class);
-                AQTWEAKS$WAYSTONE_BUILD = method;
-            }
-            StructureVillagePieces.PieceWeight weight = new StructureVillagePieces.PieceWeight(
-                    (Class<? extends StructureVillagePieces.Village>) method.getDeclaringClass(), 3, 1);
-            Object built = method.invoke(null, weight, start, pieces, rand, x, y, z, facing, type);
-            return built instanceof StructureComponent ? (StructureComponent) built : null;
-        } catch (Throwable ignored) {
-            return null;
-        }
+        return WaystoneBridge.build(start, pieces, rand, x, y, z, facing, type);
     }
 
     @Inject(method = "func_176069_e", at = @At("RETURN"), cancellable = true)

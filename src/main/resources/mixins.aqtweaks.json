@@ -10,7 +10,6 @@
     "MixinEntityRendererLight"
   ],
   "mixins": [
-    "MixinChunkProviderServer",
     "depthsupdate.MixinDepthsCaveNoiseGenerator",
     "cofh.MixinDistributionUniform",
     "reccomplex.MixinRayMatcher",

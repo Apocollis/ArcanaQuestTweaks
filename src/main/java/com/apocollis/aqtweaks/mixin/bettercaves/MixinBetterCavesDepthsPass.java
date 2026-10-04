@@ -1,10 +1,10 @@
 package com.apocollis.aqtweaks.mixin.bettercaves;
 
+import com.apocollis.aqtweaks.depths.DepthsBlocks;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.depths.DepthsBiomeUtil;
 import com.apocollis.aqtweaks.depths.PrimerAccess;
 import com.apocollis.aqtweaks.depths.UpperTunnelNetwork;
-import com.apocollis.aqtweaks.util.Reflect;
 import com.yungnickyoung.minecraft.bettercaves.world.MapGenBetterCaves;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.world.World;
@@ -50,16 +50,16 @@ public abstract class MixinBetterCavesDepthsPass {
         int minY = ArcanaQuestTweaksConfig.DepthsModuleConfig.general.minWorldY;
         if (minY >= 0) return;
 
-        UpperTunnelNetwork.init(Reflect.getSeed(worldIn));
+        UpperTunnelNetwork.init(worldIn.getSeed());
 
         if (!loggedOnce) {
             LOGGER.info("[AQ-DEPTHS] BC companion: tunnel-path mouths into +Y after Better Caves");
             loggedOnce = true;
         }
 
-        IBlockState airState = Reflect.getAirState();
-        net.minecraft.block.Block airBlock = Reflect.getAirBlock();
-        net.minecraft.block.Block bedrockBlock = Reflect.getBedrockBlock();
+        IBlockState airState = DepthsBlocks.AIR_STATE;
+        net.minecraft.block.Block airBlock = DepthsBlocks.AIR;
+        net.minecraft.block.Block bedrockBlock = DepthsBlocks.BEDROCK;
 
         int startX = chunkX * 16;
         int startZ = chunkZ * 16;

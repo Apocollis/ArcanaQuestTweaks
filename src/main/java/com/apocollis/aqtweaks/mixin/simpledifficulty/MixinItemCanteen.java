@@ -1,7 +1,7 @@
 package com.apocollis.aqtweaks.mixin.simpledifficulty;
 
+import com.apocollis.aqtweaks.reskillable.PerkAccess;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
-import com.apocollis.aqtweaks.util.Reflect;
 import com.charles445.simpledifficulty.api.thirst.ThirstEnum;
 import com.charles445.simpledifficulty.item.ItemCanteen;
 import net.minecraft.entity.player.EntityPlayer;
@@ -20,7 +20,7 @@ public abstract class MixinItemCanteen {
         EntityPlayer player = currentPlayer();
         if (player == null || player instanceof FakePlayer) return type;
         if (!ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.waterCollector.enable) return type;
-        if (!Reflect.hasUnlockable(player, "aqtweaks:water_collector")) return type;
+        if (!PerkAccess.has(player, "aqtweaks:water_collector")) return type;
         return ThirstEnum.PURIFIED;
     }
 

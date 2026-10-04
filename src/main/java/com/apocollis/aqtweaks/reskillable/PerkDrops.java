@@ -41,7 +41,7 @@ public final class PerkDrops {
     }
 
     public static void afterCoreRolls(BlockEvent.HarvestDropsEvent event) {
-        EntityPlayer player = event.getHarvester();
+        EntityPlayer player = HarvestActor.of(event);
         IBlockState state = event.getState();
         List<ItemStack> drops = event.getDrops();
         if (player == null || state == null || drops == null) return;
@@ -67,7 +67,7 @@ public final class PerkDrops {
             }
         }
         if (PerkAccess.on(player, "aqtweaks:reforester", perks.reforester.enable) && isLeaves(state)) {
-            reforest(event.getWorld(), state, drops);
+            reforest(event.getWorld(), player, state, drops);
         }
         if (PerkAccess.on(player, "aqtweaks:sifter", perks.sifter.enable)) {
             sift(event.getWorld(), player, state, drops);
@@ -85,7 +85,7 @@ public final class PerkDrops {
     }
 
     public static boolean ownsLithomancy(BlockEvent.HarvestDropsEvent event) {
-        EntityPlayer player = event.getHarvester();
+        EntityPlayer player = HarvestActor.of(event);
         if (player == null || event.getState() == null) return false;
         if (ReskillableBonuses.hasSilkTouch(player)) return false;
         if (!ReskillableBonuses.isOreBlock(event.getWorld(), event.getState())) return false;
@@ -127,9 +127,19 @@ public final class PerkDrops {
         return 0.01;
     }
 
-    private static void reforest(World world, IBlockState state, List<ItemStack> drops) {
+    /**
+     * One sapling of the leaf's tree. By default a gathering-scaled chance per leaf (like Lumberjack's
+     * logs); {@code Reforester Guaranteed} restores one sapling for every leaf. A felled tree (Tree
+     * Chopper) grants at most {@code Reforester Max Per Tree} saplings.
+     */
+    private static void reforest(World world, EntityPlayer player, IBlockState state, List<ItemStack> drops) {
         for (ItemStack stack : drops) {
             if (isSapling(stack)) return;
+        }
+        var gathering = ArcanaQuestTweaksConfig.ReskillableModuleConfig.gathering;
+        if (!gathering.reforesterGuaranteed
+                && !ReskillableBonuses.roll(world, player, "gathering", gathering.reforesterChancePerLevel)) {
+            return;
         }
         Block block = state.getBlock();
         if (!(block instanceof BlockLeaves leaves)) return;
@@ -137,6 +147,7 @@ public final class PerkDrops {
         if (item == null || item == Items.AIR) return;
         ItemStack one = new ItemStack(item, 1, leaves.damageDropped(state));
         if (!isSapling(one)) return;
+        if (!HarvestActor.takeSapling(gathering.reforesterMaxPerTree)) return;
         drops.add(one);
     }
 

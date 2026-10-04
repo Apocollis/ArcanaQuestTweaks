@@ -2,7 +2,6 @@ package com.apocollis.aqtweaks.stamina;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 
-import com.apocollis.aqtweaks.util.Reflect;
 
 import io.netty.buffer.ByteBuf;
 import net.minecraft.block.Block;
@@ -41,9 +40,9 @@ public class PacketLedgeClimb implements IMessage {
 
                     int cost = StaminaPerks.climbCost(player,
                             ArcanaQuestTweaksConfig.StaminaModuleConfig.ledgeClimb.ledgeClimbCost);
-                    if (cost <= 0 || Reflect.hasEnoughStamina(player, cost)) {
+                    if (cost <= 0 || StaminaFeathers.hasEnoughStamina(player, cost)) {
                         if (cost > 0) {
-                            Reflect.decreaseFeathers(player, cost);
+                            StaminaFeathers.decreaseFeathers(player, cost);
                         }
                         NBTTagCompound pData = player.getEntityData();
                         pData.setInteger("StaminaTweaksLedgeClimbState", 1);

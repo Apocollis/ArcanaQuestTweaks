@@ -1,10 +1,11 @@
 package com.apocollis.aqtweaks.stamina;
 
+import com.apocollis.aqtweaks.reskillable.PerkAccess;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.potion.PerkCooldownEffects;
 import com.apocollis.aqtweaks.potion.PotionPerkCooldown;
+import com.apocollis.aqtweaks.reskillable.ReskillableBonuses;
 import com.apocollis.aqtweaks.stamina.StaminaModule.WeaponType;
-import com.apocollis.aqtweaks.util.Reflect;
 import com.elenai.elenaidodge2.ModConfig;
 import com.elenai.elenaidodge2.api.FeathersHelper;
 import net.minecraft.entity.Entity;
@@ -26,9 +27,11 @@ public final class StaminaPerks {
 
     private StaminaPerks() {}
 
+    private static final boolean RESKILLABLE = net.minecraftforge.fml.common.Loader.isModLoaded("reskillable");
+
     public static boolean unlocked(EntityPlayer player, String id) {
         return ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.enableReskillable
-                && Reflect.hasUnlockable(player, id);
+                && PerkAccess.has(player, id);
     }
 
     public static int minus(int cost, EntityPlayer player, String id, int reduction) {
@@ -46,14 +49,10 @@ public final class StaminaPerks {
 
     private static boolean isForageBlock(net.minecraft.world.World world,
             net.minecraft.block.state.IBlockState state) {
-        if (!net.minecraftforge.fml.common.Loader.isModLoaded("reskillable")) return false;
+        if (!RESKILLABLE) return false;
         try {
-            Object out = Class.forName("com.apocollis.aqtweaks.reskillable.ReskillableBonuses")
-                    .getMethod("isForageBlock", net.minecraft.world.World.class,
-                            net.minecraft.block.state.IBlockState.class)
-                    .invoke(null, world, state);
-            return Boolean.TRUE.equals(out);
-        } catch (Throwable ignored) {
+            return ReskillableBonuses.isForageBlock(world, state);
+        } catch (RuntimeException | LinkageError t) {
             return false;
         }
     }
@@ -136,9 +135,9 @@ public final class StaminaPerks {
         if (data.getInteger(NBT_EVASION_UNTIL) > now) return false;
 
         int dodgeCost = elenaiDodgeCost(player);
-        if (dodgeCost > 0 && !Reflect.hasEnoughStamina(player, dodgeCost)) return false;
+        if (dodgeCost > 0 && !StaminaFeathers.hasEnoughStamina(player, dodgeCost)) return false;
         if (dodgeCost > 0) {
-            Reflect.decreaseFeathers(player, dodgeCost);
+            StaminaFeathers.decreaseFeathers(player, dodgeCost);
         }
 
         int cooldown = Math.max(0, cfg.evasionCooldownTicks);
@@ -160,9 +159,9 @@ public final class StaminaPerks {
 
         int extra = Math.max(0, cfg.powerAttackExtraSpend);
         int total = meleeCost + extra;
-        if (total > 0 && !Reflect.hasEnoughStamina(player, total)) return false;
+        if (total > 0 && !StaminaFeathers.hasEnoughStamina(player, total)) return false;
         if (total > 0) {
-            Reflect.decreaseFeathers(player, total);
+            StaminaFeathers.decreaseFeathers(player, total);
         }
         double multiplier = type == WeaponType.HEAVY
                 ? cfg.powerAttackHeavyMultiplier

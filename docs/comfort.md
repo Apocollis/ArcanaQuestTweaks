@@ -27,7 +27,7 @@ Category caps are the design. Uncapped sums turn a chandelier farm into Homestea
 | Tweaks | `PotionHomestead` | HUD icon `assets/aqtweaks/textures/gui/homestead_icon.png`, registered on `RegistryEvent.Register<Potion>` as `aqtweaks:homestead` |
 | Lang | `en_us.lang` | `effect.aqtweaks.homestead=Homestead` (`getName()` returns that key; no `setTranslationKey`) |
 | Thaumcraft | Temp warp capability | Same `ThaumcraftHelper.reduceWarp` as the TC module; progress NBT `WarpCleansingProgress` (not `WarpExposureProgress`) |
-| Simple Difficulty | thirst, body temp, `cold_resist` / `heat_protection` / `cold_protection` / `heat_resist` | `Reflect` for thirst/temp; potions by resource name — null-safe |
+| Simple Difficulty | thirst, body temp, `cold_resist` / `heat_protection` / `cold_protection` / `heat_resist` | `SimpleDifficultyHelper` (guarded compile-hard) for thirst/temp; potions by resource name — null-safe |
 | Somnia | `somnia:sleepy` / `exhausted` / `fading` | default rows in `penalties.effects` |
 | Farmer's Delight | `farmersdelight:comfort` | default row in `bonuses.effects` |
 | Extra Alchemy | `extraalchemy:effect.learning` | Homestead I only; stripped on II/III |
@@ -100,7 +100,7 @@ Non-OP denied. Console without a player errors.
 
 ### Warp cleanse math
 
-Only if `thaumcraft` is loaded. Progress is persisted NBT `WarpCleansingProgress`. Each successful Homestead scan adds **2 / 3 / 6** (granted I / II / III). If the counter is **≥ 12**, reduce 1 temporary warp (`ThaumcraftHelper` type **1**) if any, `syncWarp`, and set the counter to **0** (remainder discarded; a firing with 0 temp warp still spends the bar). Losing Homestead does **not** clear the counter; the next true scan resumes. Stored values **> 12** (old 0–100 bars) are treated as 0 once.
+Only if `thaumcraft` is loaded. Progress is persisted NBT `WarpCleansingProgress`. Each successful Homestead scan adds **2 / 3 / 6** (granted I / II / III). If the counter is **≥ 12**, reduce 1 temporary warp (`ThaumcraftHelper` type **1**) if any, `syncWarp`, and set the counter to **0** (remainder discarded; a firing with 0 temp warp still spends the bar). Sleep credit: `applyAcceleratedWarpCleanse` (called from the Thaumcraft wake handler) adds the same progress for sleep time the player ticks did not cover, so Somnia time-only fast-forward clears temporary warp at the current band's rate. See [thaumcraft.md](thaumcraft.md). Losing Homestead does **not** clear the counter; the next true scan resumes. Stored values **> 12** (old 0–100 bars) are treated as 0 once.
 
 Time to 1 temp warp at the 30s interval:
 
@@ -257,7 +257,7 @@ Missing pack blocks simply never match; they do not crash.
 - `comfort/ComfortSettings.java` — settings JSON DTO
 - `comfort/ComfortBlocks.java` — blocks JSON DTO
 - `comfort/ComfortConfigLoader.java` — generate/load two files; merge missing `crafting` on blocks only
-- `util/Reflect.java` — SD thirst/temperature getters
+- `simpledifficulty/SimpleDifficultyHelper.java` — SD thirst/temperature getters (`thirstOrNull`, `temperatureOrNull`)
 - `comfort/PotionHomestead.java` — potion + `RegistrationHandler`
 - `assets/aqtweaks/lang/en_us.lang`
 - `assets/aqtweaks/textures/gui/homestead_icon.png`
@@ -270,7 +270,7 @@ Missing pack blocks simply never match; they do not crash.
 - Homestead I grants Extra Alchemy Learning, not Soot XP boost.
 - Keep category caps. Blocks JSON without `crafting` gets limit 1 and `minecraft:crafting_table`; a player-defined `crafting` key is not overwritten. Combined `aqtweaks_comfort.json` is ignored.
 - Comfort warp NBT is `WarpCleansingProgress`, not Thaumcraft exposure `WarpExposureProgress`. Do not wipe it when Homestead ends. Adds are 2/3/6; fire at ≥ 12.
-- Homestead cleanse calls `ThaumcraftHelper` (raw `Class` only). Generic `Class<?>` on that helper made Forge `SideTransformer` drop the class and crash the server tick.
+- Homestead cleanse calls the compile-hard `ThaumcraftHelper`, only behind `thaumcraftLoaded()`. History: a generic `Class<?>` in the old reflective helper made Forge `SideTransformer` drop the class and crash the server tick.
 - Thermals and cold resist look up potions by name so Simple Difficulty absence never classloads SD.
 - Entry requires rest pose/stillness **and** a hearth, bed/hammock/sleeping-bag, or seat (or whatever ids sit in `entry_require_categories`). **Continuing** rest allows walking inside the scored area **only while that furniture stays in the scan**.
 - Homestead HUD lasts 45s against a 30s scan so the icon does not drop between scans. Hurt, attack, lost furniture, and score below I still strip it immediately.

@@ -12,7 +12,7 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 
 /**
- * Farm-only extra products. Loaded via {@link Class#forName} from Reskillable.
+ * Farm-only extra products. Only entered when {@link AnimaniaAddons#FARM} is true (Reskillable wool perks).
  */
 public final class AnimaniaFarmProducts {
 

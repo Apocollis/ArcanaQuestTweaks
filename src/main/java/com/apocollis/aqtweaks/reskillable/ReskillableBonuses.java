@@ -6,7 +6,6 @@ import codersafterdark.reskillable.api.data.PlayerData;
 import codersafterdark.reskillable.api.data.PlayerDataHandler;
 import codersafterdark.reskillable.api.data.PlayerSkillInfo;
 import codersafterdark.reskillable.api.skill.Skill;
-import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockCocoa;
 import net.minecraft.block.BlockCrops;
@@ -63,6 +62,8 @@ public final class ReskillableBonuses {
     static final UUID UUID_ARMOR = UUID.fromString("8c1e6b10-4a3d-4c6f-9e2a-0b7d2f11a002");
     static final UUID UUID_SPEED = UUID.fromString("8c1e6b10-4a3d-4c6f-9e2a-0b7d2f11a003");
     static final UUID UUID_MAX_HEALTH = UUID.fromString("8c1e6b10-4a3d-4c6f-9e2a-0b7d2f11a004");
+    static final UUID UUID_REACH = UUID.fromString("8c1e6b10-4a3d-4c6f-9e2a-0b7d2f11a0b1");
+    static final String MOD_REACH = "aqtweaks.reskillable.reach";
 
     static final String MOD_ATTACK = "aqtweaks.reskillable.attack";
     static final String MOD_ARMOR = "aqtweaks.reskillable.armor";
@@ -323,7 +324,7 @@ public final class ReskillableBonuses {
         if (!enabled() || player == null || amount == 0.0f) return amount;
         float scaled = amount * magicMultiplier(player, true);
         if (ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.bloodPact.enable
-                && Reflect.hasUnlockable(player, "aqtweaks:blood_pact")) {
+                && PerkAccess.has(player, "aqtweaks:blood_pact")) {
             scaled *= (float) ArcanaQuestTweaksConfig.ReskillableModuleConfig.magic.bloodPactOutgoing;
         }
         if (consumeFullFontStamp(player)) {

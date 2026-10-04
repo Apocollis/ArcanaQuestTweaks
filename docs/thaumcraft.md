@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-02.
 
-Config: `config/arcanaquesttweaks/aqtweaks_thaumcraft.cfg`. Event handler registers only if `thaumcraft` is loaded (`CommonProxy.init`). Warp API is reflection (`ThaumcraftHelper`, raw `Class`) so Comfort can call it without importing TC types. Focus mixins **compile-hard** TC **6.1 BETA26** (`libs/`); missing that jar fails compile. Optional `mixins.aqtweaks.thaumcraft.json` (`required: false`) skips at runtime if TC is absent.
+Config: `config/arcanaquesttweaks/aqtweaks_thaumcraft.cfg`. Event handler registers only if `thaumcraft` is loaded (`CommonProxy.init`). Warp API is compile-hard (`ThaumcraftHelper` calls `ThaumcraftCapabilities.getWarp` / `IPlayerWarp` directly). Comfort and the Bewitchment ritual wrapper call it only behind `Loader.isModLoaded("thaumcraft")`, and the helper itself no-ops without TC, so TC types are never touched when it is absent. Focus mixins **compile-hard** TC **6.1 BETA26** (`libs/`); missing that jar fails compile. Optional `mixins.aqtweaks.thaumcraft.json` (`required: false`) skips at runtime if TC is absent.
 
 Comfort homestead drain is a **different** NBT key and module ([comfort.md](comfort.md)). Bewitchment ritual warp is [bewitchment.md](bewitchment.md). Village `isInsideStructure` padding is [rtg.md](rtg.md) — not this dungeon check. Cultist cage fail delay is [spawning.md](spawning.md) (`MobSpawnerBaseLogic`), not a Thaumcraft entity mixin.
 
@@ -51,7 +51,7 @@ Warp: `ThaumcraftModule` uses Forge events. Foci: optional mixins below.
 | --- | --- |
 | `PlayerLoggedInEvent` | If persisted `VisitedDimensions` is missing, set it to **current dim** so login is not “first visit” |
 | `PlayerChangedDimensionEvent` | If `enableDimensionWarp` and dim not in the list: append, then a **worker thread sleeps 2s**, then `server.addScheduledTask` awards warp |
-| `PlayerWakeUpEvent` | If `enableWarpCleansing`, not `wakeImmediately`, world is daytime: reduce **sticky** if `clearNormalWarp` (temp off by default) |
+| `PlayerWakeUpEvent` | If `enableWarpCleansing` and the player slept at least `sleepMinHours` in-game hours (world-clock delta since the first tick seen asleep; no morning or `wakeImmediately` test): reduce **sticky** if `clearNormalWarp`, credit Comfort temp-warp cleansing for skipped time if `sleepComfortTempClear` |
 | `PlayerTickEvent` END every **tickSeconds × 20** (default 600 / 30s) | Exposure: highest-G match only; pause banks otherwise |
 
 ### Dimension first visit
@@ -62,7 +62,9 @@ After the 2s delay, abort if the player is dead, world is null, or the player is
 
 ### Sleep cleanse
 
-Not a nap: `wakeImmediately` false **and** `world.isDaytime()`. Sticky reduce 1 if `clearNormalWarp`. `clearTempWarp` defaults **false** (Somnia already runs TC −1 temp / 100s and Comfort Homestead). Chat only if something was actually cleared and `enableChatMessage`.
+Not a nap: the player must have slept **at least `Sleep Minimum Hours`** (default **6**; 1 hour = 1000 ticks). The clock is `World.getWorldTime()`, so Somnia fast-forward counts, and it does not matter whether the player wakes at morning, at night, or by leaving the bed. The start is recorded by the first `PlayerTickEvent` that sees `isPlayerSleeping()` and cleared on wake, logout and dimension change; a sleep with no record (restart mid-sleep) does not qualify. Sticky reduce `normalWarpReduction` if `clearNormalWarp`.
+
+Temporary warp: the flat `clearTempWarp` extra stays **false**. Instead `sleepComfortTempClear` (default on) credits Homestead cleansing for the time the player's own ticks missed: `uncovered = (world time slept) - (player ticks while asleep)`. Somnia's Case B skips player ticks, so Comfort's 30s scan never ran for that time; Case A ticks the player too, so `uncovered` is about 0 and nothing is counted twice. `ComfortSystemHandler.applyAcceleratedWarpCleanse` converts it at the player's band (granted band if resting, else a fresh evaluation that needs furniture): `uncovered / 600 x (2 / 3 / 6)` progress added to the same `WarpCleansingProgress` counter, each 12 clears 1 temporary warp (capped at the temp warp the player has; the remainder carries over). Chat only if something was actually cleared and `enableChatMessage`.
 
 ### Exposure
 
@@ -125,6 +127,8 @@ Client mixins in `mixins.aqtweaks.baubles.json` (`required: false`). The `getMod
 | Name | Default | Live? | Meaning |
 | --- | --- | --- | --- |
 | Enable Sleep Warp Cleansing | true | yes | Master sleep sink |
+| Sleep Minimum Hours | **6** | yes | In-game hours slept (world clock, 1000 ticks each) before any sleep cleanse applies. 0 = any recorded sleep |
+| Sleep Comfort Temporary Warp Clear | true | yes | Credit Homestead temp-warp cleansing for sleep time the player ticks missed (see Sleep cleanse) |
 | Clear Normal Warp | true | yes | Reduce sticky on sleep |
 | Normal Warp Reduction | 1 | yes | Per successful sleep |
 | Clear Temporary Warp | **false** | yes | Extra temp on wake; leave off |
@@ -155,9 +159,9 @@ Client mixins in `mixins.aqtweaks.baubles.json` (`required: false`). The `getMod
 ## Files
 
 - `thaumcraft/ThaumcraftModule.java`
-- `thaumcraft/ThaumcraftHelper.java` — lazy `init()`, type index 0/1/2, `sync` only if `EntityPlayerMP`. Use raw `Class` (not `Class<?>`): Forge 1.12 `SideTransformer` throws on Java 21 generic Signature / LVT and the class then looks missing (`NoClassDefFoundError` from Comfort homestead cleanse).
-- `thaumcraft/ThaumcraftFocusHooks.java` — `markMagic`, Heal scale (Reskillable via reflection)
-- `thaumcraft/ThaumcraftPerkHooks.java` — Vis Thrift / Quiet Mind (no Reskillable import)
+- `thaumcraft/ThaumcraftHelper.java` — compile-hard warp wrapper, type index 0/1/2 (NORMAL / TEMPORARY / PERMANENT), `sync` only if `EntityPlayerMP`. A failing call logs once and returns 0; it no longer disables warp for the session. No generics on class literals (see below).
+- `thaumcraft/ThaumcraftFocusHooks.java` — `markMagic`, Heal scale (direct `ReskillableBonuses.scaleOutgoingHeal` behind `isModLoaded("reskillable")`)
+- `thaumcraft/ThaumcraftPerkHooks.java` — Vis Thrift / Quiet Mind / Full Font stamp (`PerkAccess.has`, guarded direct `ReskillableBonuses.stampFullFont`)
 - `mixin/thaumcraft/MixinFocusEffectExecute.java`, `MixinFocusEffectHeal.java`, `MixinCasterManager.java`, `MixinWarpEvents.java`, `MixinTileCrucible.java`
 - `thaumcraft/RunicShieldHud.java` — client gear cap, rune rows, and gold surplus. Not `@SideOnly`
 - `mixin/thaumcraft/MixinGuiIngameForgeRunicShield.java` — early json client, `GuiIngameForge.renderHealth`
@@ -169,12 +173,12 @@ Client mixins in `mixins.aqtweaks.baubles.json` (`required: false`). The `getMod
 
 - Always `syncWarp` after add/reduce on the server.
 - Dimension warp is **first visit only** (persisted array). Login must seed the current dim.
-- Sleep must be a real night sleep (`wakeImmediately` false, daytime). Default sleep sink is **sticky only**.
+- Sleep qualifies by hours slept (`Sleep Minimum Hours`, default 6), never by time of day or `wakeImmediately`. Default flat sleep sink is **sticky only**; temporary warp comes from the Comfort-rate credit, not a flat amount.
 - Off-thread sleep then `addScheduledTask` — never TC API from the worker thread.
 - Exposure banks **pause** when unmatched or Warp Ward; do not −seconds. Do not fill two banks in one pass.
 - Old cfg `dimId=seconds` / interval keys are dead; grants are amounts.
 - Comfort `WarpCleansingProgress` is a different counter.
-- `ThaumcraftHelper` fields and `Class.forName` locals stay raw `Class`. Generics here crash SideTransformer on Java 21 class files.
+- History: `ThaumcraftHelper` used raw `Class` locals because `Class<?>` there crashed Forge's SideTransformer on Java 21 class files. It no longer uses reflection or class literals; keep it free of `Class<?>`.
 - Focus mixin: stamp magic only on `attackEntityFrom`; do not double-scale hurt. Heal scale is Heal-only (other foci have no `heal` invoke).
 - Snowballs stay non-magic (`thrown` is not an allow prefix).
 - Vis Thrift still injects `getTotalVisDiscount` RETURN. Focus-pouch bauble offset is only the three pouch methods.

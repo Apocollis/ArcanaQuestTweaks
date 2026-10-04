@@ -1,5 +1,6 @@
 package com.apocollis.aqtweaks.mixin;
 
+import com.apocollis.aqtweaks.rtg.StructureAccess;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.rtg.StructureVillageOverlap;
 import com.apocollis.aqtweaks.rtg.VillageBridges;
@@ -7,7 +8,6 @@ import com.apocollis.aqtweaks.rtg.VillageDebug;
 import com.apocollis.aqtweaks.rtg.VillageLandHelper;
 import com.apocollis.aqtweaks.rtg.VillagePlate;
 import com.apocollis.aqtweaks.rtg.VillageRelight;
-import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.world.World;
 import net.minecraft.world.gen.structure.MapGenVillage;
 import net.minecraft.world.gen.structure.StructureBoundingBox;
@@ -61,7 +61,7 @@ public abstract class MixinStructureStartVillagePaste {
                                                 StructureBoundingBox box) {
         if (ArcanaQuestTweaksConfig.RtgModuleConfig.surface.skipWaterVillagePieces
                 && VillageLandHelper.isOceanOrRiverFloor(world, component, box)) {
-            int[] xz = Reflect.getStructureComponentBoxXZ(component);
+            int[] xz = StructureAccess.getStructureComponentBoxXZ(component);
             VillageDebug.log("village piece skip water floor type=%s at=%d,%d",
                     component.getClass().getSimpleName(),
                     xz != null ? xz[0] : 0,
@@ -78,7 +78,7 @@ public abstract class MixinStructureStartVillagePaste {
             if (!((Object) this instanceof MapGenVillage.Start) || world == null) return;
             Object gen = StructureVillageOverlap.findVillageGenerator(world);
             VillagePlate.ensureStarts(world, gen);
-            long seed = Reflect.getSeed(world);
+            long seed = world.getSeed();
             VillagePlate.Record rec = VillagePlate.recordForStart(seed, this);
             if (rec == null) {
                 VillagePlate.remember(world, this);

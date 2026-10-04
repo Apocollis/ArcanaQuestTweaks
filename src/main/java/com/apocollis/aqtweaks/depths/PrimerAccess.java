@@ -11,7 +11,7 @@ import net.minecraft.world.chunk.ChunkPrimer;
  * Direct primer/state access for the Depths carve path.
  *
  * <p>The Depths mixins are {@code remap = false}, so vanilla member names written inside those
- * classes are not remapped and have to go through {@link com.apocollis.aqtweaks.util.Reflect}.
+ * classes are not remapped and have to go through a shared helper.
  * Reflective invoke costs far too much for a per-block worldgen loop, so the vanilla calls live
  * here instead — this is one of Tweaks' own classes and is remapped at build time.
  *

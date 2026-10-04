@@ -1,7 +1,7 @@
 package com.apocollis.aqtweaks.mixin.bettermineshafts;
 
+import com.apocollis.aqtweaks.rtg.StructureAccess;
 import com.apocollis.aqtweaks.bettermineshafts.VerticalEntranceAccess;
-import com.apocollis.aqtweaks.util.Reflect;
 import com.yungnickyoung.minecraft.bettermineshafts.world.generator.pieces.VerticalEntrance;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -20,6 +20,14 @@ public abstract class MixinVerticalEntrance implements VerticalEntranceAccess {
     @Shadow
     private BlockPos centerPos;
 
+    @org.spongepowered.asm.mixin.Unique
+    private boolean aqtweaks$fallback;
+
+    @Override
+    public boolean aqtweaks$isFallback() {
+        return this.aqtweaks$fallback;
+    }
+
     @Override
     public BlockPos aqtweaks$getCenterPos() {
         return this.centerPos;
@@ -27,7 +35,8 @@ public abstract class MixinVerticalEntrance implements VerticalEntranceAccess {
 
     /**
      * Failed cliff openings return false so vanilla {@code generateStructure}
-     * drops the piece. Keep a small underground stub so locate /
+     * drops the piece. Mark the piece (the ladder shaft is built by the Start hook, see
+     * {@code MineshaftSurfaceShaft.carveForStart}) and keep a small underground stub so locate /
      * {@code isInsideStructure} still hit tunnel Y — not the original maxY=256
      * air column.
      */
@@ -40,10 +49,13 @@ public abstract class MixinVerticalEntrance implements VerticalEntranceAccess {
         if (this.centerPos == null) {
             return;
         }
+        // Surface opening: the Start-level hook (MixinStructureStartMineshaftBox) builds the shaft once it
+        // can see the sibling tunnel pieces; here only remember that the parent refused.
+        this.aqtweaks$fallback = true;
         int x = this.centerPos.getX();
         int y = this.centerPos.getY();
         int z = this.centerPos.getZ();
-        Reflect.setStructureComponentBoundingBox(this,
+        StructureAccess.setStructureComponentBoundingBox(this,
                 new StructureBoundingBox(x - 2, y, z - 2, x + 2, y + 6, z + 2));
         cir.setReturnValue(Boolean.TRUE);
     }

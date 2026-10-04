@@ -10,7 +10,7 @@ import net.minecraft.world.chunk.Chunk;
  * Direct chunk/world access for the Depths Y≥0 seam pass.
  *
  * <p>{@code MixinChunkProviderServer} is {@code remap = false}, so vanilla get/set must not be
- * written in that mixin. Null and throw behaviour matches {@link com.apocollis.aqtweaks.util.Reflect}.
+ * written in that mixin. Null and throw behaviour is the old Reflect behaviour.
  */
 public final class ChunkAccess {
 

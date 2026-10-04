@@ -8,6 +8,69 @@ Stay on version **1.8** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 - Shelter is an opaque **or glass** roof plus, by default, at least 3 of 4 cardinal collision walls. Glass ceilings count because glass does not raise the light heightmap. Serene Seasons greenhouse glass shifts the target from 12 to 14 — more heating in cold, less cooling in hot — matching Serene Seasons' own 7-block, ignore-what's-between scan so warmth and crop fertility agree. Greenhouse glass is read by registry name, so no Serene Seasons jar is added.
 - `MixinWorldUtil` lifts the temperature sample one block when a player rides a boat over water, so an open boat in clear weather no longer reads as wet `-6`. Rain, submerged boats, swimming, and other mounts are unchanged. Seven new `aqtweaks_stamina.cfg` keys. New module doc: [temperature.md](temperature.md).
 
+## 2026-10-04 — Building Reach I / II / III perks
+
+- New Building perks Reach I, II, III (chained, Building 10 / 20 / 28) set Effortless Building's reach tier to 20 / 50 / 100. The EB reach upgrade items are disabled (no recipes, right-click cancelled, stored upgrade level ignored); `Disable EB Reach Upgrade Items` = false restores them. Icons reuse the EB item art.
+
+## 2026-10-04 — Building skill raises vanilla block reach
+
+- The Building skill now adds to the Forge `generic.reachDistance` attribute (`Vanilla Reach Per Level` 0.0625, `Vanilla Reach Max` 3.0), so block placing, breaking and using reach further in Normal mode. Before, the bonus only touched Effortless Building's non-Normal modes, so it was never visible in plain play. Attack and mob reach are unchanged.
+
+## 2026-10-04 — Tree Chopper harvest perks, mineshaft shaft aimed at the tunnels
+
+- Lumberjack, Reforester and every other harvest perk now work on trees felled by Tree Chopper. Its `DestroyTree` breaks blocks with `World.destroyBlock(pos, true)`, which raised `HarvestDropsEvent` with no harvester, so all perks were skipped. `MixinTreeHandler` (new optional `mixins.aqtweaks.treechopper.json`, Tree Chopper jar added to `libs/`) records the felling player in `HarvestActor`.
+- Reforester is now a gathering-scaled chance per leaf (`Reforester Chance Per Level` 0.03) instead of one per leaf, with `Reforester Max Per Tree` = 64 for a felled tree and `Reforester Guaranteed` to restore the old rule. Skill descriptions updated.
+- The Better Mineshafts surface shaft is built by a Start-level hook that can see the sibling tunnel pieces: straight down the hub when it lies inside one, otherwise at the nearest piece box. Fixes shafts that ended in solid stone. One `[AQ-MINESHAFT]` log line per Start.
+
+## 2026-10-04 — Sleep warp cleanse by hours slept
+
+- The sleep cleanse no longer requires morning or `wakeImmediately == false`. It requires `Sleep Minimum Hours` (default 6, in-game, counted on the world clock so Somnia fast-forward counts) between going to bed and waking. Previously waking before morning, or leaving the bed after a long sleep, cleared nothing.
+- Temporary warp: sleep time that player ticks did not cover (Somnia Case B) is credited at the player's Homestead band rate (2 / 3 / 6 progress per 30s, 12 per temp warp) through the existing Comfort counter. New config `Sleep Minimum Hours`, `Sleep Comfort Temporary Warp Clear`.
+
+## 2026-10-04 — Mineshaft surface shaft, recipe skip, build script
+
+- Better Mineshafts entrances that BM refuses to build (common on RTG terrain) now get a 1x1 ladder shaft with a plank collar from tunnel level to the ground (`MineshaftSurfaceShaft`; config `Surface Shaft Fallback`, default on). Previously only a hidden stub was kept and the mineshaft had no way in.
+- `RecipeJsonSkip` also matches unqualified ids (`"tape"`) inside the owning mod's own recipes, which silences the `bibliocraft:tapemeasure` parse error.
+- `build_gradle.ps1`: no more false failure when stderr is merged (`GRADLE_OPTS` native-access flag, exit-code check), env-var overrides for the DEVBOX and JDK paths, exact-version jar copy.
+
+## 2026-10-04 — Glider cancel at 0 feathers, plate depth rule
+
+- `OpenGliderHelper.undeploy` also sends Open Glider's `PacketClientGliding(false)`. Before, the server flag cleared but the client kept gliding, so billing stopped and feathers regenerated mid-glide.
+- Village plate seal: new `Village Plate Depth` (default 15). The seal runs from `max(Village Plate Min Y, plate Y - Depth)` to the plate Y (Min Y stays 50).
+
+## 2026-10-04 — `Reflect` removed (cleanup batch 3)
+
+- `util/Reflect.java` (3,900 lines, ~190 reflective handles) is deleted. `remap = false` only affects mixin annotation strings; method bodies are remapped by `remapJar`, so vanilla is called directly everywhere. Verified in the built jar: a `remap = false` mixin body references `field_151587_i` / `func_185904_a`.
+- Protected/private vanilla members go through new accessors in `mixin.vanilla` (`AccessorMapGenBase`, `AccessorMapGenStructure`, `AccessorMapGenVillage`, `AccessorStructureComponent`, `AccessorVillageStart`, `AccessorChunkProviderServer`) wrapped by `rtg/StructureAccess`. This also turns the village save (`saveMapGenStructureStart`) and box refresh into working code instead of silent no-ops.
+- Elenai feathers/weight moved to `stamina/StaminaFeathers`; `PerkAccess.has` is the guarded Reskillable entry; `SimpleDifficultyHelper` gained guarded thirst/temperature getters; Depths block constants are `DepthsBlocks`.
+- The village seal loops in `MixinChunkGeneratorRTGVillage` use `PrimerAccess` instead of per-block reflective invokes. `ThaumcraftModule` per-tick checks are plain field reads.
+- The startup `[AQ-REFLECT]` audit and its 12 WARN handles are gone with the class.
+
+## 2026-10-04 — Compile-hard conversions (cleanup batch 2)
+
+- Grappling Hook, Open Glider and Waystones jars added to `libs/` and `build_gradle.ps1`. `stamina/GrappleHelper`, `OpenGliderHelper`, `rtg/WaystoneBridge` replace the reflection in `Reflect`, `GrappleClientInput` and `MixinStructureVillagePieces`. `MixinGrappleController` is a class-target mixin with a direct `motor` redirect (no per-tick field lookup).
+- `ThaumcraftHelper` calls the Thaumcraft warp capability directly; one failure logs once instead of disabling warp for the session.
+- Own-class `Class.forName` bridges (`ReskillableBonuses`, Animania Farm products/clocks) are direct calls behind cached `isModLoaded` flags (`AnimaniaAddons.FARM` for the Farm addon, which has no mod id).
+- `MixinTileCrucible` asks `SimpleDifficultyHelper.isBurningCampfire` (typed `BlockCampfire.BURNING` check) instead of matching a registry string.
+- `MixinGeneratorLakes`, `MixinWorldGenLakes` use `@Shadow`; `MixinSkillActive` targets `SkillActive.class` and reads `getUnlocalizedName` directly.
+
+## 2026-10-04 — Mineshaft Start mixin, locate ranking, village plate depth
+
+- `MixinMapGenBetterMineshaftStart` was skipped entirely at load (its `func_75068_a` hook targeted a method BM's `Start` does not declare). The box refresh moved to `MixinStructureStartMineshaftBox` on `StructureStart`, BM-guarded; the ctor Y override uses local index 5.
+- `/locate Mineshaft` ranks the nearest registered Start against the nearest predicted chunk by distance, ignores registered Starts for `findUnexplored`, and skips candidates within 32 blocks of the player. Previously the first generated Start won every locate.
+- The village plate seal now fills from `Village Plate Min Y` (default 50) to the plate height instead of from Y1, so caves exist under villages again. New chunks only.
+- `check_mixin_targets.py` resolves nested target classes (`Outer.Inner`).
+
+## 2026-10-04 — Dead mixin targets fixed (cleanup batch 1)
+
+- `MixinMapGenVillageWorld` targeted `MapGenBase.func_151539_a`, a 1.7/1.8 name. It now targets `func_186125_a`, and a per-thread stack replaces the per-instance flag so nested layout `generate` calls pop their own generator.
+- The Depths Y 0-4 seam pass (`SeamReinforcer`) now runs from RETURN of `ChunkGeneratorRTG.generateChunk`, once per new chunk. It was on `ChunkProviderServer`, which does not declare `func_185932_a`. `MixinChunkProviderServer` is removed.
+- Better Mineshafts locate pin moved to `MixinMapGenMineshaftLocate` on `MapGenMineshaft` (BM guarded), because BM does not declare `func_180706_b`.
+- `Reflect`: fixed `isSizeableStructure` (`func_75069_d`), `writeStructureComponentsToNBT` (`func_143021_a`), `ChunkProviderServer.chunkGenerator` (`field_186029_c`), `BlockPos.down`, `DamageSource.isDamageAbsolute`, `EntityArrow.shootingEntity`, `markBlockRangeForRenderUpdate`. Removed the nonexistent `setBoundingBox` handle. `updateBoundingBox` now goes through `InvokerStructureStart` (it is protected).
+- `Reflect.auditUnresolved` separates parent-mod (INFO) from vanilla (WARN) handles.
+- Optional mixin jsons set `injectors.defaultRequire = 1`. Required jsons (`aqtweaks`, `early`, `vanilla`, `charm`) follow after a clean boot.
+- New `scripts/check_mixin_targets.py`. See [build-and-release.md](build-and-release.md).
+
 ## 2026-10-02 — Campfire neighbor notification and Thaumcraft crucible heat
 
 - Simple Difficulty campfires notify neighbors on light, age, and extinguish so an Inspirations cauldron boils from the configured odd metas, and a fluid-filled Thaumcraft crucible heats from a burning campfire. Spec: [thaumcraft.md](thaumcraft.md).
@@ -68,3 +131,58 @@ Stay on version **1.8** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 - RandomPortals vertical dest frames were one block in the surface (bottom row replaced grass). Tweaks now raises them so the bottom row rests on the grass/island. See [twilightforest.md](twilightforest.md) and [aether.md](aether.md).
 
 ## 2026-09-23 — GUI close once, DSS unbound key
+
+- Mouse re-grab runs only on the outermost `displayGuiScreen` return, so Reskillable, BetterQuesting, and Hwyla config close with the pointer on the crosshair. DSS ignores key 0, so an unbound skills bind does not open on space. Assigned DSS and Baubles keys no longer call `Keyboard.isKeyDown`. See [minemenu.md](minemenu.md) and [stamina.md](stamina.md).
+
+## 2026-09-23 — GUI mouse recenter and Baubles key
+
+- Closing a screen forces the cursor free, centers it, then grabs again, and skips look for two camera frames so the warp is not yaw. MineMenu’s Baubles entry polls `isPressed()` and sends `PacketOpen(EXPANSION)` when the hardware key is up. See [minemenu.md](minemenu.md).
+
+## 2026-09-23 — DSS skills GUI from MineMenu
+
+- Client tick polls DSS Skills GUI `KeyBinding.isPressed()` and sends `OpenGuiPacket(0)` when the hardware key is not down. Client `/dssgui` sends the same packet. Real key presses stay on DSS `KeyInputEvent`. See [stamina.md](stamina.md).
+
+## 2026-09-23 — MineMenu mouse grab
+
+- Client mixins skip `EntityPlayerSP.turn` while any screen is open, and re-grab plus drain the LWJGL recenter delta when `displayGuiScreen` returns to play. `Minecraft` inject is in the early json client array. Spec: [minemenu.md](minemenu.md).
+
+## 2026-09-21 — Reskillable Magic schools
+
+- Four mutex Magic schools (Druid, Witch, Astromancer, Artificer) plus two follow-ups each. Thrift ×0.70 on the school perk. Spec: [reskillable.md](reskillable.md). Parent mixins stay in existing json where those modules already exist; Botania/Embers get optional json under this module.
+
+## 2026-09-21 — Aether portal island landing
+
+- RandomPortals dest dim 4 snaps onto aether grass/dirt/holystone before search/build (200 then 400). Mixin rejects void pads. Linked return portals unchanged. See [aether.md](aether.md).
+
+## 2026-09-21 — Dawnstone same-tier reroll
+
+- Common/Uncommon/Rare/Legendary also reroll yellow/green/blue/gold when the piece is already that tier. Ladder upgrades unchanged. Duplicate `cfg` string compare no longer gates Uncommon+.
+
+## 2026-09-21 — Dawnstone rune registry names
+
+- Crafting Runes 1.1 ids are `sccraftingrunes:itemcommonmat` (and uncommon/rare/legendary). Tweaks defaults and lookup now use those; old `*_mat` cfg values still resolve. Place the tool first, then the rune.
+
+## 2026-09-20 — Quality Tools wear/break skips
+
+- Do not cache `isQualityItem` before QT types load (crafted tools were stuck `not_quality`). Never cache a false miss; a live Quality tag counts as eligible. Armor `attemptDamageItem` with a null player still stamps wear/Broken in-slot.
+
+## 2026-09-20 — Quality Tools wear chance
+
+- Wear `gray` is no longer a flat 100% on the first eligible 40-tick hit. p = used × (250 / (max/2)), clamped to 0.05–0.50 (`wearChance` 0 still disables). Stone/iron sit on the ceiling; diamond stays below it.
+
+## 2026-09-20 — Quality Tools Module
+
+- Loot/drops stamp Quality Tools tags before pickup; crafted gear stays untagged (living-update first roll skipped). Wear `gray` at ≤20% remaining (not on Broken); break without Salvage drops `dark_gray` and keeps QualityBase. Dawnstone Anvil upgrades with Crafting Runes on a strict color ladder (rune consumed). Pack `tools.json` still needs a `dark_gray` Broken entry.
+
+## 2026-09-20 — Game Stages / Chisel
+
+- **Chisel** crafts (GUI `SlotChiselSelection.craft` and in-world `ItemChisel.canChisel`) refuse Recipe-Staged outputs unless `GameStageHelper.hasStage` is true. Pack allowlist: `apprentice_builder`, `experienced_builder`, `master_builder`. Red action bar `chat.aqtweaks.gamestages.chisel_locked`. Optional mixin json; AutoChisel and Chisels and Bits unchanged.
+
+## 2026-09-20 — release hardening
+
+- **Java target stays 21** (`options.release = 21`, class major 65). Do not `--release 8`. Mixin json is `JAVA_21`. Fugue refuses 66+ only.
+- **Village unload:** `VillagePlate` is loaded when village Events register so Forge’s `EventSubscriptionTransformer` does not ClassReader empty bytes during `stopServer`.
+- **Charm** is `@Mod required-after` (Curse / pack prerequisite). `mixins.aqtweaks.charm.json` is `required: true` on jar `MixinConfigs` with the early json; compile-hard `ASMHooks`. Isolated boot without Charm is expected to fail.
+- Shared `mixins.aqtweaks.refmap.json` is packaged; mixin configs point at it (silences missing per-json refmap warnings).
+- **Evasion:** drop unresolvable CAD `trait|` rows such as instance `trait|elenaidodge2:dodge`. Requirement is agility 16.
+- Gradle `verifyReleaseJar` (via `check`): remapped jar has `VillagePlate`, mixin json, refmap, and every class major 65.

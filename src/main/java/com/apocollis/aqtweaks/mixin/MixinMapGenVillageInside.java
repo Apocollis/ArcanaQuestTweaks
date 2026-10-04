@@ -1,10 +1,10 @@
 package com.apocollis.aqtweaks.mixin;
 
+import com.apocollis.aqtweaks.rtg.StructureAccess;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.rtg.VillageDebug;
 import com.apocollis.aqtweaks.rtg.VillageLandHelper;
 import com.apocollis.aqtweaks.rtg.VillagePlate;
-import com.apocollis.aqtweaks.util.Reflect;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.gen.structure.MapGenStructure;
@@ -25,14 +25,14 @@ public abstract class MixinMapGenVillageInside {
         if (pos == null) return;
         if (cir.getReturnValue() != null) return;
 
-        World world = Reflect.getMapGenWorld(this);
+        World world = StructureAccess.getMapGenWorld(this);
         if (world == null) world = VillageLandHelper.currentWorld();
         if (world == null) return;
 
         Object start = VillagePlate.startAt(world, this, pos.getX(), pos.getY(), pos.getZ());
         if (start instanceof StructureStart) {
-            String boxId = VillagePlate.wellKey(Reflect.getSeed(world),
-                    Reflect.getStructureStartChunkX(start), Reflect.getStructureStartChunkZ(start));
+            String boxId = VillagePlate.wellKey(world.getSeed(),
+                    StructureAccess.getStructureStartChunkX(start), StructureAccess.getStructureStartChunkZ(start));
             if (VillageDebug.once("yhit:" + boxId)) {
                 VillageDebug.log("detect hit pos=%d,%d,%d", pos.getX(), pos.getY(), pos.getZ());
             }

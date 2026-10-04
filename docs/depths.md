@@ -63,7 +63,7 @@ The two run in the right order because of their **injection points**, not becaus
 
 `RayMatcher.cast` stopped at Y=0. `@Overwrite` continues the ray to `minWorldY` when RC negative-Y is enabled. Structures can sit in the deep. Re-read this method on every RC bump.
 
-### Vanilla `ChunkProviderServer.func_185932_a`
+### Seam pass: `ChunkGeneratorRTG.func_185932_a` RETURN
 
 After the chunk exists, reinforce Y0–4 seam air on tunnel paths (chunk -Y writes are unreliable; primer owns -Y). Water biomes: seal Y0 with Deepslate so oceans do not open into the deep.
 
@@ -188,7 +188,7 @@ Same `UpperTunnelNetwork` as -Y upper worms. Overworld only (`dimension == 0`).
 | `mixin/bettercaves/MixinDepthsMapGenCaves.java` | Cancel vanilla `MapGenCaves` only |
 | `mixin/cofh/MixinDistributionUniform.java` | CoFH min Y |
 | `mixin/reccomplex/MixinRayMatcher.java` | `@Overwrite` rays to -64 |
-| `mixin/MixinChunkProviderServer.java` | Seam reinforce / water seal (Y≥0) via `ChunkAccess` |
+| `depths/SeamReinforcer.java` | Seam reinforce / water seal (Y 0-4) via `ChunkAccess`; called from `MixinChunkGeneratorRTG` at RETURN of `generateChunk` (`func_185932_a`), once per new chunk |
 | `mixin/MixinRenderGlobal.java` | Hide sky |
 | `depths/UpperTunnelNetwork.java` | Shared tunnel / chamber / seam / shaft paths |
 | `depths/PrimerAccess.java` | Direct (remapped) primer/state reads + open-sky surface scan |
@@ -250,7 +250,7 @@ A later pass moved the remaining `remap = false` hot-path Reflect (`CarverUtils.
 - `UpperTunnelNetwork` caches are **per thread** and bounded. Never a shared map; never unbounded.
 - Bridge-cell and water-biome caches are **per thread** and bounded. Water key is seed + dim + chunk XZ; unknown dim is not stored.
 - Performance work here stays exact-equivalence. No coarser noise, fewer octaves, or shifted thresholds.
-- Vanilla member access stays out of `remap = false` mixin bodies — use `PrimerAccess` / `ChunkAccess` / `BetterCavesReplaceable` (hot path) or `Reflect`.
+- Vanilla member access stays out of `remap = false` mixin bodies — use `PrimerAccess` / `ChunkAccess` / `BetterCavesReplaceable` on the hot path. (Plain vanilla calls in a mixin body are remapped and work, but these helpers keep the null/throw behaviour and are shared.) Block constants: `DepthsBlocks`.
 - `enableBetterDepthsCaves` vs `enableBetterCavesNegativeY` stay separate.
 - `@Overwrite` on `RayMatcher.cast` — re-verify on Recurrent Complex updates.
 - Turning off Better Depths Caves does **not** restore Depths’ own -Y caves (sample redirect has no flag).

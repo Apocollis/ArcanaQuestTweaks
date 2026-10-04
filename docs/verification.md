@@ -16,6 +16,8 @@ Worldgen applies to **new chunks only**.
 
 - [ ] Client starts the full pack; Charm is present (`required-after:charm`). No mixin apply crash from `mixins.aqtweaks.json`, `mixins.aqtweaks.early.json`, or `mixins.aqtweaks.charm.json`. Log must not say `MixinWorldRiftLight` / `World was loaded too early`, `MixinMinecraftMouseGrab` / `Minecraft was loaded too early`, `MixinEntityRendererMouse` / `EntityRenderer was loaded too early`, `MixinMobSpawnerBaseLogic` / `MobSpawnerBaseLogic was loaded too early`, `MixinTileEntityLockableLoot` / `TileEntityLockableLoot was loaded too early`, `MixinItemStackQualityDurability` / `MixinItemStackDurability` / `ItemStack was loaded too early`, `MixinBlockCropsSeed` / `BlockCrops was loaded too early`, `MixinASMHooksVillagePaste` / `ASMHooks was loaded too early`, `MixinWorldGenLakes` / `field_150589_a was not located` / `WorldGenLakes in invalid classes`, `empty category` / `StatsKeeperModuleConfig` / `BetterMineshaftsModuleConfig`, BM `setBoundingBox` / `func_75072_c` was not located, `MixinRPOTeleporter` / `field_85192_a was not located` in `RPOTeleporter`, `parseStructureData is not cancellable`, `StackOverflowError` / `ItemTechnomancerScribingTools` / `QualityDurability.afterSetDamage` during recipe init, or world-tick `StackOverflowError` / `QualityStamp.stampInventory` / `fillWithLoot`. Optional `mixins.aqtweaks.gaia.json` must not log `InvalidInjectionException` (vanilla INVOKEs must be MCP + `remap = true`; a miss boots anyway because `required: false`).
 - [ ] Mixin log does **not** say Tweaks mixins require class version 69 (Java 21 class files).
+- [ ] `python scripts/check_mixin_targets.py` exits 0 (every mixin `method=` is declared on its target class). Optional-parent mixin jsons set `injectors.defaultRequire = 1`, so an injector that matches nothing now skips that mixin with a log error instead of silently doing nothing. Check `cleanmix.log` for any `aqtweaks` injection failure.
+- [ ] No `[AQ-REFLECT]` lines (the class is gone). `cleanmix.log` shows APPLY audits for the `Accessor*` / `InvokerStructureStart` interfaces in `mixins.aqtweaks.vanilla.json` (a required json: a bad accessor target would fail boot).
 - [ ] Wait through full JEI / ThaumicJEI / **TC6 Aspects 4 JEI** load. Title screen stays up. No `hs_err_pid*.log`.
 - [ ] Dedicated server: **not routinely tested** in this repo. If you ship a server, start one with the same mods and confirm it reaches “Done”.
 
@@ -62,10 +64,38 @@ Missing **RTG, Depths Update, Better Caves, CoFH World, Recurrent Complex, or Iv
 
 ## Worldgen (new chunks)
 
+Seam, village world push/pop and Mineshaft locate were dead code until the 2026-10-04 target fixes; verify them on a **fresh world**.
+
 `Village Flatten Debug` is **off** by default. Turn it on only while diagnosing; it appends every line to instance `logs/villagepatch.log` (not `latest.log`) and stalls chunk gen.
 
 | Check | Expect | Doc |
 | --- | --- | --- |
+| Village generation end to end (new chunks, `/aqvillage`, coast and inland) | Same layout as before Reflect removal. With village debug on: `stamp village plate` and `seal chunk=...` lines appear, no `NullPointerException`/`ClassCastException` from `StructureAccess`. Reload the world: village Starts keep their padded boxes (the save call now works) | [rtg.md](rtg.md) |
+| Mineshaft Start / locate / entrance stub | Unchanged; no accessor errors | [bettermineshafts.md](bettermineshafts.md) |
+| Thaumcraft dimension warp, sleep cleanse, exposure warp | Same awards, sound and chat; the 2-second delayed award still lands | [thaumcraft.md](thaumcraft.md) |
+| Boat in water with Simple Difficulty | Temperature sample lifts as before (`MixinWorldUtil` now direct) | [temperature.md](temperature.md) |
+| Sleep 6+ in-game hours with Somnia (alone, then with others), wake before morning, and leave the bed early after 6h | Sticky warp drops by `Normal Warp Reduction` each time; a sleep under 6h clears nothing; chat line shows when something cleared | [thaumcraft.md](thaumcraft.md) |
+| Sleep 8 hours with temp warp and a Homestead band I / II / III bed | About 2 / 3 / 6 temp warp cleared over 8 h in Case B (none double counted in Case A where player ticks run); no Homestead means none from this credit | [comfort.md](comfort.md) |
+| Boot log, bibliocraft | No `Parsing error loading recipe bibliocraft:tapemeasure`; `Skipping recipe JSON with known-missing item bibliocraft:tape` appears once | [recipes.md](recipes.md) |
+| New RTG plains mineshaft | A plank collar with a hole at the surface and a ladder down to the tunnel; no shaft under water | [bettermineshafts.md](bettermineshafts.md) |
+| Fell a tree with Tree Chopper at gathering 16+ with Lumberjack and Reforester | Extra logs roll per log; saplings roll per leaf (gathering x 0.03), never more than 64 from one tree; breaking a single log or leaf by hand still rolls; without Tree Chopper nothing changes | [reskillable.md](reskillable.md) |
+| New RTG plains mineshaft, shaft built | `latest.log` has `[AQ-MINESHAFT] surface shaft hub=... target=... surfaceY=... siblings=N hubInside=...`; the ladder shaft ends inside a mineshaft tunnel or room (no stone-only shaft); when `hubInside=false` the shaft is at the nearest tunnel box, not the hub | [bettermineshafts.md](bettermineshafts.md) |
+| Building 32, Normal mode: place and break a block about 2 blocks past normal reach (4.5 + 2) | Works; at Building 0 the same target is out of reach. Melee reach unchanged | [reskillable.md](reskillable.md) |
+| Building perks Reach I/II/III, EB non-Normal mode | No perk: reach 5; Reach I (Building 10): 20; Reach II locked until I owned, then 50; III: 100. Upgrade items not craftable, do nothing on right-click; icons show the EB item art | [reskillable.md](reskillable.md) |
+| Glide until feathers hit 0 | The glider retracts at the next billing tick and the player falls; feathers then regenerate. Deploying with 0 feathers is undone at the next tick | [stamina.md](stamina.md) |
+| Village plate on a hill with caves below | Seal covers 15 blocks below the plate height and never goes below Y50; plate at Y64 seals Y50-64; caves open below that | [rtg.md](rtg.md) |
+| Grappling Hook: plant, hang, swing, Shift+W climb, motor with and without Ember | Same bills as before (hang 1/s, swing 2/s, climb 3/s). Motor off when Ember is empty; unhook when feathers run out. No `NoSuchFieldException` / reflection warnings in the log | [stamina.md](stamina.md) |
+| Open Glider with empty feathers | Glider undeploys. Without Open Glider installed, no `NoClassDefFoundError` | [stamina.md](stamina.md) |
+| Village on water edge with a Waystones gazebo | Wet gazebo is rebuilt inland (`waystone relocate hit` with village debug on). Without Waystones installed, villages still generate | [rtg.md](rtg.md) |
+| Sleep with warp, dimension first visit, exposure warp, ritual warp | Warp changes and syncs exactly as before; a Thaumcraft error logs once (`[AQ-TC]`) and does not disable later warp | [thaumcraft.md](thaumcraft.md) |
+| Full Font, Vis Thrift, EB reach/max blocks, forage and wool perks | Unchanged behavior. With Reskillable or Animania Farm removed, no `NoClassDefFoundError` | [reskillable.md](reskillable.md) |
+| Fluid-filled crucible over lit and unlit Simple Difficulty campfire | Lit: heats (cap 200); unlit: cools. Without Simple Difficulty, crucibles behave as stock | [thaumcraft.md](thaumcraft.md) |
+| Village on a hill with caves below | Caves/ravines below Y50 stay open under the village; Y50 to plate is solid; wells and houses on solid ground; coastal brick wall reaches Y50 | [rtg.md](rtg.md) |
+| `/locate Mineshaft`, TP, `/locate` again | The second locate returns a different mineshaft (not the one you stand in); with several generated, the nearer of registered vs predicted wins | [bettermineshafts.md](bettermineshafts.md) |
+| Boot log | No `Mixin apply ... failed` for any `aqtweaks` json; `cleanmix.log` shows `aqtweaks$refreshMineshaftBox` on `StructureStart` | [bettermineshafts.md](bettermineshafts.md) |
+| Fresh Overworld, fly new chunks | `[AQ-DEPTHS] Chunk pass: tunnel-path seam reinforce Y0-4 after BC` appears once in `latest.log`. Better Caves mouths at Y 0-4 connect to the Depths tunnels; ocean/river/beach columns keep Deepslate at Y0 (no water draining into the deep) | [depths.md](depths.md) |
+| New village chunks with `/aqvillage` | Village still plates; no growth of the generator/world stacks (no repeated `pushGenerator` without pop in `villagepatch.log` with debug on); starts rejected by `rejectCoastalVillageStarts` are forgotten | [rtg.md](rtg.md) |
+| `/locate Mineshaft` on a new world | Pin lands on a registered Better Mineshafts Start (Y 24 when unexplored); `cleanmix.log` shows `MixinMapGenMineshaftLocate` injected into `MapGenMineshaft`; vanilla Mineshaft generators in other dimensions unaffected | [bettermineshafts.md](bettermineshafts.md) |
 | Flying new chunks (near and far from villages) | Away from villages, chat TPS stays near 20 (no growing hitch as more towns exist). A village still plates. With debug off, `villagepatch.log` stays empty | [rtg.md](rtg.md) |
 | Coastal village ocean face (new chunks) | Cleaner XZ outline (open 1-block sea inlets filled). Stone brick **only** where the plate cliffs ≥2 (including top); sand/grass on level rims; no open-water pier; inland hill cliffs not bricked | rtg |
 | Village interior (new chunks) | No stone brick patches in yards/farms or along chunk lines; no pad across a Land of Lakes / forest watercourse; no bare plate spur without a building | rtg |
@@ -84,7 +114,7 @@ Missing **RTG, Depths Update, Better Caves, CoFH World, Recurrent Complex, or Iv
 | Beach ~16 from water | Village may start; buildings inland; **no** sand piers or plank bridges | rtg |
 | Coral reef / kelp / ocean well (`-3452, 63, -2191`) | No village start unless a dry slot exists in retry range (`veto` `ocean_well` / `coast_ocean`) | rtg |
 | Approach a new village from unloaded chunks | No `ConcurrentModificationException` in `StructureStart.generateStructure`. Relog not required. Well not sitting on ocean/river | rtg |
-| Stamina after G2 (sprint / climb / grapple) | Same costs and cancel behavior as before Comfort remap; no extra `Reflect` lag on the tick | stamina |
+| Stamina after G2 (sprint / climb / grapple) | Same costs and cancel behavior as before Comfort remap; no reflection on the tick path | stamina |
 | River well | Walks inland (`well-walk`); no plank dock; plate at land Y not riverbed | rtg |
 | Dry plains well below Y 64 | Kept; `plateSample … target=64`; not `flooded_well` | rtg |
 | Flooded plains well | Raised to min well height if not never-raise; `/locate Village` can find it | [villagegen_info.md](villagegen_info.md) |

@@ -10,7 +10,7 @@ Mod: `aqtweaks`. Minecraft 1.12.2 / CleanroomMC / Forge. Stay on **1.8** unless 
 
 `aqtweaks` is a **tweak layer** for the **Arcana Quest pack**, not a standalone optional-mod product. The pack is expected to ship required parents (DEVBOX + `libs/`). If you need a parent class or method, **compile-hard** (`import` + jar on the classpath). Do not add `Reflect` wrappers just to avoid a compile dependency. If compile-hard gains nothing, keep `Loader.isModLoaded`. Mixin json `required: false` only skips that json at **load** if the jar is missing; it does not forbid compiling against it. Curse relations: [compatibility-matrix.md](compatibility-matrix.md#curseforge-relations-file-page).
 
-Parent mods still own their systems. Tweaks listens to Forge events, calls public APIs (`FeathersHelper`, Thaumcraft warp caps, Bewitchment `Ritual`), or mixins parent methods when events are not enough. Vanilla calls inside `remap = false` mixins go through `Reflect` — see below.
+Parent mods still own their systems. Tweaks listens to Forge events, calls public APIs (`FeathersHelper`, Thaumcraft warp caps, Bewitchment `Ritual`), or mixins parent methods when events are not enough. Vanilla members are called directly everywhere, including inside `remap = false` mixin bodies — see below.
 
 ## Module docs
 
@@ -107,14 +107,14 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 - If `reskillable`: `RespiteHandler` and `PerkWishlist`.
 - If `reskillable` and `dynamicstealth`: `PerkStealth`.
 - Game Stages / Chisel: no bus handler (mixins only; [gamestages.md](gamestages.md)).
-- If simpletomb: SimpleTombModule. Server starting: /aqtomb (CommandAqTomb, [simpletomb.md](simpletomb.md)).
+- If `simpletomb`: `SimpleTombModule`. Server starting: `/aqtomb` (`CommandAqTomb`, [simpletomb.md](simpletomb.md)).
 
 **init (client)**
 
 - `StaminaModuleClient`, `DssSkillsGuiClient` (Skills GUI `isPressed()` when DSS did not already send, plus client `/dssgui`; compile-hard DSS; registered only if `dynamicswordskills`), `BaublesMenuClient` (Baubles `isPressed()` → `PacketOpen(EXPANSION)` when Baubles did not already send; compile-hard BaublesEX; registered only if `baubles`), `DepthsFogHandler`, `ClientModule`, `ProspectorOutline`.
 - Entity renderer for `EntityArcaneRift` in **client preInit**. If `grimoireofgaia` and Deep Dwarf enabled: `RenderDeepDwarf`. Item models on `ModelRegistryEvent`.
 
-`postInit` registers `SpawnLayerFilter` (after InControl `PotentialSpawns`), enables structure cave exemption if `incontrol` is loaded, and runs `Reflect.auditUnresolved()`. `ArcanaQuestTweaks.serverStarting` (`@Mod.EventHandler` on `FMLServerStartingEvent`) registers `/aqvillage` (`CommandAqVillage`, [rtg.md](rtg.md)) and `/aqcomfort` (`CommandAqComfort`, [comfort.md](comfort.md)).
+`postInit` registers `SpawnLayerFilter` (after InControl `PotentialSpawns`), enables structure cave exemption if `incontrol` is loaded. `ArcanaQuestTweaks.serverStarting` (`@Mod.EventHandler` on `FMLServerStartingEvent`) registers `/aqvillage` (`CommandAqVillage`, [rtg.md](rtg.md)) and `/aqcomfort` (`CommandAqComfort`, [comfort.md](comfort.md)).
 
 ### MixinBooter: early vs late
 
@@ -127,6 +127,7 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `
 | File | `required` | Module | If parent jar missing |
 | --- | --- | --- | --- |
 | `mixins.aqtweaks.json` | **true** | Depths, RTG villages, Recipes | Load fails |
+| `mixins.aqtweaks.vanilla.json` | **true** | Vanilla-only: `AccessorChunk` (Somnia light checks), `InvokerStructureStart` (protected `updateBoundingBox` for village/mineshaft pads), `MixinEntityAITasks` (swallows an NPE thrown by any AI task `updateTask`, then `resetTask`), `MixinEntityGhastAIFireballAttack` (no target: stop attacking) | Load fails |
 | `mixins.aqtweaks.grapple.json` | false | Stamina | Skip |
 | `mixins.aqtweaks.dss.json` | false | Stamina | Skip |
 | `mixins.aqtweaks.elenaidodge.json` | false | Stamina feather colors + armor tooltip weight | Skip |
@@ -153,12 +154,13 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `
 | `mixins.aqtweaks.botania.json` | false | Reskillable Druid mana thrift + Grove | Skip |
 | `mixins.aqtweaks.embers.json` | false | Reskillable Artificer Ember thrift + Foundry Pulse | Skip |
 | `mixins.aqtweaks.prospectus.json` | false | Reskillable Prospector pick accuracy + ore outline | Skip |
-| mixins.aqtweaks.simpletomb.json | false | Simple Tomb: origin slot mapping + Baubles + non-destructive restore | Skip |
+| `mixins.aqtweaks.treechopper.json` | false | Reskillable harvest perks on Tree Chopper trees (`MixinTreeHandler` sets the felling player) | Skip |
+| `mixins.aqtweaks.simpletomb.json` | false | Simple Tomb: origin slot mapping + Baubles + non-destructive restore | Skip |
 
 `mixins.aqtweaks.json` contents (package `com.apocollis.aqtweaks.mixin`):
 
-- Client: `MixinRenderGlobal` (Depths hide sky), `MixinEntityRendererMouse` (skip look while a screen is open; [minemenu.md](minemenu.md))
-- Common: `MixinChunkProviderServer`, `depthsupdate.MixinDepthsCaveNoiseGenerator`, `cofh.MixinDistributionUniform`, `reccomplex.MixinRayMatcher`, `reccomplex.MixinGenericVillageCreationHandler`, Better Caves / RTG village mixins listed in [depths.md](depths.md) and [rtg.md](rtg.md), `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinWorldGenLakes`, `MixinMapGenVillageInside/Spawn/Start/World`, `MixinCraftingHelperFindFiles`, `MixinWorldEntitySpawner`. Charm paste: `mixins.aqtweaks.charm.json` on jar `MixinConfigs`. Portal `MixinWorldRiftLight`, cage `MixinMobSpawnerBaseLogic`, Quality `MixinTileEntityLockableLoot` and `MixinItemStackQualityDurability`, Reskillable `MixinItemStackDurability` and `MixinBlockCropsSeed`, and MineMenu `MixinMinecraftMouseGrab` (client) are in `mixins.aqtweaks.early.json`. InControl `MixinStructureCache` is in `mixins.aqtweaks.incontrol.json`. Better Mineshafts locate mixins are in `mixins.aqtweaks.bettermineshafts.json`. RandomPortals grass pads / Aether island pads: `mixins.aqtweaks.randomportals.json`. Quality Tools parent mixins: `mixins.aqtweaks.qualitytools.json`.
+- Client: `MixinRenderGlobal` (Depths hide sky), `MixinEntityRendererMouse` (skip look while a screen is open; [minemenu.md](minemenu.md)), `MixinEntityRendererLight` (Dark Vision lightmap lift on `updateLightmap`; [reskillable.md](reskillable.md))
+- Common: `depthsupdate.MixinDepthsCaveNoiseGenerator`, `cofh.MixinDistributionUniform`, `reccomplex.MixinRayMatcher`, `reccomplex.MixinGenericVillageCreationHandler`, Better Caves / RTG village mixins listed in [depths.md](depths.md) and [rtg.md](rtg.md), `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinWorldGenLakes`, `MixinMapGenVillageInside/Spawn/Start/World`, `MixinCraftingHelperFindFiles`, `MixinWorldEntitySpawner`. Charm paste: `mixins.aqtweaks.charm.json` on jar `MixinConfigs`. Portal `MixinWorldRiftLight` and `MixinBlockRiftLight`, cage `MixinMobSpawnerBaseLogic`, Quality `MixinTileEntityLockableLoot` and `MixinItemStackQualityDurability`, Reskillable `MixinItemStackDurability` and `MixinBlockCropsSeed`, and MineMenu `MixinMinecraftMouseGrab` (client) are in `mixins.aqtweaks.early.json`. InControl `MixinStructureCache` is in `mixins.aqtweaks.incontrol.json`. Better Mineshafts mixins (`canSpawn`, locate pin on `MapGenMineshaft` guarded to BM, entrance stub, Start Y) are in `mixins.aqtweaks.bettermineshafts.json`. The Depths Y 0-4 seam pass is `SeamReinforcer`, called from `MixinChunkGeneratorRTG` at RETURN of `generateChunk`. RandomPortals grass pads / Aether island pads: `mixins.aqtweaks.randomportals.json`. Quality Tools parent mixins: `mixins.aqtweaks.qualitytools.json`.
 
 Two mixins target `ChunkGeneratorRTG` in that required json. Their order comes from injection points, not from this list:
 
@@ -202,15 +204,15 @@ Its reach is narrower than it looks. It subscribes to `ConfigChangedEvent.OnConf
 
 Pack-owned (not Tweaks): `config/arcanaquest/mob_overworldspawntype.json`, `mob_spawnparties.json`, `mob_tier.json`, and `mob_spawnrules.cfg` for the [spawning](spawning.md) module.
 
-### `util/Reflect.java`
+### Vanilla access (no `Reflect`)
 
-Cached reflection for entity/world/block/NBT/sound/primer and soft-mod APIs (Elenai weight, Grapple, glider, thirst, Reskillable perk ids). Per-level Reskillable bonuses compile-hard the API in the [reskillable module](reskillable.md). Warp stays `ThaumcraftHelper` reflection; focus mixins compile-hard TC in [thaumcraft.md](thaumcraft.md).
+`util/Reflect.java` was removed in the 2026-10-04 cleanup. Vanilla and Forge members are called directly; protected or private ones go through Mixin accessors in `mixin.vanilla` (`AccessorMapGenBase`, `AccessorMapGenStructure`, `AccessorMapGenVillage`, `AccessorStructureComponent`, `AccessorVillageStart`, `AccessorChunkProviderServer`, `InvokerStructureStart`, `AccessorChunk`) wrapped by `rtg/StructureAccess`. Parent mods are compile-hard: `stamina/StaminaFeathers` (Elenai), `GrappleHelper`, `OpenGliderHelper`, `rtg/WaystoneBridge`, `thaumcraft/ThaumcraftHelper`, `reskillable/PerkAccess` + `ReskillableBonuses`, `simpledifficulty/SimpleDifficultyHelper`. See [reskillable.md](reskillable.md) and [thaumcraft.md](thaumcraft.md). The one remaining reflection is `StructureAccess.getChunkGenerator` / `StructureVillageOverlap`, which walk the fields of unknown third-party generator wrappers.
 
-**Use Reflect** for vanilla member access inside **`remap = false` mixin bodies** (those strings are not remapped). Pack parents: compile-hard their types when you need methods or classes.
+**`remap = false` only affects mixin annotation strings** (`method =`, `target =`, `@Shadow` names), which must be SRG. The bytecode in the mixin class body is remapped by `remapJar` like any other class (verified on `MixinTileCrucible`: `Material.LAVA` became `field_151587_i`, `getMaterial` became `func_185904_a`). So write vanilla calls directly in mixin bodies. `@Shadow` fields are not mapped by the refmap generator: name them by SRG with `@Shadow(remap = false)`. Pack parents: compile-hard their types when you need methods or classes.
 
 **Direct vanilla in Tweaks’ own classes is allowed.** Event handlers are remapped (`defaultRemapJar = true`). `DepthsFogHandler.entity.world` and `ThaumcraftModule` `getChunkProvider()` are not defects.
 
-Do not add raw MCP names inside `remap = false` mixins.
+Do not put MCP names inside `remap = false` mixin **annotation strings**; method bodies are fine.
 
 ## Adding an integration
 
@@ -222,7 +224,7 @@ When hooking a new parent (or a new mixin on an existing one):
 4. **Side:** client-only in the json `client` array or `@SideOnly`. Packets: `SimpleNetworkWrapper` side as today (stamina 0–2 are SERVER).
 5. **Absent parent:** `Loader.isModLoaded` or mixin json `required: false` when there is **no** parent type to call. If you need a class or method, **compile-hard** it; still gate handler construction with `isModLoaded` so the `import` stays off always-on bus classes. Do not `import` parent types from those always-on classes (Bewitchment `Ritual` is compile-hard on the handler that only registers when loaded).
 6. **Config:** new `@Config` defaults; instance files **keep old keys**. Document live vs dead knobs in the module doc.
-7. **Verify:** add a row to [verification.md](verification.md). Worldgen → new chunks. Mixin vanilla calls → Reflect or remap.
+7. **Verify:** add a row to [verification.md](verification.md). Worldgen → new chunks. Mixin annotation strings use SRG; method bodies call vanilla directly.
 
 ## Workflow (always)
 

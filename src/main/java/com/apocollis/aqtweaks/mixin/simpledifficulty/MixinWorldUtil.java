@@ -1,6 +1,6 @@
 package com.apocollis.aqtweaks.mixin.simpledifficulty;
 
-import com.apocollis.aqtweaks.util.Reflect;
+import net.minecraft.block.material.Material;
 import com.charles445.simpledifficulty.util.WorldUtil;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
@@ -33,20 +33,20 @@ public abstract class MixinWorldUtil {
     @Inject(method = "getSidedBlockPos", at = @At("RETURN"), cancellable = true)
     private static void aqtweaks$boatLift(World world, Entity entity, CallbackInfoReturnable<BlockPos> cir) {
         if (world == null || !(entity instanceof EntityPlayer)) return;
-        if (!(Reflect.getRidingEntity(entity) instanceof EntityBoat)) return;
+        if (!(entity.getRidingEntity() instanceof EntityBoat)) return;
 
         BlockPos pos = cir.getReturnValue();
         if (pos == null) return;
 
-        IBlockState state = Reflect.getBlockState(world, pos);
-        if (Reflect.getMaterial(state) != Reflect.getMaterialWater()) return;
+        IBlockState state = world.getBlockState(pos);
+        if (state.getMaterial() != Material.WATER) return;
 
-        BlockPos up = Reflect.up(pos);
-        IBlockState upState = Reflect.getBlockState(world, up);
+        BlockPos up = pos.up();
+        IBlockState upState = world.getBlockState(up);
         // Submerged boat keeps the original position.
-        if (Reflect.getMaterial(upState) == Reflect.getMaterialWater()) return;
+        if (upState.getMaterial() == Material.WATER) return;
         // The lifted block must be passable, or a boat in a one-high channel would sample inside the ceiling.
-        if (Reflect.getCollisionBoundingBox(upState, world, up) != Block.NULL_AABB) return;
+        if (upState.getCollisionBoundingBox(world, up) != Block.NULL_AABB) return;
 
         cir.setReturnValue(up);
     }

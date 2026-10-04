@@ -35,6 +35,20 @@ Output:
 
 Skip `*sources*` / `*javadoc*` if present.
 
+### Script behavior notes
+
+`build_gradle.ps1` sets `GRADLE_OPTS=--enable-native-access=ALL-UNNAMED` for the Gradle call (silences the JDK 25 launcher warning) and decides success from Gradle's exit code only, so it also works when a caller merges stderr (`2>&1`). `AQ_DEVBOX_MODS` and `AQ_JAVA_HOME` override the DEVBOX mods folder and JDK; defaults are this machine's paths. It deploys `ArcanaQuestTweaks-<version>.jar` for the version in `build.gradle`, not just the newest file in `build/libs`.
+
+### Mixin target check
+
+Before a build that touches mixins, run:
+
+```text
+python scripts/check_mixin_targets.py
+```
+
+It fails when a `method=` in any Tweaks mixin is not declared on the mixin's target class (Mixin does not search superclasses, and without `defaultRequire` a miss is silent). Vanilla targets are checked against the MCP/SRG snapshot in the gradle cache; parent targets with `javap -p` against `libs/`. Targets it cannot resolve (jar not in `libs/`) are listed as UNVERIFIED and do not fail the run. Methods that another mod's mixin adds at runtime go in the script's `ALLOW` set.
+
 If `libs/` is empty or incomplete, this still “works” only insofar as Gradle compiles what it finds. That is the unpinned-libs risk.
 
 ## Build and deploy (this machine)
