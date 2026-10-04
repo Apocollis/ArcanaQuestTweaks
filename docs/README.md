@@ -19,6 +19,7 @@ Each file covers: what Tweaks changes, how the **parent mod** implements the fea
 | Module | Parent mod(s) | Doc |
 | --- | --- | --- |
 | Stamina | Elenai Dodge 2 Extended, Grappling Hook, Dynamic Sword Skills, Embers, Reskillable, Simple Difficulty, Spartan Weaponry | [stamina.md](stamina.md) |
+| Temperature | Simple Difficulty + optional Serene Seasons (greenhouse glass by registry name) | [temperature.md](temperature.md) |
 | Reskillable | Reskillable + optional Effortless Building, Botania, Bewitchment, Astral, Embers, Simple Difficulty | [reskillable.md](reskillable.md) |
 | Grimoire of Gaia | Grimoire of Gaia (`gaia`) | [grimoire-of-gaia.md](grimoire-of-gaia.md) |
 | Thaumcraft | Thaumcraft 6 | [thaumcraft.md](thaumcraft.md) |
@@ -101,7 +102,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 - If `randomportals` **and** `twilightforest`: `TfPortalLandingHandler` (TF dest biome/landmark/grass landing; [twilightforest.md](twilightforest.md)).
 - If `randomportals` **and** `aether_legacy`: `AetherPortalLandingHandler` (Aether island snap; [aether.md](aether.md)).
 - If `qualitytools`: `QualityToolsModule` (loot/drop stamp). `postInit` registers Dawnstone rune recipes when `embers` is also loaded. See [qualitytools.md](qualitytools.md).
-- If `simpledifficulty`: `SimpleDifficultyModule`.
+- If `simpledifficulty`: `SimpleDifficultyModule`. Its constructor also registers `DynamicModifierInsulation` with `TemperatureRegistry` once (surface indoor insulation; see [temperature.md](temperature.md)).
 - If `animania`: `AnimaniaModule`.
 - If `reskillable`: `RespiteHandler` and `PerkWishlist`.
 - If `reskillable` and `dynamicstealth`: `PerkStealth`.
@@ -146,7 +147,7 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `
 | `mixins.aqtweaks.chisel.json` | false | Game Stages: Chisel GUI + `canChisel` | Skip |
 | `mixins.aqtweaks.recipestages.json` | false | Game Stages: capture `setRecipeStage` | Skip |
 | `mixins.aqtweaks.qualitytools.json` | false | Quality Tools living-update skip, reforge base, Dawnstone mismatch | Skip |
-| `mixins.aqtweaks.simpledifficulty.json` | false | Reskillable Water Collector + Cinder/Astral temp clamp + campfire neighbor notify (`MixinBlockCampfire`: `setBlockState` flags `2` become `3` so Inspirations cauldrons see light and extinguish) | Skip |
+| `mixins.aqtweaks.simpledifficulty.json` | false | Reskillable Water Collector + Cinder/Astral temp clamp + campfire neighbor notify (`MixinBlockCampfire`: `setBlockState` flags `2` become `3` so Inspirations cauldrons see light and extinguish) + boat position lift (`MixinWorldUtil`: `getSidedBlockPos` returns one block up for a player riding a boat over water, so an open boat is not wet; [temperature.md](temperature.md)) | Skip |
 | `mixins.aqtweaks.playerrevive.json` | false | Reskillable Fast Revive | Skip |
 | `mixins.aqtweaks.rustic.json` | false | Reskillable Iron Gut | Skip |
 | `mixins.aqtweaks.botania.json` | false | Reskillable Druid mana thrift + Grove | Skip |

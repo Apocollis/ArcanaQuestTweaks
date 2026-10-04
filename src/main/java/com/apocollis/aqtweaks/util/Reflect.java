@@ -203,6 +203,7 @@ public class Reflect {
     private static Method getMaxItemUseDurationMethod;
     private static Method getItemUseActionMethod;
     private static Method entityGetEntityDataMethod;
+    private static Method entityGetRidingEntityMethod;
     private static Method nbtGetCompoundTagMethod;
     private static Method nbtHasKeyMethod;
     private static Method nbtGetIntegerMethod;
@@ -627,10 +628,13 @@ public class Reflect {
             }
         } catch (Throwable ignored) {}
 
-        // Entity.getEntityData()
+        // Entity.getEntityData() & Entity.getRidingEntity()
         try {
             Class<?> eClass = Entity.class;
             try { entityGetEntityDataMethod = eClass.getMethod("getEntityData"); } catch (Throwable ignored) {}
+            try { entityGetRidingEntityMethod = eClass.getMethod("func_184187_bx"); } catch (Throwable t) {
+                try { entityGetRidingEntityMethod = eClass.getMethod("getRidingEntity"); } catch (Throwable ignored) {}
+            }
         } catch (Throwable ignored) {}
 
         // NBTTagCompound & NBTTagList methods
@@ -2223,6 +2227,20 @@ public class Reflect {
             return entity.getEntityData();
         } catch (Throwable t) {}
         return new NBTTagCompound();
+    }
+
+    /** {@code Entity.getRidingEntity()} (SRG {@code func_184187_bx}). Null when not riding. */
+    public static Entity getRidingEntity(Entity entity) {
+        if (entity == null) return null;
+        if (entityGetRidingEntityMethod != null) {
+            try {
+                return (Entity) entityGetRidingEntityMethod.invoke(entity);
+            } catch (Exception e) {}
+        }
+        try {
+            return entity.getRidingEntity();
+        } catch (Throwable t) {}
+        return null;
     }
 
     public static NBTTagCompound getPersistedTag(EntityPlayer player) {

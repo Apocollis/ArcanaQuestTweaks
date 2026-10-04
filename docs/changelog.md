@@ -2,6 +2,12 @@
 
 Stay on version **1.8** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-10-04 — Surface indoor insulation and boat wetness
+
+- `DynamicModifierInsulation` pulls biome, time, altitude, snow, and Serene Seasons temperature toward neutral when the sampled position is sheltered, covering the surface houses Simple Difficulty's `Y >= 64` underground cutoff leaves exposed. Heaters, chillers, armor, baubles, held items, and wetness keep full effect indoors.
+- Shelter is an opaque **or glass** roof plus, by default, at least 3 of 4 cardinal collision walls. Glass ceilings count because glass does not raise the light heightmap. Serene Seasons greenhouse glass shifts the target from 12 to 14 — more heating in cold, less cooling in hot — matching Serene Seasons' own 7-block, ignore-what's-between scan so warmth and crop fertility agree. Greenhouse glass is read by registry name, so no Serene Seasons jar is added.
+- `MixinWorldUtil` lifts the temperature sample one block when a player rides a boat over water, so an open boat in clear weather no longer reads as wet `-6`. Rain, submerged boats, swimming, and other mounts are unchanged. Seven new `aqtweaks_stamina.cfg` keys. New module doc: [temperature.md](temperature.md).
+
 ## 2026-10-02 — Campfire neighbor notification and Thaumcraft crucible heat
 
 - Simple Difficulty campfires notify neighbors on light, age, and extinguish so an Inspirations cauldron boils from the configured odd metas, and a fluid-filled Thaumcraft crucible heats from a burning campfire. Spec: [thaumcraft.md](thaumcraft.md).

@@ -1,6 +1,6 @@
 # Verification (1.8)
 
-Last updated: 2026-09-20.
+Last updated: 2026-10-04.
 
 Manual release / smoke checklist. **No automated tests.** Harness: CurseForge **Arcana Quest DEVBOX**, remapped `ArcanaQuestTweaks-1.8.jar` in `mods/`. Algorithms and full checklists stay in module docs; this is the pack-level pass/fail.
 
@@ -112,7 +112,24 @@ Log snippets if debug on: `veto chunk=`, `forget chunk=`, `flatten chunk=`, `sea
 
 ## Stamina
 
-Use the full list in [stamina.md](stamina.md) **Verify**. Minimum: jump costs/blocks, melee hit spend, bow draw, climb slide when empty, grapple hang vs climb vs grounded, HUD when dodge locked. Temperature: while hypothermic or hyperthermic, no periodic thermia hearts, gold feathers and the Feathers potion stay off, the feather cap falls about one half-feather every 5 seconds, holds the last half-feather for one ramp, then drops to 0. At that step the death message is that Simple Difficulty source (hyperthermia, not dehydration). After the potion ends the cap returns one half-feather every 10 ticks. Hyperthermia also drops about one thirst point per 10 seconds. Slowness ramps I → III in the cold and clears when hypothermia ends. With armor + toughness + thirst: toughness **left-to-right** one row above **armor** (left); feathers above **thirst** (right), not overlapping. Hover worn armor in the Baubles screen and in the survival inventory: weight icons show, no `ConcurrentModificationException` from `TooltipEventListener.getWeight`. Iron pick tooltip: `Vanilla Tools` + harvest stars + durability + efficiency. Metallurgy pick: no duplicate Tweaks harvest line. See [client.md](client.md).
+Use the full list in [stamina.md](stamina.md) **Verify**. Minimum: jump costs/blocks, melee hit spend, bow draw, climb slide when empty, grapple hang vs climb vs grounded, HUD when dodge locked. Temperature feather drain (the temperature model itself is [temperature.md](temperature.md)): while hypothermic or hyperthermic, no periodic thermia hearts, gold feathers and the Feathers potion stay off, the feather cap falls about one half-feather every 5 seconds, holds the last half-feather for one ramp, then drops to 0. At that step the death message is that Simple Difficulty source (hyperthermia, not dehydration). After the potion ends the cap returns one half-feather every 10 ticks. Hyperthermia also drops about one thirst point per 10 seconds. Slowness ramps I → III in the cold and clears when hypothermia ends. With armor + toughness + thirst: toughness **left-to-right** one row above **armor** (left); feathers above **thirst** (right), not overlapping. Hover worn armor in the Baubles screen and in the survival inventory: weight icons show, no `ConcurrentModificationException` from `TooltipEventListener.getWeight`. Iron pick tooltip: `Vanilla Tools` + harvest stars + durability + efficiency. Metallurgy pick: no duplicate Tweaks harvest line. See [client.md](client.md).
+
+## Temperature
+
+Full spec: [temperature.md](temperature.md). The hypothermia / hyperthermia **feather** drain is under [Stamina](#stamina) above.
+
+- [ ] **Surface house at night, cold biome, note the season.** Thermometer outside vs inside. Inside moves halfway from the outside value toward canceling biome, time, altitude, and the current season. A heater or campfire then adds its full block bonus on top. Verify the **delta**, not an absolute number.
+- [ ] **Desert noon.** Daytime shade (up to 6) is already gone under the roof before the pull. Inside is lower than outside, and a chiller still applies in full.
+- [ ] **Glass roof.** A room with a plain glass or stained-glass ceiling insulates toward 12 exactly like an opaque roof, even though `canSeeSky` is true under glass. Glass panes as walls pass on collision alone.
+- [ ] **Greenhouse glass.** A greenhouse of `sereneseasons:greenhouse_glass` insulates toward 14 — warmer than a plain house in winter, less cooled in summer, delta about **+1** at the default factor 0.5. Raise the ceiling above `greenhouseGlassMaxHeight` and warmth stops at the same height Serene Seasons stops fertilizing crops. Put an opaque layer between the player and the glass inside the band and it still reads as a greenhouse. At factor 1.0 plus a campfire the room can reach `HOT`.
+- [ ] **Serene Seasons absent.** Pull the SS jar from the instance and boot. No crash at `DynamicModifierInsulation` registration, no `NoClassDefFoundError`, greenhouse handling silently off, standard insulation still working.
+- [ ] **Enclosure.** Opaque or glass room with one air-gap side: loose mode (strictness 1) insulates, strict mode (2) does not. An open door in that side still counts as a wall. Under an oak or a cliff overhang: loose mode off (rays exhaust unwalled). Ice ceiling: insulates via the opaque branch.
+- [ ] **Y 50-63 house.** Sheltered room with the feet position at Y 62 (swamp, or a floor dug one block down). Insulation still applies, scaled by whatever Simple Difficulty's own `(y-50)/14` already took off - **not zero**.
+- [ ] **Below Y 50.** Biome, time, and season are already 0 from Simple Difficulty's scale, so the pull is a visible no-op. Spelunker's capability pull is unchanged and does not interact.
+- [ ] **Thermometer frame cost.** Hold a thermometer and watch F3 frame time inside an opaque house (hits the `canSeeSky` short-circuit), under a glass roof (pays the upward scan), and outdoors. Repeat with several item-frame thermometers in view. All three stay flat.
+- [ ] **Chunk edge.** Stand in a sheltered room within 5 blocks of an unloaded chunk border, and under a glass roof near one. No chunk-load stall and no new chunks generated by standing still.
+- [ ] **Single-player, thermometer in hand, long session.** No `ConcurrentModificationException` or hang from the shelter memo. The modifier is one shared instance across the client and integrated-server threads; the two `isRemote`-selected memos are what keep that safe.
+- [ ] **Boat.** Clear weather on the ocean: no wet -6. Rain on an open boat: wet applies. Submerged boat (block above is water): wet applies. Boat in a one-high water channel under stone: no lift, position stays in the water. Leave the boat and swim: wet applies. A horse in water stays wet.
 
 ## Other modules (one-line)
 
@@ -148,6 +165,10 @@ Use the full list in [stamina.md](stamina.md) **Verify**. Minimum: jump costs/bl
 | World A → title screen → world B on a different seed | No village plate heights carried over from A. `getRawLight` is back on its no-rift fast path (no lit cells at B's spawn) | [rtg.md](rtg.md), portal |
 | Leave world / stop integrated server | No `NoClassDefFoundError: VillagePlate`. Log has no `EventSubscriptionTransformer` AIOOBE on Tweaks classes | rtg |
 | Evasion perk | Purchasable at agility 16. No `trait\|elenaidodge2:dodge`. Boot may log that that row was dropped | [reskillable.md](reskillable.md) |
+| Thermometer in an item frame indoors | Reads the insulated value, same as the player's own readout. Frame rate does not drop with several frames in view (shelter memo) | [temperature.md](temperature.md) |
+| Greenhouse roof taller than Serene Seasons' `greenhouse_glass_max_height` | Warmth and crop fertility stop at the **same** height. Tweaks' `greenhouseGlassMaxHeight` must equal SS's key | [temperature.md](temperature.md) |
+| Boat in a one-high water channel under stone | Sample stays in the water (wet applies). It is **not** lifted into the ceiling, and the player is not treated as sheltered | [temperature.md](temperature.md) |
+| Serene Seasons removed from the instance | No `NoClassDefFoundError` from `DynamicModifierInsulation`. Greenhouse handling off, standard insulation unaffected | [temperature.md](temperature.md) |
 | `minWorldY` | Pinned at **-64**. No cfg knob to change it; bedrock floor, CoFH `Math.max` floor, and `RayMatcher.cast` all read that constant | [depths.md](depths.md) |
 
 ## After mixin / parent bumps

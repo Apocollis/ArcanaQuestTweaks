@@ -558,6 +558,44 @@ public class ArcanaQuestTweaksConfig {
 
         @Config.Name("Hyperthermia Lethal At Zero Max Stamina")
         public boolean hyperthermiaLethalZeroMaxStamina = true;
+
+        @Config.Name("Indoor Insulation Enabled")
+        @Config.Comment("Pull biome, time, altitude, snow, and Serene Seasons temperature toward neutral when the sampled position is sheltered. Simple Difficulty only insulates below Y=64; this covers surface houses.")
+        public boolean indoorInsulationEnabled = true;
+
+        @Config.Name("Indoor Insulation Factor")
+        @Config.Comment("How far toward neutral a sheltered position is pulled. 0.5 removes half of the biome/time/altitude/snow/season offset. Heaters, chillers, armor, and wetness keep their full effect.")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public double indoorInsulationFactor = 0.5;
+
+        @Config.Name("Indoor Insulation Enclosure Strictness")
+        @Config.Comment("0 = roof only. 1 = at least 3 of 4 cardinal directions walled. 2 = all 4. An air gap is the opening; an open door still counts as a wall.")
+        @Config.RangeInt(min = 0, max = 2)
+        public int indoorInsulationEnclosureStrictness = 1;
+
+        @Config.Name("Indoor Insulation Max Distance")
+        @Config.Comment("Horizontal ray length in blocks when looking for walls. A hall wider than this does not count as enclosed.")
+        @Config.RangeInt(min = 2, max = 16)
+        public int indoorInsulationMaxDistance = 5;
+
+        @Config.Name("Indoor Insulation Ceiling Max Height")
+        @Config.Comment("How far up to look for a glass or opaque ceiling. Only scanned when the position can still see sky, which is the glass case; opaque roofs short-circuit on the light heightmap.")
+        @Config.RangeInt(min = 2, max = 32)
+        public int indoorInsulationCeilingMaxHeight = 16;
+
+        @Config.Name("Greenhouse Glass Target Temperature")
+        @Config.Comment({
+                "Target temperature when sheltered under Serene Seasons greenhouse glass instead of neutral 12.",
+                "More heating in cold, less cooling in hot. 14 is the top of Simple Difficulty's NORMAL band; HOT starts at 15, so values above 14 are deliberately dangerous.",
+                "The actual indoor delta is this offset times Indoor Insulation Factor, so 14.0 at factor 0.5 is +1, not +2."
+        })
+        @Config.RangeDouble(min = 10.0, max = 18.0)
+        public double greenhouseGlassTargetTemperature = 14.0;
+
+        @Config.Name("Greenhouse Glass Max Height")
+        @Config.Comment("How far up to look for greenhouse glass, ignoring blocks in between. Keep this equal to Serene Seasons' greenhouse_glass_max_height in config/sereneseasons/cropfertility.cfg so warmth and crop fertility agree.")
+        @Config.RangeInt(min = 1, max = 16)
+        public int greenhouseGlassMaxHeight = 7;
     }
 
     public static class LedgeClimb {

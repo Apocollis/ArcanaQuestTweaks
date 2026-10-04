@@ -248,7 +248,9 @@ Mining: `BreakEvent` — registry string contains `ore` or block is obsidian →
 
 Each server player tick, if `enableThirstCost` and regular feathers increased vs `StaminaTweaksPrevFeathers`, add thirst exhaustion `diff × thirstExhaustionPerFeather` (default 0.25; 4.0 exhaustion ≈ 1 thirst point). Then store current feathers. First tick only seeds the key.
 
-### Simple Difficulty temperature
+### Simple Difficulty thermia feather drain
+
+This section is the **feather** consequence of body temperature. How that temperature is calculated — indoor insulation, glass and greenhouse roofs, boat wetness, the dampened modifier set — is [temperature.md](temperature.md).
 
 `SimpleDifficultyModule` (registered only when `simpledifficulty` is loaded) replaces periodic `SDDamageSources.HYPOTHERMIA` / `HYPERTHERMIA` ticks while `enableTemperatureEffects` and `disableThermiaDamage` are on. Cold resist and heat resist stay Simple Difficulty's: the hooks key off `SDPotions.hypothermia` and `SDPotions.hyperthermia`.
 
@@ -372,6 +374,8 @@ All live unless noted. Nested Forge categories.
 | Hypothermia max-stamina ramp / lethal | 100 ticks / true | One half-feather of cap per 5s; kill when the penalty reaches the Elenai base. After the potion ends, one half-feather returns per 10 ticks |
 | Hyperthermia thirst per second | 0.4 | One thirst point per 10s |
 | Hyperthermia max-stamina ramp / lethal | 100 ticks / true | Same cap and 10-tick recovery; kill with the hyperthermia source |
+
+The seven `indoorInsulation*` / `greenhouseGlass*` keys also live in this file (`StaminaModuleConfig.simpleDifficulty`) but belong to the temperature model: [temperature.md](temperature.md).
 | Enable Ledge Climbing | true | Client FSM + packet |
 | Ledge Climb Cost | 2 | Grab (short mantle) |
 | Ledge Climb Extra Cost | 1 | Each extra interval |

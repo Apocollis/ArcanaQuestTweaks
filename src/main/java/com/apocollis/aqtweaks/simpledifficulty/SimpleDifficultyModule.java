@@ -7,6 +7,7 @@ import com.charles445.simpledifficulty.api.SDCapabilities;
 import com.charles445.simpledifficulty.api.SDDamageSources;
 import com.charles445.simpledifficulty.api.SDItems;
 import com.charles445.simpledifficulty.api.SDPotions;
+import com.charles445.simpledifficulty.api.temperature.TemperatureRegistry;
 import com.charles445.simpledifficulty.api.thirst.IThirstCapability;
 import com.elenai.elenaidodge2.api.FeathersHelper;
 import com.elenai.elenaidodge2.api.MaxFeathersEvent;
@@ -45,6 +46,18 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
  * Registered only when Simple Difficulty is loaded.
  */
 public class SimpleDifficultyModule {
+
+    /** Guards the one-time dynamic temperature modifier registration. */
+    private static boolean insulationRegistered;
+
+    public SimpleDifficultyModule() {
+        // Registered here, not from CommonProxy: that class must not import Simple Difficulty.
+        // TemperatureRegistry keys by getName() into a map that is never cleared, so once is enough.
+        if (!insulationRegistered) {
+            insulationRegistered = true;
+            TemperatureRegistry.registerDynamicModifier(new DynamicModifierInsulation());
+        }
+    }
 
     @SubscribeEvent(priority = EventPriority.HIGH)
     public void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
