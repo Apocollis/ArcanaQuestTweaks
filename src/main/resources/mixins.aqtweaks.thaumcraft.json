@@ -10,7 +10,8 @@
     "MixinCasterManager",
     "MixinWarpEvents",
     "MixinItemCaster",
-    "MixinToolEvents"
+    "MixinToolEvents",
+    "MixinTileCrucible"
   ],
   "client": [
     "MixinRunicShieldingHudHandler"

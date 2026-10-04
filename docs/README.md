@@ -62,7 +62,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 | RTG, Depths Update, Better Caves, CoFH World, Recurrent Complex | Depths + RTG mixins in **required** `mixins.aqtweaks.json` | Mixin apply can fail; this pack always ships them |
 | Astral Sorcery | Optional mixin json + village shrine handler | Mixin config `required: false`; handler not registered |
 | Mystical World | Optional mixin json | No hut skip/settle |
-| Simple Difficulty, Biomes O' Plenty | Comfort potions / hot spring; Water Collector (SD mixins + bus handler); BOP optional mixin skips village water/quicksand lakes | Those benefits no-op; SD/BOP mixin json skipped; vanilla water-lake skip still runs |
+| Simple Difficulty, Biomes O' Plenty | Comfort potions / hot spring; Water Collector (SD mixins + bus handler); BOP optional mixin skips village water/quicksand lakes | Those benefits no-op; SD/BOP mixin json skipped; campfire neighbor mixin and crucible heat spoof are skipped with that json / when campfire block is absent (Thaumcraft still loads; unlit or missing campfire does not heat a crucible); vanilla water-lake skip still runs |
 | Rustic | Iron Gut `FluidBooze.inebriate` | Mixin json skipped; tipsy applies as stock |
 | Roguelike Dungeons Arcana | Thaumcraft dungeon warp via `isInsideStructure("RoguelikeDungeon")` | Dungeon exposure never matches |
 | Reskillable | Per-level bonuses + stamina perk id lookup | Module not registered; stamina `hasUnlockable` no-ops |
@@ -146,7 +146,7 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `
 | `mixins.aqtweaks.chisel.json` | false | Game Stages: Chisel GUI + `canChisel` | Skip |
 | `mixins.aqtweaks.recipestages.json` | false | Game Stages: capture `setRecipeStage` | Skip |
 | `mixins.aqtweaks.qualitytools.json` | false | Quality Tools living-update skip, reforge base, Dawnstone mismatch | Skip |
-| `mixins.aqtweaks.simpledifficulty.json` | false | Reskillable Water Collector + Cinder/Astral temp clamp | Skip |
+| `mixins.aqtweaks.simpledifficulty.json` | false | Reskillable Water Collector + Cinder/Astral temp clamp + campfire neighbor notify (`MixinBlockCampfire`: `setBlockState` flags `2` become `3` so Inspirations cauldrons see light and extinguish) | Skip |
 | `mixins.aqtweaks.playerrevive.json` | false | Reskillable Fast Revive | Skip |
 | `mixins.aqtweaks.rustic.json` | false | Reskillable Iron Gut | Skip |
 | `mixins.aqtweaks.botania.json` | false | Reskillable Druid mana thrift + Grove | Skip |

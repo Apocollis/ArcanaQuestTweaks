@@ -8,6 +8,7 @@
     "MixinThirstUtilInternal",
     "MixinItemCanteen",
     "MixinItemCanteenUse",
-    "MixinTemperatureCapability"
+    "MixinTemperatureCapability",
+    "MixinBlockCampfire"
   ]
 }

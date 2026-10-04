@@ -1,6 +1,6 @@
 # Thaumcraft module (1.8)
 
-Last updated: 2026-09-28.
+Last updated: 2026-10-02.
 
 Config: `config/arcanaquesttweaks/aqtweaks_thaumcraft.cfg`. Event handler registers only if `thaumcraft` is loaded (`CommonProxy.init`). Warp API is reflection (`ThaumcraftHelper`, raw `Class`) so Comfort can call it without importing TC types. Focus mixins **compile-hard** TC **6.1 BETA26** (`libs/`); missing that jar fails compile. Optional `mixins.aqtweaks.thaumcraft.json` (`required: false`) skips at runtime if TC is absent.
 
@@ -88,7 +88,7 @@ Y knobs `@Config.RangeInt` **−256..256** (Depths).
 
 Java G defaults: Nether 7, End 9, Aether 6, TF 5, Betweenlands 8, Atum 6, Beneath 7, Emptiness 10, Aurorian 6, upper underground (−20..30) 5, deep (Y < −20) 6, dungeon 4.
 
-### Focus mixins
+### Focus & crucible mixins
 
 Optional `mixins.aqtweaks.thaumcraft.json`. Vanilla INVOKEs MCP + `remap = true` (Gaia rule). Helpers in `ThaumcraftFocusHooks` (no TC imports).
 
@@ -96,6 +96,7 @@ Optional `mixins.aqtweaks.thaumcraft.json`. Vanilla INVOKEs MCP + `remap = true`
 - `MixinFocusEffectHeal` — Heal only, `heal(F)`: amount `×` caster Magic outgoing if the caster is a player. Not a global `LivingHealEvent`.
 - `MixinCasterManager` — `getTotalVisDiscount` RETURN: Vis Thrift +0.30. `changeFocus` / `fetchFocusFromPouch` / `addFocusToPouch`: bauble pouch offset **4 → 100** so BaublesEX slots ≥ 4 stay negative (not `mainInventory`). Does **not** rewrite the armor `4` in `getTotalVisDiscount`. Those two pouch methods **skip** `IBaublesItemHandler.setChanged`: stock BaublesEX is a no-op, and the transformed method reads missing field `player` (`NoSuchFieldError`) after the focus was already taken out of the pouch. `markDirty` still runs.
 - `MixinWarpEvents` — `checkWarpEvent`: Quiet Mind severity after visor, before `PacketMiscEvent`.
+- `MixinTileCrucible` — `update` (`func_73660_a`) heat check: redirects `IBlockState.getMaterial()` to return `Material.LAVA` if the block beneath is burning `simpledifficulty:campfire` (`burning == true`), enabling Simple Difficulty campfires as crucible heat sources without hard compile coupling. Heat runs only while the crucible tank has fluid (`getFluidAmount() > 0`). Returning `LAVA` uses the stock `+1` per tick branch, cap 200. An unlit campfire is left as `Material.CIRCUITS` and cools the crucible.
 
 Do **not** add `thrown` to Reskillable allow-prefixes. Java default prefix `fireball` is ghast/Lich only (instance cfg may still be empty).
 
@@ -157,7 +158,7 @@ Client mixins in `mixins.aqtweaks.baubles.json` (`required: false`). The `getMod
 - `thaumcraft/ThaumcraftHelper.java` — lazy `init()`, type index 0/1/2, `sync` only if `EntityPlayerMP`. Use raw `Class` (not `Class<?>`): Forge 1.12 `SideTransformer` throws on Java 21 generic Signature / LVT and the class then looks missing (`NoClassDefFoundError` from Comfort homestead cleanse).
 - `thaumcraft/ThaumcraftFocusHooks.java` — `markMagic`, Heal scale (Reskillable via reflection)
 - `thaumcraft/ThaumcraftPerkHooks.java` — Vis Thrift / Quiet Mind (no Reskillable import)
-- `mixin/thaumcraft/MixinFocusEffectExecute.java`, `MixinFocusEffectHeal.java`, `MixinCasterManager.java`, `MixinWarpEvents.java`
+- `mixin/thaumcraft/MixinFocusEffectExecute.java`, `MixinFocusEffectHeal.java`, `MixinCasterManager.java`, `MixinWarpEvents.java`, `MixinTileCrucible.java`
 - `thaumcraft/RunicShieldHud.java` — client gear cap, rune rows, and gold surplus. Not `@SideOnly`
 - `mixin/thaumcraft/MixinGuiIngameForgeRunicShield.java` — early json client, `GuiIngameForge.renderHealth`
 - `mixin/thaumcraft/MixinRunicShieldingHudHandler.java` — late thaumcraft json

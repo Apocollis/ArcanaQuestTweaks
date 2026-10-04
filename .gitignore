@@ -21,6 +21,7 @@ Thumbs.db
 # Agent / AI tooling (local only — do not sync to GitHub)
 .agents/
 .cursor/
+.claude/
 CLAUDE.md
 AGENTS.md
 implementation_plan.md
