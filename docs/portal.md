@@ -29,11 +29,11 @@ If `MinecraftServer.getWorld(BoundDim)` is null, open fails (`missing_dim`); ite
 
 Lifespan is read from cfg in `entityInit` into the synced `REMAINING` value (default 1200 ticks), so a cfg edit only reaches **newly opened** rifts — live ones keep the lifespan they were built with. `setSize(1.6, 2.4)`, noClip, not saved (`writeToNBTOptional` false). Linked by UUID **and** dest dimension. Synced `wild` flag (unstable pair). Ticket on **each** rift’s own world; released in `setDead()`. Killing one finds the other across loaded worlds and `setDead()`.
 
-Block light **15** like glowstone: `MixinBlockRiftLight` on Forge `Block.getLightValue(state, world, pos)`, plus `MixinWorldRiftLight` on `World.getRawLight`. `RiftLighting` queues those cells and calls `World.checkLight` on **client-tick END** (`PortalClientEvents`) and on **dedicated** `WorldServer` world-tick END. Skip the integrated server world and never `checkLight` a client world from the server thread — that races `RenderGlobal.updateClouds`. Never `checkLight` from the rift entity tick. Client vs server rift entities are keyed by world identity + entity id. Mixins stay in `mixins.aqtweaks.early.json`.
+Block light **15** like glowstone: `MixinBlockRiftLight` on Forge `Block.getLightValue(state, world, pos)`, plus `MixinWorldRiftLight` on `World.getRawLight`. `RiftLighting` queues those cells and calls `World.checkLight` on **client-tick END** (`PortalClientEvents`) and on **dedicated** `WorldServer` world-tick END. Skip the integrated server world and never `checkLight` a client world from the server thread — that races `RenderGlobal.updateClouds`. `checkLight` returns false (and does nothing) until the 17-block area around the cell is loaded, so a job stays queued and retries each tick until it succeeds, for at most 30 s (`RETRY_MS`); dropping the job after one attempt left the far end of a pair unlit until another light update. Never `checkLight` from the rift entity tick. Client vs server rift entities are keyed by world identity + entity id. Mixins stay in `mixins.aqtweaks.early.json`.
 
 Teleport: AABB overlap. Skip other rifts and **sitting** tamed pets. Players still dismount, companion-pull (radius), remount, re-leash. Everything else in the box (`EntityItem`, villagers, hostiles, standing tames, XP orbs, etc.) `moveToExit`. Then `timeUntilPortal` = cooldown (default 60). Arrival is dest rift **`posX/posY/posZ`** (same XYZ as the cylinder). `exitOffset` is unused for that trip. The 60-tick stamp after open and after travel is what stops an instant bounce.
 
-Do **not** `untrack`/`track` dest on arrival. Do **not** put `aqtweaks:arcane_rift` on Dynamic Stealth **Entity Specific Full Bypass** (cfg or mixin): that pairing blanks the client cylinder while the server hitbox and baked light can stay. DS player senses may still drop the mesh when you look away. If the client entity drops, baked block light can stay; that is expected. No Tweaks light packet.
+Do **not** `untrack`/`track` dest on arrival. Dynamic Stealth replaces the entity tracker and untracks anything the player cannot see, which would remove the client rift whenever you look away. `MixinDSEntityTrackerEntry` (dss json) overrides `DSEntityTrackerEntry.func_180233_c` for `EntityArcaneRift` only: tracked when within the tracker range and `PlayerChunkMap.isPlayerWatchingChunk` is true, with no `Sight.canSee`. The chunk-watch test matters: DS's own check lacks vanilla's, and the full-bypass list tracked the rift once, the spawn packet reached the client before its chunk and was dropped, so the rift never rendered after returning through a dimension portal (hypothesis; logs `[AQ-PORTAL] DS tracker override ...` once). Do **not** put `aqtweaks:arcane_rift` on DS **Entity Specific Full Bypass**; keep it in Naturally Bright. Baked block light stays if the client entity drops. No Tweaks light packet.
 
 Same dimension: `setPlayerLocation` / `setLocationAndAngles`. Cross-dimension: `entity.changeDimension(destDim, RiftTeleporter)` with `isVanilla() == false`. Sitting pets still stay in the origin dimension.
 
@@ -43,7 +43,7 @@ Companion pull (player trips only, same tick, radius cfg 16): `EntityTameable` o
 
 `RenderArcaneRift`: nether-portal texture on a **wobbly cylinder**, **V scrolls upward** (no yaw spin). Vertex alpha **0.75** healthy / **0.25** collapse. Wild pair: red vertex tint. Not End TESR, not a dest camera.
 
-Particles (client `RiftParticles`, **2**/tick): **purple** `DRAGON_BREATH` inside the cylinder (radius ≤ 0.70, slight inward drift); wild **red**; no `PORTAL` motes; no enchantment-table glyphs; **4** `CLOUD` on collapse (same disc).
+Particles (client `RiftParticles`, up to **2**/tick, each slot spawns with a rate that falls linearly from 100% to 15% as `getRemainingTicks() / getLifespanTicks()` goes from 1 to 0; `LIFESPAN` is a synced data parameter set by the server at spawn): **purple** `DRAGON_BREATH` inside the cylinder (radius ≤ 0.70, slight inward drift); wild **red**; no `PORTAL` motes; no enchantment-table glyphs; **4** `CLOUD` on collapse (same disc).
 
 **Open:** `ENTITY_LIGHTNING_THUNDER` and `BLOCK_PORTAL_TRIGGER` at **origin and destination**. **While open:** `BLOCK_PORTAL_AMBIENT` every 40 ticks per rift. **Collapse:** `BLOCK_PORTAL_TRIGGER` on that rift.
 
@@ -84,8 +84,8 @@ Existing instance `aqtweaks_portal.cfg` keeps old cooldown / wild distances unti
 - Renderer only from `ClientProxy.preInit`. No `RenderArcaneRift` on the server classpath path.
 - `getRawLight` no-ops when no rifts are live. Stamina packets stay 0–2. Java 21 `--release`.
 - Sitting pets must not companion-pull. Leash rebind must not attach unleashed pets.
-- Particle counts stay capped at 2/tick inside the cylinder. No vanilla nether portal math on rift travel. Tear rifts must not use the wild red flag.
-- Do not `untrack`/`track` rifts. No portal light packet. Do not DS full-bypass the rift (cfg or mixin).
+- Particle counts stay capped at 2/tick inside the cylinder and only ever fall as the rift runs down. No vanilla nether portal math on rift travel. Tear rifts must not use the wild red flag.
+- Do not `untrack`/`track` rifts. No portal light packet. Do not DS full-bypass the rift in cfg; the tracker mixin is the supported path.
 - Do not `checkLight` from `EntityArcaneRift.onUpdate` or the integrated server thread (races `RenderGlobal.updateClouds`). Client drain is `ClientTickEvent` only.
 - Wild dest must not sit on canopy logs. Arrival is dest rift XYZ, not Exit Offset.
 

@@ -26,7 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Mixin(value = TileEntityTomb.class, remap = false)
-public abstract class MixinTileEntityTomb extends TileEntity {
+public abstract class MixinTileEntityTomb extends TileEntity implements com.apocollis.aqtweaks.simpletomb.TombSlotMapAccess {
 
     @Shadow
     @Final
@@ -37,6 +37,11 @@ public abstract class MixinTileEntityTomb extends TileEntity {
 
     @Unique
     private List<TombSlotMaps.SlotMapping> aqtweaks$slotMap = new ArrayList<>();
+
+    @Override
+    public void aqtweaks$setSlotMap(List<TombSlotMaps.SlotMapping> mappings) {
+        this.aqtweaks$slotMap = new ArrayList<>(mappings);
+    }
 
     @Inject(method = "initTombstoneOwner", at = @At("RETURN"))
     private void aqtweaks$onInitTombstoneOwner(EntityPlayer player, CallbackInfo ci) {

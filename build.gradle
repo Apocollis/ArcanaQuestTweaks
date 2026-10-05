@@ -70,12 +70,25 @@ jar {
     }
 }
 
+// mcmod.info takes its version from the single `version` above.
+processResources {
+    inputs.property 'version', version
+    filesMatching('mcmod.info') {
+        expand(version: project.version)
+    }
+}
+
 tasks.register('verifyReleaseJar') {
     dependsOn 'remapJar'
     doLast {
         def jarFile = layout.buildDirectory.file("libs/ArcanaQuestTweaks-${version}.jar").get().asFile
         if (!jarFile.exists()) {
             throw new GradleException("Missing remapped jar: ${jarFile}")
+        }
+        // The @Mod constant cannot read Gradle, so fail the build if the two drift apart.
+        def modSource = file('src/main/java/com/apocollis/aqtweaks/ArcanaQuestTweaks.java').text
+        if (!modSource.contains("VERSION = \"${version}\"")) {
+            throw new GradleException("ArcanaQuestTweaks.VERSION does not match build.gradle version ${version}")
         }
         def zip = new java.util.zip.ZipFile(jarFile)
         try {

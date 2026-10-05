@@ -32,6 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class RiftLighting {
 
     private static final int LEVEL = 15;
+    private static final long RETRY_MS = 30_000L;
 
     /** Lit cell → the world it belongs to. Keys are immutable. */
     private static final Map<BlockPos, World> CELLS = new ConcurrentHashMap<>();
@@ -139,12 +140,19 @@ public final class RiftLighting {
         if (world == null) {
             return;
         }
+        long now = System.currentTimeMillis();
         PENDING.removeIf(job -> {
             if (job.world != world) {
                 return false;
             }
-            world.checkLight(job.pos);
-            return true;
+            // checkLight does nothing and returns false until the 17-block area around the cell is
+            // loaded. A rift whose chunks are still arriving (the far end of a pair, right after a
+            // dimension change) must keep its job and retry, or it never lights until something else
+            // triggers a lighting update. Give up after RETRY_MS.
+            if (world.checkLight(job.pos)) {
+                return true;
+            }
+            return now - job.createdMs > RETRY_MS;
         });
     }
 
@@ -202,6 +210,7 @@ public final class RiftLighting {
     private static final class LightJob {
         private final World world;
         private final BlockPos pos;
+        private final long createdMs = System.currentTimeMillis();
 
         private LightJob(World world, BlockPos pos) {
             this.world = world;

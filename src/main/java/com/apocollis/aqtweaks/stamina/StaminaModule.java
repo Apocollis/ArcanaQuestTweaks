@@ -86,10 +86,23 @@ public class StaminaModule {
         NONE, LIGHT, MEDIUM, HEAVY
     }
 
+    private static final java.util.Map<Item, WeaponType> WEAPON_TYPES = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.util.Map<Item, Boolean> THROWING = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Drop the per-item classification caches (custom weapon lists changed). */
+    public static void clearWeaponCaches() {
+        WEAPON_TYPES.clear();
+        THROWING.clear();
+    }
+
     public static WeaponType getWeaponType(ItemStack stack) {
         if (stack.isEmpty()) return WeaponType.LIGHT;
         Item item = stack.getItem();
         if (item.getRegistryName() == null) return WeaponType.NONE;
+        return WEAPON_TYPES.computeIfAbsent(item, StaminaModule::classifyWeapon);
+    }
+
+    private static WeaponType classifyWeapon(Item item) {
         String name = item.getRegistryName().toString();
 
         // Check custom lists
@@ -110,7 +123,7 @@ public class StaminaModule {
         }
 
         // Keyword checks for modded weapons (e.g. Spartan Weaponry)
-        String path = item.getRegistryName().getPath().toLowerCase();
+        String path = item.getRegistryName().getPath().toLowerCase(java.util.Locale.ROOT);
         if (path.contains("dagger") || path.contains("parrying_dagger") || path.contains("rapier") || path.contains("knife")) {
             return WeaponType.LIGHT;
         }
@@ -139,10 +152,12 @@ public class StaminaModule {
      */
     public static boolean isThrowingWeapon(ItemStack stack) {
         if (stack.isEmpty()) return false;
-        Item item = stack.getItem();
+        return THROWING.computeIfAbsent(stack.getItem(), StaminaModule::classifyThrowing);
+    }
 
+    private static boolean classifyThrowing(Item item) {
         // Class name check (covers all Spartan Weaponry throwing weapons & daggers)
-        String className = item.getClass().getName().toLowerCase();
+        String className = item.getClass().getName().toLowerCase(java.util.Locale.ROOT);
         if (className.contains("throwingweapon") || className.contains("itemjavelin") ||
             className.contains("throwingknife") || className.contains("throwingaxe") ||
             className.contains("itemdagger")) {
@@ -151,7 +166,7 @@ public class StaminaModule {
 
         // Registry name keyword check
         if (item.getRegistryName() != null) {
-            String path = item.getRegistryName().getPath().toLowerCase();
+            String path = item.getRegistryName().getPath().toLowerCase(java.util.Locale.ROOT);
             if (path.contains("javelin") || path.contains("throwing_knife") ||
                 path.contains("throwing_axe") || path.contains("throwing_dagger") ||
                 path.contains("dagger")) {

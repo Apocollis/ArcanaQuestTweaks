@@ -398,6 +398,7 @@ public final class VillageLandHelper {
             if (cx == Integer.MIN_VALUE || cz == Integer.MIN_VALUE) continue;
             String key = seed + ":" + cx + "," + cz;
             if (VETTED_STARTS.contains(key)) continue;
+            if (VETTED_STARTS.size() > 20000) VETTED_STARTS.clear();
             String reason = startRejectReason(world, cx, cz);
             if (reason == null) {
                 if (!isLayingOut()) {

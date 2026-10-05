@@ -113,6 +113,31 @@ public final class SimpleTombModule {
         }
     }
 
+    /**
+     * Tags are stamped at death; a death whose drops never reach {@link #onPlayerDrops} (drops
+     * cancelled by another mod, soulbound kept items) would leave them on live stacks and leave the
+     * context set. Clear both when the player respawns.
+     */
+    @SubscribeEvent
+    public void onRespawn(net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerRespawnEvent event) {
+        DeathContext ctx = CURRENT_DEATH.get();
+        if (ctx != null && ctx.player.getUniqueID().equals(event.player.getUniqueID())) {
+            CURRENT_DEATH.remove();
+        }
+        stripInventoryTags(event.player);
+    }
+
+    private static void stripInventoryTags(EntityPlayer player) {
+        for (java.util.List<ItemStack> list : java.util.Arrays.asList(player.inventory.mainInventory,
+                player.inventory.armorInventory, player.inventory.offHandInventory)) {
+            for (ItemStack stack : list) {
+                if (!stack.isEmpty() && TombSlotMaps.hasGraveSlot(stack)) {
+                    TombSlotMaps.stripGraveSlotTag(stack);
+                }
+            }
+        }
+    }
+
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void onPlayerDrops(PlayerDropsEvent event) {
         DeathContext ctx = CURRENT_DEATH.get();
@@ -155,10 +180,7 @@ public final class SimpleTombModule {
                 }
 
                 // Write slot map to tomb TileEntity
-                NBTTagCompound tileNbt = new NBTTagCompound();
-                ctx.createdTomb.writeToNBT(tileNbt);
-                tileNbt.setTag(TombSlotMaps.NBT_SLOT_MAP, TombSlotMaps.writeSlotMap(ctx.slotMappings));
-                ctx.createdTomb.readFromNBT(tileNbt);
+                ((TombSlotMapAccess) (Object) ctx.createdTomb).aqtweaks$setSlotMap(ctx.slotMappings);
                 ctx.createdTomb.markDirty();
             } else {
                 // No grave placed: copy still-tagged drops into backup, strip tags from remaining drops so they don't persist on ground
@@ -181,6 +203,7 @@ public final class SimpleTombModule {
             if (Loader.isModLoaded("baubles")) {
                 TombBaubleSlots.cleanUndroppedBaubles(ctx.player);
             }
+            stripInventoryTags(ctx.player);
 
             // Save record to WorldSavedData (always Overworld storage)
             if (!ctx.backupEntries.isEmpty()) {

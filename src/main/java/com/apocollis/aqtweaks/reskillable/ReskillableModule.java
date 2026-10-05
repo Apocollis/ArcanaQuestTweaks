@@ -82,6 +82,7 @@ public class ReskillableModule {
     @SubscribeEvent
     public void onLogout(PlayerLoggedOutEvent event) {
         ReskillableBonuses.invalidateLevels(event.player);
+        PerkDurability.forget(event.player.getUniqueID());
     }
 
     @SubscribeEvent

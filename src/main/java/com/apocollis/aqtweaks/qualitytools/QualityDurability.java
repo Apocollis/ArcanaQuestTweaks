@@ -61,7 +61,7 @@ public final class QualityDurability {
         }
         if (!QualityNbt.isQualityItem(stack)) {
             trace(stack, player, wouldDestroy, "skip:not_quality",
-                    "types=" + (com.tmtravlr.qualitytools.config.ConfigLoader.qualityTypes != null));
+                    traceOn() ? "types=" + (com.tmtravlr.qualitytools.config.ConfigLoader.qualityTypes != null) : "");
             return false;
         }
 
@@ -104,9 +104,9 @@ public final class QualityDurability {
                 player.world.playSound(null, player.posX, player.posY, player.posZ,
                         SoundEvents.ENTITY_ITEM_BREAK, SoundCategory.PLAYERS, 0.5F,
                         1.5F + (player.world.rand.nextFloat() * 0.3F - 0.15F));
-                trace(drop, player, wouldDestroy, "break_drop", "live=" + QualityNbt.liveColor(drop));
+                trace(drop, player, wouldDestroy, "break_drop", traceOn() ? "live=" + QualityNbt.liveColor(drop) : "");
             } else {
-                trace(stack, null, wouldDestroy, "break_clamp", "live=" + QualityNbt.liveColor(stack));
+                trace(stack, null, wouldDestroy, "break_clamp", traceOn() ? "live=" + QualityNbt.liveColor(stack) : "");
             }
             return true;
         }
@@ -208,7 +208,7 @@ public final class QualityDurability {
         Random rollSrc = rand != null ? rand : (player != null ? player.world.rand : new Random());
         double roll = rollSrc.nextDouble();
         if (roll >= p) {
-            trace(stack, player, false, "skip:fail_roll", String.format("p=%.3f roll=%.3f", p, roll));
+            trace(stack, player, false, "skip:fail_roll", traceOn() ? String.format("p=%.3f roll=%.3f", p, roll) : "");
             return;
         }
         if (!QualityNbt.applyUniqueColor(stack, QualityNbt.COLOR_GRAY)) {
@@ -216,11 +216,11 @@ public final class QualityDurability {
                 loggedMissingGray = true;
                 LOGGER.warn("Quality Tools Module: no gray (wear) entry for {}", stack.getItem().getRegistryName());
             }
-            trace(stack, player, false, "skip:no_gray", String.format("p=%.3f roll=%.3f", p, roll));
+            trace(stack, player, false, "skip:no_gray", traceOn() ? String.format("p=%.3f roll=%.3f", p, roll) : "");
             return;
         }
         QualityNbt.setWearFlag(stack, true);
-        trace(stack, player, false, "wear", String.format("p=%.3f roll=%.3f live=%s", p, roll, QualityNbt.liveColor(stack)));
+        trace(stack, player, false, "wear", traceOn() ? String.format("p=%.3f roll=%.3f live=%s", p, roll, QualityNbt.liveColor(stack)) : "");
     }
 
     static double wearProbability(int damage, int max, ArcanaQuestTweaksConfig.QualityToolsGeneral cfg) {
@@ -259,7 +259,12 @@ public final class QualityDurability {
         return salvage != null && EnchantmentHelper.getEnchantmentLevel(salvage, stack) > 0;
     }
 
+    private static boolean traceOn() {
+        return ArcanaQuestTweaksConfig.QualityToolsModuleConfig.general.traceWear;
+    }
+
     private static void trace(ItemStack stack, EntityPlayer player, boolean wouldDestroy, String outcome, String extra) {
+        if (!traceOn()) return;
         int damage = 0;
         int max = 0;
         String id = "?";

@@ -116,6 +116,16 @@ public class CommonProxy {
     }
 
     public void postInit(FMLPostInitializationEvent event) {
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("effortlessbuilding")
+                && ArcanaQuestTweaksConfig.ReskillableModuleConfig.building.disableReachUpgradeItems) {
+            // Reach I/II/III replace the upgrade items. No creative tab means no creative listing and, since
+            // Item.getSubItems adds nothing outside a tab, no JEI entry either.
+            for (int i = 1; i <= 3; i++) {
+                net.minecraft.item.Item item = net.minecraft.item.Item.REGISTRY.getObject(
+                        new net.minecraft.util.ResourceLocation("effortlessbuilding", "reach_upgrade" + i));
+                if (item != null) item.setCreativeTab(null);
+            }
+        }
         if (net.minecraftforge.fml.common.Loader.isModLoaded("qualitytools")) {
             com.apocollis.aqtweaks.qualitytools.QualityToolsModule.postInit();
         }

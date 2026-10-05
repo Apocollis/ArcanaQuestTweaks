@@ -112,6 +112,10 @@ Vanilla durability/loot mixins FQCN into `QualityStamp` / `QualityDurability` (c
 
 Quality JSON must keep **one** `dark_gray` and **one** `gray` per type. **`Quailities/tools.json` currently has `gray` (chipped) but no `dark_gray`** — add that or tool breaks cannot stamp Broken. Optional: weight 0 on those two so loot never rolls them (Tweaks still applies them). Shields/fishing need a `blue` entry before Rare/Legendary match. `contenttweaker:reforge_rune` stays the Reforging Station material until that station is removed.
 
+## Wear trace
+
+`Trace Wear` (general, default false) enables one INFO `quality-wear ...` line per durability check. When off, `QualityDurability.trace` returns before reading NBT, and the call sites skip their formatting. Turn it on only while diagnosing wear and break.
+
 ## Do not regress
 
 - Do not `@Mod required-after:qualitytools`.

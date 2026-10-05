@@ -53,6 +53,9 @@ public final class GameStagesChiselHooks {
         if (last != null && now - last < NOTIFY_COOLDOWN_TICKS) {
             return;
         }
+        if (LAST_NOTIFY_TICK.size() > 64) {
+            LAST_NOTIFY_TICK.values().removeIf(t -> now - t >= NOTIFY_COOLDOWN_TICKS);
+        }
         LAST_NOTIFY_TICK.put(player.getUniqueID(), now);
         player.sendStatusMessage(new TextComponentTranslation("chat.aqtweaks.gamestages.chisel_locked", displayName(stage))
                 .setStyle(new Style().setColor(TextFormatting.RED)), true);

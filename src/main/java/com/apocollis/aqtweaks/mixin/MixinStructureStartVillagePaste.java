@@ -50,12 +50,15 @@ public abstract class MixinStructureStartVillagePaste {
         }
     }
 
+    // require = 0: Charm's ASM rewrites this invoke into ASMHooks.addComponentParts, so with Charm present
+    // (a required mod) this redirector scans 0 targets; MixinASMHooksVillagePaste does the same skip there.
     @Redirect(
             method = "func_75068_a",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/world/gen/structure/StructureComponent;func_74875_a(Lnet/minecraft/world/World;Ljava/util/Random;Lnet/minecraft/world/gen/structure/StructureBoundingBox;)Z"
-            )
+            ),
+            require = 0
     )
     private boolean aqtweaks$skipWetVillagePaste(StructureComponent component, World world, Random rand,
                                                 StructureBoundingBox box) {

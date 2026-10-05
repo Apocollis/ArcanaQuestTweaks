@@ -247,6 +247,7 @@ public class ComfortConfigLoader {
 
         ComfortSystemHandler.COZY_BLOCKS.clear();
         if (blocks.categories == null) {
+            ComfortSystemHandler.clearCozyCache();
             return;
         }
         for (Map.Entry<String, Map<String, Float>> categoryEntry : blocks.categories.entrySet()) {
@@ -260,5 +261,6 @@ public class ComfortConfigLoader {
                     new ComfortSystemHandler.CozyConfig(blockEntry.getValue(), category));
             }
         }
+        ComfortSystemHandler.clearCozyCache();
     }
 }

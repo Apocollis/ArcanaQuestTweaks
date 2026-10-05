@@ -165,6 +165,9 @@ public class QualityRuneAnvilRecipe extends DawnstoneAnvilRecipe {
             if (last != null && now - last < 40) {
                 continue;
             }
+            if (MISMATCH_AT.size() > 64) {
+                MISMATCH_AT.values().removeIf(t -> now - t >= 40);
+            }
             MISMATCH_AT.put(player.getUniqueID(), now);
             player.sendStatusMessage(new TextComponentTranslation("chat.aqtweaks.quality.rune_mismatch"), true);
         }

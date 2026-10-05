@@ -35,6 +35,8 @@ public class EntityArcaneRift extends Entity {
 
     private static final DataParameter<Integer> REMAINING =
             EntityDataManager.createKey(EntityArcaneRift.class, DataSerializers.VARINT);
+    private static final DataParameter<Integer> LIFESPAN =
+            EntityDataManager.createKey(EntityArcaneRift.class, DataSerializers.VARINT);
     private static final DataParameter<Boolean> WILD =
             EntityDataManager.createKey(EntityArcaneRift.class, DataSerializers.BOOLEAN);
 
@@ -56,6 +58,8 @@ public class EntityArcaneRift extends Entity {
     @Override
     protected void entityInit() {
         dataManager.register(REMAINING, PortalModuleConfig.general.lifespanTicks);
+        // Total lifespan, synced from the server at spawn, so the client can scale particles by time left.
+        dataManager.register(LIFESPAN, PortalModuleConfig.general.lifespanTicks);
         dataManager.register(WILD, false);
     }
 
@@ -79,6 +83,10 @@ public class EntityArcaneRift extends Entity {
 
     public ChunkPos getChunkPos() {
         return new ChunkPos(MathHelper.floor(posX) >> 4, MathHelper.floor(posZ) >> 4);
+    }
+
+    public int getLifespanTicks() {
+        return dataManager.get(LIFESPAN);
     }
 
     public int getRemainingTicks() {

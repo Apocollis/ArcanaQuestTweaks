@@ -22,7 +22,7 @@ Thaumcraft 6 stores warp on capability `IPlayerWarp`:
 | `TEMPORARY` | 1 | Decays; most Tweaks grants |
 | `PERMANENT` | 2 | Research/eldritch; this module does not grant it (ritual wrapper can) |
 
-API (reflection):
+API (compile-hard `ThaumcraftHelper`, no reflection):
 
 - `ThaumcraftCapabilities.getWarp(player)`
 - `IPlayerWarp.get / add / reduce(EnumWarpType, int)`
@@ -50,7 +50,7 @@ Warp: `ThaumcraftModule` uses Forge events. Foci: optional mixins below.
 | Event | Behavior |
 | --- | --- |
 | `PlayerLoggedInEvent` | If persisted `VisitedDimensions` is missing, set it to **current dim** so login is not “first visit” |
-| `PlayerChangedDimensionEvent` | If `enableDimensionWarp` and dim not in the list: append, then a **worker thread sleeps 2s**, then `server.addScheduledTask` awards warp |
+| `PlayerChangedDimensionEvent` | If `enableDimensionWarp` and dim not in the list: append, then a server-tick queue (`ThaumcraftModule.DELAYED`, due 40 server ticks later, drained on `ServerTickEvent` END; dropped on logout) awards warp |
 | `PlayerWakeUpEvent` | If `enableWarpCleansing` and the player slept at least `sleepMinHours` in-game hours (world-clock delta since the first tick seen asleep; no morning or `wakeImmediately` test): reduce **sticky** if `clearNormalWarp`, credit Comfort temp-warp cleansing for skipped time if `sleepComfortTempClear` |
 | `PlayerTickEvent` END every **tickSeconds × 20** (default 600 / 30s) | Exposure: highest-G match only; pause banks otherwise |
 
@@ -58,11 +58,11 @@ Warp: `ThaumcraftModule` uses Forge events. Foci: optional mixins below.
 
 Persisted int array `VisitedDimensions`. Amounts: `dimensionNormalWarp` (**5**) + `dimensionTempWarp` (**5**). Sync, play `dimensionEntrySound` at `dimensionEntrySoundVolume` (2), send `dimensionChatMessageText`. Skip award/sound/chat if both amounts are 0.
 
-After the 2s delay, abort if the player is dead, world is null, or the player is no longer in `playerEntities` (teleport/logout). **Do not call the TC API on the worker thread.**
+After the 2s delay, abort if the player is dead, world is null, or the player is no longer in `playerEntities` (teleport/logout). Everything runs on the server thread; there is no worker thread.
 
 ### Sleep cleanse
 
-Not a nap: the player must have slept **at least `Sleep Minimum Hours`** (default **6**; 1 hour = 1000 ticks). The clock is `World.getWorldTime()`, so Somnia fast-forward counts, and it does not matter whether the player wakes at morning, at night, or by leaving the bed. The start is recorded by the first `PlayerTickEvent` that sees `isPlayerSleeping()` and cleared on wake, logout and dimension change; a sleep with no record (restart mid-sleep) does not qualify. Sticky reduce `normalWarpReduction` if `clearNormalWarp`.
+Not a nap: the player must have slept **at least `Sleep Minimum Hours`** (default **5**; 1 hour = 1000 ticks). The clock is `World.getWorldTime()`, so Somnia fast-forward counts, and it does not matter whether the player wakes at morning, at night, or by leaving the bed. The start is recorded by the first `PlayerTickEvent` that sees `isPlayerSleeping()` and cleared on wake, logout and dimension change; a sleep with no record (restart mid-sleep) does not qualify. Sticky reduce `normalWarpReduction` if `clearNormalWarp`.
 
 Temporary warp: the flat `clearTempWarp` extra stays **false**. Instead `sleepComfortTempClear` (default on) credits Homestead cleansing for the time the player's own ticks missed: `uncovered = (world time slept) - (player ticks while asleep)`. Somnia's Case B skips player ticks, so Comfort's 30s scan never ran for that time; Case A ticks the player too, so `uncovered` is about 0 and nothing is counted twice. `ComfortSystemHandler.applyAcceleratedWarpCleanse` converts it at the player's band (granted band if resting, else a fresh evaluation that needs furniture): `uncovered / 600 x (2 / 3 / 6)` progress added to the same `WarpCleansingProgress` counter, each 12 clears 1 temporary warp (capped at the temp warp the player has; the remainder carries over). Chat only if something was actually cleared and `enableChatMessage`.
 
@@ -74,7 +74,7 @@ The handler **returns immediately** unless `ticksExisted % (exposureTickSeconds 
 
 Sources this pass (G from config; skip G ≤ 0):
 
-1. `exposureDimensionGrants` `dimId=G` if current dim matches.
+1. `exposureDimensionGrants` `dimId=G` if current dim matches (parsed once into an int array, re-parsed when the config array object changes).
 2. If `enableUndergroundExposure`: floor Y **in [Y Min, Y Max]** → `under` G; **Y < Y Min** → `underDeep` G. Y > Y Max is not underground.
 3. If `enableDungeonExposure` and `ChunkProviderServer.isInsideStructure(..., "RoguelikeDungeon", pos)` → `dungeon` G.
 
@@ -127,7 +127,7 @@ Client mixins in `mixins.aqtweaks.baubles.json` (`required: false`). The `getMod
 | Name | Default | Live? | Meaning |
 | --- | --- | --- | --- |
 | Enable Sleep Warp Cleansing | true | yes | Master sleep sink |
-| Sleep Minimum Hours | **6** | yes | In-game hours slept (world clock, 1000 ticks each) before any sleep cleanse applies. 0 = any recorded sleep |
+| Sleep Minimum Hours | **5** | yes | In-game hours slept (world clock, 1000 ticks each) before any sleep cleanse applies. 0 = any recorded sleep |
 | Sleep Comfort Temporary Warp Clear | true | yes | Credit Homestead temp-warp cleansing for sleep time the player ticks missed (see Sleep cleanse) |
 | Clear Normal Warp | true | yes | Reduce sticky on sleep |
 | Normal Warp Reduction | 1 | yes | Per successful sleep |
@@ -173,8 +173,8 @@ Client mixins in `mixins.aqtweaks.baubles.json` (`required: false`). The `getMod
 
 - Always `syncWarp` after add/reduce on the server.
 - Dimension warp is **first visit only** (persisted array). Login must seed the current dim.
-- Sleep qualifies by hours slept (`Sleep Minimum Hours`, default 6), never by time of day or `wakeImmediately`. Default flat sleep sink is **sticky only**; temporary warp comes from the Comfort-rate credit, not a flat amount.
-- Off-thread sleep then `addScheduledTask` — never TC API from the worker thread.
+- Sleep qualifies by hours slept (`Sleep Minimum Hours`, default 5), never by time of day or `wakeImmediately`. Default flat sleep sink is **sticky only**; temporary warp comes from the Comfort-rate credit, not a flat amount.
+- The 2s dimension-warp delay is a server-tick queue, not a thread; do not reintroduce `new Thread`.
 - Exposure banks **pause** when unmatched or Warp Ward; do not −seconds. Do not fill two banks in one pass.
 - Old cfg `dimId=seconds` / interval keys are dead; grants are amounts.
 - Comfort `WarpCleansingProgress` is a different counter.

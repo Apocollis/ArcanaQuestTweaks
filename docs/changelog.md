@@ -8,7 +8,39 @@ Stay on version **1.8** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 - Shelter is an opaque **or glass** roof plus, by default, at least 3 of 4 cardinal collision walls. Glass ceilings count because glass does not raise the light heightmap. Serene Seasons greenhouse glass shifts the target from 12 to 14 — more heating in cold, less cooling in hot — matching Serene Seasons' own 7-block, ignore-what's-between scan so warmth and crop fertility agree. Greenhouse glass is read by registry name, so no Serene Seasons jar is added.
 - `MixinWorldUtil` lifts the temperature sample one block when a player rides a boat over water, so an open boat in clear weather no longer reads as wet `-6`. Rain, submerged boats, swimming, and other mounts are unchanged. Seven new `aqtweaks_stamina.cfg` keys. New module doc: [temperature.md](temperature.md).
 
+## 2026-10-04 — Somnia wake no longer desyncs the mouse
+
+- Somnia's wake packet closes the sleep screen on the network thread, so the cursor grab did not take effect and the camera stopped following the mouse until a click or Escape. `MixinMinecraftMouseGrab` now re-queues any off-thread `displayGuiScreen` onto the client thread.
+
+## 2026-10-04 — Remote rift lighting retries until its chunks load
+
+- `RiftLighting` kept a `checkLight` job for one attempt only. `World.checkLight` silently returns false while the surrounding area is not loaded, so the far end of a pair (and a rift seen right after a dimension change) stayed unlit until another light update. Jobs now stay queued until `checkLight` returns true, up to 30 s.
+
+## 2026-10-04 — Portal: fading particles, rift always tracked under Dynamic Stealth
+
+- Rift particles thin out as the rift's time runs down (100% to 15% of the 2 per tick). New synced `LIFESPAN` parameter on `EntityArcaneRift`.
+- `MixinDSEntityTrackerEntry` keeps the rift tracked whenever it is in range and the player's chunk is loaded, so DS no longer removes it when you look away, and without the full-bypass render failure on return. The rift is not in the DS Full Bypass list.
+
+## 2026-10-04 — Homestead I Learning is 4 minutes
+
+- Extra Alchemy Learning from Homestead / Comfort tier I lasts 4:00 (4800 ticks), down from 8:00. Tier II and III effects are unchanged.
+
+## 2026-10-04 — Sleep minimum 5 hours
+
+- `Sleep Minimum Hours` default is now 5 (was 6). A test sleep that began at about 00:20 and ended at dawn lasted 5.7 hours and was correctly refused at 6. Confirmed working in play; the temporary `[AQ-SLEEP]` diagnostics were removed. An existing `aqtweaks_thaumcraft.cfg` keeps its saved value until edited.
+
+## 2026-10-04 — Cleanup Batch 4 (performance, robustness, hygiene)
+
+- Performance: dimension-warp 2s delay is a server-tick queue (no `new Thread` per dimension); Thaumcraft exposure grants parsed once; `SpawnLayerFilter` caches entity id strings; Comfort cozy scan caches `Block -> CozyConfig` (cleared on comfort config reload); Stamina caches weapon/throwing classification per item (cleared on config change, `Locale.ROOT`); `PerkWishlist` fortify/unyielding/slow fall test the cheap condition before the perk lookup; `QualityDurability.trace` is gated by `Trace Wear` (default off, no NBT reads or formatting when off).
+- Leaks: `PerkDurability` marks expire after one tick (a cancelled break no longer makes an unrelated `damageItem` free) and clear on logout; `LAST_NOTIFY_TICK` and `MISMATCH_AT` prune expired entries; `VETTED_STARTS` is bounded.
+- Simple Tomb: slot map handed to the tomb through `TombSlotMapAccess` instead of an NBT write/read round trip; grave-slot tags and a stale death context are cleared on respawn and after drops.
+- `MixinEntityAITasks` logs the first NPE and any reset failure per task class (`[AQ-AI]`); `MixinASMHooksVillagePaste` logs once if its bridge fails (`[AQ-CHARM]`).
+- Reskillable: perk requirement rows that name another trait (`trait|`) are applied after every Tweaks trait is registered. The boot "Unlockable not found" errors remain: they are Reskillable re-reading the saved requirement strings in `config/reskillable.cfg` while it constructs each trait (7 forward references plus `elenaidodge2:dodge`), which Tweaks cannot intercept. They are cosmetic; the restamp sets the correct requirements. Building perk icons: Drafter, Sculptor and Transpose now use the Effortless Building radial-menu icons (wall, cube, replace).
+- Build: the four required mixin jsons now set `injectors.defaultRequire = 1`. First boot crashed on `MixinStructureStartVillagePaste.aqtweaks$skipWetVillagePaste` (0 targets: Charm's ASM rewrites that invoke into `ASMHooks.addComponentParts`, which `MixinASMHooksVillagePaste` handles), so that one redirector is now `require = 0`; `mcmod.info` takes its version from `build.gradle` (`verifyReleaseJar` fails if `ArcanaQuestTweaks.VERSION` differs) and lists `charm`; `depthsupdate` is in the `$deps` copy list; build artifacts (`.gradle/`, `build/`, `remap_out*.txt`, `_spark_scan.py`) removed from the Git index (files kept, now ignored).
+
 ## 2026-10-04 — Building Reach I / II / III perks
+
+- The EB reach upgrade items are also hidden (creative tab removed in `postInit`, so JEI drops them). Perk descriptions state the measured ranges, about 7 / 15 / 30 blocks.
 
 - New Building perks Reach I, II, III (chained, Building 10 / 20 / 28) set Effortless Building's reach tier to 20 / 50 / 100. The EB reach upgrade items are disabled (no recipes, right-click cancelled, stored upgrade level ignored); `Disable EB Reach Upgrade Items` = false restores them. Icons reuse the EB item art.
 

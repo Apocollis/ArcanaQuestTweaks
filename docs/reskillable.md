@@ -124,9 +124,9 @@ Register in **preInit** (`ReskillablePerkRegistry`). CAD `getTraitConfig` still 
 | `aqtweaks:drafter` | building | 2,1 | 2 | building 12 |
 | `aqtweaks:glass_cutter` | building | 2,2 | 2 | building 8 |
 | `aqtweaks:sculptor` | building | 2,3 | 3 | building 16 |
-| `aqtweaks:reach1` | building | 0,1 | 2 | building 10 (EB reach 20) |
-| `aqtweaks:reach2` | building | 0,2 | 3 | building 20, trait reach1 (EB reach 50) |
-| `aqtweaks:reach3` | building | 0,3 | 4 | building 28, trait reach2 (EB reach 100) |
+| `aqtweaks:reach1` | building | 0,1 | 2 | building 10 (EB tier 1: about 7 blocks in play) |
+| `aqtweaks:reach2` | building | 0,2 | 3 | building 20, trait reach1 (EB tier 2: about 15 blocks) |
+| `aqtweaks:reach3` | building | 0,3 | 4 | building 28, trait reach2 (EB tier 3: about 30 blocks) |
 | `aqtweaks:transpose` | building | 3,1 | 3 | building 20, magic 20 |
 | `aqtweaks:vis_thrift` | magic | 2,1 | 3 | magic 16 |
 | `aqtweaks:quiet_mind` | magic | 2,2 | 3 | magic 16, defense 12 |
@@ -167,7 +167,7 @@ Water Collector: SD world-drink dirty chance 0; canteen fill NORMAL/RAIN → PUR
 
 Drafter / Sculptor / Transpose: EB `sanitize` snaps locked modes / quick replace.
 
-Reach I / II / III: `MixinReachHelper` injects `getMaxReach` RETURN into `EffortlessBuildingHooks.maxReach`. With `Disable EB Reach Upgrade Items` (default true) the result is the highest owned perk tier (`BuildConfig.reach.maxReachLevel1/2/3`, default 20/50/100), else `maxReachLevel0`; the stored item upgrade level is ignored; creative and `enableReachUpgrades=false` are untouched. The three `effortlessbuilding:reach_upgrade*` recipes are skipped (`RecipeJsonSkip`) and `ReskillableModule.onReachItemUse` cancels right-click on the items. Icons are the EB item textures (`textures/unlockables/reach1-3.png`). `getPlacementReach` and max blocks derive from `getMaxReach`, so they follow the tier.
+Reach I / II / III: `MixinReachHelper` injects `getMaxReach` RETURN into `EffortlessBuildingHooks.maxReach`. With `Disable EB Reach Upgrade Items` (default true) the result is the highest owned perk tier (`BuildConfig.reach.maxReachLevel1/2/3`, default 20/50/100), else `maxReachLevel0`; the stored item upgrade level is ignored; creative and `enableReachUpgrades=false` are untouched. The three `effortlessbuilding:reach_upgrade*` items are removed from their creative tab in `CommonProxy.postInit` (so they vanish from creative and JEI), their recipes are skipped (`RecipeJsonSkip`) and `ReskillableModule.onReachItemUse` cancels right-click on the items. Tested in play (2026-10-04): tiers 1 to 3 give roughly 7, 15 and 30 blocks, well under the 20/50/100 config values, because EB's placement ray is further limited in practice; descriptions state the measured ranges. Icons are the EB item textures (`textures/unlockables/reach1-3.png`). `getPlacementReach` and max blocks derive from `getMaxReach`, so they follow the tier.
 
 Vis Thrift: +0.30 on `getTotalVisDiscount`. Quiet Mind: −round(0.35×bound) warp severity after visor.
 
@@ -271,7 +271,8 @@ Lang: `reskillable.unlock.aqtweaks.<path>` / `.desc`. Icons: `aqtweaks:textures/
 - `mixin/prospectus/MixinItemProspector.java`, `InvokerProspectus.java` — `mixins.aqtweaks.prospectus.json`. Right-click is `func_180614_a`; `getBlockState` invoke is MCP with `remap = true`
 - `mixin/dss/MixinEntitySightData.java` — Dark Vision counts as `hasNightvision`
 - `reskillable/client/DarkVisionLight.java` — lightmap mix
-- `reskillable/PerkDurability.java`, `PerkDrops.java` — Stone Cleaver / Wood Splitter, crop/seed drops
+- `reskillable/PerkDurability.java`, `PerkDrops.java` — Stone Cleaver / Wood Splitter, crop/seed drops. The durability mark expires after one world tick and clears on logout.
+- `AqtweaksTrait` builds each trait without its `trait|` requirement rows (Reskillable resolves them at construction and logged "Unlockable not found" for forward references); `ReskillablePerkRegistry.stampParentPerkCosts` (LOWEST) restamps every trait whose layout has `trait|` rows once all are registered.
 - `mixin/MixinItemStackDurability.java` (`ItemStack.damageItem` HEAD), `mixin/MixinBlockCropsSeed.java` (`BlockCrops.getSeed` invoker) — **`mixins.aqtweaks.early.json`**; FQCN into `reskillable/` helpers
 
 ## Do not regress

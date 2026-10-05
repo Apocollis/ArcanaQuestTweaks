@@ -28,6 +28,10 @@ Flag false: both mouse mixins no-op (stock focus). The Baubles tick still runs.
 
 Overlays that never set `currentScreen` and never call `displayGuiScreen` are unchanged. Smooth-camera accumulators are not cleared.
 
+### Off-thread screen changes
+
+Somnia's wake packet (`ClientProxy.handleWakePacket`) calls `Minecraft.displayGuiScreen(null)` on the network thread. The cursor grab does not take effect off the client thread while `inGameHasFocus` is already set, so the camera froze after waking until a click or Escape. `MixinMinecraftMouseGrab.aqtweaks$marshalToClientThread` cancels any `displayGuiScreen` made off the client thread and queues it with `addScheduledTask`, so the re-grab above runs on the right thread.
+
 ## Files
 
 | Piece | Role |
@@ -54,5 +58,7 @@ Overlays that never set `currentScreen` and never call `displayGuiScreen` are un
 - No MineMenu compile dependency. BaublesEX is compile-hard (`KeyBindings`, `PacketHandler`, `PacketOpen`, `ClientEventHandler`).
 
 ## Verify
+
+Sleep with Somnia and wake: the camera follows the mouse at once, no click or Escape. 
 
 Hold MineMenu, then open Reskillable, BetterQuesting, or the Hwyla config: yaw and pitch stay put while the screen is up. Move the cursor to a corner, then close: the pointer is grabbed at center and the camera does not jump; the next mouse move yaws from that center. Inventory, Baubles, and Esc pause do the same. `fixGuiMouseGrab` false (restart): stock look. Boot log must not say `Minecraft was loaded too early` or `EntityRenderer was loaded too early`. MineMenu keybind for Baubles opens the expanded GUI once; the real Baubles key still opens it once. DSS Skills GUI: [stamina.md](stamina.md).

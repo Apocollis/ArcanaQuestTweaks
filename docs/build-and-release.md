@@ -95,4 +95,6 @@ In-game cfg change: `ConfigChangedEvent` → `ConfigManager.sync` + `normalizePi
 3. Default: run `.\build_gradle.ps1` (deploy). Skip only if told not to rebuild (docs-only, etc.).
 4. Worldgen: test **new chunks**.
 
-Version stays **1.8** unless a plan bumps `ArcanaQuestTweaks.VERSION` and `build.gradle` `version`.
+Version stays **1.8** unless a plan bumps `ArcanaQuestTweaks.VERSION` and `build.gradle` `version`. `mcmod.info` expands `${version}` from `build.gradle` (`processResources`); `verifyReleaseJar` fails when the `ArcanaQuestTweaks.VERSION` constant differs from `build.gradle` `version`.
+
+All mixin jsons, required or optional, set `injectors.defaultRequire = 1`: an injector that matches nothing is an error (a required json then stops the boot) instead of a silent no-op.

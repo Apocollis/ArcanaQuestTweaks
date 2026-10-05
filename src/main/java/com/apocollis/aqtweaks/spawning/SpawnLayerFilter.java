@@ -158,12 +158,18 @@ public class SpawnLayerFilter {
         if (entry == null || entry.entityClass == null) {
             return false;
         }
-        ResourceLocation key = EntityList.getKey(entry.entityClass);
-        if (key == null) {
+        String id = ID_CACHE.computeIfAbsent(entry.entityClass, c -> {
+            ResourceLocation key = EntityList.getKey(c);
+            return key == null ? "" : key.toString();
+        });
+        if (id.isEmpty()) {
             return false;
         }
-        return shouldStripId(key.toString(), cave, structuresHere);
+        return shouldStripId(id, cave, structuresHere);
     }
+
+    /** Entity class to registry id string; spawn lists are filtered on every spawn attempt. */
+    private static final Map<Class<? extends net.minecraft.entity.Entity>, String> ID_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
 
     private static boolean shouldStripId(String id, boolean cave, Set<String> structuresHere) {
         if (cave) {

@@ -20,9 +20,13 @@ public class MixinEntityAITasks {
         try {
             action.updateTask();
         } catch (NullPointerException e) {
+            // Some third-party tasks NPE mid-update (target cleared this tick). Stop the task and keep
+            // the entity ticking; log once per task class so a real bug is still visible.
+            com.apocollis.aqtweaks.util.AiTaskReport.npe(action, e);
             try {
                 action.resetTask();
-            } catch (Throwable ignored) {
+            } catch (RuntimeException second) {
+                com.apocollis.aqtweaks.util.AiTaskReport.resetFailed(action, second);
             }
         }
     }

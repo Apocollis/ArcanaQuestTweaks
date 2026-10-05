@@ -66,6 +66,28 @@ public class ComfortSystemHandler {
     private static final int WARP_CLEANSE_THRESHOLD = 12;
 
     static final Map<String, CozyConfig> COZY_BLOCKS = new HashMap<>();
+
+    /**
+     * Block to its cozy entry, or {@link #NO_COZY} for blocks without one. The scan visits up to
+     * 3,125 blocks per evaluation, so this avoids a registry-name string per block. Cleared by
+     * {@link #clearCozyCache} whenever {@link #COZY_BLOCKS} is rebuilt.
+     */
+    private static final Map<net.minecraft.block.Block, CozyConfig> COZY_BY_BLOCK =
+            new java.util.concurrent.ConcurrentHashMap<>();
+    private static final CozyConfig NO_COZY = new CozyConfig(0.0f, "");
+
+    static void clearCozyCache() {
+        COZY_BY_BLOCK.clear();
+    }
+
+    private static CozyConfig cozyFor(net.minecraft.block.Block block) {
+        CozyConfig cached = COZY_BY_BLOCK.get(block);
+        if (cached != null) return cached == NO_COZY ? null : cached;
+        ResourceLocation name = block.getRegistryName();
+        CozyConfig found = name == null ? null : COZY_BLOCKS.get(name.toString());
+        COZY_BY_BLOCK.put(block, found == null ? NO_COZY : found);
+        return found;
+    }
     static final Map<String, Integer> CATEGORY_LIMITS = new HashMap<>();
     static final Set<String> ENTRY_REQUIRE_CATEGORIES = new HashSet<>();
     static long DAMAGE_COOLDOWN_TICKS = 600L;
@@ -355,10 +377,7 @@ public class ComfortSystemHandler {
                     if (!world.isBlockLoaded(cursor)) continue;
 
                     IBlockState state = world.getBlockState(cursor);
-                    ResourceLocation name = state.getBlock().getRegistryName();
-                    if (name == null) continue;
-
-                    CozyConfig config = COZY_BLOCKS.get(name.toString());
+                    CozyConfig config = cozyFor(state.getBlock());
                     if (config != null) {
                         categoryScores.computeIfAbsent(config.category, k -> new ArrayList<>()).add(config.weight);
                         if (!hasEntryFurniture && ENTRY_REQUIRE_CATEGORIES.contains(config.category)) {
@@ -535,7 +554,7 @@ public class ComfortSystemHandler {
         player.addPotionEffect(new PotionEffect(PotionHomestead.INSTANCE, HOMESTEAD_DURATION_TICKS, homesteadAmplifier, true, false));
 
         if (grantedBand == 1) {
-            applyNamedPotion(player, LEARNING_POTION, EIGHT_MINUTES_TICKS, 0);
+            applyNamedPotion(player, LEARNING_POTION, FOUR_MINUTES_TICKS, 0);
         } else {
             removeNamedPotion(player, LEARNING_POTION);
             int xpAmp = grantedBand >= 3 ? 1 : 0;

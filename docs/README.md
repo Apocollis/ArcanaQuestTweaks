@@ -2,7 +2,7 @@
 
 This directory is the design and engineering spec for `aqtweaks` **1.8**. Read the index, then the module file for the system you are changing. Worldgen applies to **new chunks only**.
 
-**Ops (reproduce / ship):** [compatibility-matrix.md](compatibility-matrix.md) · [build-and-release.md](build-and-release.md) · [verification.md](verification.md) · [changelog.md](changelog.md)
+**Ops (reproduce / ship):** [compatibility-matrix.md](compatibility-matrix.md) · [build-and-release.md](build-and-release.md) · [verification.md](verification.md) · [changelog.md](changelog.md) · [history/2026-10-code-review-cleanup.md](history/2026-10-code-review-cleanup.md)
 
 Mod: `aqtweaks`. Minecraft 1.12.2 / CleanroomMC / Forge. Stay on **1.8** unless asked to bump.
 
@@ -127,7 +127,7 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `
 | File | `required` | Module | If parent jar missing |
 | --- | --- | --- | --- |
 | `mixins.aqtweaks.json` | **true** | Depths, RTG villages, Recipes | Load fails |
-| `mixins.aqtweaks.vanilla.json` | **true** | Vanilla-only: `AccessorChunk` (Somnia light checks), `InvokerStructureStart` (protected `updateBoundingBox` for village/mineshaft pads), `MixinEntityAITasks` (swallows an NPE thrown by any AI task `updateTask`, then `resetTask`), `MixinEntityGhastAIFireballAttack` (no target: stop attacking) | Load fails |
+| `mixins.aqtweaks.vanilla.json` | **true** | Vanilla-only: `AccessorChunk` (Somnia light checks), `InvokerStructureStart` (protected `updateBoundingBox` for village/mineshaft pads), `MixinEntityAITasks` (swallows an NPE thrown by any AI task `updateTask`, then `resetTask`; logs once per task class via `util/AiTaskReport`), `MixinEntityGhastAIFireballAttack` (no target: stop attacking) | Load fails |
 | `mixins.aqtweaks.grapple.json` | false | Stamina | Skip |
 | `mixins.aqtweaks.dss.json` | false | Stamina | Skip |
 | `mixins.aqtweaks.elenaidodge.json` | false | Stamina feather colors + armor tooltip weight | Skip |

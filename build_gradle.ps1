@@ -79,7 +79,8 @@ $deps = @(
     "grappling_hook_mod-1.12.2-v13.jar",
     "OpenGlider-1.12.1-1.1.0.jar",
     "Waystones_1.12.2-4.1.0.jar",
-    "TreeChopper-1.12.2-1.2.4.jar"
+    "TreeChopper-1.12.2-1.2.4.jar",
+    "depthsupdate-1.12.2-1.0.0-a12.jar"
 )
 foreach ($dep in $deps) {
     $src = "$localModsDir/$dep"

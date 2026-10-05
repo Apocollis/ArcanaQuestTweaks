@@ -12,6 +12,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 public final class RiftParticles {
 
     private static final int BURST = 2;
+    private static final float MIN_RATE = 0.15F;
     private static final double HEIGHT = 2.4;
     private static final double MAX_RADIUS = 0.70;
 
@@ -27,7 +28,12 @@ public final class RiftParticles {
         float r = wild ? 0.95F : 0.55F;
         float g = wild ? 0.12F : 0.2F;
         float b = wild ? 0.08F : 0.85F;
+        // Fewer motes as the rift runs down: full rate when new, MIN_RATE of it at the end.
+        int lifespan = Math.max(1, rift.getLifespanTicks());
+        float left = Math.max(0.0F, Math.min(1.0F, remaining / (float) lifespan));
+        float rate = MIN_RATE + (1.0F - MIN_RATE) * left;
         for (int i = 0; i < BURST; i++) {
+            if (rand.nextFloat() >= rate) continue;
             double radius = rand.nextDouble() * MAX_RADIUS;
             double angle = rand.nextDouble() * Math.PI * 2.0;
             double ox = Math.cos(angle) * radius;

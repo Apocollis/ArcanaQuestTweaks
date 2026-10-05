@@ -41,9 +41,6 @@ public class ReskillablePerkRegistry {
         event.getRegistry().register(new AqtweaksTrait("rancher", perks.rancher));
         event.getRegistry().register(new AqtweaksTrait("drafter", perks.drafter));
         event.getRegistry().register(new AqtweaksTrait("sculptor", perks.sculptor));
-        event.getRegistry().register(new AqtweaksTrait("reach1", perks.reach1));
-        event.getRegistry().register(new AqtweaksTrait("reach2", perks.reach2));
-        event.getRegistry().register(new AqtweaksTrait("reach3", perks.reach3));
         event.getRegistry().register(new AqtweaksTrait("transpose", perks.transpose));
         event.getRegistry().register(new AqtweaksTrait("vis_thrift", perks.visThrift));
         event.getRegistry().register(new AqtweaksTrait("quiet_mind", perks.quietMind));
@@ -96,6 +93,10 @@ public class ReskillablePerkRegistry {
         event.getRegistry().register(new AqtweaksTrait("soft_step", perks.softStep));
         event.getRegistry().register(new AqtweaksTrait("tumble", perks.tumble));
         event.getRegistry().register(new AqtweaksTrait("slow_fall", perks.slowFall));
+        // Last, so the registry ids of every earlier perk stay stable in existing worlds.
+        event.getRegistry().register(new AqtweaksTrait("reach1", perks.reach1));
+        event.getRegistry().register(new AqtweaksTrait("reach2", perks.reach2));
+        event.getRegistry().register(new AqtweaksTrait("reach3", perks.reach3));
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
@@ -122,22 +123,12 @@ public class ReskillablePerkRegistry {
         stamp(registry, "reskillable", "safe_port", 2,
                 "reskillable:magic|12", "reskillable:agility|12", "reskillable:defense|12");
 
-        var perks = ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks;
-        restampTraits(registry, "druid", perks.druid);
-        restampTraits(registry, "witch", perks.witch);
-        restampTraits(registry, "astromancer", perks.astromancer);
-        restampTraits(registry, "artificer", perks.artificer);
-        restampTraits(registry, "mana_veil", perks.manaVeil);
-        restampTraits(registry, "living_edge", perks.livingEdge);
-        restampTraits(registry, "cold_iron_mind", perks.coldIronMind);
-        restampTraits(registry, "stitch", perks.stitch);
-        restampTraits(registry, "astral_warmth", perks.astralWarmth);
-        restampTraits(registry, "star_powered", perks.starPowered);
-        restampTraits(registry, "live_spark", perks.liveSpark);
-        restampTraits(registry, "cinder_ward", perks.cinderWard);
-        restampTraits(registry, "fortify", perks.fortify);
-        restampTraits(registry, "taunt", perks.taunt);
-        restampTraits(registry, "low_profile", perks.lowProfile);
+        // Every trait exists now: apply the requirement rows that reference other traits.
+        for (var entry : AqtweaksTrait.LAYOUTS.entrySet()) {
+            if (AqtweaksTrait.hasTraitRefs(entry.getValue().requirements)) {
+                restampTraits(registry, entry.getKey(), entry.getValue());
+            }
+        }
     }
 
     private static void stamp(IForgeRegistry<Unlockable> registry, String namespace, String path, int cost, String... reqs) {

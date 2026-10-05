@@ -33,6 +33,9 @@ public abstract class MixinASMHooksVillagePaste {
     @Unique
     private static Method aqtweaks$skip;
 
+    @Unique
+    private static boolean aqtweaks$warned;
+
     @Inject(method = "addComponentParts", at = @At("HEAD"), cancellable = true)
     private static void aqtweaks$skipWetVillagePaste(StructureComponent component, World world, Random rand,
                                                      StructureBoundingBox box, CallbackInfoReturnable<Boolean> cir) {
@@ -46,7 +49,14 @@ public abstract class MixinASMHooksVillagePaste {
             if (Boolean.TRUE.equals(skip.invoke(null, component, world, box))) {
                 cir.setReturnValue(Boolean.TRUE);
             }
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            // Reflection keeps this mixin free of Tweaks types (see class comment); a failure means the
+            // wet-village veto is off for Charm pastes, so say so once instead of staying silent.
+            if (!aqtweaks$warned) {
+                aqtweaks$warned = true;
+                org.apache.logging.log4j.LogManager.getLogger("AQTweaks-Villages")
+                        .warn("[AQ-CHARM] wet village paste bridge failed; Charm paste veto disabled (logged once)", t);
+            }
         }
     }
 }

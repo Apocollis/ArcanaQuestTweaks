@@ -223,9 +223,10 @@ public class PerkWishlist {
     }
 
     private static void fortify(EntityPlayer player) {
-        boolean on = PerkAccess.on(player, "aqtweaks:fortify",
+        // Cheap blocking test first so the perk lookup only runs for players holding a shield up.
+        boolean on = player.isActiveItemStackBlocking() && PerkAccess.on(player, "aqtweaks:fortify",
                 ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.fortify.enable);
-        if (!on || !player.isActiveItemStackBlocking()) {
+        if (!on) {
             player.getEntityData().setInteger(STILL, 0);
             clearShort(player, MobEffects.RESISTANCE, 50);
             return;
@@ -255,18 +256,19 @@ public class PerkWishlist {
         var attribute = player.getEntityAttribute(SharedMonsterAttributes.KNOCKBACK_RESISTANCE);
         if (attribute == null) return;
         attribute.removeModifier(KNOCKBACK);
+        if (!player.isActiveItemStackBlocking()) return;
         if (!PerkAccess.on(player, "aqtweaks:unyielding",
                 ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.unyielding.enable)) return;
-        if (!player.isActiveItemStackBlocking()) return;
         attribute.applyModifier(new AttributeModifier(KNOCKBACK, "aqtweaks.unyielding", 1.0, 0));
     }
 
     private static void slowFall(EntityPlayer player) {
-        boolean on = PerkAccess.on(player, "aqtweaks:slow_fall",
-                ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.slowFall.enable);
         Potion feather = potion("rustic", "feather");
         if (!(feather instanceof PotionFeather)) return;
-        boolean wall = on && player.motionY < 0.0 && !player.onGround && besideSolid(player);
+        boolean wall = player.motionY < 0.0 && !player.onGround
+                && PerkAccess.on(player, "aqtweaks:slow_fall",
+                        ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.slowFall.enable)
+                && besideSolid(player);
         if (wall) {
             player.addPotionEffect(new PotionEffect(feather, 8, 0, true, false));
         } else {

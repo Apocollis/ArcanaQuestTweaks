@@ -16,7 +16,14 @@ import java.util.concurrent.ConcurrentHashMap;
 /** Stone Cleaver and Wood Splitter skip one durability point for the break that just started. */
 public final class PerkDurability {
 
-    private static final Map<UUID, IBlockState> PENDING = new ConcurrentHashMap<>();
+    private record Pending(IBlockState state, long tick) {}
+
+    private static final Map<UUID, Pending> PENDING = new ConcurrentHashMap<>();
+
+    /** Drop a player's mark (logout). */
+    public static void forget(UUID id) {
+        PENDING.remove(id);
+    }
 
     private PerkDurability() {}
 
@@ -24,14 +31,16 @@ public final class PerkDurability {
         if (player == null || state == null) return;
         ItemStack tool = player.getHeldItemMainhand();
         if (qualifies(player, tool, state)) {
-            PENDING.put(player.getUniqueID(), state);
+            PENDING.put(player.getUniqueID(), new Pending(state, player.world.getTotalWorldTime()));
         }
     }
 
     public static boolean consume(EntityPlayer player, ItemStack stack) {
         if (player == null) return false;
-        IBlockState state = PENDING.remove(player.getUniqueID());
-        return state != null && qualifies(player, stack, state);
+        Pending pending = PENDING.remove(player.getUniqueID());
+        // A mark from a break that was cancelled must not make an unrelated damageItem free.
+        if (pending == null || player.world.getTotalWorldTime() - pending.tick() > 1L) return false;
+        return qualifies(player, stack, pending.state());
     }
 
     public static boolean skip(EntityPlayer player, ItemStack stack, IBlockState state) {

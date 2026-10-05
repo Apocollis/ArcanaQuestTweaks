@@ -9,7 +9,8 @@
     "MixinSkillActive",
     "MixinEntitySwordBeam",
     "MixinDynamicStealthAttack",
-    "MixinEntitySightData"
+    "MixinEntitySightData",
+    "MixinDSEntityTrackerEntry"
   ],
   "client": [
     "MixinDSSKeyHandler"

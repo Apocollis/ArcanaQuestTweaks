@@ -24,6 +24,20 @@ public class MixinMinecraftMouseGrab {
     @Unique
     private int aqtweaks$guiDepth;
 
+    /**
+     * Somnia's wake packet calls {@code displayGuiScreen(null)} on the network thread. The cursor grab only
+     * works on the client thread, yet {@code inGameHasFocus} is set, so the camera stops following the mouse
+     * until a click or Escape. Run any off-thread screen change on the client thread instead.
+     */
+    @Inject(method = "displayGuiScreen", at = @At("HEAD"), cancellable = true)
+    private void aqtweaks$marshalToClientThread(GuiScreen guiScreenIn, CallbackInfo ci) {
+        Minecraft mc = (Minecraft) (Object) this;
+        if (!mc.isCallingFromMinecraftThread()) {
+            mc.addScheduledTask(() -> mc.displayGuiScreen(guiScreenIn));
+            ci.cancel();
+        }
+    }
+
     @Inject(method = "displayGuiScreen", at = @At("HEAD"))
     private void aqtweaks$enterGui(GuiScreen guiScreenIn, CallbackInfo ci) {
         aqtweaks$guiDepth++;

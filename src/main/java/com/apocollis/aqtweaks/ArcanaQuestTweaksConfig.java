@@ -704,7 +704,7 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Sleep Minimum Hours")
         @Config.Comment("In-game hours a player must have slept (bed to wake, counting Somnia fast-forward time) for the cleanse to apply. 1 hour = 1000 ticks. No morning or full-night requirement. 0 = any sleep that was recorded.")
         @Config.RangeInt(min = 0, max = 24)
-        public static int sleepMinHours = 6;
+        public static int sleepMinHours = 5;
 
         @Config.Name("Sleep Comfort Temporary Warp Clear")
         @Config.Comment("While sleeping, Somnia time-only fast-forward skips the player ticks that Comfort needs to clear temporary warp. When on, the skipped time is credited on waking at the player's current Homestead rate (2 / 3 / 6 progress per 30s scan, 12 progress clears 1 temporary warp). Time already covered by real player ticks is not counted twice.")
@@ -1215,6 +1215,10 @@ public class ArcanaQuestTweaksConfig {
     }
 
     public static class QualityToolsGeneral {
+        @Config.Name("Trace Wear")
+        @Config.Comment("Log one INFO line (quality-wear ...) for every durability damage check. Off by default: it floods latest.log. Turn on only while diagnosing wear and break.")
+        public boolean traceWear = false;
+
         @Config.Name("Enable Quality Tools Module")
         @Config.Comment("Master switch. When false, QT living-update stamp is not skipped and Tweaks wear/break/runes/loot stamp are off.")
         public boolean enable = true;
@@ -2106,6 +2110,7 @@ public class ArcanaQuestTweaksConfig {
                 normalizePinned();
                 DssSkillCosts.invalidate();
                 StaminaFeathers.invalidateWeightCache();
+                com.apocollis.aqtweaks.stamina.StaminaModule.clearWeaponCaches();
                 com.apocollis.aqtweaks.spawning.SpawnTypeLists.reload();
                 com.apocollis.aqtweaks.spawning.SpawnStructureLists.reload();
                 com.apocollis.aqtweaks.spawning.SpawnParties.reload();

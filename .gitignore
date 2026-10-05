@@ -27,3 +27,5 @@ AGENTS.md
 implementation_plan.md
 /.tmp_bc_extract
 
+remap_out*.txt
+_spark_scan.py

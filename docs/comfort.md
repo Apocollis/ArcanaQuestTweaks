@@ -78,7 +78,7 @@ Thresholds are floats in JSON (defaults 15 / 40 / 60). They set the **maximum** 
 
 | Granted | After | HUD | Other |
 | --- | --- | --- | --- |
-| I | immediately when score ≥ I | Homestead I (amp 0) | +2 warp cleanse / 30s; `extraalchemy:effect.learning` amp 0, 8:00 |
+| I | immediately when score ≥ I | Homestead I (amp 0) | +2 warp cleanse / 30s; `extraalchemy:effect.learning` amp 0, 4:00 |
 | II | 60s at I while score ≥ II | Homestead II (amp 1) | +3 warp cleanse; strip Learning; `soot:experience_boost` amp 0, 8:00; `elenaidodge2:endurance` amp 0, 8:00; `elenaidodge2:replenishment` 4:00 |
 | III | 60s at II while score ≥ III | Homestead III (amp 2) | +6 warp cleanse; strip Learning; XP boost amp 1, 8:00; endurance amp 1, 8:00; replenishment 8:00 |
 

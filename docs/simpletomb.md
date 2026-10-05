@@ -95,6 +95,10 @@ To guard against void deaths, tomb placement failures in modded dimensions, or u
 
 ---
 
+### 3a. Slot map handoff and cleanup
+
+`MixinTileEntityTomb` implements `simpletomb/TombSlotMapAccess`; `SimpleTombModule.onPlayerDrops` calls `aqtweaks$setSlotMap` directly (no `writeToNBT`/`readFromNBT` round trip). Grave-slot tags are stripped from the player's remaining inventory after drops, and `SimpleTombModule.onRespawn` clears any stale death context and tags when a death never reached `PlayerDropsEvent`.
+
 ## Files
 
 | File | Role |
