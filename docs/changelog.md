@@ -12,6 +12,22 @@ Stay on version **1.8** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
 - Somnia's wake packet closes the sleep screen on the network thread, so the cursor grab did not take effect and the camera stopped following the mouse until a click or Escape. `MixinMinecraftMouseGrab` now re-queues any off-thread `displayGuiScreen` onto the client thread.
 
+## 2026-10-06 — Server relight queue skips liquids, nearest first
+
+- `DeferredRelight` ignores liquid emitters (underground lava made up most of the 10,000+ queued per minute) and retries nearby emitters (within 96 blocks of a player) first; distant ones use leftover budget. Same rule as the client sweep.
+
+## 2026-10-06 — Client relight sweep skips lava, prioritizes nearby
+
+- First version's queue sat at its 8192 cap with only 0 to 52 checks run per minute: underground lava was flagged stale by the thousand and blocked real torches. The sweep now skips liquid emitters, caps 64 stale cells per section, remembers positions it already checked, drops the oldest when full, and runs checks nearest-first (within 128 blocks).
+
+## 2026-10-06 — Client relight sweep
+
+- New client-only `ClientRelightSweep`: when a chunk arrives, emitters (torches, lanterns, lava) whose stored light, or an open neighbor's, is lower than they should give get a `World.checkLight` on the client thread. Fixes village torches and lanterns (Charm perimeter lights) that stayed dark on the client until a torch was placed nearby. Config `Enable Client Relight Sweep` default on, `Client Relight Debug` default off.
+
+## 2026-10-06 — Deferred relight diagnostics
+
+- New `Deferred Relight Debug` (rtg cfg, default off): `[AQ-RELIGHT]` log line per minute per world with lit-at-placement, queued, retried, expired and overflow counts and sample coordinates. For diagnosing village torches that stay dark in new chunks.
+
 ## 2026-10-06 — Deferred relight queues only light emitters
 
 - `DeferredRelight.onCheckFailed` ignores positions whose block does not emit light. The lighting check runs for every opaque block placed during generation, so shrines and villages queued thousands of stone blocks; the 8192 cap dropped the torches and lanterns first, and each retry did a full flood-fill. Never reads an unloaded chunk.

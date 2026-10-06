@@ -46,6 +46,12 @@ When false: stock right-side RTL. Missing jar → json skipped.
 
 Always visible (Metallurgy’s own items stay shift-gated by Metallurgy). Swords and hoes are skipped unless they expose those tool classes.
 
+## Client relight sweep
+
+Light reaches the client only inside chunk data, or when the client runs its own check for a block change it receives. Emitters the server lit after it had sent the chunk, or whose client check was skipped because the 17-block area around them was not loaded yet, stayed dark on the client until a torch placed nearby forced a check (F3 light reads low there). Vanilla's own sweep for dark emitters (`Chunk.enqueueRelightChecks`) runs on the server world only.
+
+`world/client/ClientRelightSweep` (`Side.CLIENT` subscriber): `ChunkEvent.Load` on a remote world queues the chunk. On `ClientTickEvent` END, up to 2 sections per tick are scanned once the chunk's 8 neighbors are loaded (or after 30 s); every non-empty section cell whose block has a vanilla `getLightValue()` above 0 is tested: stale if its stored block light is below that value, or an open (opacity below 15) neighbor holds less than value - 1. Liquid emitters (lava) are skipped: the first version found about 8000 stale cells a minute, nearly all underground lava, filled its 8192 queue and starved real torches (a spark of the `[AQ-CLIENT-RELIGHT]` log showed 0 to 52 checks a minute against a full queue). Stale positions (at most 64 per section, never re-queued once checked this session) go to a bounded queue (8192, oldest dropped) and up to 16 per tick run `World.checkLight` for entries within 128 blocks of the player once `isAreaLoaded(pos, 17)` is true; others rotate to the back; dropped after 2 minutes. Client thread only; clears when the client world changes. Config `Enable Client Relight Sweep` (default true) and `Client Relight Debug` (`[AQ-CLIENT-RELIGHT]` once a minute) in `aqtweaks_client.cfg` category `relight`. The server-side `DeferredRelight` ([rtg.md](rtg.md) item 28) is separate and unchanged.
+
 ## Files
 
 | Piece | Role |

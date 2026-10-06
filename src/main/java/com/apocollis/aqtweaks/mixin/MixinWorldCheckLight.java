@@ -20,6 +20,8 @@ public class MixinWorldCheckLight {
     private void aqtweaks$deferFailedLightCheck(BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
         if (!cir.getReturnValueZ()) {
             DeferredRelight.onCheckFailed((World) (Object) this, pos);
+        } else if (DeferredRelight.debugOn()) {
+            DeferredRelight.onCheckSucceeded((World) (Object) this, pos);
         }
     }
 }

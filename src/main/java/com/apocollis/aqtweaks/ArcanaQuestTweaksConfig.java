@@ -644,6 +644,20 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Tooltips")
         @Config.Comment("Client item tooltip lines.")
         public static final Tooltips tooltips = new Tooltips();
+
+        @Config.Name("Relight")
+        @Config.Comment("Client-side repair of light emitters that arrive dark in chunk data.")
+        public static final ClientRelight relight = new ClientRelight();
+    }
+
+    public static class ClientRelight {
+        @Config.Name("Enable Client Relight Sweep")
+        @Config.Comment("When a chunk arrives on the client, scan it for torches, lanterns and other emitters whose stored light is too low and re-run the light check for them, so they light without placing a torch nearby. Spread over client ticks. Restart after change.")
+        public boolean enable = true;
+
+        @Config.Name("Client Relight Debug")
+        @Config.Comment("Log one [AQ-CLIENT-RELIGHT] line per minute with sections scanned, stale emitters found and checks run. Off by default.")
+        public boolean debug = false;
     }
 
     public static class Hud {
@@ -1055,6 +1069,10 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Enable Deferred Relight")
         @Config.Comment("Any server-side light check skipped because the surrounding chunks were not loaded (structures placed during chunk generation: villages, monuments, shrines) is queued and retried once they load, so torches and lanterns in newly generated chunks light without a manual update. Bounded queue, new chunks only. Applies to every dimension. Restart after change.")
         public boolean enableDeferredRelight = true;
+
+        @Config.Name("Deferred Relight Debug")
+        @Config.Comment("Once a minute per world, log how many light emitters were lit at placement, queued, retried and lit, expired unlit, or dropped on overflow, with a few coordinates ([AQ-RELIGHT] in latest.log). Off by default; turn on only while diagnosing unlit torches and lanterns in new chunks.")
+        public boolean deferredRelightDebug = false;
 
         @Config.Name("Village Flatten Debug")
         @Config.Comment("Write village terrain traces to logs/villagepatch.log (not latest.log). Off by default: appends stall chunk gen. Turn on only while diagnosing villages.")
