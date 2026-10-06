@@ -12,6 +12,18 @@ Stay on version **1.8** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
 - Somnia's wake packet closes the sleep screen on the network thread, so the cursor grab did not take effect and the camera stopped following the mouse until a click or Escape. `MixinMinecraftMouseGrab` now re-queues any off-thread `displayGuiScreen` onto the client thread.
 
+## 2026-10-06 — Deferred relight queues only light emitters
+
+- `DeferredRelight.onCheckFailed` ignores positions whose block does not emit light. The lighting check runs for every opaque block placed during generation, so shrines and villages queued thousands of stone blocks; the 8192 cap dropped the torches and lanterns first, and each retry did a full flood-fill. Never reads an unloaded chunk.
+
+## 2026-10-06 — Deferred relight for chunk-generation lighting
+
+- Torches and lanterns placed during chunk generation (villages, ocean monuments, shrines) no longer stay dark. `World.checkLight` silently did nothing when the surrounding chunks were not loaded and nothing retried. New `MixinWorldCheckLight` (early json) queues each failed server-side check in `DeferredRelight`, which retries it once the area is loaded (bounded: 8192 entries, 6000 ticks, 64 per tick per world). Config `Enable Deferred Relight`, default on. See `rtg.md` item 28.
+
+## 2026-10-06 — Tab-complete crash traced to Serene Seasons
+
+- The `"list1" is null` soft crash in `MinecraftServer.getTabCompletions` (AQ-005) comes from `/ss` (`/sereneseasons`), e.g. `/ss setseason <TAB>`: `SSCommand.getTabCompletions` returns `null` for any argument position but the first. New optional `mixins.aqtweaks.sereneseasons.json` / `MixinSSCommand` returns the sub-season names (`early_spring` ... `late_winter`, filtered by what you typed) for `/ss setseason <TAB>` and an empty list elsewhere. Compile-hard against the Serene Seasons jar (`libs/`, `$deps`).
+
 ## 2026-10-04 — Remote rift lighting retries until its chunks load
 
 - `RiftLighting` kept a `checkLight` job for one attempt only. `World.checkLight` silently returns false while the surrounding area is not loaded, so the far end of a pair (and a rift seen right after a dimension change) stayed unlit until another light update. Jobs now stay queued until `checkLight` returns true, up to 30 s.

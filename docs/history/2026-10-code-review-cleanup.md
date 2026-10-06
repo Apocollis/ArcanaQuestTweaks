@@ -45,7 +45,7 @@ Grappling Hook, Open Glider, Waystones and Thaumcraft warp now use direct calls 
 
 ## Out of scope on purpose
 
-AQ-011 (intermittent road-only or sparse waterside villages) and AQ-005 (third-party tab-complete NPE) were not pursued: both are intermittent. The prime suspect for AQ-011 is the Batch 1 world push/pop; the A/B test is to remove `MixinMapGenVillageWorld` from `mixins.aqtweaks.json`.
+AQ-011 (intermittent road-only or sparse waterside villages) was not pursued: it is intermittent. AQ-005 (tab-complete NPE) was later traced to Serene Seasons' `/ss` command returning null completions past the first argument and fixed by `MixinSSCommand` (see the changelog), outside the refactor. The prime suspect for AQ-011 is the Batch 1 world push/pop; the A/B test is to remove `MixinMapGenVillageWorld` from `mixins.aqtweaks.json`.
 
 ## If something regresses
 

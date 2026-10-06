@@ -38,6 +38,7 @@ public class AQTweaksLateMixinLoader implements ILateMixinLoader {
                 "mixins.aqtweaks.playerrevive.json",
                 "mixins.aqtweaks.prospectus.json",
                 "mixins.aqtweaks.simpletomb.json",
-                "mixins.aqtweaks.treechopper.json");
+                "mixins.aqtweaks.treechopper.json",
+                "mixins.aqtweaks.sereneseasons.json");
     }
 }

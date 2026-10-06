@@ -1052,6 +1052,10 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("After village pieces paste in a chunk, re-check block light at torches and other sources so lamps actually light the plate. Does not change blocks.")
         public boolean enableVillageRelight = true;
 
+        @Config.Name("Enable Deferred Relight")
+        @Config.Comment("Any server-side light check skipped because the surrounding chunks were not loaded (structures placed during chunk generation: villages, monuments, shrines) is queued and retried once they load, so torches and lanterns in newly generated chunks light without a manual update. Bounded queue, new chunks only. Applies to every dimension. Restart after change.")
+        public boolean enableDeferredRelight = true;
+
         @Config.Name("Village Flatten Debug")
         @Config.Comment("Write village terrain traces to logs/villagepatch.log (not latest.log). Off by default: appends stall chunk gen. Turn on only while diagnosing villages.")
         public boolean villageFlattenDebug = false;
