@@ -1,4 +1,4 @@
-# Reskillable module (1.8)
+# Reskillable module (1.9)
 
 Last updated: 2026-09-21.
 

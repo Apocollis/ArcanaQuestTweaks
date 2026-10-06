@@ -1,4 +1,4 @@
-# Game Stages module (1.8)
+# Game Stages module (1.9)
 
 Last updated: 2026-09-20.
 

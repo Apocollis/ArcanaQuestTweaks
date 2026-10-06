@@ -1,4 +1,4 @@
-# Recipes (Forge CraftingHelper) (1.8)
+# Recipes (Forge CraftingHelper) (1.9)
 
 Last updated: 2026-09-10.
 

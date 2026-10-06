@@ -1,4 +1,4 @@
-# Compatibility matrix (1.8)
+# Compatibility matrix (1.9)
 
 Last updated: 2026-10-02.
 
@@ -89,7 +89,7 @@ Toughness Bar, Biomes O’ Plenty: string mixin only (`@Shadow` on the string ta
 | MixinBooter / Fugue | Pack: `mixinbooter-11.13.jar`, `Fugue-0.23.7.jar` (not in Tweaks `libs/` copy list) |
 | Unimined | Gradle plugin **1.4.17-kappa** |
 | Java | Toolchain **25**; `--release 21` class files; deploy script sets `JAVA_HOME` to Zulu 25 |
-| Remap | `defaultRemapJar = true` → ship `ArcanaQuestTweaks-1.8.jar`, not `-dev` |
+| Remap | `defaultRemapJar = true` → ship `ArcanaQuestTweaks-1.9.jar`, not `-dev` |
 
 ## Parents
 

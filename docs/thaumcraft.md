@@ -1,4 +1,4 @@
-# Thaumcraft module (1.8)
+# Thaumcraft module (1.9)
 
 Last updated: 2026-10-02.
 

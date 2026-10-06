@@ -1,4 +1,4 @@
-# RTG module (1.8)
+# RTG module (1.9)
 
 Last updated: 2026-09-18.
 
@@ -51,7 +51,7 @@ Keep **what** villages create (vanilla pieces + Recurrent Complex, plus at most 
 
 ## Hard constraints
 
-- Stay version **1.8**.
+- Stay version **1.9**.
 - **New chunks only.** Flattening writes RTG `landscape.noise` before `generateTerrain`. Village-pad columns are resealed after caves/ravines. Existing chunks are not recarved.
 - RTG jar in this pack: `RTG-1.12.2-7.3.3.6.jar`. RTG has **no** village terrain queue of its own.
 - Production RTG chunk method is `func_185932_a` (`remap = false`). Injects that replace the return need `CallbackInfoReturnable<Chunk>`.

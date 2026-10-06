@@ -1,4 +1,4 @@
-# Bewitchment module (1.8)
+# Bewitchment module (1.9)
 
 Last updated: 2026-09-25.
 

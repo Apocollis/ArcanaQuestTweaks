@@ -1,4 +1,4 @@
-# Spawning module (1.8)
+# Spawning module (1.9)
 
 Last updated: 2026-09-18. `MixinStructureCache` RETURN on `parseStructureData` is `cancellable = true` (Mixin 0.8 `setReturnValue`). Cage `MixinMobSpawnerBaseLogic` is in `mixins.aqtweaks.early.json`.
 

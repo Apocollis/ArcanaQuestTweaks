@@ -1,4 +1,4 @@
-# Aether portal landing (1.8)
+# Aether portal landing (1.9)
 
 Last updated: 2026-09-23.
 

@@ -1,4 +1,4 @@
-# Portal module (1.8)
+# Portal module (1.9)
 
 Last updated: 2026-09-18. Dest XYZ teleport, 60-tick gate, ground bind. No DS full-bypass mixin.
 

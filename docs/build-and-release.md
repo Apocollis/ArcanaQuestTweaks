@@ -1,4 +1,4 @@
-# Build and release (1.8)
+# Build and release (1.9)
 
 Last updated: 2026-09-20.
 
@@ -30,8 +30,8 @@ Output:
 
 | File | Use |
 | --- | --- |
-| `build/libs/ArcanaQuestTweaks-1.8.jar` | **Ship this** (remapped, `defaultRemapJar = true`) |
-| `build/libs/ArcanaQuestTweaks-1.8-dev.jar` | MCP/dev classifier — **do not** drop in `mods/` |
+| `build/libs/ArcanaQuestTweaks-1.9.jar` | **Ship this** (remapped, `defaultRemapJar = true`) |
+| `build/libs/ArcanaQuestTweaks-1.9-dev.jar` | MCP/dev classifier — **do not** drop in `mods/` |
 
 Skip `*sources*` / `*javadoc*` if present.
 
@@ -95,6 +95,6 @@ In-game cfg change: `ConfigChangedEvent` → `ConfigManager.sync` + `normalizePi
 3. Default: run `.\build_gradle.ps1` (deploy). Skip only if told not to rebuild (docs-only, etc.).
 4. Worldgen: test **new chunks**.
 
-Version stays **1.8** unless a plan bumps `ArcanaQuestTweaks.VERSION` and `build.gradle` `version`. `mcmod.info` expands `${version}` from `build.gradle` (`processResources`); `verifyReleaseJar` fails when the `ArcanaQuestTweaks.VERSION` constant differs from `build.gradle` `version`.
+Version is **1.9** (bumped 2026-10-06 for the Curse upload; 1.8 is already published). Stays 1.9 unless a plan bumps `ArcanaQuestTweaks.VERSION` and `build.gradle` `version`. `mcmod.info` expands `${version}` from `build.gradle` (`processResources`); `verifyReleaseJar` fails when the `ArcanaQuestTweaks.VERSION` constant differs from `build.gradle` `version`.
 
 All mixin jsons, required or optional, set `injectors.defaultRequire = 1`: an injector that matches nothing is an error (a required json then stops the boot) instead of a silent no-op.

@@ -1,6 +1,10 @@
-# Changelog (1.8)
+# Changelog (1.9)
 
-Stay on version **1.8** until a plan bumps `ArcanaQuestTweaks.VERSION`.
+Stay on version **1.9** until a plan bumps `ArcanaQuestTweaks.VERSION`.
+
+## 2026-10-06 — Version 1.9
+
+- `build.gradle` `version`, `ArcanaQuestTweaks.VERSION` and `mcmod.info` (via `${version}`) are now **1.9**. Curse already holds 1.8, so the file for the upload must be a new version; everything dated 2026-10-04 to 2026-10-06 below ships in 1.9. No rebuild was done for the bump: the next `.\build_gradle.ps1` produces `ArcanaQuestTweaks-1.9.jar`.
 
 ## 2026-10-04 — Surface indoor insulation and boat wetness
 

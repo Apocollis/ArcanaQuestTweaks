@@ -1,4 +1,4 @@
-# Stamina module (1.8)
+# Stamina module (1.9)
 
 Last updated: 2026-09-28.
 
@@ -16,7 +16,7 @@ Optional parents: Grapple motor Ember, Open Glider undeploy, Reskillable stamina
 
 ## Hard constraints
 
-- Stay version **1.8**.
+- Stay version **1.9**.
 - Hard `@Mod` dependency: `required-after:elenaidodge2`. Soft: `after:grapplemod;after:embers`.
 - Grapple mixin `mixins.aqtweaks.grapple.json`, DSS mixin `mixins.aqtweaks.dss.json`, and feather-color mixin `mixins.aqtweaks.elenaidodge.json` are late, **`required: false`**. Toughness Bar HUD is the [client module](client.md).
 - Packets 0–2 register on **SERVER** in `CommonProxy.preInit`. Each handler is an inner class on its own packet type — `PacketSyncClimbingInput.Handler` (0), `PacketLedgeClimb.Handler` (1), `PacketSyncGrappleInput.Handler` (2) — all `Side.SERVER`. `StaminaModuleClient` only **sends**; there is no client-side handler.

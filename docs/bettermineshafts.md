@@ -1,4 +1,4 @@
-# Better Mineshafts module (1.8)
+# Better Mineshafts module (1.9)
 
 Last updated: 2026-09-18. Vanilla inherited `@Shadow` on BM classes: see the note on `remap = false` annotation strings in the README (Cleanroom named supers).
 

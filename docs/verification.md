@@ -1,15 +1,15 @@
-# Verification (1.8)
+# Verification (1.9)
 
 Last updated: 2026-10-04.
 
-Manual release / smoke checklist. **No automated tests.** Harness: CurseForge **Arcana Quest DEVBOX**, remapped `ArcanaQuestTweaks-1.8.jar` in `mods/`. Algorithms and full checklists stay in module docs; this is the pack-level pass/fail.
+Manual release / smoke checklist. **No automated tests.** Harness: CurseForge **Arcana Quest DEVBOX**, remapped `ArcanaQuestTweaks-1.9.jar` in `mods/`. Algorithms and full checklists stay in module docs; this is the pack-level pass/fail.
 
 Worldgen applies to **new chunks only**.
 
 ## Build artifact
 
 - [ ] `.\gradlew.bat build` or `.\build_gradle.ps1` succeeds (`verifyReleaseJar`: class major 65, `VillagePlate.class`, mixin json + `mixins.aqtweaks.refmap.json`).
-- [ ] Instance `mods/` has `ArcanaQuestTweaks-1.8.jar`, **not** `-dev`.
+- [ ] Instance `mods/` has `ArcanaQuestTweaks-1.9.jar`, **not** `-dev`.
 - [ ] Only one Tweaks jar (the deploy script deletes other `ArcanaQuestTweaks-*.jar`).
 
 ## Boot
