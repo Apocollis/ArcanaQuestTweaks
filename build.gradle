@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'xyz.wagyourtail.unimined' version '1.4.17-kappa'
+    id 'dev.mixinmcp.decompile' version '1.5.0'
 }
 
 group = 'com.apocollis.aqtweaks'

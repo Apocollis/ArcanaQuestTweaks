@@ -25,6 +25,7 @@ Thumbs.db
 CLAUDE.md
 AGENTS.md
 implementation_plan.md
+.mcp.json
 /.tmp_bc_extract
 
 remap_out*.txt
