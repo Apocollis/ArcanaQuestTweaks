@@ -77,7 +77,7 @@ Use Extended 1.1.3, not Elenai 1.1.0.
 
 ### Not compile-hard (do not set as Tweaks compile deps)
 
-Toughness Bar, Biomes O’ Plenty: string mixin only (`@Shadow` on the string target needs no jar) — `isModLoaded` / `required: false` json. Roguelike Arcana: structure **name** only; Roguelike jar must **not** sit in `libs/`.
+Toughness Bar, Biomes O’ Plenty, Dungeon Additions: string mixin only (`@Shadow` on the string target needs no jar) — `isModLoaded` / `required: false` json. Roguelike Arcana: structure **name** only; Roguelike jar must **not** sit in `libs/`.
 
 ## Toolchain (not CurseForge jars)
 
@@ -131,6 +131,7 @@ Jar names below are from the **Arcana Quest DEVBOX** instance on 2026-08-20 unle
 | `mysticalworld` | `mysticalworld-1.12.2-1.11.0.jar` | omitted | optional `mixins.aqtweaks.mysticalworld.json` | **yes** (`StructureGenerator`) | skip json if absent | **yes** | rtg | Huts only, not barrows. Pack also has `mysticallib` |
 | `roguelike` / Arcana | DEVBOX `RoguelikeDungeons-Arcana-2.5.3.jar` | omitted | — | no | `isInsideStructure("RoguelikeDungeon")` | **no** | thaumcraft | No Tweaks mixin on that method. Compile = no, so the jar must **not** sit in `libs/`; the script deletes `RoguelikeDungeons-Arcana-1.12.2-2.5.0.jar` there. That name never matched the DEVBOX file (`2.5.3`) anyway |
 | `biomesoplenty` | `BiomesOPlenty-1.12.2-7.0.1.2445-universal.jar` | omitted | optional `mixins.aqtweaks.biomesoplenty.json` | no (string target) | yes | **no** | comfort, rtg | Hot spring block; kelp/coral biome names; `MixinGeneratorLakes` skips village water/quicksand |
+| `da` | `unseens_dungeon_additions-1.7.5.jar` | omitted | optional `mixins.aqtweaks.da.json` | no (string target) | skip json if absent | **yes** | rtg | `MixinDaStructureStart` cancels the 14 structure `Start.func_75068_a` pastes on Overworld village overlap. Copied to `libs/` so `check_mixin_targets.py` can verify `func_75068_a` |
 | `charm` | `Charm-1.12.2-1.4.1.jar` | **required-after** | **required** `mixins.aqtweaks.charm.json` (jar `MixinConfigs`) | **yes** (`ASMHooks`) | hard | **yes** | rtg | `MixinASMHooksVillagePaste` → `svenhjol.charm.base.ASMHooks`. Return `true` to skip wet paste without dropping the piece. Curse / pack prerequisite. |
 | Forge | (Cleanroom) | — | **required** json | yes | always | — | [recipes.md](recipes.md) | `MixinCraftingHelperFindFiles`. Metallurgy/Spartan jars are runtime recipe trees, not Tweaks compile deps |
 | InControl | `incontrol-1.12-3.10.4.jar` | **after** | optional `mixins.aqtweaks.incontrol.json` + vanilla spawner in **required** json | **yes** (`GeneralConfiguration`, nested `StructureCache`) | pack always | **yes** | [spawning.md](spawning.md) | Layer filter `PotentialSpawns` LOWEST then last-per-class. Pack fill: `MixinWorldEntitySpawner` only (not `WorldServer`). `MixinStructureCache` expands feature/child `BB` chunks. Compile-hard `mcjty.tools.cache.StructureCache` via extracted `mcjtytools-1.12-0.0.21.jar` (nested in InControl, not a Curse parent). Do not import `PotentialSpawnRule` (`RuleBase` not in `libs/`). InControl’s own player-distance mixin stays |

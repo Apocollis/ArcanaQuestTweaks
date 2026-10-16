@@ -2,6 +2,14 @@
 
 Stay on version **1.9** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-10-16 — Dungeon Additions village overlap skip
+
+- When `Skip Structures On Village` is on, Overworld Dungeon Additions structure starts (`WorldGenFrozenCastle$Start`, `WorldGenLichTower$Start`, `WorldGenOutposts$Start`, and the other 11 DA worldgen starts) cancel `generateStructure` if their bounding box overlaps a village pad + Y volume. No retry. Nether, End, and Aether DA structures are unaffected. Optional `mixins.aqtweaks.da.json`. New chunks only. See [rtg.md](rtg.md).
+
+## 2026-10-16 — Mineshaft mouth stone-brick collar
+
+- The fallback surface shaft's one-block oak ring is now a 3×3 stone-brick collar five blocks deep (shorter shafts stop at the tunnel). The center stays the hole and ladder, so a hillside no longer slices the mouth into a plank lip. New chunks only. See [bettermineshafts.md](bettermineshafts.md).
+
 ## 2026-10-06 — Version 1.9
 
 - `build.gradle` `version`, `ArcanaQuestTweaks.VERSION` and `mcmod.info` (via `${version}`) are now **1.9**. Curse already holds 1.8, so the file for the upload must be a new version; everything dated 2026-10-04 to 2026-10-06 below ships in 1.9. No rebuild was done for the bump: the next `.\build_gradle.ps1` produces `ArcanaQuestTweaks-1.9.jar`.

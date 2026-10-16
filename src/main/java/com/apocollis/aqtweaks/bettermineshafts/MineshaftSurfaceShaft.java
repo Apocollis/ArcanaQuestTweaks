@@ -15,14 +15,18 @@ import net.minecraft.world.gen.structure.StructureBoundingBox;
  * is sealed, with no way in from the surface.
  *
  * <p>The opening is a 1x1 ladder shaft from the tunnel level up to the ground, backed by planks where
- * the wall is open, with a raised plank collar around the hole at the surface so it can be found.
- * Nothing is built under water. Each call writes only inside {@code clip}, so a shaft that straddles a
- * chunk edge is finished by the neighboring chunk's paste.
+ * the wall is open below the mouth. The mouth is a 3x3 stone-brick collar, five blocks deep, with the
+ * center left open so a hillside does not slice a one-block plank ring. Nothing is built under water.
+ * Each call writes only inside {@code clip}, so a shaft that straddles a chunk edge is finished by the
+ * neighboring chunk's paste.
  */
 public final class MineshaftSurfaceShaft {
 
     /** The shaft must rise at least this far to be worth building; shorter ones keep the stub. */
     private static final int MIN_RISE = 3;
+
+    /** Stone-brick layers around the hole, counting the surface. Shorter shafts stop at the tunnel. */
+    private static final int COLLAR_DEPTH = 5;
 
     private MineshaftSurfaceShaft() {}
 
@@ -54,6 +58,7 @@ public final class MineshaftSurfaceShaft {
         int z = center.getZ();
         IBlockState air = Blocks.AIR.getDefaultState();
         IBlockState planks = Blocks.PLANKS.getDefaultState();
+        IBlockState brick = Blocks.STONEBRICK.getDefaultState();
         IBlockState ladder = Blocks.LADDER.getDefaultState().withProperty(BlockLadder.FACING, EnumFacing.NORTH);
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
 
@@ -70,15 +75,18 @@ public final class MineshaftSurfaceShaft {
                 world.setBlockState(pos, ladder, 2);
             }
         }
-        // Open air at ground level so the hole is walkable, then the collar around it.
+        // Open air at ground level so the hole is walkable, then the brick sleeve around it.
         if (inside(clip, x, surfaceY, z)) {
             world.setBlockState(pos.setPos(x, surfaceY, z), air, 2);
         }
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
-                if (dx == 0 && dz == 0) continue;
-                if (inside(clip, x + dx, surfaceY, z + dz)) {
-                    world.setBlockState(pos.setPos(x + dx, surfaceY, z + dz), planks, 2);
+        int collarBottom = Math.max(center.getY(), surfaceY - (COLLAR_DEPTH - 1));
+        for (int y = collarBottom; y <= surfaceY; y++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    if (dx == 0 && dz == 0) continue;
+                    if (inside(clip, x + dx, y, z + dz)) {
+                        world.setBlockState(pos.setPos(x + dx, y, z + dz), brick, 2);
+                    }
                 }
             }
         }

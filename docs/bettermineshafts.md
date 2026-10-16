@@ -49,7 +49,7 @@ Mineshafts may sit under RTG rivers/beaches the provider still calls plains.
 | `mixin/bettermineshafts/MixinMapGenBetterMineshaftStart.java` | Tweaks Y (ctor settings) |
 | `mixin/bettermineshafts/MixinStructureStartMineshaftBox.java` | Refresh Start AABB after `generateStructure` (on `StructureStart`, BM-guarded) |
 | `mixin/bettermineshafts/MixinVerticalEntrance.java` | Failed openings: mark the piece (`aqtweaks$isFallback`) and keep the underground stub; the shaft itself is built by the Start hook |
-| `bettermineshafts/MineshaftSurfaceShaft.java` | Ladder shaft + plank collar from the tunnel to the ground. `carveForStart` aims it at the mineshaft: straight down the hub when the hub lies inside a sibling piece box, otherwise at the nearest sibling box (floor + 1). Logs one `[AQ-MINESHAFT]` line per Start |
+| `bettermineshafts/MineshaftSurfaceShaft.java` | Ladder shaft from the tunnel to the ground, with a 3×3 stone-brick collar five blocks deep (center stays the hole). Below that sleeve the south wall is planks only where it was open. `carveForStart` aims it at the mineshaft: straight down the hub when the hub lies inside a sibling piece box, otherwise at the nearest sibling box (floor + 1). Logs one `[AQ-MINESHAFT]` line per Start |
 | `mixins.aqtweaks.bettermineshafts.json` | Optional late mixin config (`required: false`) |
 
 ## Live config
@@ -62,7 +62,7 @@ Mineshafts may sit under RTG rivers/beaches the provider still calls plains.
 | `general` / Mineshaft Spawn Rate | 0.001 | Per eligible chunk (BM 0.003 unused while Enable) |
 | `general` / Chunk Spacing | 4 | Both chunk X and Z must be multiples; 1 = no grid |
 | `general` / Skip Ocean And Beach | true | Provider ocean/beach skip |
-| `general` / Surface Shaft Fallback | true | When BM cannot build its entrance (surface below Y60 / no drop-off, typical on RTG), build a 1x1 ladder shaft from tunnel level to the ground with a raised plank collar. Not built under water or when the tunnel is within 3 blocks of the surface. Off keeps the closed stub. New chunks only |
+| `general` / Surface Shaft Fallback | true | When BM cannot build its entrance (surface below Y60 / no drop-off, typical on RTG), build a 1x1 ladder shaft from tunnel level to the ground with a 3×3 stone-brick collar five blocks deep (less when the shaft is shorter than five). Not built under water or when the tunnel is within 3 blocks of the surface. Off keeps the closed stub. New chunks only |
 | `general` / Tunnel Min Y / Tunnel Max Y | 17 / 37 | Start tunnel Y; min clamped to 1 (no Depths −Y) |
 
 Worldgen applies to **new chunks only**. GUI cfg change does not retrofit old terrain.
@@ -79,7 +79,7 @@ Worldgen applies to **new chunks only**. GUI cfg change does not retrofit old te
 
 ## Verify
 
-0. Flat RTG plains mineshaft (BM entrance refused): a plank collar with a hole is visible at the surface, a ladder runs down to the tunnel, and `isInsideStructure` is true along the shaft but false high in the sky.
+0. Flat or hillside RTG mineshaft (BM entrance refused): a 3×3 stone-brick collar with a center hole, about five blocks deep, is visible at the surface, a ladder runs down to the tunnel, and `isInsideStructure` is true along the shaft but false high in the sky. A slope does not leave a one-block plank lip.
 1. New Overworld, unexplored `/locate Mineshaft` → TP → tunnels at the pin; `isInsideStructure("Mineshaft")` true at the pin and tunnel Y; false high in the sky.
 2. Flat plains (no cliff opening): locate is tunnel Y at the start chunk, not ~136.
 3. After visiting a known **old** empty pin, next `/locate` is not that chunk.

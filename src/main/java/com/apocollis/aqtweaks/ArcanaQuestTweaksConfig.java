@@ -1079,7 +1079,7 @@ public class ArcanaQuestTweaksConfig {
         public boolean villageFlattenDebug = false;
 
         @Config.Name("Skip Structures On Village")
-        @Config.Comment("Cancel Astral shrines and Bewitchment Cambion houses on village overlap. Mystical World huts/barrows and Bewitchment stone circles/menhir/wickerman skip that spot and retry nearby. Vanilla water lakes and BOP water/quicksand lakes that overlap a village pad are skipped. Lava lakes are not skipped.")
+        @Config.Comment("Cancel Astral shrines, Bewitchment Cambion houses, and Dungeon Additions structures on village overlap. Mystical World huts/barrows and Bewitchment stone circles/menhir/wickerman skip that spot and retry nearby. Vanilla water lakes and BOP water/quicksand lakes that overlap a village pad are skipped. Lava lakes are not skipped.")
         public boolean skipStructuresOnVillage = true;
 
         @Config.Name("Enable Structure Land Settle")
@@ -2067,7 +2067,7 @@ public class ArcanaQuestTweaksConfig {
         public boolean skipOceanAndBeach = true;
 
         @Config.Name("Surface Shaft Fallback")
-        @Config.Comment("When Better Mineshafts cannot build its own entrance (common on RTG terrain), build a ladder shaft from the tunnel up to the ground with a plank collar so the mineshaft can be entered. Off keeps the closed underground stub. New chunks only.")
+        @Config.Comment("When Better Mineshafts cannot build its own entrance (common on RTG terrain), build a ladder shaft from the tunnel up to the ground with a 3x3 stone-brick collar five blocks deep so the mineshaft can be entered. Off keeps the closed underground stub. New chunks only.")
         public boolean surfaceShaftFallback = true;
 
         @Config.Name("Tunnel Min Y")

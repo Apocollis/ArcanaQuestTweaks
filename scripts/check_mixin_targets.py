@@ -89,25 +89,28 @@ def parent_members(idx, cls):
     return names
 
 
-def mixin_target(text):
+def mixin_targets(text):
     imports = {m.group(2): m.group(1) + '.' + m.group(2)
                for m in re.finditer(r'import ([\w.]+)\.(\w+);', text)}
     mm = re.search(r'@Mixin\((.*?)\)\s*(?:public\s+|abstract\s+|final\s+)*(?:class|interface)', text, re.S)
     if not mm:
-        return None
+        return []
     arg = mm.group(1)
+    m_arr = re.search(r'targets\s*=\s*\{([^}]*)\}', arg, re.S)
+    if m_arr:
+        return re.findall(r'"([^"]+)"', m_arr.group(1))
     m2 = re.search(r'targets\s*=\s*"([^"]+)"', arg)
     if m2:
-        return m2.group(1)
+        return [m2.group(1)]
     m1 = re.search(r'value\s*=\s*([\w.]+)\.class', arg) or re.match(r'\s*([\w.]+)\.class', arg)
     if m1:
         name = m1.group(1)
         parts = name.split('.')
         # Nested class written as Outer.Inner: resolve Outer through the imports, join with '$'.
         if parts[0] in imports:
-            return imports[parts[0]] + ''.join('$' + p for p in parts[1:])
-        return name
-    return None
+            return [imports[parts[0]] + ''.join('$' + p for p in parts[1:])]
+        return [name]
+    return []
 
 
 def method_names(text):
@@ -136,26 +139,27 @@ def main():
             if not fn.endswith('.java'):
                 continue
             text = open(os.path.join(dp, fn), encoding='utf8').read()
-            cls = mixin_target(text)
-            if not cls:
+            targets = mixin_targets(text)
+            if not targets:
                 continue
             methods = list(method_names(text))
             if not methods:
                 continue
-            if cls.startswith('net.minecraft.'):
-                key = cls.replace('.', '/')
-                members = vanilla.get(key)
-            else:
-                members = parent_members(idx, cls)
-            if members is None:
-                unverified.append((fn, cls))
-                continue
-            for raw, name in methods:
-                checked += 1
-                if (cls, name) in ALLOW:
+            for cls in targets:
+                if cls.startswith('net.minecraft.'):
+                    key = cls.replace('.', '/')
+                    members = vanilla.get(key)
+                else:
+                    members = parent_members(idx, cls)
+                if members is None:
+                    unverified.append((fn, cls))
                     continue
-                if name not in members:
-                    bad.append((fn, cls, raw))
+                for raw, name in methods:
+                    checked += 1
+                    if (cls, name) in ALLOW:
+                        continue
+                    if name not in members:
+                        bad.append((fn, cls, raw))
 
     for fn, cls in sorted(set(unverified)):
         print('UNVERIFIED  %-45s %s' % (fn, cls))

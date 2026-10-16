@@ -130,6 +130,7 @@ Flatten looks up `VillagePlate` records by **land-box overlap** first, via a per
 | `mixin/astral/MixinWorldGenAttributeStructure.java` | Settle land after `generateAsSubmergedStructure`; small shrine/ruin use walkway Y + swamp fill |
 | `mixin/MixinWorldGenLakes.java` | Skip vanilla water lakes on village 12-pad. Required `mixins.aqtweaks.json`. Remap **true**, MCP `generate`; lake fluid via `block` / `field_150589_a` (no `@Shadow block` — Unimined maps that MCP name to the wrong SRG). Lava lakes are not skipped |
 | `mixin/biomesoplenty/MixinGeneratorLakes.java` | Skip BOP water and quicksand lakes on village overlap. Optional `mixins.aqtweaks.biomesoplenty.json` |
+| `mixin/da/MixinDaStructureStart.java` | Cancel Dungeon Additions structure starts on overworld village overlap (no retry). Optional `mixins.aqtweaks.da.json` |
 | `ArcanaQuestTweaksConfig.RtgModuleConfig.surface` | `config/arcanaquesttweaks/aqtweaks_rtg.cfg` |
 | `mixins.aqtweaks.json` | Required: village spawn/start/world/inside, `MixinWorldGenLakes`, `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinChunkGeneratorRTGVillage`, `MixinGenericVillageCreationHandler` |
 | `mixins.aqtweaks.charm.json` | **Required:** Charm ASM village paste skip (jar `MixinConfigs` with early json; `@Mod required-after:charm`) |
@@ -269,7 +270,7 @@ Teleport is **on the generated ground** at that column (`world.getHeight`, skip 
 | Village Box Height | 30 | yes | Detection Y above plate. Floor is the well shaft (~11–14 below plate). Live cfg may still be **32** |
 | Enable Village Relight | true | yes | After populate paste, `checkLight` at torches/lamps in each placing piece ∩ clip |
 | Village Flatten Debug | false | yes | `logs/villagepatch.log`. Live DEVBOX must be edited off; old true is kept until changed |
-| Skip Structures On Village | true | yes | Master village-AABB skip via `StructureVillageOverlap.enabled()`. Lakes, MW barrows, and Bewitchment circle/menhir/wickerman skip/retry on this flag alone. Astral shrines, Cambion houses, and MW huts also need the matching `Enable * Settle` flag |
+| Skip Structures On Village | true | yes | Master village-AABB skip via `StructureVillageOverlap.enabled()`. Lakes, Dungeon Additions structures (cancel, no retry), MW barrows, and Bewitchment circle/menhir/wickerman skip/retry on this flag alone. Astral shrines, Cambion houses, and MW huts also need the matching `Enable * Settle` flag |
 | Enable Structure Land Settle | true | yes | Fill under those structures and ramp the rim |
 | Enable Astral Shrine Settle | true | yes | Village-skip + land settle for surface shrines |
 | Enable Cambion House Settle | true | yes | Village-skip; house +1 (cobble on grass); skip air; pad at plains Y hole-fill only |
@@ -283,9 +284,9 @@ Teleport is **on the generated ground** at that column (`world.getHeight`, skip 
 
 ## Post-terrain structures (not village flatten)
 
-Astral surface shrines, Bewitchment Cambion houses, and Mystical World huts/barrows paste **after** RTG terrain. They cannot reuse village noise flatten.
+Astral surface shrines, Bewitchment Cambion houses, Mystical World huts/barrows, and Dungeon Additions structures paste **after** RTG terrain. They cannot reuse village noise flatten.
 
-- Overlap a village (real AABB / Y, not chunk origin at Y=0) → Astral/Cambion **do not place**. Huts, barrows, stone circles, menhirs, and wickermen **retry nearby** (Chebyshev step 8, up to 32); miss → skip and do not mark. Vanilla `WorldGenLakes` water and BOP water/quicksand lakes whose ~16×8 blob overlaps the 12-pad are cancelled. Lava lakes still generate.
+- Overlap a village (real AABB / Y, not chunk origin at Y=0) → Astral, Cambion, and Overworld Dungeon Additions structures **do not place** (no retry). Huts, barrows, stone circles, menhirs, and wickermen **retry nearby** (Chebyshev step 8, up to 32); miss → skip and do not mark. Vanilla `WorldGenLakes` water and BOP water/quicksand lakes whose ~16×8 blob overlaps the 12-pad are cancelled. Lava lakes still generate.
 - **Large ancient/desert shrines:** fill under the footprint with raw `astralsorcery:blockmarble` (`MarbleBlockType.RAW`), rim still biome top/filler, max depth 16, rim 16, never ocean/river. After settle, clear wood/leaves/vines in the template AABB through `maxY + 16`. Treasure caves are not settled.
 - Mystical **huts:** biome fill under the footprint (min foundation Y), rim 16, never ocean/river. **Barrows:** skip/retry only, **no plate**.
 - **Small shrine and small ruin:** plate Y is the generate **center / walkway**, not min foundation Y. Rim is `smallShrinePad` (3), not the 16-block large-shrine bank. In **swamp-like** biomes, water is filled up to that plate. Ocean/river still never filled. Plant-like blocks (BOP / Rustic / Farmer’s Delight, `BlockBush`, `Material.PLANTS`) are overwritten; leftover tops above the plate are cleared. Logs and leaves are not (small only).
@@ -293,7 +294,7 @@ Astral surface shrines, Bewitchment Cambion houses, and Mystical World huts/barr
 - **Village piece:** at most one Astral **small shrine** (not the ruin) via Forge `IVillageCreationHandler` (`AQTSmallShrine`), weight **5**, limit 1 (uncommon). AABB is the unrotated pattern min/max so every marble chunk intersects the piece. Layout allows overlap with the attaching **Path**; inland retry if it hits a building. Wet/omit is ocean/river **biome** only (not RTG river noise). Flatten plates its AABB with at most 3 blocks of extra full plate; nearby road/house 12-zones still own the yard. Liquid blocks get flag 3 + `neighborChanged` so lantern water flows. Ocean/river **biome** columns are not pasted; leftover lake and river-noise sand still paste. After paste, **liquid-only** fill inside the AABB (no `settlePadded` dirt collar). Wild shrines still spawn and keep pad 3; overlap skip prevents a second shrine on the same village.
 - Bewitchment **stone circles / menhir / wickerman** use the same Chebyshev retry as MW barrows. No extra plate. Village Hedge Witch/Alchemist pieces are still village buildings.
 
-Mixins: `mixins.aqtweaks.astral.json`, `mixins.aqtweaks.bewitchment.json`, `mixins.aqtweaks.mysticalworld.json`, `mixins.aqtweaks.biomesoplenty.json` (`required: false`). Village flatten/retry mixins are in required `mixins.aqtweaks.json`.
+Mixins: `mixins.aqtweaks.astral.json`, `mixins.aqtweaks.bewitchment.json`, `mixins.aqtweaks.mysticalworld.json`, `mixins.aqtweaks.biomesoplenty.json`, `mixins.aqtweaks.da.json` (`required: false`). Village flatten/retry mixins are in required `mixins.aqtweaks.json`.
 
 ### Structure land settle (`StructureLandSettle`)
 
@@ -325,7 +326,7 @@ Useful lines:
 - `waystone aabb wet` / `waystone relocate hit|miss` — same gazebo moved inland
 - `path aabb wet ... retrying inland` / `path retry hit` / `path retry miss ... omitted` — wet path moves inland; leftover ocean/river or lake-bridge is dropped
 - `village piece skip water floor` — paste refused because a clipped column is ocean/river (RC: any column of the full `.rcst` box)
-- `astral` / `cambion skip village overlap` / `mystical hut|barrow skip|relocate` — post-terrain skip or retry
+- `astral` / `cambion` / `da ... skip village overlap` / `mystical hut|barrow skip|relocate` — post-terrain skip or retry
 - `cambion plate at=...` — Cambion pad written
 - `astral small shrine village piece at=...` — shrine pasted as a village building
 - `seal chunk=... wall=` — pad reseal; `wall` is ocean-rim brick columns

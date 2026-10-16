@@ -33,6 +33,7 @@ These json files are `required: false`. Removing the parent should skip that jso
 | Astral Sorcery | No shrine mixins; no village `AQTSmallShrine` |
 | Bewitchment | No Cambion/circle mixins; no ritual wrap (handler not registered) |
 | Mystical World | No hut skip/settle |
+| Dungeon Additions | No `mixins.aqtweaks.da.json`; DA structures generate as stock |
 | Biomes O' Plenty | No BOP lake village skip mixin; vanilla water-lake skip still runs; hot spring comfort no-ops |
 | Grimoire of Gaia | No Gaia mixins; pierce and MAGIC bolts/bombs stay parent vanilla |
 | Reskillable | No per-level bonuses; stamina perk lookups no-op |
@@ -77,7 +78,7 @@ Seam, village world push/pop and Mineshaft locate were dead code until the 2026-
 | Sleep 6+ in-game hours with Somnia (alone, then with others), wake before morning, and leave the bed early after 6h | Sticky warp drops by `Normal Warp Reduction` each time; a sleep under 6h clears nothing; chat line shows when something cleared | [thaumcraft.md](thaumcraft.md) |
 | Sleep 8 hours with temp warp and a Homestead band I / II / III bed | About 2 / 3 / 6 temp warp cleared over 8 h in Case B (none double counted in Case A where player ticks run); no Homestead means none from this credit | [comfort.md](comfort.md) |
 | Boot log, bibliocraft | No `Parsing error loading recipe bibliocraft:tapemeasure`; `Skipping recipe JSON with known-missing item bibliocraft:tape` appears once | [recipes.md](recipes.md) |
-| New RTG plains mineshaft | A plank collar with a hole at the surface and a ladder down to the tunnel; no shaft under water | [bettermineshafts.md](bettermineshafts.md) |
+| New RTG plains or hillside mineshaft | A 3×3 stone-brick collar about five blocks deep with a center hole, and a ladder down to the tunnel; no one-block plank lip on a slope; no shaft under water | [bettermineshafts.md](bettermineshafts.md) |
 | Fell a tree with Tree Chopper at gathering 16+ with Lumberjack and Reforester | Extra logs roll per log; saplings roll per leaf (gathering x 0.03), never more than 64 from one tree; breaking a single log or leaf by hand still rolls; without Tree Chopper nothing changes | [reskillable.md](reskillable.md) |
 | New RTG plains mineshaft, shaft built | `latest.log` has `[AQ-MINESHAFT] surface shaft hub=... target=... surfaceY=... siblings=N hubInside=...`; the ladder shaft ends inside a mineshaft tunnel or room (no stone-only shaft); when `hubInside=false` the shaft is at the nearest tunnel box, not the hub | [bettermineshafts.md](bettermineshafts.md) |
 | Building 32, Normal mode: place and break a block about 2 blocks past normal reach (4.5 + 2) | Works; at Building 0 the same target is out of reach. Melee reach unchanged | [reskillable.md](reskillable.md) |
@@ -116,6 +117,7 @@ Seam, village world push/pop and Mineshaft locate were dead code until the 2026-
 | Cambion house on a slope (new chunks) | Pad flush with plains; cobble on the grass; door +1 above cobble; holes under footprint filled; no mesa; village overlap still cancels | rtg |
 | Mystical barrow or hut next to a village | Relocates (step 8, up to 32) or skips; barrow not plated | rtg |
 | Bewitchment circle / menhir / wickerman next to a village | Relocates or skips; no extra plate | rtg |
+| Dungeon Additions structure overlapping a village (new chunks) | Cancelled (no castle/tower/outpost inside the village); still generates away from villages and in Nether/End/Aether | rtg |
 | Desert village (new chunks) | One sand plate through yards; no toothed red-sand holes; no BOP quicksand in land boxes | rtg |
 | Village pad water pond (new chunks) | No 6–16 block water lake through yards or house foundations. Ponds still generate off the 12-pad. Lava lakes still generate | rtg |
 | Inland plains (example `-2897, 97, -2119`) | Flat plate, houses on it, blend to hills | rtg |

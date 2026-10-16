@@ -6,6 +6,7 @@ import net.minecraft.world.World;
 import net.minecraft.world.chunk.IChunkProvider;
 import net.minecraft.world.gen.IChunkGenerator;
 import net.minecraft.world.gen.structure.MapGenVillage;
+import net.minecraft.world.gen.structure.StructureBoundingBox;
 import net.minecraft.world.gen.structure.template.PlacementSettings;
 import net.minecraft.world.gen.structure.template.Template;
 import rtg.world.gen.ChunkGeneratorRTG;
@@ -18,7 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Village overlap for post-terrain schematic structures (Astral, Cambion, Mystical huts).
+ * Village overlap for post-terrain schematic structures (Astral, Cambion, Mystical huts, Dungeon Additions).
  */
 public final class StructureVillageOverlap {
 
@@ -29,6 +30,13 @@ public final class StructureVillageOverlap {
 
     public static boolean enabled() {
         return ArcanaQuestTweaksConfig.RtgModuleConfig.surface.skipStructuresOnVillage;
+    }
+
+    public static boolean overlapsVillage(World world, StructureBoundingBox box) {
+        if (box == null || box.minX > box.maxX || box.minZ > box.maxZ || box.minY > box.maxY) {
+            return false;
+        }
+        return overlapsVillage(world, box.minX, box.maxX, box.minZ, box.maxZ, box.minY, box.maxY);
     }
 
     public static boolean overlapsVillage(World world, BlockPos origin, BlockPos size) {

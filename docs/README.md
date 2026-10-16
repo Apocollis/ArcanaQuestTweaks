@@ -63,6 +63,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 | RTG, Depths Update, Better Caves, CoFH World, Recurrent Complex | Depths + RTG mixins in **required** `mixins.aqtweaks.json` | Mixin apply can fail; this pack always ships them |
 | Astral Sorcery | Optional mixin json + village shrine handler | Mixin config `required: false`; handler not registered |
 | Mystical World | Optional mixin json | No hut skip/settle |
+| Dungeon Additions | Optional mixin json (`mixins.aqtweaks.da.json`) | No DA village overlap skip |
 | Simple Difficulty, Biomes O' Plenty | Comfort potions / hot spring; Water Collector (SD mixins + bus handler); BOP optional mixin skips village water/quicksand lakes | Those benefits no-op; SD/BOP mixin json skipped; campfire neighbor mixin and crucible heat spoof are skipped with that json / when campfire block is absent (Thaumcraft still loads; unlit or missing campfire does not heat a crucible); vanilla water-lake skip still runs |
 | Rustic | Iron Gut `FluidBooze.inebriate` | Mixin json skipped; tipsy applies as stock |
 | Roguelike Dungeons Arcana | Thaumcraft dungeon warp via `isInsideStructure("RoguelikeDungeon")` | Dungeon exposure never matches |
@@ -137,6 +138,7 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `
 | `mixins.aqtweaks.bewitchment.json` | false | RTG Cambion + circle/menhir/wickerman; Reskillable Witch drain/Hearth/Stitch | Skip |
 | `mixins.aqtweaks.mysticalworld.json` | false | RTG Mystical huts | Skip |
 | `mixins.aqtweaks.biomesoplenty.json` | false | RTG BOP water/quicksand village skip | Skip |
+| `mixins.aqtweaks.da.json` | false | RTG Dungeon Additions village overlap skip | Skip |
 | `mixins.aqtweaks.gaia.json` | false | Grimoire of Gaia drop pierce + recast bolts/bombs + Deathword ranged | Skip |
 | `mixins.aqtweaks.effortlessbuilding.json` | false | Reskillable Building EB place reach + max blocks | Skip |
 | `mixins.aqtweaks.thaumcraft.json` | false | Thaumcraft focus HP magic flag + Heal scale + runic shielding HUD | Skip |
