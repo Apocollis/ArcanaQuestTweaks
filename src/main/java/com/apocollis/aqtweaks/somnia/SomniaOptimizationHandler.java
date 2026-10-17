@@ -85,13 +85,15 @@ public class SomniaOptimizationHandler {
         }
 
         // 3. Player is awake:
-        // Direct accessor check for queued light checks (4096 = idle).
-        // If the chunk has a backlog (< 4096) AND is within player proximity (2 chunks / ~32 blocks),
-        // drain priority every tick so village houses and immediate surroundings relight within seconds.
-        // Distant background chunks (> 2 chunks away) and already idle chunks stay throttled to once
-        // every 20 ticks to eliminate exploration / flight hitching, and skip when Chunk Steward reports busy.
+        // A chunk that is not light-populated has never had its first light pass. PlayerChunkMap
+        // will not send it until isPopulated() (ticked, terrain, and light). That pass runs every
+        // tick, including while Chunk Steward reports busy. The 20-tick throttle and the busy skip
+        // apply only to chunks that are already light-populated (re-checks of queued updates).
+        // A backlog (queuedLightChecks < 4096) within 2 chunks of an awake player also drains every tick.
+        boolean firstLight = !chunk.isLightPopulated();
         int queued = ((AccessorChunk) chunk).getQueuedLightChecks();
-        boolean needsPriority = queued < 4096 && isNearAwakePlayer(world, chunk.x, chunk.z, 2);
+        boolean needsPriority = firstLight
+                || (queued < 4096 && isNearAwakePlayer(world, chunk.x, chunk.z, 2));
 
         if (!needsPriority) {
             if (Math.floorMod(currentTick + chunk.x + chunk.z, 20L) != 0) {

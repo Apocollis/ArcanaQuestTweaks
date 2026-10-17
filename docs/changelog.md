@@ -2,6 +2,10 @@
 
 Stay on version **1.9** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-10-17 — First chunk light pass is not paced
+
+- `SomniaOptimizationHandler` runs `chunk.checkLight()` every tick while `!chunk.isLightPopulated()`, including when Chunk Steward reports busy. `PlayerChunkMap` only sends a chunk after that first pass, so the 20-tick throttle and `shouldPauseOptionalWork()` were holding new chunks invisible until generation stopped. Those two gates stay on already light-populated re-checks. The Somnia sleep branch is unchanged. `DeferredRelight` only retries emitter flood-fills after a chunk can already be sent, so its busy skip stays. See [somnia.md](somnia.md).
+
 ## 2026-10-16 — Depths HeightManager cache and village well cache/memo
 
 - **Part A (`HeightManager` cache):** New `MixinHeightManager` (`mixins.aqtweaks.depthsupdate.json`, `required: false`, `defaultRequire: 1`) and `depths/HeightCache` replace `HeightManager.get(int)` and `isExtended(int)` with a dimension-indexed array (`-64..191`, size 256) and hash-map fallback outside that range, invalidated on `HeightManager.initialize` and Depths config reload. Eliminates the 14.37% Server-thread `ConcurrentHashMap.computeIfAbsent` hotspot in Spark. Configurable via `Enable HeightManager Cache` and `Verify HeightManager Cache` in `aqtweaks_depths.cfg`. See [depths.md](depths.md).

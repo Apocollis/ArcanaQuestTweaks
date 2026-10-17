@@ -73,6 +73,7 @@ Seam, village world push/pop and Mineshaft locate were dead code until the 2026-
 | Check | Expect | Doc |
 | --- | --- | --- |
 | Village generation end to end (new chunks, `/aqvillage`, coast and inland) | Same layout as before Reflect removal. With village debug on: `stamp village plate` and `seal chunk=...` lines appear, no `NullPointerException`/`ClassCastException` from `StructureAccess`. Reload the world: village Starts keep their padded boxes (the save call now works) | [rtg.md](rtg.md) |
+| Walk and fly into fresh terrain at 20 TPS with Chunk Steward generating | Chunks appear continuously ahead of the player. No empty band that fills in together after movement stops. Chunk Steward `dbg near` shows few loaded-unpopulated chunks near the player | [somnia.md](somnia.md) |
 | Mineshaft Start / locate / entrance stub | Unchanged; no accessor errors | [bettermineshafts.md](bettermineshafts.md) |
 | Thaumcraft dimension warp, sleep cleanse, exposure warp | Same awards, sound and chat; the 2-second delayed award still lands | [thaumcraft.md](thaumcraft.md) |
 | Boat in water with Simple Difficulty | Temperature sample lifts as before (`MixinWorldUtil` now direct) | [temperature.md](temperature.md) |
