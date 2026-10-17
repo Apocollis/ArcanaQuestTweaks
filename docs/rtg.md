@@ -1,6 +1,6 @@
 # RTG module (1.9)
 
-Last updated: 2026-09-18.
+Last updated: 2026-10-16.
 
 This is the RTG module: village flatten/placement, then post-terrain structure skip/settle. Locked intent, current pipeline, and why earlier approaches were dropped. Read this before changing village flatten, spawn veto, piece retry, or shrine/house/hut land settle.
 
@@ -98,6 +98,7 @@ Flatten looks up `VillagePlate` records by **land-box overlap** first, via a per
 | File | Role |
 | --- | --- |
 | `rtg/VillageLandHelper.java` | Wet tests, swamp/ocean-like/river/beach, well veto, forget-once rejected Starts, coast buffer, per-column AABB wet/mostly-wet, full-AABB paste skip for non-road pieces, grid layout, live RTG noise sample, waystone inland slots, column landscape cache, stash `MapGenVillage`/RTG by World and seed+dim |
+| `rtg/VillageWellCache.java` | B1 `chunkExists` cache (loadedChunk peek via `AccessorChunkProviderServer` without touching `unloadQueued`, permanent positive set, short-TTL negative map) + B2 short-TTL `startRejectReason` / `findDryWell` memo keyed by `(dimension, seed, configFingerprint)` + `StageTimer` instrumentation (`village.wellReject`, `village.findDryWell`) |
 | `rtg/VillageShoreMask.java` | Hard-pad occupancy: hole fill (enclosed, cardinal channel, ≥5/8), opening, close again; occupancy rim (walls use cliff drop, not this alone) |
 | `rtg/StructureLandSettle.java` | Post-terrain fill + rim. Large Astral under-fill is raw marble; Cambion uses pad 6 + falloff 12 |
 | `rtg/VillageDebug.java` | `logs/villagepatch.log` in the instance folder (not `latest.log`) |
@@ -130,7 +131,9 @@ Flatten looks up `VillagePlate` records by **land-box overlap** first, via a per
 | `mixin/astral/MixinWorldGenAttributeStructure.java` | Settle land after `generateAsSubmergedStructure`; small shrine/ruin use walkway Y + swamp fill |
 | `mixin/MixinWorldGenLakes.java` | Skip vanilla water lakes on village 12-pad. Required `mixins.aqtweaks.json`. Remap **true**, MCP `generate`; lake fluid via `block` / `field_150589_a` (no `@Shadow block` — Unimined maps that MCP name to the wrong SRG). Lava lakes are not skipped |
 | `mixin/biomesoplenty/MixinGeneratorLakes.java` | Skip BOP water and quicksand lakes on village overlap. Optional `mixins.aqtweaks.biomesoplenty.json` |
-| `mixin/da/MixinDaStructureStart.java` | Cancel Dungeon Additions structure starts on overworld village overlap (no retry). Optional `mixins.aqtweaks.da.json` |
+| `mixin/da/MixinDaStructureStart.java` | Cancel Dungeon Additions structure starts on overworld village overlap (no retry) and time `create` / `func_75068_a` when `perfTimers` is on. Optional `mixins.aqtweaks.da.json` |
+| `perf/StageTimer.java` | Step 0 worldgen stage timer (`[AQ-PERF]` 5s summaries when `Performance Stage Timers` is on) |
+| `pacing/StewardPacing.java` | Runtime headroom pacing bridge to `ChunkStewardAPI` (loaded only when `chunksteward` is present) |
 | `ArcanaQuestTweaksConfig.RtgModuleConfig.surface` | `config/arcanaquesttweaks/aqtweaks_rtg.cfg` |
 | `mixins.aqtweaks.json` | Required: village spawn/start/world/inside, `MixinWorldGenLakes`, `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinChunkGeneratorRTGVillage`, `MixinGenericVillageCreationHandler` |
 | `mixins.aqtweaks.charm.json` | **Required:** Charm ASM village paste skip (jar `MixinConfigs` with early json; `@Mod required-after:charm`) |
@@ -281,6 +284,12 @@ Teleport is **on the generated ground** at that column (`world.getHeight`, skip 
 | Small Shrine Pad | 3 | yes | Buffer around small shrine/ruin settle and village shrine AABB |
 | Cambion House Pad | 6 | yes | Full plate around Cambion house AABB |
 | Cambion House Falloff | 12 | yes | Hermite beyond Cambion pad, raise-only |
+| Performance Stage Timers | false | yes | Log 5s worldgen stage timing summaries (`[AQ-PERF]` in `latest.log`) for village layout, flatten, seal, paste, wellReject/findDryWell, and DA starts |
+| Enable Village Well Disk Cache | true | yes | Cache `VillageLandHelper.chunkExists` per dimension (peeks `loadedChunks` without touching `unloadQueued`, permanent positive set, short-TTL negative map) to avoid repeated `RegionFileCache` disk probes |
+| Village Well Negative Cache TTL Ticks | 200 | yes | Server-tick TTL (0..6000) for negative `chunkExists` entries; `0` disables negative caching |
+| Enable Village Well Verdict Memo | true | yes | Short-TTL memoization of `startRejectReason` and `findDryWell` per `(dimension, seed, configFingerprint)`. `null` (allow) verdicts are only cached/used while no `StructureStart` exists at that well chunk |
+| Village Well Verdict Memo TTL Ticks | 600 | yes | Server-tick TTL (0..6000) for `startRejectReason` and `findDryWell` memo entries |
+| Verify Village Well Verdict Memo | false | yes | Dev verification: recompute `startRejectReason` / `findDryWell` on memo hits and log a one-shot `[AQ-RTG]` warning on mismatch |
 
 ## Post-terrain structures (not village flatten)
 
@@ -503,7 +512,7 @@ Populate placed lamps with flag 2; block light did not flood (1-block puddles, d
 
 **Fix:** after `MapGenVillage.Start` paste for a chunk clip, `checkLight` every emitting block in **placing component AABBs ∩ clip** (skip `AQTVillagePlate`). Do not scan the full 16×16×256 populate box.
 
-**Follow-up (2026-10-06):** that one-shot check still left unlit torches around villages, and world-generated lanterns elsewhere (a monument's sea lantern). `World.checkLight` returns `false` and does nothing until the 17-block area around the position is loaded, and the result was ignored, so emitters placed next to chunks that did not exist yet never flooded light. A manual torch fixed it because its check ran later with everything loaded. `MixinWorldCheckLight` (early json, `World.checkLight` RETURN) now hands failed server-side checks to `world/DeferredRelight`, **only for positions whose block emits light and is not a liquid** (the check also fires for every opaque block placed, which flooded the first version of the queue with thousands of plain blocks, overflowed it and dropped the lanterns, and made every retry a full flood-fill; a spark profile showed the queue itself at 0.07% of the Server thread): a per-world insertion-ordered queue (8192 max, 6000-tick age limit), 64 entries examined per world-tick end, retried only when `isAreaLoaded(pos, 17)` is true, re-entry guarded. Retries run nearest-first: of the 128 entries examined per world-tick end, those within 96 blocks (horizontal) of a player are checked first (up to 48 checks), distant ones only use leftover budget. Config `Enable Deferred Relight` (rtg cfg, surface, default true). `VillageRelight` stays; the queue covers what it misses and every other generator. **Diagnostics:** `Deferred Relight Debug` (rtg cfg, default off) logs `[AQ-RELIGHT]` once a minute per world with counts of emitters lit at placement, queued, retried, expired unlit (5-minute limit) and dropped on overflow, plus a few coordinates; use it to tell whether village torches never reach the queue, are lit and later reset, or expire waiting for neighbor chunks. New chunks only; existing dark spots still need a manual update.
+**Follow-up (2026-10-06):** that one-shot check still left unlit torches around villages, and world-generated lanterns elsewhere (a monument's sea lantern). `World.checkLight` returns `false` and does nothing until the 17-block area around the position is loaded, and the result was ignored, so emitters placed next to chunks that did not exist yet never flooded light. A manual torch fixed it because its check ran later with everything loaded. `MixinWorldCheckLight` (early json, `World.checkLight` RETURN) now hands failed server-side checks to `world/DeferredRelight`, **only for positions whose block emits light and is not a liquid** (the check also fires for every opaque block placed, which flooded the first version of the queue with thousands of plain blocks, overflowed it and dropped the lanterns, and made every retry a full flood-fill; a spark profile showed the queue itself at 0.07% of the Server thread): a per-world insertion-ordered queue (8192 max, 6000-tick age limit), 64 entries examined per world-tick end, retried only when `isAreaLoaded(pos, 17)` is true, re-entry guarded. Retries run nearest-first: of the 128 entries examined per world-tick end, those within 96 blocks (horizontal) of a player are checked first (up to 48 checks), distant ones only use leftover budget (paced via `StewardPacing` when Chunk Steward is present, with a 4-check/tick near-player floor and a 1-check/20-tick far-emitter floor while busy). Config `Enable Deferred Relight` (rtg cfg, surface, default true). `VillageRelight` stays; the queue covers what it misses and every other generator. **Diagnostics:** `Deferred Relight Debug` (rtg cfg, default off) logs `[AQ-RELIGHT]` once a minute per world with counts of emitters lit at placement, queued, retried, expired unlit (5-minute limit) and dropped on overflow, plus a few coordinates; use it to tell whether village torches never reach the queue, are lit and later reset, or expire waiting for neighbor chunks. New chunks only; existing dark spots still need a manual update.
 
 ### 29. Exploration TPS: plate-as-village on every spawn check
 
@@ -546,6 +555,12 @@ Layout at `getNewerNoise` RETURN still saw Beach/Plains. Flatten after `newRepai
 The cliff test read the **primer** after caves/ravines, before seal refilled plated neighbors, so cave bites inside yards looked like drops (brick blobs). Across a chunk edge it read the neighbor’s **raw** noise, so hill towns got brick strips on chunk lines. Inside the pad only F3 Ocean/River was skipped, so a strong-river channel labelled Land of Lakes was filled as a lake. A house/RC plated at layout but paste-skipped by the full-AABB test left a bare spur. Surviving river paths kept vanilla water-level planks.
 
 **Fix:** cliff ignores shore-plated neighbors, uses flattened `landscape.noise` in-chunk, and counts cross-edge neighbors only when they are water. Flooded strong river (`river > STRONG_RIVER`, noise < 62.5) is never-raise inside the pad; dry desert river noise still plates. Land/building boxes drop paste-skipped pieces. River paths with dry ends and short runs are kept and bridged at plate Y (stone brick deck, cobble wall rails, piers every 4).
+
+### 36. Repeated `RegionFileCache` disk probes and `startRejectReason` / `findDryWell` recomputation
+
+Every `layoutVillageGrid` pass and `MapGenVillage.canSpawnStructureAtCoords` checked nearby well chunks via `VillageLandHelper.chunkExists` → `World.isChunkGeneratedAt` → `AnvilChunkLoader.isChunkGeneratedAt` → `RegionFileCache.createOrLoadRegionFile` (5.05% of Server thread in Spark). Meanwhile `startRejectReason` and `findDryWell` re-evaluated the same coastal/wet well chunks across neighbor 17×17 structure scans and `forgetRejectedStarts`.
+
+**Fix:** `VillageWellCache` caches `chunkExists` per dimension (peeks `ChunkProviderServer.loadedChunks` via `AccessorChunkProviderServer` without touching `unloadQueued`, permanent positive `LongOpenHashSet`, short-TTL negative `Long2LongOpenHashMap` default 200 ticks) and memoizes `startRejectReason` and `findDryWell` with a short TTL (default 600 ticks) keyed by `(dimension, seed, configFingerprint)`. A `null` (allow) verdict is only cached/used while no `StructureStart` exists at that well chunk so `forgetRejectedStarts` still vets newly created starts into `VETTED_STARTS`. `StageTimer` records `village.wellReject` and `village.findDryWell` with distinct/repeat/memoHit counters when `Performance Stage Timers` is enabled.
 
 ## Playtest reference (this line)
 

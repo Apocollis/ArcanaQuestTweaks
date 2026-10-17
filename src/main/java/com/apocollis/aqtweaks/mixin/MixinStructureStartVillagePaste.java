@@ -1,7 +1,8 @@
 package com.apocollis.aqtweaks.mixin;
 
-import com.apocollis.aqtweaks.rtg.StructureAccess;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
+import com.apocollis.aqtweaks.perf.StageTimer;
+import com.apocollis.aqtweaks.rtg.StructureAccess;
 import com.apocollis.aqtweaks.rtg.StructureVillageOverlap;
 import com.apocollis.aqtweaks.rtg.VillageBridges;
 import com.apocollis.aqtweaks.rtg.VillageDebug;
@@ -30,6 +31,9 @@ public abstract class MixinStructureStartVillagePaste {
     @Unique
     private static final ThreadLocal<Boolean> AQTWEAKS$SKIP_STAMP = ThreadLocal.withInitial(() -> Boolean.FALSE);
 
+    @Unique
+    private static final ThreadLocal<Long> AQTWEAKS$PASTE_START_NS = ThreadLocal.withInitial(() -> 0L);
+
     @Redirect(
             method = "func_75068_a",
             at = @At(value = "INVOKE", target = "Ljava/util/List;iterator()Ljava/util/Iterator;")
@@ -41,11 +45,22 @@ public abstract class MixinStructureStartVillagePaste {
     @Inject(method = "func_75068_a", at = @At("HEAD"), cancellable = true)
     private void aqtweaks$dropOceanWell(World world, Random rand, StructureBoundingBox box, CallbackInfo ci) {
         AQTWEAKS$SKIP_STAMP.set(Boolean.FALSE);
+        AQTWEAKS$PASTE_START_NS.set(0L);
         if (!((Object) this instanceof MapGenVillage.Start) || world == null) return;
+        AQTWEAKS$PASTE_START_NS.set(StageTimer.start());
         Object gen = StructureVillageOverlap.findVillageGenerator(world);
         if (!(gen instanceof MapGenVillage)) return;
-        if (VillageLandHelper.relocateOrDropWetWell((MapGenVillage) gen, world, this)) {
+        long tRelocate = StageTimer.start();
+        boolean dropped;
+        try {
+            dropped = VillageLandHelper.relocateOrDropWetWell((MapGenVillage) gen, world, this);
+        } finally {
+            StageTimer.end("village.paste.relocate", tRelocate);
+        }
+        if (dropped) {
             AQTWEAKS$SKIP_STAMP.set(Boolean.TRUE);
+            StageTimer.end("village.paste.total", AQTWEAKS$PASTE_START_NS.get());
+            AQTWEAKS$PASTE_START_NS.set(0L);
             ci.cancel();
         }
     }
@@ -79,6 +94,7 @@ public abstract class MixinStructureStartVillagePaste {
         try {
             if (Boolean.TRUE.equals(AQTWEAKS$SKIP_STAMP.get())) return;
             if (!((Object) this instanceof MapGenVillage.Start) || world == null) return;
+            long tStamp = StageTimer.start();
             Object gen = StructureVillageOverlap.findVillageGenerator(world);
             VillagePlate.ensureStarts(world, gen);
             long seed = world.getSeed();
@@ -90,10 +106,25 @@ public abstract class MixinStructureStartVillagePaste {
             if (rec != null) {
                 VillagePlate.stampDetectionPieces(world, rec, gen);
             }
-            VillageBridges.afterVillagePaste(world, (StructureStart) (Object) this, box,
-                    rec != null ? VillagePlate.resolvePlate(world, rec) : Float.NaN);
-            VillageRelight.afterVillagePaste(world, (StructureStart) (Object) this, box);
+            float plateY = rec != null ? VillagePlate.resolvePlate(world, rec) : Float.NaN;
+            StageTimer.end("village.paste.stamp", tStamp);
+
+            long tBridges = StageTimer.start();
+            try {
+                VillageBridges.afterVillagePaste(world, (StructureStart) (Object) this, box, plateY);
+            } finally {
+                StageTimer.end("village.paste.bridges", tBridges);
+            }
+
+            long tRelight = StageTimer.start();
+            try {
+                VillageRelight.afterVillagePaste(world, (StructureStart) (Object) this, box);
+            } finally {
+                StageTimer.end("village.paste.relight", tRelight);
+            }
         } finally {
+            StageTimer.end("village.paste.total", AQTWEAKS$PASTE_START_NS.get());
+            AQTWEAKS$PASTE_START_NS.set(0L);
             AQTWEAKS$SKIP_STAMP.set(Boolean.FALSE);
         }
     }

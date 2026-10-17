@@ -2,6 +2,7 @@ package com.apocollis.aqtweaks.world;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaks;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
+import com.apocollis.aqtweaks.pacing.StewardPacing;
 import it.unimi.dsi.fastutil.longs.Long2LongLinkedOpenHashMap;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -29,6 +30,7 @@ public final class DeferredRelight {
     private static final int MAX_QUEUE = 8192;
     private static final int EXAMINE_PER_TICK = 128;
     private static final int CHECKS_PER_TICK = 48;
+    private static final int NEAR_FLOOR_PER_TICK = 4;
     /** Emitters within this many blocks (horizontal) of a player are retried before distant ones. */
     private static final double NEAR_SQ = 96.0 * 96.0;
     private static final long MAX_AGE_TICKS = 6000L;
@@ -180,6 +182,16 @@ public final class DeferredRelight {
         }
     }
 
+    private static boolean canRunNearCheck(int checks) {
+        if (checks >= CHECKS_PER_TICK) {
+            return false;
+        }
+        if (checks < NEAR_FLOOR_PER_TICK) {
+            return true;
+        }
+        return StewardPacing.remainingMs(40.0) >= 2.0;
+    }
+
     private static void tick(World world) {
         Long2LongLinkedOpenHashMap queue = QUEUES.get(world);
         if (queue == null) {
@@ -218,7 +230,7 @@ public final class DeferredRelight {
                     if (!nearPlayer(world, pos)) {
                         farKeys[farCount] = key;
                         farCreated[farCount++] = created;
-                    } else if (checks < CHECKS_PER_TICK && world.isAreaLoaded(pos, 17, false)) {
+                    } else if (canRunNearCheck(checks) && world.isAreaLoaded(pos, 17, false)) {
                         world.checkLight(pos);
                         checks++;
                         countRetried(world);
@@ -227,11 +239,20 @@ public final class DeferredRelight {
                     }
                 }
                 // Distant emitters only use the budget the nearby ones left over.
+                // When Steward reports the server busy, limit distant emitters to a floor of 1 check per 20 ticks
+                // so they cannot starve indefinitely during sustained exploration.
+                boolean busy = StewardPacing.shouldPauseOptionalWork();
+                int farAllowance = busy ? (Math.floorMod(now, 20L) == 0 ? 1 : 0) : (CHECKS_PER_TICK - checks);
+                int farChecks = 0;
                 for (int i = 0; i < farCount; i++) {
                     BlockPos pos = BlockPos.fromLong(farKeys[i]);
-                    if (checks < CHECKS_PER_TICK && world.isAreaLoaded(pos, 17, false)) {
+                    boolean withinBudget = farChecks < farAllowance
+                            && checks < CHECKS_PER_TICK
+                            && (busy || StewardPacing.remainingMs(40.0) >= 2.0);
+                    if (withinBudget && world.isAreaLoaded(pos, 17, false)) {
                         world.checkLight(pos);
                         checks++;
+                        farChecks++;
                         countRetried(world);
                     } else {
                         queue.put(farKeys[i], farCreated[i]);

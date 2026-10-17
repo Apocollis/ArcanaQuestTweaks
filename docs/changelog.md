@@ -2,6 +2,19 @@
 
 Stay on version **1.9** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-10-16 — Depths HeightManager cache and village well cache/memo
+
+- **Part A (`HeightManager` cache):** New `MixinHeightManager` (`mixins.aqtweaks.depthsupdate.json`, `required: false`, `defaultRequire: 1`) and `depths/HeightCache` replace `HeightManager.get(int)` and `isExtended(int)` with a dimension-indexed array (`-64..191`, size 256) and hash-map fallback outside that range, invalidated on `HeightManager.initialize` and Depths config reload. Eliminates the 14.37% Server-thread `ConcurrentHashMap.computeIfAbsent` hotspot in Spark. Configurable via `Enable HeightManager Cache` and `Verify HeightManager Cache` in `aqtweaks_depths.cfg`. See [depths.md](depths.md).
+- **Part B (`VillageWellCache`):** New `rtg/VillageWellCache` caches `VillageLandHelper.chunkExists` per dimension (peeking `ChunkProviderServer.loadedChunks` via `AccessorChunkProviderServer` without touching `unloadQueued`, checking a permanent positive `LongOpenHashSet` and a short-TTL negative `Long2LongOpenHashMap` default 200 ticks before calling `World.isChunkGeneratedAt`) and memoizes `startRejectReason` / `findDryWell` with a short TTL (default 600 ticks) keyed by `(dimension, seed, configFingerprint)`. A `null` (allow) verdict is only cached/used while no `StructureStart` exists at that well chunk so `forgetRejectedStarts` still vets newly created starts into `VETTED_STARTS`. `StageTimer` records `village.wellReject` and `village.findDryWell` with distinct/repeat/memoHit counters. Configurable via 5 new keys in `aqtweaks_rtg.cfg`. See [rtg.md](rtg.md).
+
+## 2026-10-16 — Chunk Steward headroom pacing & worldgen stage timers
+
+- New `pacing/StewardPacing` runtime bridge to `ChunkStewardAPI` (compile-hard against `ChunkSteward-0.3.jar`, `after:chunksteward` on `@Mod`, inner static `Api` class loaded only when `chunksteward` is present with `LinkageError` fallback).
+- `DeferredRelight` paces near-player emitter checks against `StewardPacing.remainingMs(40.0)` with a 4-check/tick floor, and limits distant (>96 blocks) emitters to a 1-check/20-tick floor when `StewardPacing.shouldPauseOptionalWork()` is true so they cannot starve indefinitely.
+- `SomniaOptimizationHandler` skips non-priority 20-tick ambient light checks when `StewardPacing.shouldPauseOptionalWork()` is true; priority chunks within 2 chunks of an awake player still drain every tick.
+- Step 0 worldgen stage timer (`perf/StageTimer`, gated behind `Performance Stage Timers` in `aqtweaks_rtg.cfg`, default off) logs 5-second summaries (`[AQ-PERF]`) for village layout, flatten, seal, paste sub-stages, and Dungeon Additions `Start` `create` vs `func_75068_a`.
+- `/aqvillage` (`CommandAqVillage.nearestUnexplored`) logs a stopwatch breakdown of total ms, cells scanned, `isChunkGeneratedAt`, `canSpawnVillage`, and `resolvedWellForChunk`.
+
 ## 2026-10-16 — Dungeon Additions village overlap skip
 
 - When `Skip Structures On Village` is on, Overworld Dungeon Additions structure starts (`WorldGenFrozenCastle$Start`, `WorldGenLichTower$Start`, `WorldGenOutposts$Start`, and the other 11 DA worldgen starts) cancel `generateStructure` if their bounding box overlaps a village pad + Y volume. No retry. Nether, End, and Aether DA structures are unaffected. Optional `mixins.aqtweaks.da.json`. New chunks only. See [rtg.md](rtg.md).

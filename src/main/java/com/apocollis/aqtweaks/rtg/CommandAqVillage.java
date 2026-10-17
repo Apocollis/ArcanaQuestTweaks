@@ -19,6 +19,7 @@ import rtg.world.gen.ChunkGeneratorRTG;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * OP {@code /aqvillage}: teleport onto generated ground a few blocks off the well.
@@ -162,6 +163,15 @@ public final class CommandAqVillage extends CommandBase {
     }
 
     private static Hit nearestUnexplored(World world, MapGenVillage village, BlockPos from) {
+        long tStart = System.nanoTime();
+        int cellsScanned = 0;
+        int chunkGenCalls = 0;
+        long chunkGenNs = 0L;
+        int spawnChecks = 0;
+        long spawnCheckNs = 0L;
+        int resolveCalls = 0;
+        long resolveNs = 0L;
+
         int spacing = StructureAccess.getVillageDistance(village);
         if (spacing < 9) spacing = 32;
         int minTown = StructureAccess.getVillageMinDistance(village);
@@ -175,16 +185,28 @@ public final class CommandAqVillage extends CommandBase {
         double bestDist = Double.MAX_VALUE;
         for (int cellX = originCellX - CELL_RADIUS; cellX <= originCellX + CELL_RADIUS; cellX++) {
             for (int cellZ = originCellZ - CELL_RADIUS; cellZ <= originCellZ + CELL_RADIUS; cellZ++) {
+                cellsScanned++;
                 int[] well = VillageLandHelper.villageWellChunk(seed, cellX, cellZ, spacing, minTown);
                 int gx = well[0];
                 int gz = well[1];
-                if (world.isChunkGeneratedAt(gx, gz) || StructureAccess.hasStructureStart(village, gx, gz)) {
+                long tCg = System.nanoTime();
+                boolean generated = world.isChunkGeneratedAt(gx, gz);
+                chunkGenNs += System.nanoTime() - tCg;
+                chunkGenCalls++;
+                if (generated || StructureAccess.hasStructureStart(village, gx, gz)) {
                     continue;
                 }
-                if (!StructureAccess.canSpawnVillage(village, gx, gz)) {
+                long tSp = System.nanoTime();
+                boolean canSpawn = StructureAccess.canSpawnVillage(village, gx, gz);
+                spawnCheckNs += System.nanoTime() - tSp;
+                spawnChecks++;
+                if (!canSpawn) {
                     continue;
                 }
+                long tRes = System.nanoTime();
                 int[] wellXZ = VillageLandHelper.resolvedWellForChunk(world, gx, gz);
+                resolveNs += System.nanoTime() - tRes;
+                resolveCalls++;
                 double dist = distanceSq(from, wellXZ[0], wellXZ[1]);
                 if (dist < bestDist) {
                     bestDist = dist;
@@ -192,6 +214,14 @@ public final class CommandAqVillage extends CommandBase {
                 }
             }
         }
+        long totalNs = System.nanoTime() - tStart;
+        LOGGER.info(String.format(Locale.ROOT,
+                "[aqvillage] nearestUnexplored total=%.2fms cells=%d isChunkGeneratedAt=%.2fms/%d canSpawnVillage=%.2fms/%d resolvedWell=%.2fms/%d found=%s",
+                totalNs / 1_000_000.0, cellsScanned,
+                chunkGenNs / 1_000_000.0, chunkGenCalls,
+                spawnCheckNs / 1_000_000.0, spawnChecks,
+                resolveNs / 1_000_000.0, resolveCalls,
+                best != null ? (best.wellX + "," + best.wellZ) : "none"));
         return best;
     }
 

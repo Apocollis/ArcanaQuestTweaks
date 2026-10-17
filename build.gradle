@@ -100,7 +100,7 @@ tasks.register('verifyReleaseJar') {
             if (zip.getEntry("mixins.aqtweaks.refmap.json") == null) {
                 throw new GradleException("mixins.aqtweaks.refmap.json missing from ${jarFile.name}")
             }
-            ["mixins.aqtweaks.json", "mixins.aqtweaks.early.json", "mixins.aqtweaks.charm.json"].each { name ->
+            ["mixins.aqtweaks.json", "mixins.aqtweaks.early.json", "mixins.aqtweaks.charm.json", "mixins.aqtweaks.depthsupdate.json"].each { name ->
                 if (zip.getEntry(name) == null) {
                     throw new GradleException("${name} missing from remapped jar")
                 }

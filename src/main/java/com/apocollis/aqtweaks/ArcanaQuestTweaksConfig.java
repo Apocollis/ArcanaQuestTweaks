@@ -1,5 +1,7 @@
 package com.apocollis.aqtweaks;
 
+import com.apocollis.aqtweaks.depths.HeightCache;
+import com.apocollis.aqtweaks.rtg.VillageWellCache;
 import com.apocollis.aqtweaks.stamina.StaminaFeathers;
 import com.apocollis.aqtweaks.stamina.DssSkillCosts;
 import com.apocollis.aqtweaks.reskillable.ReskillablePerkLayout;
@@ -748,7 +750,7 @@ public class ArcanaQuestTweaksConfig {
 
         @Config.Name("Sleep Chat Message Text")
         @Config.Comment("The text of the message sent to players when their warp is reduced by sleeping")
-        public static String chatMessageText = "§5You wake up feeling refreshed, and the whispers in your mind grow quieter...§r";
+        public static String chatMessageText = "\u00a75You wake up feeling refreshed, and the whispers in your mind grow quieter...\u00a7r";
 
         @Config.Name("Enable Dimension Entry Warp")
         @Config.Comment("Should players gain warp when entering a new dimension for the first time?")
@@ -766,7 +768,7 @@ public class ArcanaQuestTweaksConfig {
 
         @Config.Name("Dimension Chat Message Text")
         @Config.Comment("The text of the message sent to players when they gain warp from entering a new dimension")
-        public static String dimensionChatMessageText = "§5Entering this strange dimension fills your mind with ancient whispers...§r";
+        public static String dimensionChatMessageText = "\u00a75Entering this strange dimension fills your mind with ancient whispers...\u00a7r";
 
         @Config.Name("Dimension Entry Sound")
         @Config.Comment("The sound registry name to play when the player gains warp from entering a new dimension. Leave empty to play no sound.")
@@ -921,6 +923,14 @@ public class ArcanaQuestTweaksConfig {
             @Config.Name("Enable Quark Speleothems")
             @Config.Comment("Place Quark speleothem clusters in the lower cavern primer (new chunks only). Skipped if Quark is not loaded. Does not replace Deepslate columns, spikes, or bridges.")
             public boolean enableQuarkSpeleothems = true;
+
+            @Config.Name("Enable HeightManager Cache")
+            @Config.Comment("Use a dimension-indexed array table for Depths Update HeightManager.get(int) and isExtended(int) so hot world/chunk/light paths avoid boxing and map lookups.")
+            public boolean heightCacheEnabled = true;
+
+            @Config.Name("Verify HeightManager Cache")
+            @Config.Comment("Dev-only verification: compare every HeightCache lookup against the original HeightManager map and log the first mismatch. Off by default.")
+            public boolean heightCacheVerify = false;
         }
 
         public static class Client {
@@ -1126,6 +1136,32 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Hermite slope beyond Cambion House Pad, raise-only, back to RTG. Default 12.")
         @Config.RangeInt(min = 0, max = 64)
         public int cambionHouseFalloff = 12;
+
+        @Config.Name("Performance Stage Timers")
+        @Config.Comment("Log 5-second worldgen stage timing summaries ([AQ-PERF] in latest.log) for village layout, flatten, seal, paste, and Dungeon Additions starts. Off by default.")
+        public boolean perfTimers = false;
+
+        @Config.Name("Enable Village Well Chunk Cache")
+        @Config.Comment("Peek loadedChunks first, cache generated chunks permanently, and cache negative chunkExists answers briefly during village well evaluation.")
+        public boolean villageWellCacheEnabled = true;
+
+        @Config.Name("Village Well Chunk Negative TTL Ticks")
+        @Config.Comment("Ticks to remember a negative chunkExists answer in VillageWellCache (200 = 10 seconds). 0 disables negative caching.")
+        @Config.RangeInt(min = 0, max = 6000)
+        public int villageWellNegativeTtlTicks = 200;
+
+        @Config.Name("Enable Village Well Verdict Memo")
+        @Config.Comment("Memoize startRejectReason and findDryWell results briefly per (dimension, seed, config) to avoid repeated RTG landscape sampling and disk probes on rejected wells.")
+        public boolean villageWellMemoEnabled = true;
+
+        @Config.Name("Village Well Verdict Memo TTL Ticks")
+        @Config.Comment("Ticks to remember startRejectReason and findDryWell results (600 = 30 seconds). 0 disables memoization.")
+        @Config.RangeInt(min = 0, max = 6000)
+        public int villageWellMemoTtlTicks = 600;
+
+        @Config.Name("Verify Village Well Verdict Memo")
+        @Config.Comment("Dev-only verification: recompute uncached startRejectReason and findDryWell on memo hits and log any mismatch. Off by default.")
+        public boolean villageWellMemoVerify = false;
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_portal", category = "")
@@ -2130,6 +2166,8 @@ public class ArcanaQuestTweaksConfig {
             if (event.getModID().equals(ArcanaQuestTweaks.MODID)) {
                 ConfigManager.sync(ArcanaQuestTweaks.MODID, Config.Type.INSTANCE);
                 normalizePinned();
+                HeightCache.invalidate();
+                VillageWellCache.invalidateAll();
                 DssSkillCosts.invalidate();
                 StaminaFeathers.invalidateWeightCache();
                 com.apocollis.aqtweaks.stamina.StaminaModule.clearWeaponCaches();

@@ -82,7 +82,8 @@ $deps = @(
     "TreeChopper-1.12.2-1.2.4.jar",
     "depthsupdate-1.12.2-1.0.0-a12.jar",
     "SereneSeasons-1.12.2-1.2.18-universal.jar",
-    "unseens_dungeon_additions-1.7.5.jar"
+    "unseens_dungeon_additions-1.7.5.jar",
+    "ChunkSteward-0.3.jar"
 )
 foreach ($dep in $deps) {
     $src = "$localModsDir/$dep"

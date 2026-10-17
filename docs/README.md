@@ -54,13 +54,13 @@ Astral surface shrines, Bewitchment Cambion houses, and Mystical World thatch hu
 
 `ArcanaQuestTweaks` declares:
 
-`required-after:elenaidodge2;required-after:charm;after:incontrol;after:grimoireofgaia;after:thaumcraft;after:bewitchment;after:grapplemod;after:dynamicswordskills;after:baubles;after:embers;after:qualitytools;after:reskillable;after:effortlessbuilding;after:stats_keeper;after:randomportals;after:twilightforest;after:aether_legacy;after:chisel;after:gamestages;after:recipestages;after:simpletomb`
+`required-after:elenaidodge2;required-after:charm;after:incontrol;after:grimoireofgaia;after:thaumcraft;after:bewitchment;after:grapplemod;after:dynamicswordskills;after:baubles;after:embers;after:qualitytools;after:reskillable;after:effortlessbuilding;after:stats_keeper;after:randomportals;after:twilightforest;after:aether_legacy;after:chisel;after:gamestages;after:recipestages;after:simpletomb;after:chunksteward`
 
 That is **not** the full parent list. Soft parents that Tweaks mixins or events against, without `after:` / `required-after:`:
 
 | Parent | Used by | If missing |
 | --- | --- | --- |
-| RTG, Depths Update, Better Caves, CoFH World, Recurrent Complex | Depths + RTG mixins in **required** `mixins.aqtweaks.json` | Mixin apply can fail; this pack always ships them |
+| RTG, Depths Update, Better Caves, CoFH World, Recurrent Complex | Depths + RTG mixins in **required** `mixins.aqtweaks.json` (plus optional `mixins.aqtweaks.depthsupdate.json` for `HeightManager` cache) | Required json can fail apply; this pack always ships them |
 | Astral Sorcery | Optional mixin json + village shrine handler | Mixin config `required: false`; handler not registered |
 | Mystical World | Optional mixin json | No hut skip/settle |
 | Dungeon Additions | Optional mixin json (`mixins.aqtweaks.da.json`) | No DA village overlap skip |
@@ -79,6 +79,7 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 | Quality Tools | Loot stamp, wear/Broken, Dawnstone runes | Optional json skipped; vanilla early mixins still apply (pack ships QT); handler not registered |
 | Quark | Depths lower-cavern speleothem primer decor | Helper not called; +Y stock Quark unchanged; Deepslate columns/spikes still generate |
 | Simple Tomb | Death drop origin slot restore + Baubles + admin backup | Module not registered; mixin json skipped; stock Simple Tomb behavior |
+| Chunk Steward | Server tick headroom pacing (pacing/StewardPacing -> ChunkStewardAPI) for DeferredRelight and SomniaOptimizationHandler | StewardPacing.isPresent() false (or LinkageError caught on stale jar); falls back to unpaced fixed budgets |
 
 ### Init (`CommonProxy` / `ClientProxy`)
 
@@ -128,7 +129,7 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `
 | File | `required` | Module | If parent jar missing |
 | --- | --- | --- | --- |
 | `mixins.aqtweaks.json` | **true** | Depths, RTG villages, Recipes | Load fails |
-| `mixins.aqtweaks.vanilla.json` | **true** | Vanilla-only: `AccessorChunk` (Somnia light checks), `InvokerStructureStart` (protected `updateBoundingBox` for village/mineshaft pads), `MixinEntityAITasks` (swallows an NPE thrown by any AI task `updateTask`, then `resetTask`; logs once per task class via `util/AiTaskReport`), `MixinEntityGhastAIFireballAttack` (no target: stop attacking) | Load fails |
+| `mixins.aqtweaks.vanilla.json` | **true** | Vanilla-only: `AccessorChunk` (Somnia light checks), `AccessorChunkProviderServer` (`chunkGenerator` and `loadedChunks`), `InvokerStructureStart` (protected `updateBoundingBox` for village/mineshaft pads), `MixinEntityAITasks` (swallows an NPE thrown by any AI task `updateTask`, then `resetTask`; logs once per task class via `util/AiTaskReport`), `MixinEntityGhastAIFireballAttack` (no target: stop attacking) | Load fails |
 | `mixins.aqtweaks.grapple.json` | false | Stamina | Skip |
 | `mixins.aqtweaks.dss.json` | false | Stamina | Skip |
 | `mixins.aqtweaks.elenaidodge.json` | false | Stamina feather colors + armor tooltip weight | Skip |
@@ -139,6 +140,7 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `
 | `mixins.aqtweaks.mysticalworld.json` | false | RTG Mystical huts | Skip |
 | `mixins.aqtweaks.biomesoplenty.json` | false | RTG BOP water/quicksand village skip | Skip |
 | `mixins.aqtweaks.da.json` | false | RTG Dungeon Additions village overlap skip | Skip |
+| `mixins.aqtweaks.depthsupdate.json` | false | Depths: `MixinHeightManager` dimension-indexed `HeightCache` for `HeightManager.get(int)` and `isExtended(int)` | Skip |
 | `mixins.aqtweaks.gaia.json` | false | Grimoire of Gaia drop pierce + recast bolts/bombs + Deathword ranged | Skip |
 | `mixins.aqtweaks.effortlessbuilding.json` | false | Reskillable Building EB place reach + max blocks | Skip |
 | `mixins.aqtweaks.thaumcraft.json` | false | Thaumcraft focus HP magic flag + Heal scale + runic shielding HUD | Skip |
@@ -197,43 +199,3 @@ Forge `@Config` on nested classes in `ArcanaQuestTweaksConfig`. Comfort is JSON,
 | `aqtweaks_bettermineshafts.cfg` | `BetterMineshaftsModuleConfig` |
 | `aqtweaks_minemenu.cfg` | `MineMenuModuleConfig` |
 | `aqtweaks_comfort_settings.json` | `ComfortConfigLoader` (not `@Config`) |
-| `aqtweaks_comfort_blocks.json` | `ComfortConfigLoader` (not `@Config`) |
-
-`ConfigEventHandler` runs `ConfigManager.sync` on any `aqtweaks` cfg change, then `normalizePinned()`, invalidates the DSS skill-cost cache and the Elenai weight cache, reloads spawn-structure, spawn-party, and spawn-group-counts JSON plus spawn-rules cfg, invalidates spawn-group-sizes, restamps Reskillable attributes if that mod is loaded, and applies Somnia config overrides if that mod is loaded. Existing instance files keep old keys when Java defaults change.
-
-Its reach is narrower than it looks. It subscribes to `ConfigChangedEvent.OnConfigChangedEvent`, which Forge fires from the **client in-game config GUI only** — never on a dedicated server, and never from hand-editing a cfg file. The only JSON it reloads is spawn-structure, spawn-party, and spawn-group-counts (plus `mob_spawnrules.cfg`); comfort (`aqtweaks_comfort_settings.json`, `aqtweaks_comfort_blocks.json`) and `gaia_mob_damage.json` are preInit-only and need a **restart**.
-
-`aqtweaks_grimoireofgaia.cfg`, `aqtweaks_thaumcraft.cfg`, and `aqtweaks_bewitchment.cfg` wrap their keys in a `general { }` block because those three `@Config` annotations omit `category = ""`. `aqtweaks_spawning.cfg`, `aqtweaks_statskeeper.cfg`, `aqtweaks_gamestages.cfg`, `aqtweaks_qualitytools.cfg`, `aqtweaks_twilightforest.cfg`, `aqtweaks_aether.cfg`, `aqtweaks_bettermineshafts.cfg`, and `aqtweaks_minemenu.cfg` also nest a `General` object (still `category = ""`) so their keys sit in `general { }` too. Files with `category = ""` and no nested General keep keys at file root. That asymmetry is **intentional** — normalizing the three omit-category files would reset tuned values in existing instance files.
-
-Pack-owned (not Tweaks): `config/arcanaquest/mob_overworldspawntype.json`, `mob_spawnparties.json`, `mob_tier.json`, and `mob_spawnrules.cfg` for the [spawning](spawning.md) module.
-
-### Vanilla access (no `Reflect`)
-
-`util/Reflect.java` was removed in the 2026-10-04 cleanup. Vanilla and Forge members are called directly; protected or private ones go through Mixin accessors in `mixin.vanilla` (`AccessorMapGenBase`, `AccessorMapGenStructure`, `AccessorMapGenVillage`, `AccessorStructureComponent`, `AccessorVillageStart`, `AccessorChunkProviderServer`, `InvokerStructureStart`, `AccessorChunk`) wrapped by `rtg/StructureAccess`. Parent mods are compile-hard: `stamina/StaminaFeathers` (Elenai), `GrappleHelper`, `OpenGliderHelper`, `rtg/WaystoneBridge`, `thaumcraft/ThaumcraftHelper`, `reskillable/PerkAccess` + `ReskillableBonuses`, `simpledifficulty/SimpleDifficultyHelper`. See [reskillable.md](reskillable.md) and [thaumcraft.md](thaumcraft.md). The one remaining reflection is `StructureAccess.getChunkGenerator` / `StructureVillageOverlap`, which walk the fields of unknown third-party generator wrappers.
-
-**`remap = false` only affects mixin annotation strings** (`method =`, `target =`, `@Shadow` names), which must be SRG. The bytecode in the mixin class body is remapped by `remapJar` like any other class (verified on `MixinTileCrucible`: `Material.LAVA` became `field_151587_i`, `getMaterial` became `func_185904_a`). So write vanilla calls directly in mixin bodies. `@Shadow` fields are not mapped by the refmap generator: name them by SRG with `@Shadow(remap = false)`. Pack parents: compile-hard their types when you need methods or classes.
-
-**Direct vanilla in Tweaks’ own classes is allowed.** Event handlers are remapped (`defaultRemapJar = true`). `DepthsFogHandler.entity.world` and `ThaumcraftModule` `getChunkProvider()` are not defects.
-
-Do not put MCP names inside `remap = false` mixin **annotation strings**; method bodies are fine.
-
-## Adding an integration
-
-When hooking a new parent (or a new mixin on an existing one):
-
-1. **Classpath:** add the exact jar to `libs/` (and to `build_gradle.ps1` `$deps` if this machine should copy it). Update [compatibility-matrix.md](compatibility-matrix.md). **Compile-hard** that parent if you need its classes or methods.
-2. **`@Mod`:** `required-after` only if Tweaks must not load without it. Otherwise `after:` or omit. Pack mods can still be compile-hard without `required-after`.
-3. **Mixin:** new json `required: false` unless the pack always ships the parent **and** missing it should crash. Register the json in `AQTweaksLateMixinLoader`. Mixin targets: SRG in vanilla, parent members as in that jar. `required: false` is load-time skip, not “string-target only.”
-4. **Side:** client-only in the json `client` array or `@SideOnly`. Packets: `SimpleNetworkWrapper` side as today (stamina 0–2 are SERVER).
-5. **Absent parent:** `Loader.isModLoaded` or mixin json `required: false` when there is **no** parent type to call. If you need a class or method, **compile-hard** it; still gate handler construction with `isModLoaded` so the `import` stays off always-on bus classes. Do not `import` parent types from those always-on classes (Bewitchment `Ritual` is compile-hard on the handler that only registers when loaded).
-6. **Config:** new `@Config` defaults; instance files **keep old keys**. Document live vs dead knobs in the module doc.
-7. **Verify:** add a row to [verification.md](verification.md). Worldgen → new chunks. Mixin annotation strings use SRG; method bodies call vanilla directly.
-
-## Workflow (always)
-
-1. Investigate read-only.
-2. Write `.cursor/plans/YYYYMMDD-HHmm-<kebab-task>.md` (never repo-root `implementation_plan.md`), also put the plan in chat. Delete that file when the chat’s work is finished.
-3. Wait for explicit `proceed`.
-4. Implement, then `.\build_gradle.ps1` unless told not to rebuild. Portable compile: `.\gradlew.bat build`. That path already sets `--release 21`. Never drop that flag. Details: [build-and-release.md](build-and-release.md).
-
-Cursor always-on rules: `.cursor/rules/`. Antigravity: `.agents/rules/` (same policies). Keep both in sync when adding or editing a rule or skill. Worldgen changes apply to **new chunks only**.

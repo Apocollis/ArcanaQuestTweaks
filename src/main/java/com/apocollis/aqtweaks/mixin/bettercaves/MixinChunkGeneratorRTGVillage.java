@@ -3,6 +3,7 @@ package com.apocollis.aqtweaks.mixin.bettercaves;
 import com.apocollis.aqtweaks.depths.PrimerAccess;
 import com.apocollis.aqtweaks.rtg.StructureAccess;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
+import com.apocollis.aqtweaks.perf.StageTimer;
 import com.apocollis.aqtweaks.rtg.VillageDebug;
 import com.apocollis.aqtweaks.rtg.VillageLandHelper;
 import com.apocollis.aqtweaks.rtg.VillagePlate;
@@ -90,7 +91,12 @@ public abstract class MixinChunkGeneratorRTGVillage {
         if (biomeProvider == null) return;
         ChunkLandscape landscape = aqtweaks$sampleLandscape(biomeProvider, cx, cz);
         if (landscape != null && landscape.noise != null) {
-            aqtweaks$flattenNoise(cx, cz, landscape.noise, landscape);
+            long t0 = StageTimer.start();
+            try {
+                aqtweaks$flattenNoise(cx, cz, landscape.noise, landscape);
+            } finally {
+                StageTimer.end("village.flatten", t0);
+            }
         }
     }
 
@@ -102,8 +108,13 @@ public abstract class MixinChunkGeneratorRTGVillage {
     @Inject(method = "func_185932_a", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/world/chunk/Chunk;<init>(Lnet/minecraft/world/World;Lnet/minecraft/world/chunk/ChunkPrimer;II)V"))
     private void aqtweaks$sealVillagePlateBeforeChunk(int cx, int cz, CallbackInfoReturnable<Chunk> cir) {
-        aqtweaks$sealVillagePlate(cx, cz, aqtweaks$sealPrimer);
-        aqtweaks$sealPrimer = null;
+        long t0 = StageTimer.start();
+        try {
+            aqtweaks$sealVillagePlate(cx, cz, aqtweaks$sealPrimer);
+        } finally {
+            StageTimer.end("village.seal", t0);
+            aqtweaks$sealPrimer = null;
+        }
     }
 
     @Unique

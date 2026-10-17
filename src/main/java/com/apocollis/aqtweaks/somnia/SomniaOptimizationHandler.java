@@ -1,6 +1,7 @@
 package com.apocollis.aqtweaks.somnia;
 
 import com.apocollis.aqtweaks.mixin.vanilla.AccessorChunk;
+import com.apocollis.aqtweaks.pacing.StewardPacing;
 import com.kingrunes.somnia.Somnia;
 import com.kingrunes.somnia.common.SomniaConfig;
 import com.kingrunes.somnia.common.util.SomniaState;
@@ -88,12 +89,15 @@ public class SomniaOptimizationHandler {
         // If the chunk has a backlog (< 4096) AND is within player proximity (2 chunks / ~32 blocks),
         // drain priority every tick so village houses and immediate surroundings relight within seconds.
         // Distant background chunks (> 2 chunks away) and already idle chunks stay throttled to once
-        // every 20 ticks to eliminate exploration / flight hitching.
+        // every 20 ticks to eliminate exploration / flight hitching, and skip when Chunk Steward reports busy.
         int queued = ((AccessorChunk) chunk).getQueuedLightChecks();
         boolean needsPriority = queued < 4096 && isNearAwakePlayer(world, chunk.x, chunk.z, 2);
 
         if (!needsPriority) {
             if (Math.floorMod(currentTick + chunk.x + chunk.z, 20L) != 0) {
+                return;
+            }
+            if (StewardPacing.shouldPauseOptionalWork()) {
                 return;
             }
         }

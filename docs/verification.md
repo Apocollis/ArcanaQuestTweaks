@@ -1,6 +1,6 @@
 # Verification (1.9)
 
-Last updated: 2026-10-04.
+Last updated: 2026-10-16.
 
 Manual release / smoke checklist. **No automated tests.** Harness: CurseForge **Arcana Quest DEVBOX**, remapped `ArcanaQuestTweaks-1.9.jar` in `mods/`. Algorithms and full checklists stay in module docs; this is the pack-level pass/fail.
 
@@ -53,10 +53,11 @@ These json files are `required: false`. Removing the parent should skip that jso
 | Game Stages | `lockedStage` no-ops; Chisel mixins still apply if Chisel is present |
 | Quality Tools | No `mixins.aqtweaks.qualitytools.json`; vanilla loot/durability mixins still apply (pack ships QT); no rune recipes |
 | Simple Tomb | No `mixins.aqtweaks.simpletomb.json`; stock tomb placement and vanilla giveInventory restore |
+| Chunk Steward | `StewardPacing.isPresent()` false (or `LinkageError` caught on stale jar); `DeferredRelight` and `SomniaOptimizationHandler` run with stock fixed budgets |
 
 ### Do not treat as optional
 
-Missing **RTG, Depths Update, Better Caves, CoFH World, Recurrent Complex, or IvToolkit** with the current required mixin json can **fail mixin apply** at boot. This pack always ships them. Elenai Extended and **Charm** are `@Mod` **required-after**. InControl is `@Mod` **after** and compile-hard for pack fill.
+Missing **RTG, Depths Update, Better Caves, CoFH World, Recurrent Complex, or IvToolkit** with the current required mixin json can **fail mixin apply** at boot. This pack always ships them (`mixins.aqtweaks.depthsupdate.json` is `required: false` with `defaultRequire: 1`, while the core Depths mixins remain in required `mixins.aqtweaks.json`). Elenai Extended and **Charm** are `@Mod` **required-after**. InControl is `@Mod` **after** and compile-hard for pack fill.
 
 ## Config
 
@@ -107,6 +108,8 @@ Seam, village world push/pop and Mineshaft locate were dead code until the 2026-
 | New village chunks with `/aqvillage` | Village still plates; no growth of the generator/world stacks (no repeated `pushGenerator` without pop in `villagepatch.log` with debug on); starts rejected by `rejectCoastalVillageStarts` are forgotten | [rtg.md](rtg.md) |
 | `/locate Mineshaft` on a new world | Pin lands on a registered Better Mineshafts Start (Y 24 when unexplored); `cleanmix.log` shows `MixinMapGenMineshaftLocate` injected into `MapGenMineshaft`; vanilla Mineshaft generators in other dimensions unaffected | [bettermineshafts.md](bettermineshafts.md) |
 | Flying new chunks (near and far from villages) | Away from villages, chat TPS stays near 20 (no growing hitch as more towns exist). A village still plates. With debug off, `villagepatch.log` stays empty | [rtg.md](rtg.md) |
+| `HeightManager` array cache (`Verify HeightManager Cache` = true) | Fly new chunks across Overworld, Nether, End, Twilight Forest, Aether: zero `[AQ-DEPTHS] HeightCache mismatch` warnings in `latest.log`; Spark shows `HeightManager.get` / `isExtended` near 0% | [depths.md](depths.md) |
+| `VillageWellCache` (`Performance Stage Timers` = true, `Verify Village Well Verdict Memo` = true) | Fly new chunks across coastal and inland villages and run `/aqvillage`: zero `[AQ-RTG] VillageWellCache` mismatch warnings in `latest.log`; `[AQ-PERF]` shows `village.wellReject` and `village.findDryWell` with high `memoHit=` counts; Spark shows `VillageLandHelper.chunkExists` / `RegionFileCache` dramatically reduced | [rtg.md](rtg.md) |
 | Coastal village ocean face (new chunks) | Cleaner XZ outline (open 1-block sea inlets filled). Stone brick **only** where the plate cliffs ≥2 (including top); sand/grass on level rims; no open-water pier; inland hill cliffs not bricked | rtg |
 | Village interior (new chunks) | No stone brick patches in yards/farms or along chunk lines; no pad across a Land of Lakes / forest watercourse; no bare plate spur without a building | rtg |
 | Village path across a river (new chunks) | Stone brick deck at plate Y, cobble wall rails, piers on runs >4; water under it; no oak planks at water level. `villagepatch.log`: `bridge clip=` lines. Ocean paths still omitted | rtg |
@@ -142,7 +145,7 @@ Seam, village world push/pop and Mineshaft locate were dead code until the 2026-
 | Yard between path and house (12-pad / Hermite) | `isInsideStructure("Village")` true after new gen and after relog. Outside pad+falloff false. Plate+31 false if box height is 30 | rtg |
 | Night village lamps (new chunks) | Path torch and fence lamp light the plate and nearby house walls; not a 1-block puddle | rtg |
 | Below Y0 Overworld | Deepslate fill, AQ caves, Y0 mouths on land, **no** ocean drain | [depths.md](depths.md) |
-| -Y caves after a perf change (new chunks) | Same seed, same chunks: tunnels, chambers, pillars, bridges, stalactites and floater cleanup unchanged. Perf work here is exact-equivalence, so any visible difference is a bug | depths |
+| -Y caves after a perf change (new chunks) | Same seed, same chunks: tunnels, chambers, pillars, bridges, stalactites and floater cleanup unchanged. Perf work is exact-equivalence, so any visible difference is a bug | depths |
 | Spark while flying new terrain | `UpperTunnelNetwork.forColumn`, `columnStrength`, `getSurfaceAltitudeForColumn` and chunk/BC `Reflect` getBlock/getMaterial well down; Tweaks no longer ~half of chunk gen. Same-seed bridges in the same places | depths |
 | Fog / sky below Y0 | Dark fog ~32–52; no skybox | depths |
 | Deep cave floor/ceiling (new chunks, Quark on) | Tapered Quark stone speleothems mixed with existing Deepslate columns/spikes/bridges. +Y Better Caves still have stock Quark clusters. Quark jar removed or cfg off: no deep speleothems; cave shape unchanged | depths |

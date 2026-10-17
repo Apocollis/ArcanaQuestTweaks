@@ -1,6 +1,6 @@
 # Depths module (1.9)
 
-Last updated: 2026-09-18.
+Last updated: 2026-10-16.
 
 Config: `config/arcanaquesttweaks/aqtweaks_depths.cfg`. **New chunks only** for carve/fill. Client fog/sky apply immediately.
 
@@ -23,7 +23,7 @@ Depths Update extends the Overworld to **Y = -64**. Several 1.12 gens still assu
 ## Hard constraints
 
 - Stay version **1.9**.
-- Mixins live in **required** `mixins.aqtweaks.json`. RTG, Depths Update, Better Caves, CoFH World, and Recurrent Complex are assumed present in this pack.
+- Core worldgen mixins live in **required** `mixins.aqtweaks.json`. RTG, Depths Update, Better Caves, CoFH World, and Recurrent Complex are assumed present in this pack. The `HeightManager` lookup cache lives in optional `mixins.aqtweaks.depthsupdate.json` (`required: false`, `defaultRequire: 1`).
 - `MapGenBetterCaves` subclasses `MapGenCaves`. Cancel vanilla worms only when `this.getClass().getName()` is exactly `net.minecraft.world.gen.MapGenCaves`.
 - Production Better Caves carve method is `func_186125_a` (`remap = false` on the mixin class). Seam inject is `@At("RETURN")` — after BC, not instead of BC.
 - `RayMatcher.cast` is an `@Overwrite`. RC version bumps can silently break deep structure placement.
@@ -38,6 +38,17 @@ Two mixins, one target class:
 
 1. `MixinDepthsCaveNoiseGenerator` **Redirects** `ICaveGenerator.sample` so **y &lt; 0 is never sampled**. This has **no config gate** — Depths parent -Y caves stay off whenever the mixin applies.
 2. `MixinCaveNoiseGenerator` **Inject HEAD cancellable** on `generate`. If Depths module + Better Depths Caves are on, Tweaks writes the primer and **`ci.cancel()`** so Depths’ generate body does not run. If that flag is off, the inject returns without cancel; Depths generate still runs, but (1) still skips y &lt; 0, so you get **no** Tweaks -Y caves and **no** Depths -Y caves.
+
+### Performance: `HeightManager` cache (`MixinHeightManager` + `HeightCache`)
+
+Depths Update's `World`, `Chunk`, and lighting mixins call `HeightManager.isExtended(World)` and `HeightManager.get(World)` (or `getMinY`/`getMaxY`) 2–3 times per invocation on `getBlockState`, `isOutsideBuildHeight`, and `getLightFor`. Every entry point ends in `HeightManager.get(int)` or `HeightManager.isExtended(int)`, which originally called `ensureInitialized()`, boxed `Integer.valueOf(dim)`, and looked up `contexts.getOrDefault`/`containsKey` on an immutable map.
+
+`MixinHeightManager` (`mixins.aqtweaks.depthsupdate.json`, `required: false`, `defaultRequire: 1`, string target `sayys.depthsupdate.core.HeightManager` with `remap = false`) uses `@Overwrite` on `get(int)` and `isExtended(int)` (avoiding per-call `CallbackInfoReturnable` allocations) and `@Inject(method = "initialize", at = @At("RETURN"))` to invalidate `depths/HeightCache`:
+
+- `HeightCache` maintains a `volatile Table` backed by a 256-slot `HeightContext[]` array for dimensions `-64..191`.
+- Fast path (when `Enable HeightManager Cache` is true and `Verify HeightManager Cache` is false): one volatile read of `HeightCache.table`, array bounds check, and array slot read (`null` maps to `HeightContext.VANILLA` for `get(int)` and `false` for `isExtended(int)`). Thread-safe for both server and client threads without locking.
+- Slow path: calls `ensureInitialized()`, reads `@Shadow contexts`, rebuilds `HeightCache.table` under `LOCK` guarded by an `epoch` counter (so a rebuild racing with `initialize()` cannot publish a stale table), and answers from `contexts` directly for dimensions outside `-64..191`.
+- `Verify HeightManager Cache` (dev-only, default `false`) compares the fast array answer against `contexts` on every call and logs the first mismatch once (`[AQ-DEPTHS] HeightCache... mismatch`).
 
 ### YUNG's Better Caves
 
@@ -165,6 +176,8 @@ Same `UpperTunnelNetwork` as -Y upper worms. Overworld only (`dimension == 0`).
 | Minimum World Y Elevation | -64 | — | **Pinned.** Bedrock floor and ray/CoFH clamp read the constant; not a tunable knob |
 | Better Depths Caves | true | yes | AQTweaks primer carve + BC mouths + chunk seam. Off: those skip; Depths still has no -Y samples |
 | Enable Quark Speleothems | true | yes | Lower-cavern primer Quark clusters. Off or Quark missing: skip; cave shape unchanged |
+| Enable HeightManager Cache | true | yes | Dimension-indexed array lookup for `HeightManager.get(int)` and `isExtended(int)` |
+| Verify HeightManager Cache | false | yes | Dev-only check: compare every `HeightCache` lookup against `HeightManager.contexts` and log the first mismatch |
 | Deep Cave Fog | true | yes | Client fog below Y0 |
 | Hide Skybox Below Y 0 | true | yes | Client skip `renderSky` |
 | Enable CoFH World Negative Y | true | yes | `Math.max` floor → minWorldY |
@@ -179,6 +192,8 @@ Same `UpperTunnelNetwork` as -Y upper worms. Overworld only (`dimension == 0`).
 | File | Parent hook |
 | --- | --- |
 | `mixin/depthsupdate/MixinDepthsCaveNoiseGenerator.java` | Skip Depths `sample` when y&lt;0 (**no config**) |
+| `mixin/depthsupdateperf/MixinHeightManager.java` | `@Overwrite` `HeightManager.get(int)` and `isExtended(int)`; `@Inject RETURN initialize()` invalidates `HeightCache`. Optional `mixins.aqtweaks.depthsupdate.json` |
+| `depths/HeightCache.java` | Dimension-indexed `HeightContext[]` table (`-64..191`), epoch/lock rebuild, and dev verify mode |
 | `mixin/bettercaves/MixinCaveNoiseGenerator.java` | AQTweaks -Y primer carve; cancel Depths `generate` when caves on |
 | `mixin/bettercaves/MixinBetterCavesDepthsPass.java` | After BC, Y0 mouths |
 | `mixin/bettercaves/MixinChunkGeneratorRTG.java` | RTG sub-zero fill, not Y=0 |
@@ -253,6 +268,7 @@ A later pass moved the remaining `remap = false` hot-path Reflect (`CarverUtils.
 - Vanilla member access stays out of `remap = false` mixin bodies — use `PrimerAccess` / `ChunkAccess` / `BetterCavesReplaceable` on the hot path. (Plain vanilla calls in a mixin body are remapped and work, but these helpers keep the null/throw behaviour and are shared.) Block constants: `DepthsBlocks`.
 - `enableBetterDepthsCaves` vs `enableBetterCavesNegativeY` stay separate.
 - `@Overwrite` on `RayMatcher.cast` — re-verify on Recurrent Complex updates.
+- `MixinHeightManager`: overwrite `get(int)` and `isExtended(int)` (not the `World` overloads, because `getMinY`/`getMaxY` and `Chunk` paths funnel into the `int` methods); do not add a field to `World` or move into `mixins.aqtweaks.early.json`; keep the `initialize()` RETURN invalidation with epoch/lock publish in `HeightCache`; fall back to the original map path for dimension ids outside `-64..191`.
 - Turning off Better Depths Caves does **not** restore Depths’ own -Y caves (sample redirect has no flag).
 - Quark speleothems in the deep are **primer-only** and **in-chunk**. Do not mixin `SpeleothemGenerator` to lower its Y walk, and do not `setBlockState` below 0 for this decor.
 - Do not replace Deepslate columns, floor spikes, stalactites, or bridges with speleothems.

@@ -1,6 +1,7 @@
 package com.apocollis.aqtweaks.rtg;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
+import com.apocollis.aqtweaks.perf.StageTimer;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.util.EnumFacing;
@@ -160,6 +161,7 @@ public final class VillageLandHelper {
             World world = event.getWorld();
             if (world == null || world.isRemote) return;
             dropStash(world);
+            VillageWellCache.invalidateWorld(world);
 
             // Village records and plate heights are keyed by seed, not by dimension, and villages
             // are overworld-only. Only an overworld unload means the session is really over —
@@ -318,6 +320,12 @@ public final class VillageLandHelper {
      */
     public static String startRejectReason(World world, int chunkX, int chunkZ) {
         if (world == null) return null;
+        return VillageWellCache.startRejectReason(
+                world, chunkX, chunkZ, () -> startRejectReasonUncached(world, chunkX, chunkZ));
+    }
+
+    private static String startRejectReasonUncached(World world, int chunkX, int chunkZ) {
+        if (world == null) return null;
         int wellX = chunkX * 16 + 2;
         int wellZ = chunkZ * 16 + 2;
         BiomeProvider provider = world.getBiomeProvider();
@@ -352,6 +360,12 @@ public final class VillageLandHelper {
      * First dry (not never-raise) column within {@code villageWaterRetryDistance}, Chebyshev rings.
      */
     public static int[] findDryWell(World world, int wellX, int wellZ) {
+        if (world == null) return null;
+        return VillageWellCache.findDryWell(
+                world, wellX, wellZ, () -> findDryWellUncached(world, wellX, wellZ));
+    }
+
+    private static int[] findDryWellUncached(World world, int wellX, int wellZ) {
         if (world == null) return null;
         int max = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageWaterRetryDistance);
         if (max <= 0) return null;
@@ -659,12 +673,7 @@ public final class VillageLandHelper {
     }
 
     private static boolean chunkExists(World world, int cx, int cz) {
-        if (world == null) return false;
-        try {
-            return world.isChunkGeneratedAt(cx, cz);
-        } catch (Throwable ignored) {
-            return false;
-        }
+        return VillageWellCache.chunkExists(world, cx, cz);
     }
 
     private static boolean isNeverRaiseAt(World world, int x, int z, Map<Long, ChunkLandscape> cache) {
@@ -837,11 +846,13 @@ public final class VillageLandHelper {
      */
     public static void layoutVillageGrid(MapGenVillage gen, World world, int cx, int cz, ChunkPrimer primer) {
         if (gen == null || world == null) return;
+        long t0 = StageTimer.start();
         pushLayout();
         try {
             layoutVillageGridBody(gen, world, cx, cz, primer);
         } finally {
             popLayout();
+            StageTimer.end("village.layout", t0);
         }
     }
 
@@ -924,7 +935,7 @@ public final class VillageLandHelper {
         };
     }
 
-    private static boolean villageStartAt(World world, int chunkX, int chunkZ) {
+    static boolean villageStartAt(World world, int chunkX, int chunkZ) {
         if (world == null) return false;
         int wellX = chunkX * 16 + 2;
         int wellZ = chunkZ * 16 + 2;
