@@ -43,6 +43,9 @@ public abstract class MixinChunkGeneratorRTGVillage {
     private static final int AQTWEAKS$WALL_MIN_DROP = 2;
 
     @Unique
+    private static final int AQTWEAKS$WALL_MIN_Y = 62;
+
+    @Unique
     private int aqtweaks$laidOutCx = Integer.MIN_VALUE;
     @Unique
     private int aqtweaks$laidOutCz = Integer.MIN_VALUE;
@@ -536,7 +539,10 @@ public abstract class MixinChunkGeneratorRTGVillage {
                 // Seal only a slab at the top of the column: sealDepth below the plate height, never
                 // below sealMinY. Filling from Y1 erased every cave under the village.
                 int sealFloor = Math.max(1, Math.min(plateY, Math.max(sealMinY, plateY - sealDepth)));
-                for (int y = sealFloor; y <= plateY; y++) {
+                // Cliff/ocean walls are allowed down to sea level (y62) so high-elevation villages
+                // do not leave openings or floating walls unsupported above beach or water.
+                int colFloor = edge ? Math.max(1, Math.min(plateY, Math.min(sealFloor, AQTWEAKS$WALL_MIN_Y))) : sealFloor;
+                for (int y = colFloor; y <= plateY; y++) {
                     IBlockState cur = PrimerAccess.getBlockState(primer, localX, y, localZ);
                     if (y == plateY) {
                         if (edge) {

@@ -12,7 +12,8 @@
     "MixinWarpEvents",
     "MixinItemCaster",
     "MixinToolEvents",
-    "MixinTileCrucible"
+    "MixinTileCrucible",
+    "MixinTileInfernalFurnace"
   ],
   "client": [
     "MixinRunicShieldingHudHandler"

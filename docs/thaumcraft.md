@@ -1,6 +1,6 @@
 # Thaumcraft module (1.9)
 
-Last updated: 2026-10-02.
+Last updated: 2026-10-18.
 
 Config: `config/arcanaquesttweaks/aqtweaks_thaumcraft.cfg`. Event handler registers only if `thaumcraft` is loaded (`CommonProxy.init`). Warp API is compile-hard (`ThaumcraftHelper` calls `ThaumcraftCapabilities.getWarp` / `IPlayerWarp` directly). Comfort and the Bewitchment ritual wrapper call it only behind `Loader.isModLoaded("thaumcraft")`, and the helper itself no-ops without TC, so TC types are never touched when it is absent. Focus mixins **compile-hard** TC **6.1 BETA26** (`libs/`); missing that jar fails compile. Optional `mixins.aqtweaks.thaumcraft.json` (`required: false`) skips at runtime if TC is absent.
 
@@ -99,8 +99,21 @@ Optional `mixins.aqtweaks.thaumcraft.json`. Vanilla INVOKEs MCP + `remap = true`
 - `MixinCasterManager` — `getTotalVisDiscount` RETURN: Vis Thrift +0.30. `changeFocus` / `fetchFocusFromPouch` / `addFocusToPouch`: bauble pouch offset **4 → 100** so BaublesEX slots ≥ 4 stay negative (not `mainInventory`). Does **not** rewrite the armor `4` in `getTotalVisDiscount`. Those two pouch methods **skip** `IBaublesItemHandler.setChanged`: stock BaublesEX is a no-op, and the transformed method reads missing field `player` (`NoSuchFieldError`) after the focus was already taken out of the pouch. `markDirty` still runs.
 - `MixinWarpEvents` — `checkWarpEvent`: Quiet Mind severity after visor, before `PacketMiscEvent`.
 - `MixinTileCrucible` — `update` (`func_73660_a`) heat check: redirects `IBlockState.getMaterial()` to return `Material.LAVA` if the block beneath is burning `simpledifficulty:campfire` (`burning == true`), enabling Simple Difficulty campfires as crucible heat sources without hard compile coupling. Heat runs only while the crucible tank has fluid (`getFluidAmount() > 0`). Returning `LAVA` uses the stock `+1` per tick branch, cap 200. An unlit campfire is left as `Material.CIRCUITS` and cools the crucible.
+- `MixinTileInfernalFurnace` — gated metals below.
 
 Do **not** add `thrown` to Reskillable allow-prefixes. Java default prefix `fireball` is ghast/Lich only (instance cfg may still be empty).
+
+### Infernal Furnace gated metals
+
+CraftTweaker `furnace_gated_metals.zs` removes the vanilla furnace recipe for twenty advanced ores and their dusts (gold, silver, fifteen Metallurgy metals, moonstone, cerulean, starmetal). The Infernal Furnace only smelts what `FurnaceRecipes` still knows, and `canSmelt` false destroys the stack. `MixinTileInfernalFurnace` (`remap = false`) redirects `FurnaceRecipes.getSmeltingResult` on `canSmelt` and `func_73660_a`, and `getSmeltingExperience` on `ejectItem`. Both vanilla invokes use MCP descriptors with `@At(remap = true)`. `canSmelt` calls `isEmpty()` on the result with no null check, so the helper returns `ItemStack.EMPTY`, never null.
+
+`InfernalFurnaceHelper` keeps a non-empty vanilla result unchanged (iron, copper, tin, zinc, prometheum, and any cluster recipe that is still registered). Otherwise, when `Enable Infernal Furnace Gated Metals` is on, a gated ore or dust cooks to **one** ingot. Every silver input, including Embers ore and gravel ore, outputs `metallurgy:silver_ingot`. Stardust is not an input. `dustMoonstone` and `dustCerulean` are not in the script; an empty oredict matches nothing. The Embers melter stays at 288 mB where that script added it.
+
+`func_73660_a` returns on the client. `ejectItem` passes the input ore to `getSmeltingBonus` and the output ingot to `getSmeltingExperience`. Experience above zero is kept (Congrega cluster smelts leave `1.0` on many ingots). At zero the fallback is `1.0` for gold and `0.7` for every other gated ingot.
+
+Bonus rolls run at RETURN of `getSmeltingBonus`, once per bellows pass, and only for gated ores. Dusts do not roll. The live `CommonInternals.smeltingBonus` list is matched the same way Thaumcraft matches it (ore-dict string, or item plus meta, wildcard `32767`). A rule that already outputs that metal's nugget skips our nugget. `thaumcraft:nuggets:3` counts as the silver nugget. A rule that already outputs Rare Earth (`thaumcraft:nuggets:10`) skips Rare Earth. A cluster item is neither. Gold and silver already have both from Thaumcraft, so this mixin adds nothing. Congrega `Register Smelting Bonus` already puts the nugget on platinum and mithril ores, and Rare Earth on the cluster oredict, so those ores gain the `0.02` Rare Earth roll only. Other gated ores roll `0.33` for their nugget and `0.02` for Rare Earth. Starmetal has no nugget in the Astral jar; the `0.33` roll drops one Stardust (`astralsorcery:itemcraftingcomponent:2`) and that drop is new. The helper returns the original array when it adds nothing, and a new array when it adds a stack.
+
+The flag is read on each call. Off does not restore the CraftTweaker removals. `canSmelt` stays false and the Infernal Furnace destroys those stacks.
 
 ### Runic shielding HUD
 
@@ -155,6 +168,7 @@ Client mixins in `mixins.aqtweaks.baubles.json` (`required: false`). The `getMod
 | Enable Exposure Sound | true | yes | |
 | Exposure Sound Effect | `thaumcraft:whispers` | yes | |
 | Exposure Sound Volume | 2.0 | yes | |
+| Enable Infernal Furnace Gated Metals | true | yes | Infernal Furnace smelts the furnace-gated ores and dusts (one ingot) and may add a nugget or Rare Earth for those ores. Off does not restore the furnace recipes; the Infernal Furnace destroys those stacks |
 
 ## Files
 
@@ -162,7 +176,8 @@ Client mixins in `mixins.aqtweaks.baubles.json` (`required: false`). The `getMod
 - `thaumcraft/ThaumcraftHelper.java` — compile-hard warp wrapper, type index 0/1/2 (NORMAL / TEMPORARY / PERMANENT), `sync` only if `EntityPlayerMP`. A failing call logs once and returns 0; it no longer disables warp for the session. No generics on class literals (see below).
 - `thaumcraft/ThaumcraftFocusHooks.java` — `markMagic`, Heal scale (direct `ReskillableBonuses.scaleOutgoingHeal` behind `isModLoaded("reskillable")`)
 - `thaumcraft/ThaumcraftPerkHooks.java` — Vis Thrift / Quiet Mind / Full Font stamp (`PerkAccess.has`, guarded direct `ReskillableBonuses.stampFullFont`)
-- `mixin/thaumcraft/MixinFocusEffectExecute.java`, `MixinFocusEffectHeal.java`, `MixinCasterManager.java`, `MixinWarpEvents.java`, `MixinTileCrucible.java`
+- `thaumcraft/InfernalFurnaceHelper.java` — gated-metal ingot, experience fallback, and nugget / Rare Earth rolls for `MixinTileInfernalFurnace`
+- `mixin/thaumcraft/MixinFocusEffectExecute.java`, `MixinFocusEffectHeal.java`, `MixinCasterManager.java`, `MixinWarpEvents.java`, `MixinTileCrucible.java`, `MixinTileInfernalFurnace.java`
 - `thaumcraft/RunicShieldHud.java` — client gear cap, rune rows, and gold surplus. Not `@SideOnly`
 - `mixin/thaumcraft/MixinGuiIngameForgeRunicShield.java` — early json client, `GuiIngameForge.renderHealth`
 - `mixin/thaumcraft/MixinRunicShieldingHudHandler.java` — late thaumcraft json
@@ -184,6 +199,7 @@ Client mixins in `mixins.aqtweaks.baubles.json` (`required: false`). The `getMod
 - Vis Thrift still injects `getTotalVisDiscount` RETURN. Focus-pouch bauble offset is only the three pouch methods.
 - Runic HUD does not change recharge, vis cost, or the overhaul attribute. The health redirect stays in the early json. A late mixin on `GuiIngameForge` does not apply. Overhaul off keeps absorption for damage. The client cap is worn `TC.RUNIC` plus Astral's calculate event, not `runicInfo`. First 10 runes sit on the red hearts. Past 10 uses empty sockets above the health stack. Gold hearts are only the surplus above that cap.
 - Ring skip is only `thaumcraft:baubles` meta 1, 3, and 5. Amulets (0, 4) and girdles (2, 6) keep BaublesEX models. A null texture cancels `renderWithTexture` before `bindTexture`. Do not cancel `ModelAmulet.render` after that bind.
+- Infernal Furnace gated smelt returns the vanilla result when one exists. One ingot, never null. Dusts do not roll nuggets. Do not add a nugget when a `SmeltBonus` for that ore already outputs it. Flag off does not restore the removed furnace recipes.
 
 ## Out of scope unless asked
 

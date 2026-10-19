@@ -2,6 +2,21 @@
 
 Stay on version **1.9** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-10-18 — Infernal Furnace smelts gated metals
+
+- The Infernal Furnace cooks the ores and dusts whose vanilla furnace recipes `furnace_gated_metals.zs` removed: one ingot per cook, with a nugget and Rare Earth roll only when that ore does not already have that bonus. Gold and silver keep Thaumcraft's nuggets. Flag off does not restore the furnace recipes. See [thaumcraft.md](thaumcraft.md).
+
+## 2026-10-18 — Village walls build down to sea level; DA StructureStart shadow fix & LibraryEx CME fix
+
+- In `MixinChunkGeneratorRTGVillage`, village ocean/cliff walls are allowed to generate down to sea level (`y62`, `colFloor = min(sealFloor, 62)`) instead of stopping at `plateY - villagePlateDepth` (which was leaving open gaps and floating unsupported walls above the beach or water on high-elevation cliffs). Sealing of interior village columns is unchanged and still respects `plateY - villagePlateDepth` to preserve underground caves. See [rtg.md](rtg.md).
+- `MixinDaStructureStart`: removed `@Shadow(remap = false)` on `StructureStart.field_75075_a` and `field_75074_b` (which missed MCP-named superclass fields under Cleanroom and disabled the mixin on all 14 targets) in favor of casting `(StructureStart) (Object) this` and calling `getComponents()` / `getBoundingBox()`. DA village-overlap skip and `da.init` / `da.paste` stage timers apply again. See [rtg.md](rtg.md).
+- New `MixinEntityHelper` (`mixins.aqtweaks.libraryex.json`, `required: false`) redirects `Map.computeIfAbsent` in LibraryEx's `EntityHelper.getEntityLocation` and synchronizes on the cache map so concurrent client/server living-entity ticks (e.g. NetherEx freeze checks) do not throw `ConcurrentModificationException` under Java 25. See [README.md](README.md) and [compatibility-matrix.md](compatibility-matrix.md).
+
+## 2026-10-17 — Deferred relight uses average headroom
+
+- `DeferredRelight` no longer stops at `remainingMs(40)` on world-tick end, which was clamping near torches to 4 checks whenever that tick had already used ~40 ms even at a solid 20 TPS. One slice per server tick is `min(Deferred Relight Max Slice Ms, headroom)` at full TPS (default 8 ms, not raised when headroom is smaller). Below 20 TPS it uses remaining time against 40 ms. Under half load factor the slice is 0. The 4-check near floor still runs. Distant emitters keep a 1-check/20-tick floor when the slice is already used up, and that floor is all they get while optional work is paused.
+- `shouldPauseOptionalWork()` is true when the server is behind, or when chunks are generating and average headroom is under 4 ms. At 20 TPS with at least 4 ms free, Somnia's already-lit 20-tick re-check runs while chunks trickle in. `!isLightPopulated()` is still every tick. A missing or stale Chunk Steward jar skips the slice clock. See [rtg.md](rtg.md) and [somnia.md](somnia.md).
+
 ## 2026-10-17 — First chunk light pass is not paced
 
 - `SomniaOptimizationHandler` runs `chunk.checkLight()` every tick while `!chunk.isLightPopulated()`, including when Chunk Steward reports busy. `PlayerChunkMap` only sends a chunk after that first pass, so the 20-tick throttle and `shouldPauseOptionalWork()` were holding new chunks invisible until generation stopped. Those two gates stay on already light-populated re-checks. The Somnia sleep branch is unchanged. `DeferredRelight` only retries emitter flood-fills after a chunk can already be sent, so its busy skip stays. See [somnia.md](somnia.md).

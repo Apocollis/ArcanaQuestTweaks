@@ -6,8 +6,8 @@ import com.apocollis.aqtweaks.rtg.VillageDebug;
 import net.minecraft.world.World;
 import net.minecraft.world.gen.structure.StructureBoundingBox;
 import net.minecraft.world.gen.structure.StructureComponent;
+import net.minecraft.world.gen.structure.StructureStart;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -34,12 +34,6 @@ import java.util.Random;
 }, remap = false)
 public abstract class MixinDaStructureStart {
 
-    @Shadow(remap = false)
-    protected List<StructureComponent> field_75075_a;
-
-    @Shadow(remap = false)
-    protected StructureBoundingBox field_75074_b;
-
     @Unique
     private static final ThreadLocal<Long> AQTWEAKS$DA_PASTE_NS = ThreadLocal.withInitial(() -> 0L);
 
@@ -59,7 +53,8 @@ public abstract class MixinDaStructureStart {
         long t0 = AQTWEAKS$DA_PASTE_NS.get();
         AQTWEAKS$DA_PASTE_NS.set(0L);
         if (t0 != 0L) {
-            int comps = this.field_75075_a != null ? this.field_75075_a.size() : 0;
+            List<StructureComponent> list = ((StructureStart) (Object) this).getComponents();
+            int comps = list != null ? list.size() : 0;
             StageTimer.end("da.init", t0, aqtweaks$daStartName() + ":comps=" + comps);
         }
     }
@@ -73,7 +68,7 @@ public abstract class MixinDaStructureStart {
                 || world.provider.getDimension() != 0) {
             return;
         }
-        StructureBoundingBox box = this.field_75074_b;
+        StructureBoundingBox box = ((StructureStart) (Object) this).getBoundingBox();
         if (StructureVillageOverlap.overlapsVillage(world, box)) {
             VillageDebug.log("da %s skip village overlap box=%d..%d,%d..%d,%d..%d",
                     aqtweaks$daStartName(),
@@ -88,7 +83,8 @@ public abstract class MixinDaStructureStart {
         long t0 = AQTWEAKS$DA_PASTE_NS.get();
         AQTWEAKS$DA_PASTE_NS.set(0L);
         if (t0 != 0L) {
-            int comps = this.field_75075_a != null ? this.field_75075_a.size() : 0;
+            List<StructureComponent> list = ((StructureStart) (Object) this).getComponents();
+            int comps = list != null ? list.size() : 0;
             StageTimer.end("da.paste", t0, aqtweaks$daStartName() + ":comps=" + comps);
         }
     }

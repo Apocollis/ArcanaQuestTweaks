@@ -12,7 +12,7 @@ Configured via `config/arcanaquesttweaks/aqtweaks_somnia.cfg`.
    - When sleep is active, respect `disableMoodSoundAndLightCheck`.
    - When awake, prioritize backlogged chunks (`queuedLightChecks < 4096`) within player proximity ($\le 2$ chunks / ~32 blocks) to drain every tick so village houses and immediate surroundings relight within seconds without requiring a torch.
    - A chunk with `!isLightPopulated()` gets `checkLight` every tick. That first pass is what lets `PlayerChunkMap` send the chunk. It is not throttled and not skipped when Chunk Steward reports busy.
-   - For chunks that are already light-populated, and are either more than 2 chunks from an awake player or whose lighting queue is idle (`>= 4096`), throttle `checkLight` to once every 20 ticks (1s) round-robin, and skip that re-check when Chunk Steward reports the server is busy (`StewardPacing.shouldPauseOptionalWork()`). This avoids server tick hitches during exploration. It does not gate the first pass.
+   - For chunks that are already light-populated, and are either more than 2 chunks from an awake player or whose lighting queue is idle (`>= 4096`), throttle `checkLight` to once every 20 ticks (1s) round-robin, and skip that re-check only when `StewardPacing.shouldPauseOptionalWork()` is true. That is now behind 20 TPS (`loadFactor < 1`), or generating with average headroom under 4 ms. At 20 TPS with at least 4 ms of headroom the re-check runs on its turn while chunks trickle in. This does not gate the first pass.
 2. **3-Tier SMP Sleep System**:
    - **Case A (100% Sleeping)**: Full fast-forward simulation. All world, tile, entity, and player ticks accelerate together.
    - **Case B (50%–99% Sleeping)**: Time-only fast-forward. Vanilla `WorldServer.tick` already ran (`+1` world time, one fatigue recover). Tweaks adds `(caseBTimeMultiplier - 1)` extra time and fatigue so default `2.0` is **double per world tick**, not triple. Awake players and mobs stay at 20 TPS; no extra entity/tile ticks.
@@ -77,7 +77,7 @@ Configured via `config/arcanaquesttweaks/aqtweaks_somnia.cfg`.
 ## Verify
 
 1. Build succeeds with `options.release = 21` via `build_gradle.ps1`.
-2. Spark profile confirms `SomniaUtil.chunkLightCheck` stays small while flying awake. With Chunk Steward generating, fresh terrain appears continuously ahead of the player at 20 TPS. Chunks do not stay invisible and then fill in together after movement stops. Already light-populated distant chunks still wait out the 20-tick throttle and the busy skip.
+2. Spark profile confirms `SomniaUtil.chunkLightCheck` stays small while flying awake. With Chunk Steward generating, fresh terrain appears continuously ahead of the player at 20 TPS. Chunks do not stay invisible and then fill in together after movement stops. Already light-populated distant chunks still wait out the 20-tick throttle. They skip a turn only when the server is behind, or when generation has left under 4 ms of headroom.
 3. Sleeping with 100% players in bed runs Case A full acceleration.
 4. Sleeping with $\ge 50\%$ but $< 100\%$ players in bed runs Case B: world time `+2` and sleeper fatigue `2 × (fatigueRecoveredPerHour / 1000)` per world tick; awake players stay at 20 TPS (no extra entity/tile ticks).
 5. Sleeping with $< 50\%$ players in bed runs Case C (time does not speed up, resting in bed clears 10 fatigue per in-game hour).

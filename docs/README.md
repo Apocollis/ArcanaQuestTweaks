@@ -143,7 +143,7 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `
 | `mixins.aqtweaks.depthsupdate.json` | false | Depths: `MixinHeightManager` dimension-indexed `HeightCache` for `HeightManager.get(int)` and `isExtended(int)` | Skip |
 | `mixins.aqtweaks.gaia.json` | false | Grimoire of Gaia drop pierce + recast bolts/bombs + Deathword ranged | Skip |
 | `mixins.aqtweaks.effortlessbuilding.json` | false | Reskillable Building EB place reach + max blocks | Skip |
-| `mixins.aqtweaks.thaumcraft.json` | false | Thaumcraft focus HP magic flag + Heal scale + runic shielding HUD | Skip |
+| `mixins.aqtweaks.thaumcraft.json` | false | Thaumcraft focus HP magic flag + Heal scale + runic shielding HUD + Infernal Furnace gated metals | Skip |
 | `mixins.aqtweaks.animania.json` | false | Advancement: cancel Animania `onWorldLoad` | Skip |
 | `mixins.aqtweaks.somnia.json` | false | Somnia: chunk light fix, 3-tier SMP sleep (Case A/B/C), Case B 2x time, fatigue tuning & chat notifications | Skip |
 | `mixins.aqtweaks.incontrol.json` | false | Spawning: `StructureCache.parseStructureData` BB chunk expand | Skip |
@@ -161,6 +161,7 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `
 | `mixins.aqtweaks.sereneseasons.json` | false | `MixinSSCommand`: `/ss setseason <TAB>` lists the sub-season names; completion never returns null (fixes the `list1` NPE, AQ-005) | Skip |
 | `mixins.aqtweaks.treechopper.json` | false | Reskillable harvest perks on Tree Chopper trees (`MixinTreeHandler` sets the felling player) | Skip |
 | `mixins.aqtweaks.simpletomb.json` | false | Simple Tomb: origin slot mapping + Baubles + non-destructive restore | Skip |
+| `mixins.aqtweaks.libraryex.json` | false | `MixinEntityHelper`: synchronize `ENTITY_RESOURCE_LOCATION_CACHE.computeIfAbsent` in `EntityHelper.getEntityLocation` so client/server entity ticks do not throw CME | Skip |
 
 `mixins.aqtweaks.json` contents (package `com.apocollis.aqtweaks.mixin`):
 

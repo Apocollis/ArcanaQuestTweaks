@@ -856,6 +856,10 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("The volume of the sound played when temporary warp is gained from environmental exposure. Higher values increase sound reach and loudness.")
         @Config.RangeDouble(min = 0.0, max = 10.0)
         public static float exposureSoundVolume = 2.0F;
+
+        @Config.Name("Enable Infernal Furnace Gated Metals")
+        @Config.Comment("Infernal Furnace smelts the furnace-gated ores and dusts and may add nugget / Rare Earth bonuses for those ores. Off leaves the CraftTweaker furnace removals in place, and the Infernal Furnace destroys those stacks.")
+        public static boolean enableInfernalFurnaceGatedMetals = true;
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_bewitchment")
@@ -1081,8 +1085,13 @@ public class ArcanaQuestTweaksConfig {
         public boolean enableDeferredRelight = true;
 
         @Config.Name("Deferred Relight Debug")
-        @Config.Comment("Once a minute per world, log how many light emitters were lit at placement, queued, retried and lit, expired unlit, or dropped on overflow, with a few coordinates ([AQ-RELIGHT] in latest.log). Off by default; turn on only while diagnosing unlit torches and lanterns in new chunks.")
+        @Config.Comment("Once a minute per world, log how many light emitters were lit at placement, queued, retried and lit, expired unlit, or dropped on overflow, with a few coordinates ([AQ-RELIGHT] in latest.log). Also logs how many of those ticks were full TPS and the average slice granted. Off by default; turn on only while diagnosing unlit torches and lanterns in new chunks.")
         public boolean deferredRelightDebug = false;
+
+        @Config.Name("Deferred Relight Max Slice Ms")
+        @Config.Comment("At 20 TPS, near-player deferred relight may use up to this many milliseconds of average headroom per server tick, shared by every dimension. Not raised when headroom is smaller. Below 20 TPS the slice is remaining time against 40 ms, and under half load factor it is 0. The 4-check near floor still runs. 0 disables the timed slice and leaves the floors.")
+        @Config.RangeDouble(min = 0.0, max = 50.0)
+        public double deferredRelightMaxSliceMs = 8.0;
 
         @Config.Name("Village Flatten Debug")
         @Config.Comment("Write village terrain traces to logs/villagepatch.log (not latest.log). Off by default: appends stall chunk gen. Turn on only while diagnosing villages.")

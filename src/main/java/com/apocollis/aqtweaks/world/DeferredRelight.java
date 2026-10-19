@@ -4,6 +4,7 @@ import com.apocollis.aqtweaks.ArcanaQuestTweaks;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.pacing.StewardPacing;
 import it.unimi.dsi.fastutil.longs.Long2LongLinkedOpenHashMap;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraftforge.event.world.WorldEvent;
@@ -54,7 +55,21 @@ public final class DeferredRelight {
         final StringBuilder expiredSample = new StringBuilder();
         int queuedSamples;
         int expiredSamples;
+        int activeTicks;
+        int fullTpsTicks;
+        double sliceMsSum;
     }
+
+    /** One relight slice per server tick. Later dimensions reuse the start time, not a fresh 8 ms. */
+    private static final class SliceClock {
+        int tick = Integer.MIN_VALUE;
+        boolean clock;
+        boolean fullTps;
+        double ms;
+        long startNs;
+    }
+
+    private static final SliceClock SLICE = new SliceClock();
 
     private static final Map<World, Stats> STATS = Collections.synchronizedMap(new WeakHashMap<>());
 
@@ -155,10 +170,12 @@ public final class DeferredRelight {
                 return;
             }
             s.nextLog = now + 1200L;
-            if (s.immediate + s.queued + s.retried + s.expired + s.overflow > 0) {
+            if (s.immediate + s.queued + s.retried + s.expired + s.overflow + s.activeTicks > 0) {
+                double avgSlice = s.activeTicks == 0 ? 0.0 : s.sliceMsSum / s.activeTicks;
                 org.apache.logging.log4j.LogManager.getLogger("AQTweaks-Relight").info(
-                        "[AQ-RELIGHT] dim={} last 60s: lit at placement={} queued={} retried={} expired unlit={} overflow={} pending={} | queued at:{} | expired at:{}",
+                        "[AQ-RELIGHT] dim={} last 60s: lit at placement={} queued={} retried={} expired unlit={} overflow={} pending={} ticks={} fullTpsTicks={} avgSliceMs={} | queued at:{} | expired at:{}",
                         world.provider.getDimension(), s.immediate, s.queued, s.retried, s.expired, s.overflow, pending,
+                        s.activeTicks, s.fullTpsTicks, String.format(java.util.Locale.ROOT, "%.1f", avgSlice),
                         s.queuedSample, s.expiredSample);
             }
             s.immediate = 0;
@@ -168,6 +185,9 @@ public final class DeferredRelight {
             s.overflow = 0;
             s.queuedSamples = 0;
             s.expiredSamples = 0;
+            s.activeTicks = 0;
+            s.fullTpsTicks = 0;
+            s.sliceMsSum = 0.0;
             s.queuedSample.setLength(0);
             s.expiredSample.setLength(0);
         }
@@ -182,14 +202,70 @@ public final class DeferredRelight {
         }
     }
 
+    /**
+     * Starts the shared slice on the first non-empty queue of this server tick.
+     * A negative {@link StewardPacing#sliceBudgetMs} leaves the clock off (count caps only).
+     */
+    private static void beginSlice(World world) {
+        MinecraftServer server = world.getMinecraftServer();
+        int tick = server == null ? SLICE.tick : server.getTickCounter();
+        if (server != null && SLICE.tick == tick) {
+            return;
+        }
+        double maxSlice = ArcanaQuestTweaksConfig.RtgModuleConfig.surface.deferredRelightMaxSliceMs;
+        double budget = StewardPacing.sliceBudgetMs(maxSlice, 0.5);
+        SLICE.tick = tick;
+        if (budget < 0.0) {
+            SLICE.clock = false;
+            SLICE.fullTps = false;
+            SLICE.ms = 0.0;
+            SLICE.startNs = 0L;
+            return;
+        }
+        SLICE.clock = true;
+        SLICE.fullTps = StewardPacing.getLoadFactor() >= 1.0;
+        SLICE.ms = budget;
+        SLICE.startNs = System.nanoTime();
+    }
+
+    private static void noteSlice(World world) {
+        if (!debugOn()) {
+            return;
+        }
+        Stats s = stats(world);
+        synchronized (s) {
+            s.activeTicks++;
+            if (SLICE.clock) {
+                s.sliceMsSum += SLICE.ms;
+                if (SLICE.fullTps) {
+                    s.fullTpsTicks++;
+                }
+            }
+        }
+    }
+
+    /** After the near floor, false when the count cap is hit, the slice is empty, or its time is gone. */
+    private static boolean withinSlice(int checks, int floor, long sliceStartNs, double sliceMs, boolean fullTps) {
+        if (checks < floor) {
+            return true;
+        }
+        if (checks >= CHECKS_PER_TICK || sliceMs <= 0.0) {
+            return false;
+        }
+        if ((System.nanoTime() - sliceStartNs) / 1_000_000.0 >= sliceMs) {
+            return false;
+        }
+        return fullTps || StewardPacing.remainingMs(40.0) >= 2.0;
+    }
+
     private static boolean canRunNearCheck(int checks) {
         if (checks >= CHECKS_PER_TICK) {
             return false;
         }
-        if (checks < NEAR_FLOOR_PER_TICK) {
+        if (!SLICE.clock) {
             return true;
         }
-        return StewardPacing.remainingMs(40.0) >= 2.0;
+        return withinSlice(checks, NEAR_FLOOR_PER_TICK, SLICE.startNs, SLICE.ms, SLICE.fullTps);
     }
 
     private static void tick(World world) {
@@ -206,6 +282,8 @@ public final class DeferredRelight {
             if (n == 0) {
                 return;
             }
+            beginSlice(world);
+            noteSlice(world);
             DRAINING.set(Boolean.TRUE);
             try {
                 int checks = 0;
@@ -238,18 +316,21 @@ public final class DeferredRelight {
                         queue.put(key, created);
                     }
                 }
-                // Distant emitters only use the budget the nearby ones left over.
-                // When Steward reports the server busy, limit distant emitters to a floor of 1 check per 20 ticks
-                // so they cannot starve indefinitely during sustained exploration.
-                boolean busy = StewardPacing.shouldPauseOptionalWork();
-                int farAllowance = busy ? (Math.floorMod(now, 20L) == 0 ? 1 : 0) : (CHECKS_PER_TICK - checks);
+                // Distant emitters use leftover slice time. The 1/20 floor is outside withinSlice:
+                // near work runs first and must not block far torches for the whole exploration.
+                // When the slice clock is off, leftover count caps apply and that extra floor does not.
+                boolean paused = StewardPacing.shouldPauseOptionalWork();
+                boolean floorTick = Math.floorMod(now, 20L) == 0;
                 int farChecks = 0;
                 for (int i = 0; i < farCount; i++) {
                     BlockPos pos = BlockPos.fromLong(farKeys[i]);
-                    boolean withinBudget = farChecks < farAllowance
-                            && checks < CHECKS_PER_TICK
-                            && (busy || StewardPacing.remainingMs(40.0) >= 2.0);
-                    if (withinBudget && world.isAreaLoaded(pos, 17, false)) {
+                    boolean inSlice = SLICE.clock && !paused
+                            && withinSlice(checks, 0, SLICE.startNs, SLICE.ms, SLICE.fullTps);
+                    boolean unpaced = !SLICE.clock && !paused && checks < CHECKS_PER_TICK;
+                    boolean sliceSpent = SLICE.clock && !paused
+                            && !withinSlice(checks, 0, SLICE.startNs, SLICE.ms, SLICE.fullTps);
+                    boolean floor = floorTick && farChecks < 1 && checks < CHECKS_PER_TICK && (paused || sliceSpent);
+                    if ((inSlice || unpaced || floor) && world.isAreaLoaded(pos, 17, false)) {
                         world.checkLight(pos);
                         checks++;
                         farChecks++;
