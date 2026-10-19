@@ -1,5 +1,6 @@
 package com.apocollis.aqtweaks;
 
+import net.minecraftforge.fml.common.Loader;
 import zone.rong.mixinbooter.ILateMixinLoader;
 
 import java.util.Arrays;
@@ -42,6 +43,15 @@ public class AQTweaksLateMixinLoader implements ILateMixinLoader {
                 "mixins.aqtweaks.simpletomb.json",
                 "mixins.aqtweaks.treechopper.json",
                 "mixins.aqtweaks.sereneseasons.json",
-                "mixins.aqtweaks.libraryex.json");
+                "mixins.aqtweaks.libraryex.json",
+                "mixins.aqtweaks.geographicraft.json");
+    }
+
+    @Override
+    public boolean shouldMixinConfigQueue(String mixinConfig) {
+        if ("mixins.aqtweaks.geographicraft.json".equals(mixinConfig)) {
+            return Loader.isModLoaded("geographicraft");
+        }
+        return true;
     }
 }

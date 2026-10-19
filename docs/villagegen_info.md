@@ -1,10 +1,10 @@
 # Village generation in this pack
 
-Last updated: 2026-09-10.
+Last updated: 2026-10-19.
 
 How Minecraft 1.12.2 **marks** a village, how it **pastes** buildings, and what RTG, Geographicraft, Recurrent Complex, Charm, and Tweaks each change. Tweaks locked intent and flatten knobs stay in [rtg.md](rtg.md). This file is the pipeline reference.
 
-Jars checked: `RTG-1.12.2-7.3.3.6`, `Geographicraft-1.12.2-0.9.8.5`, `RecurrentComplexVolts-1.12.2-2.0.0.9`, `Charm-1.12.2-1.4.1`, vanilla `MapGenVillage`.
+Jars checked: `RTG-1.12.2-7.3.3.6`, `Geographicraft-1.12.2-1.0`, `RecurrentComplexVolts-1.12.2-2.0.0.9`, `Charm-1.12.2-1.4.1`, vanilla `MapGenVillage`.
 
 Worldgen applies to **new chunks only**.
 
@@ -76,7 +76,7 @@ A Start with no pasted buildings is still a Village for locate. Template Y `64..
 
 RTG does **not** replace `MapGenVillage`, does **not** flatten under villages, does **not** change `VILLAGE_SPAWN_BIOMES`, and does **not** add RC pieces. It only owns Overworld chunk gen (height first) and fires `InitMapGenEvent`.
 
-## Geographicraft 0.9.8.5 — biome list only
+## Geographicraft 1.0 — biome list only
 
 Package is still `climateControl`. `AbstractWorldGenerator` builds a `VillageBiomes` list: biome ids `0..255` where `ClimateControlRules.hasVillages(id)` is true. If `controlVillageBiomes` is on, it **overwrites** `MapGenVillage.field_75055_e`.
 

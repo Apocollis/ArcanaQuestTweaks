@@ -31,7 +31,7 @@ Each file covers: what Tweaks changes, how the **parent mod** implements the fea
 | Depths | Depths Update, YUNG's Better Caves, RTG, CoFH World, Recurrent Complex, optional Quark | [depths.md](depths.md) |
 | RTG | Realistic Terrain Generation + vanilla `MapGenVillage` + Recurrent Complex + Astral / Bewitchment Cambion / Mystical World huts | [rtg.md](rtg.md) |
 | Village gen (pack pipeline) | Vanilla + RTG + Geographicraft + Recurrent Complex + Charm + Tweaks overlay | [villagegen_info.md](villagegen_info.md) |
-| Client | Toughness Bar (optional), tooltip lines for non-Metallurgy tools | [client.md](client.md) |
+| Client | Toughness Bar (optional), tooltip lines for non-Metallurgy tools, default world type (RTG) | [client.md](client.md) |
 | MineMenu | Vanilla client mouse grab (MineMenu, Reskillable, Hwyla screens) | [minemenu.md](minemenu.md) |
 | Spawning | Vanilla `PotentialSpawns` + pack `mob_overworldspawntype.json` (InControl still owns deny) | [spawning.md](spawning.md) |
 | Recipes | Forge `CraftingHelper` (Metallurgy / Spartan JSON) | [recipes.md](recipes.md) |
@@ -42,6 +42,7 @@ Each file covers: what Tweaks changes, how the **parent mod** implements the fea
 | Quality Tools | Quality Tools + Embers (Dawnstone) + Crafting Runes (registry names) | [qualitytools.md](qualitytools.md) |
 | Better Mineshafts | YUNG’s Better Mineshafts + RTG locate | [bettermineshafts.md](bettermineshafts.md) |
 | Simple Tomb | Simple Tomb death drop slot restore, displacement, Baubles, and admin backups | [simpletomb.md](simpletomb.md) |
+| Server | Dedicated-server fixes for client-only calls in parents: GeographiCraft spawn salvage | [server.md](server.md) |
 | Compatibility / jars | Compile vs mixin vs runtime vs copy script | [compatibility-matrix.md](compatibility-matrix.md) |
 | Build / deploy | `gradlew build` vs `build_gradle.ps1` | [build-and-release.md](build-and-release.md) |
 | Release smoke | Boot, optional absences, worldgen, stamina | [verification.md](verification.md) |
@@ -124,7 +125,7 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `
 
 ### MixinBooter late loader
 
-`AQTweaksLateMixinLoader` always returns these configs (MixinBooter / Fugue). Charm paste is **not** here — it is on jar `MixinConfigs` with the early json.
+`AQTweaksLateMixinLoader` always returns these configs (MixinBooter / Fugue). Charm paste is **not** here — it is on jar `MixinConfigs` with the early json. Its `shouldMixinConfigQueue(String)` override queues every config except `mixins.aqtweaks.geographicraft.json`, which is queued only when `Loader.isModLoaded("geographicraft")`. That is the only config gated this way; the others rely on `required: false` alone.
 
 | File | `required` | Module | If parent jar missing |
 | --- | --- | --- | --- |
@@ -162,6 +163,7 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `
 | `mixins.aqtweaks.treechopper.json` | false | Reskillable harvest perks on Tree Chopper trees (`MixinTreeHandler` sets the felling player) | Skip |
 | `mixins.aqtweaks.simpletomb.json` | false | Simple Tomb: origin slot mapping + Baubles + non-destructive restore | Skip |
 | `mixins.aqtweaks.libraryex.json` | false | `MixinEntityHelper`: synchronize `ENTITY_RESOURCE_LOCATION_CACHE.computeIfAbsent` in `EntityHelper.getEntityLocation` so client/server entity ticks do not throw CME | Skip |
+| `mixins.aqtweaks.geographicraft.json` | false | Server: `MixinDimensionManager` redirects client-only `Biome.getBiomeName` in `salvageSpawn` to the registry name ([server.md](server.md)). Queued only if `geographicraft` is loaded | Not queued |
 
 `mixins.aqtweaks.json` contents (package `com.apocollis.aqtweaks.mixin`):
 

@@ -8,7 +8,8 @@
   "client": [
     "MixinRenderGlobal",
     "MixinEntityRendererMouse",
-    "MixinEntityRendererLight"
+    "MixinEntityRendererLight",
+    "MixinGuiCreateWorld"
   ],
   "mixins": [
     "depthsupdate.MixinDepthsCaveNoiseGenerator",

@@ -1,6 +1,6 @@
 # Client module (1.9)
 
-Last updated: 2026-08-28.
+Last updated: 2026-10-19.
 
 Config: `config/arcanaquesttweaks/aqtweaks_client.cfg`. Client-only. No `@Mod` parent. Optional mixin if Toughness Bar is present.
 
@@ -58,6 +58,7 @@ Light reaches the client only inside chunk data, or when the client runs its own
 | --- | --- |
 | `ArcanaQuestTweaksConfig.ClientModuleConfig` | `aqtweaks_client.cfg` |
 | `client/ClientModule.java` | Tooltip handler; registered in `ClientProxy` |
+| `mixin/MixinGuiCreateWorld.java` | Sets default world type on Create New World |
 | `mixin/toughnessbar/MixinEventHandlerClient.java` | Optional Toughness Bar overlay |
 
 ## Live config
@@ -66,6 +67,18 @@ Light reaches the client only inside chunk data, or when the client runs its own
 | --- | --- | --- |
 | Move Toughness Bar To Armor Side | true | Armor column, LTR. Old `aqtweaks_stamina.cfg` HUD key is dead |
 | Metallurgy Tooltip Compat | true | Non-Metallurgy mining tools only |
+| Default World Type | "RTG" | Category "world creation". Registry name (e.g. RTG), not button label. Empty keeps Default |
+
+## Default world type
+
+Vanilla `GuiCreateWorld` initializes with `selectedIndex = 0` (`WorldType.DEFAULT`). In RTG 1.12.2 (v7.3.3.6), the legacy `B:rtgWorldTypeByDefault=true` setting in `config/rtg/rtg.cfg` is orphaned and not read by any RTG class.
+
+Tweaks adds a client mixin `MixinGuiCreateWorld` on `GuiCreateWorld.<init>` at `RETURN`. When `Default World Type` is set (default `"RTG"`), it searches `WorldType.WORLD_TYPES` for a matching `WorldType` by name (`canBeCreated() == true`, case-insensitive) and sets `this.selectedIndex = i;`.
+
+Because injection occurs at constructor `RETURN`:
+- Subsequent `initGui()` / `updateDisplayState()` calls and screen resize events naturally construct `btnMapType` and `btnCustomizeType` with the correct labels and visibility.
+- Recreate World (`recreateFromExistingWorld`) executes after the constructor and writes the source world's `WorldType.getId()`, properly preserving the copied world's type without being overwritten.
+- Empty string `""` or an unknown name leaves `selectedIndex = 0` (vanilla Default).
 
 ## Do not regress
 
@@ -76,4 +89,4 @@ Light reaches the client only inside chunk data, or when the client runs its own
 
 ## Verify
 
-Armor + toughness: leftmost toughness icon over the leftmost heart/armor; extra pips go right (half pip on the right of a partial row). One row above armor. Feathers above thirst. Flag off: stock right RTL. Iron pick: Vanilla Tools + stars + durability + efficiency. Axe efficiency is log speed, not 1.0. Metallurgy pick: no second Tweaks harvest line. Remove toughnessbar jar: mixin skipped; tooltips still work.
+Armor + toughness: leftmost toughness icon over the leftmost heart/armor; extra pips go right (half pip on the right of a partial row). One row above armor. Feathers above thirst. Flag off: stock right RTL. Iron pick: Vanilla Tools + stars + durability + efficiency. Axe efficiency is log speed, not 1.0. Metallurgy pick: no second Tweaks harvest line. Remove toughnessbar jar: mixin skipped; tooltips still work. Create New World: World Type shows RTG by default; Recreate World preserves source world type.

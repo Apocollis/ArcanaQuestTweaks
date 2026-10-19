@@ -1,6 +1,6 @@
 # Compatibility matrix (1.9)
 
-Last updated: 2026-10-16.
+Last updated: 2026-10-19.
 
 This is the compile / mixin-apply / runtime contract. Module behavior lives in the per-module docs. Do not treat “required vs optional” as one bit.
 
@@ -78,7 +78,7 @@ Use Extended 1.1.3, not Elenai 1.1.0.
 
 ### Not compile-hard (do not set as Tweaks compile deps)
 
-Toughness Bar, Biomes O’ Plenty, Dungeon Additions: string mixin only (`@Shadow` on the string target needs no jar) — `isModLoaded` / `required: false` json. Roguelike Arcana: structure **name** only; Roguelike jar must **not** sit in `libs/`.
+Toughness Bar, Biomes O’ Plenty, Dungeon Additions, LibraryEx, GeographiCraft: string mixin only (`@Shadow` on the string target needs no jar) — `isModLoaded` / `required: false` json. Roguelike Arcana: structure **name** only; Roguelike jar must **not** sit in `libs/`.
 
 ## Toolchain (not CurseForge jars)
 
@@ -154,6 +154,7 @@ Jar names below are from the **Arcana Quest DEVBOX** instance on 2026-08-20 unle
 | `qualitytools` | `QualityTools-1.0.7_for_1.12.2.jar` | after | optional `mixins.aqtweaks.qualitytools.json` | **yes** (`QualityToolsHelper`, `QualityType`, `CommonEventHandler`, `TileEntityReforgingStation`) | skip QT-class json if absent; vanilla loot/durability mixins still apply (pack ships QT) | **yes** | [qualitytools.md](qualitytools.md) | Living-update stamp skip; reforge QualityBase. Vanilla `MixinTileEntityLockableLoot` + `MixinItemStackQualityDurability` are in **`mixins.aqtweaks.early.json`**. Crafting Runes are registry-name only — do not put `craftingrunes-1.1.jar` in `libs/` |
 | `chunksteward` | `ChunkSteward-0.3.jar` | after | — | **yes** (`ChunkStewardAPI` in `pacing/StewardPacing`) | yes (`Loader.isModLoaded` + `LinkageError` guard) | **yes** | [README.md](README.md), [rtg.md](rtg.md), [somnia.md](somnia.md) | `StewardPacing` inner `Api` class only loaded when `chunksteward` is present; paces `DeferredRelight` and `SomniaOptimizationHandler` |
 | `libraryex` | `LibraryEx-1.12.2-1.2.2.jar` | omitted | optional `mixins.aqtweaks.libraryex.json` | no (string target) | skip json if absent | **no** | [README.md](README.md) | `MixinEntityHelper` redirects `Map.computeIfAbsent` inside `EntityHelper.getEntityLocation` and synchronizes on the cache map so concurrent client/server entity ticks do not throw `ConcurrentModificationException` |
+| `geographicraft` | `Geographicraft-1.12.2-1.0.jar` | omitted | optional `mixins.aqtweaks.geographicraft.json`, queued only if loaded (`shouldMixinConfigQueue`) | no (string target) | `Loader.isModLoaded` at queue time | **no** | [server.md](server.md), [villagegen_info.md](villagegen_info.md) | `MixinDimensionManager` redirects `Biome.func_185359_l` (client-only `getBiomeName`) in `DimensionManager.salvageSpawn` to the registry name so dedicated servers do not crash on first spawn. Not in `libs/`; no Curse relation |
 | MineMenu (no jar) | — | omitted | `MixinEntityRendererMouse` in **required** json client; `MixinMinecraftMouseGrab` in **early** json client | no | always (vanilla client) | — | [minemenu.md](minemenu.md) | Skip `turn` while a screen is open. Re-grab and drain DX/DY on the outermost `displayGuiScreen` return to a null screen. Do not late-mixin `Minecraft` |
 
 Vanilla `MapGenVillage` / `MapGenCaves` / `WorldGenLakes` / `ChunkProviderServer` / `RenderGlobal` / `EntityRenderer` / `WorldEntitySpawner` / `MobSpawnerBaseLogic` are Forge/vanilla, not extra jars. `MixinEntityRendererMouse` skips look while a GUI is open (late client json). `MixinMinecraftMouseGrab` re-grabs on GUI close (early client json) — do not late-mixin `Minecraft`. `MixinWorldGenLakes` skips water (not lava) on the village pad. `MixinWorldEntitySpawner` fills pack sizes (late json). `MixinMobSpawnerBaseLogic` applies cage fail-recheck delay (early json) — do not late-mixin `MobSpawnerBaseLogic`, `World`, or `WorldServer`.

@@ -2,6 +2,16 @@
 
 Stay on version **1.9** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-10-19 — Server module: GeographiCraft dedicated-server spawn crash
+
+- New Server module ([server.md](server.md)). `MixinDimensionManager` (`mixins.aqtweaks.geographicraft.json`, `required: false`) redirects the client-only `Biome.func_185359_l` (`getBiomeName`) call in GeographiCraft's `DimensionManager.salvageSpawn` to the biome registry name (`"unknown"` if null). Dedicated servers no longer throw `NoSuchMethodError` while placing the first spawn. The name only fed a log line.
+- `AQTweaksLateMixinLoader` overrides `shouldMixinConfigQueue(String)` and queues the GeographiCraft json only when `geographicraft` is loaded. The compile stub `zone/rong/mixinbooter/ILateMixinLoader` gains the matching default method.
+- `villagegen_info.md` now names the shipped GeographiCraft **1.0** jar (was 0.9.8.5); the biome-list behavior it describes is unchanged in 1.0.
+
+## 2026-10-19 — Default World Type to RTG in World Creation GUI
+
+- In `GuiCreateWorld` (`MixinGuiCreateWorld`), the Create New World screen initializes with `selectedIndex` pointing to RTG (`WorldType.getName() == "RTG"`) instead of vanilla Default (0). Backed by client config key `Default World Type` under category `world creation` in `aqtweaks_client.cfg` (default `"RTG"`). Empty or unregistered names leave vanilla Default. Recreate World continues to copy the source world's type because `recreateFromExistingWorld` executes after constructor return. See [client.md](client.md).
+
 ## 2026-10-18 — Infernal Furnace smelts gated metals
 
 - The Infernal Furnace cooks the ores and dusts whose vanilla furnace recipes `furnace_gated_metals.zs` removed: one ingot per cook, with a nugget and Rare Earth roll only when that ore does not already have that bonus. Gold and silver keep Thaumcraft's nuggets. Flag off does not restore the furnace recipes. See [thaumcraft.md](thaumcraft.md).

@@ -650,6 +650,20 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Relight")
         @Config.Comment("Client-side repair of light emitters that arrive dark in chunk data.")
         public static final ClientRelight relight = new ClientRelight();
+
+        @Config.Name("World Creation")
+        @Config.Comment("World creation GUI options.")
+        public static final WorldCreation worldCreation = new WorldCreation();
+
+        public static String getDefaultWorldType() {
+            return worldCreation.defaultWorldType;
+        }
+    }
+
+    public static class WorldCreation {
+        @Config.Name("Default World Type")
+        @Config.Comment("WorldType.getName() to select on Create New World, e.g. RTG. This is the registry name, not the button label (RTG - Realistic will not match). Empty, or a name that is not registered, leaves the vanilla Default type.")
+        public String defaultWorldType = "RTG";
     }
 
     public static class ClientRelight {
