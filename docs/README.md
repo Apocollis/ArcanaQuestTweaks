@@ -148,7 +148,7 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `
 | `mixins.aqtweaks.animania.json` | false | Advancement: cancel Animania `onWorldLoad` | Skip |
 | `mixins.aqtweaks.somnia.json` | false | Somnia: chunk light fix, 3-tier SMP sleep (Case A/B/C), Case B 2x time, fatigue tuning & chat notifications | Skip |
 | `mixins.aqtweaks.incontrol.json` | false | Spawning: `StructureCache.parseStructureData` BB chunk expand | Skip |
-| `mixins.aqtweaks.bettermineshafts.json` | false | Better Mineshafts locate pin + entrance stub + Tweaks placement | Skip |
+| `mixins.aqtweaks.bettermineshafts.json` | false | Better Mineshafts locate pin + entrance stub + Tweaks placement + RTG 9 mineshaft paste hook (`MixinChunkGeneratorRTGMineshaftPaste`) | Skip |
 | `mixins.aqtweaks.randomportals.json` | false | TF grass pad + Aether island pad on RP generate | Skip |
 | `mixins.aqtweaks.chisel.json` | false | Game Stages: Chisel GUI + `canChisel` | Skip |
 | `mixins.aqtweaks.recipestages.json` | false | Game Stages: capture `setRecipeStage` | Skip |

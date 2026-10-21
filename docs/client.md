@@ -71,7 +71,7 @@ Light reaches the client only inside chunk data, or when the client runs its own
 
 ## Default world type
 
-Vanilla `GuiCreateWorld` initializes with `selectedIndex = 0` (`WorldType.DEFAULT`). In RTG 1.12.2 (v7.3.3.6), the legacy `B:rtgWorldTypeByDefault=true` setting in `config/rtg/rtg.cfg` is orphaned and not read by any RTG class.
+Vanilla `GuiCreateWorld` initializes with `selectedIndex = 0` (`WorldType.DEFAULT`). In RTG 1.12.2 (v9.0.3), the legacy `B:rtgWorldTypeByDefault=true` setting in `config/rtg/rtg.cfg` is orphaned and not read by any RTG class.
 
 Tweaks adds a client mixin `MixinGuiCreateWorld` on `GuiCreateWorld.<init>` at `RETURN`. When `Default World Type` is set (default `"RTG"`), it searches `WorldType.WORLD_TYPES` for a matching `WorldType` by name (`canBeCreated() == true`, case-insensitive) and sets `this.selectedIndex = i;`.
 

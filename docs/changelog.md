@@ -2,6 +2,16 @@
 
 Stay on version **1.9** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-10-19 — RTG 9.0.3 compatibility: `LatePopulatingChunk` seal target and mineshaft paste hook
+
+- Updated RTG dependency from `RTG-1.12.2-7.3.3.6.jar` to `RTG-1.12.2-9.0.3.jar` in `build_gradle.ps1` (pruning 7.3.3.6 from `libs/`).
+- Retargeted `MixinChunkGeneratorRTGVillage.aqtweaks$sealVillagePlateBeforeChunk` from `Chunk.<init>` to `LatePopulatingChunk.<init>` (which `ChunkGeneratorRTG.func_185932_a` now instantiates).
+- Added `MixinChunkGeneratorRTGMineshaftPaste` (`mixins.aqtweaks.bettermineshafts.json`, `required: false`) at RETURN of `ChunkGeneratorRTG.generateStructure(World, Random, StructureBoundingBox, StructureStart)`. RTG 9.0.3 pastes mineshafts directly via `StructureComponent.func_74875_a` instead of calling `StructureStart.func_75068_a`, which bypassed `MixinStructureStartMineshaftBox`. The new hook restores Start AABB refreshing and `MineshaftSurfaceShaft.carveForStart` on RTG 9 chunks while keeping `MixinStructureStartMineshaftBox` for non-RTG dimensions. See [rtg.md](rtg.md) and [bettermineshafts.md](bettermineshafts.md).
+
+## 2026-10-19 — Toolchain doc: MixinBooter / Fugue / Cleanroom runtime
+
+- [compatibility-matrix.md](compatibility-matrix.md) Toolchain now lists the shipped `!mixinbooter-11.18.jar` and `+Fugue-0.24.4.jar` (was 11.13 / 0.23.7), the pack runtime Cleanroom 0.6.13-alpha, and that Fugue 0.25+ needs Cleanroom 0.7.3-alpha+ (on 0.6.x it surfaces as a misleading Music Triggers / Impossible Library `NoClassDefFoundError`).
+
 ## 2026-10-19 — Server module: GeographiCraft dedicated-server spawn crash
 
 - New Server module ([server.md](server.md)). `MixinDimensionManager` (`mixins.aqtweaks.geographicraft.json`, `required: false`) redirects the client-only `Biome.func_185359_l` (`getBiomeName`) call in GeographiCraft's `DimensionManager.salvageSpawn` to the biome registry name (`"unknown"` if null). Dedicated servers no longer throw `NoSuchMethodError` while placing the first spawn. The name only fed a log line.

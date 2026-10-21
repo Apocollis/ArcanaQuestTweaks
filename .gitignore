@@ -22,6 +22,7 @@ Thumbs.db
 .agents/
 .cursor/
 .claude/
+/.plans/
 CLAUDE.md
 AGENTS.md
 implementation_plan.md

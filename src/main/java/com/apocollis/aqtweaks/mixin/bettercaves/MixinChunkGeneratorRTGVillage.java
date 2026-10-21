@@ -109,7 +109,7 @@ public abstract class MixinChunkGeneratorRTGVillage {
     }
 
     @Inject(method = "func_185932_a", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/world/chunk/Chunk;<init>(Lnet/minecraft/world/World;Lnet/minecraft/world/chunk/ChunkPrimer;II)V"))
+            target = "Lrtg/world/gen/LatePopulatingChunk;<init>(Lnet/minecraft/world/World;Lnet/minecraft/world/chunk/ChunkPrimer;II)V"))
     private void aqtweaks$sealVillagePlateBeforeChunk(int cx, int cz, CallbackInfoReturnable<Chunk> cir) {
         long t0 = StageTimer.start();
         try {

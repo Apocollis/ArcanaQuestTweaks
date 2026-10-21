@@ -52,4 +52,4 @@ AQ-011 (intermittent road-only or sparse waterside villages) was not pursued: it
 1. Newest crash report and `logs/cleanmix.log` (mixin failures) in the instance.
 2. `python scripts/check_mixin_targets.py`.
 3. Compare the symptom to the "Where to look" columns above.
-4. The working plan and issues tracker (run logs, per-batch checklists) are archived locally in `.cursor/plans/archive/` and are not published.
+4. The historical working plan and issues tracker (run logs, per-batch checklists) have been cleaned up and were not published.

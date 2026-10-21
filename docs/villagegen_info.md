@@ -4,7 +4,7 @@ Last updated: 2026-10-19.
 
 How Minecraft 1.12.2 **marks** a village, how it **pastes** buildings, and what RTG, Geographicraft, Recurrent Complex, Charm, and Tweaks each change. Tweaks locked intent and flatten knobs stay in [rtg.md](rtg.md). This file is the pipeline reference.
 
-Jars checked: `RTG-1.12.2-7.3.3.6`, `Geographicraft-1.12.2-1.0`, `RecurrentComplexVolts-1.12.2-2.0.0.9`, `Charm-1.12.2-1.4.1`, vanilla `MapGenVillage`.
+Jars checked: `RTG-1.12.2-9.0.3`, `Geographicraft-1.12.2-1.0`, `RecurrentComplexVolts-1.12.2-2.0.0.9`, `Charm-1.12.2-1.4.1`, vanilla `MapGenVillage`.
 
 Worldgen applies to **new chunks only**.
 
@@ -23,8 +23,10 @@ RTG generateChunk
   Tweaks flatten noise          ← plate contract lives here
   generateTerrain
   villageGenerator.generate     ← layout (often already done by Tweaks dummy primer)
+  Tweaks seal pad
+  new LatePopulatingChunk
 
-RTG populate
+RTG populate (via LatePopulatingChunk)
   villageGenerator.generateStructure
     Charm ASMHooks.addComponentParts   ← this pack
       piece.addComponentParts
@@ -64,14 +66,14 @@ Houses: `StructureVillagePieces.func_176066_d`. Roads: `func_176069_e`. Vanilla 
 
 A Start with no pasted buildings is still a Village for locate. Template Y `64..151` plus teleport Y=100 can count as “inside” even when the plate is at 64.
 
-## RTG 7.3.3.6 — host only
+## RTG 9.0.3 — host only
 
 `ChunkGeneratorRTG` constructs **vanilla** `new MapGenVillage(settingsMap)`, then `TerrainGen.getModdedMapGen(..., EventType.VILLAGE)`.
 
 - `useVillages` can disable villages.
 - Settings map can change **spacing**.
-- Layout: after `generateTerrain` (and after caves/ravines), `villageGenerator.func_186125_a`. Tweaks also layouts **before** terrain so flatten can see AABBs, then reseals the pad after cave carve.
-- Paste: in `func_185931_b` (`populate`), `func_175794_a`.
+- Layout: after `generateTerrain` (and after caves/ravines), `villageGenerator.func_186125_a`. Tweaks also layouts **before** terrain so flatten can see AABBs, then reseals the pad after cave carve (before `new LatePopulatingChunk`).
+- Paste: in `func_185931_b` (`populate`), villages still paste via `villageGenerator.func_175794_a` (`StructureStart.func_75068_a`). (Note: mineshafts on RTG 9 no longer call `func_175794_a` / `func_75068_a`; they go through RTG's own `ChunkGeneratorRTG.generateStructure` helper—see [bettermineshafts.md](bettermineshafts.md).)
 - `/locate Village` and `isInsideStructure("Village", …)` delegate to that same `MapGenVillage`.
 
 RTG does **not** replace `MapGenVillage`, does **not** flatten under villages, does **not** change `VILLAGE_SPAWN_BIOMES`, and does **not** add RC pieces. It only owns Overworld chunk gen (height first) and fires `InitMapGenEvent`.

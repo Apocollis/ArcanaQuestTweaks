@@ -1,6 +1,6 @@
 # RTG module (1.9)
 
-Last updated: 2026-10-18.
+Last updated: 2026-10-19.
 
 This is the RTG module: village flatten/placement, then post-terrain structure skip/settle. Locked intent, current pipeline, and why earlier approaches were dropped. Read this before changing village flatten, spawn veto, piece retry, or shrine/house/hut land settle.
 
@@ -8,7 +8,7 @@ Vanilla / RTG / Geographicraft / Recurrent Complex / Charm roles: [villagegen_in
 
 ## How the parent mods work
 
-### Realistic Terrain Generation (RTG 7.3.3.6)
+### Realistic Terrain Generation (RTG 9.0.3)
 
 RTG replaces the Overworld chunk generator. `ChunkGeneratorRTG.func_185932_a` roughly:
 
@@ -16,8 +16,9 @@ RTG replaces the Overworld chunk generator. `ChunkGeneratorRTG.func_185932_a` ro
 2. `generateTerrain(primer, noise)` — stone/dirt/water from that height field
 3. caves, then ravines (carve the primer)
 4. `villageGenerator.generate()` — vanilla village map gen **after** land exists
+5. `new LatePopulatingChunk(world, primer, cx, cz)` — constructs the chunk (overrides `Chunk.func_186030_a` to run populate through RTG's own `ChunkPresence` / `waitingChunks` late-populate queue)
 
-RTG does not flatten under villages. Tweaks rewrites `landscape.noise` **between** (1) and (2), then **reseals pad columns after (3)** so caves/ravines cannot leave a well over a chasm.
+RTG does not flatten under villages. Tweaks rewrites `landscape.noise` **between** (1) and (2), then **reseals pad columns after (3)** (before `new LatePopulatingChunk`) so caves/ravines cannot leave a well over a chasm.
 
 ### Vanilla `MapGenVillage`
 
@@ -53,11 +54,11 @@ Keep **what** villages create (vanilla pieces + Recurrent Complex, plus at most 
 
 - Stay version **1.9**.
 - **New chunks only.** Flattening writes RTG `landscape.noise` before `generateTerrain`. Village-pad columns are resealed after caves/ravines. Existing chunks are not recarved.
-- RTG jar in this pack: `RTG-1.12.2-7.3.3.6.jar`. RTG has **no** village terrain queue of its own.
+- RTG jar in this pack: `RTG-1.12.2-9.0.3.jar`. RTG has **no** village terrain queue of its own (its `LatePopulatingChunk` queue is for post-terrain populate only).
 - Production RTG chunk method is `func_185932_a` (`remap = false`). Injects that replace the return need `CallbackInfoReturnable<Chunk>`.
 - Mixin targets use SRG names. Do not use DeferredRegister / 1.16-style registries.
 - Village mixins live in **required** `mixins.aqtweaks.json` (Forge, RTG, Recurrent Complex assumed present). Astral / Cambion / Mystical hut mixins are **optional** json (`required: false`).
-- Two mixins target `ChunkGeneratorRTG`: village flatten **before** `generateTerrain` and pad **seal before `new Chunk`**; Depths Deepslate fill at **TAIL** of `generateTerrain` (Y min..-1, not Y=0). See [depths.md](depths.md). Do not merge them.
+- Two mixins in `mixins.aqtweaks.json` target `ChunkGeneratorRTG`: village flatten **before** `generateTerrain` and pad **seal before `new LatePopulatingChunk`**; Depths Deepslate fill at **TAIL** of `generateTerrain` (Y min..-1, not Y=0). See [depths.md](depths.md). Do not merge them. (A third optional mixin, `MixinChunkGeneratorRTGMineshaftPaste`, lives in `mixins.aqtweaks.bettermineshafts.json`; see [bettermineshafts.md](bettermineshafts.md).)
 - Player/world/block access in remapped Tweaks classes is direct vanilla (same as Comfort). MapGen `structureMap` internals and other protected members go through `rtg/StructureAccess` (Mixin accessors). Landscape samples still must not use raw `World.getChunkProvider()` when looking up RTG — use the stashed generator.
 
 ## Design plan (placement vs flatten)
@@ -67,7 +68,7 @@ Keep **what** villages create. Change **where** they start and **how RTG land un
 1. Layout village XZ **before** RTG `generateTerrain` (`layoutVillageGrid`).
 2. Sample plate Y from the well via live `ChunkGeneratorRTG.getLandscape`.
 3. Flatten `landscape.noise` under land boxes (houses, well, mixed/dry roads). Never write ocean/river except 1-block pad notches. Flooded swamp/lake **inside the hard pad** is raised to plate Y.
-4. RTG carves from that noise. Caves and ravines then punch the primer. Tweaks reseals shore-mask columns solid up to plate Y before `new Chunk`. Production method `func_185932_a` (`remap = false`).
+4. RTG carves from that noise. Caves and ravines then punch the primer. Tweaks reseals shore-mask columns solid up to plate Y before `new LatePopulatingChunk`. Production method `func_185932_a` (`remap = false`).
 5. Populate places the same pieces. Wet houses/RC/shrine/waystone/paths retry inland; leftover ocean/river or mostly-lake paths are omitted. If layout missed, paste skips the building (including the well) when any column of the full AABB is ocean/river biome (roads exempt). Nested chunk loads during paste iterate a **snapshot** of `components` so adding pad children or a second `generateStructure` cannot CME vanilla’s `LinkedList`. Water lakes whose blob overlaps the 12-pad are skipped (lava lakes are not). After paste in a chunk, Tweaks re-checks light at torch/lamp sources so flag-2 placements actually flood.
 
 Do not recarve old chunks. Do not veto a whole village because one building was wet. Do not treat a puddle on a path as a water bridge.

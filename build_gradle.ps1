@@ -22,7 +22,8 @@ $stale = @(
     "RecurrentComplexVolts-1.12.2-2.0.0.7.jar",
     "BaublesEX-1.12.2-2.3.5.jar",
     "WearableBackpacks-RLCraft-1.12.2-3.2.7.jar",
-    "RoguelikeDungeons-Arcana-1.12.2-2.5.0.jar"
+    "RoguelikeDungeons-Arcana-1.12.2-2.5.0.jar",
+    "RTG-1.12.2-7.3.3.6.jar"
 )
 foreach ($old in $stale) {
     $oldPath = Join-Path $libsDir $old
@@ -37,7 +38,7 @@ $deps = @(
     "bettercaves-1.12.2-2.0.4.jar",
     "RecurrentComplexVolts-1.12.2-2.0.0.9.jar",
     "IvToolkit-1.3.3-1.12.jar",
-    "RTG-1.12.2-7.3.3.6.jar",
+    "RTG-1.12.2-9.0.3.jar",
     "astralsorcery-1.12.2-1.10.27.jar",
     "mysticalworld-1.12.2-1.11.0.jar",
     "GrimoireOfGaia3-1.12.2-1.7.2.jar",
