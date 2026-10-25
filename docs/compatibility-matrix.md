@@ -90,7 +90,7 @@ Toughness Bar, Biomes O’ Plenty, Dungeon Additions, LibraryEx, GeographiCraft:
 | MixinBooter / Fugue | Pack: `!mixinbooter-11.18.jar`, `+Fugue-0.24.4.jar` (not in Tweaks `libs/` copy list). Fugue **0.25+ requires Cleanroom 0.7.3-alpha+**. On 0.6.x FML throws `MissingModsException`, and the client then crashes in Music Triggers' `MusicTicker` mixin with `NoClassDefFoundError` on an Impossible Library class (red herring: normal mod jars never loaded). Bump Cleanroom before Fugue |
 | Unimined | Gradle plugin **1.4.17-kappa** |
 | Java | Toolchain **25**; `--release 21` class files; deploy script sets `JAVA_HOME` to Zulu 25 |
-| Remap | `defaultRemapJar = true` → ship `ArcanaQuestTweaks-1.9.jar`, not `-dev` |
+| Remap | `defaultRemapJar = true` → ship `ArcanaQuestTweaks-1.10.jar`, not `-dev` |
 
 ## Parents
 

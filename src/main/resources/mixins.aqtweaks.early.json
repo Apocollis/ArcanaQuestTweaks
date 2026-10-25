@@ -12,6 +12,8 @@
   "mixins": [
     "MixinWorldRiftLight",
     "MixinWorldCheckLight",
+    "lighting.MixinChunkBulkRelight",
+    "lighting.MixinTemplateBulkRelight",
     "MixinBlockRiftLight",
     "MixinMobSpawnerBaseLogic",
     "MixinTileEntityLockableLoot",

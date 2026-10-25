@@ -2,14 +2,14 @@
 
 Last updated: 2026-10-16.
 
-Manual release / smoke checklist. **No automated tests.** Harness: CurseForge **Arcana Quest DEVBOX**, remapped `ArcanaQuestTweaks-1.9.jar` in `mods/`. Algorithms and full checklists stay in module docs; this is the pack-level pass/fail.
+Manual release / smoke checklist. **No automated tests.** Harness: CurseForge **Arcana Quest DEVBOX**, remapped `ArcanaQuestTweaks-1.10.jar` in `mods/`. Algorithms and full checklists stay in module docs; this is the pack-level pass/fail.
 
 Worldgen applies to **new chunks only**.
 
 ## Build artifact
 
 - [ ] `.\gradlew.bat build` or `.\build_gradle.ps1` succeeds (`verifyReleaseJar`: class major 65, `VillagePlate.class`, mixin json + `mixins.aqtweaks.refmap.json`).
-- [ ] Instance `mods/` has `ArcanaQuestTweaks-1.9.jar`, **not** `-dev`.
+- [ ] Instance `mods/` has `ArcanaQuestTweaks-1.10.jar`, **not** `-dev`.
 - [ ] Only one Tweaks jar (the deploy script deletes other `ArcanaQuestTweaks-*.jar`).
 
 ## Boot
@@ -110,6 +110,11 @@ Seam, village world push/pop and Mineshaft locate were dead code until the 2026-
 | `/locate Mineshaft` on a new world | Pin lands on a registered Better Mineshafts Start (Y 24 when unexplored); `cleanmix.log` shows `MixinMapGenMineshaftLocate` injected into `MapGenMineshaft`; vanilla Mineshaft generators in other dimensions unaffected | [bettermineshafts.md](bettermineshafts.md) |
 | Flying new chunks (near and far from villages) | Away from villages, chat TPS stays near 20 (no growing hitch as more towns exist). A village still plates. With debug off, `villagepatch.log` stays empty | [rtg.md](rtg.md) |
 | `HeightManager` array cache (`Verify HeightManager Cache` = true) | Fly new chunks across Overworld, Nether, End, Twilight Forest, Aether: zero `[AQ-DEPTHS] HeightCache mismatch` warnings in `latest.log`; Spark shows `HeightManager.get` / `isExtended` near 0% | [depths.md](depths.md) |
+| Deferred paste relight (`Performance Stage Timers` = true) | Generate a High City at distance: `paste.template` ends `,bulk,deferred` and is about 3 s, no multi-second "Can't keep up"; `paste.drain` lines show small `units`/`pending` falling to 0; fly the structure after `pending=0` and compare light with `Defer Template Relight` = false. Fly away before it drains and return: `paste.unloadFlush` appears and no chunk is dark. Stop the server mid-drain and reload: no dark columns | [depths.md](depths.md) |
+| Bulk Template Relight (`Performance Stage Timers` = true) | Visit a Dungeon Additions High City on new chunks: no multi-second stall; `[AQ-PERF]` shows `paste.template` with `,bulk` and `paste.replay cols=..`; walk the structure interior, edges and chunk borders for dark or bright patches; compare with `Bulk Template Relight` = false if in doubt | [depths.md](depths.md) |
+| Biome class cache (`Verify Biome Class Cache` = true) | Fly new chunks across ocean, river, beach, swamp and inland villages: zero `[AQ-VERIFY] biome class cache mismatch` lines; Spark shows `VillageCharmPaste.shouldSkip` well below 3.6 s / 9.7 s | [rtg.md](rtg.md) |
+| Upper tunnel noise skip (`Verify Upper Tunnel Noise` = true) | Fly new chunks over several seeds: zero `[AQ-VERIFY] UpperTunnelNetwork mismatch` lines; Spark `UpperTunnelNetwork.forColumn` drops from 3.9 s / 5.8 s | [depths.md](depths.md) |
+| RTG relight probe (`Performance Stage Timers` = true) | `[AQ-PERF]` lines include `rtg.fixLightingAround` and `rtg.woolRelight=0.0ms/N`; N per populate decides Phase 3.2 | [rtg.md](rtg.md) |
 | `VillageWellCache` (`Performance Stage Timers` = true, `Verify Village Well Verdict Memo` = true) | Fly new chunks across coastal and inland villages and run `/aqvillage`: zero `[AQ-RTG] VillageWellCache` mismatch warnings in `latest.log`; `[AQ-PERF]` shows `village.wellReject` and `village.findDryWell` with high `memoHit=` counts; Spark shows `VillageLandHelper.chunkExists` / `RegionFileCache` dramatically reduced | [rtg.md](rtg.md) |
 | Coastal village ocean face (new chunks) | Cleaner XZ outline (open 1-block sea inlets filled). Stone brick **only** where the plate cliffs ≥2 (including top); sand/grass on level rims; no open-water pier; inland hill cliffs not bricked | rtg |
 | Village interior (new chunks) | No stone brick patches in yards/farms or along chunk lines; no pad across a Land of Lakes / forest watercourse; no bare plate spur without a building | rtg |

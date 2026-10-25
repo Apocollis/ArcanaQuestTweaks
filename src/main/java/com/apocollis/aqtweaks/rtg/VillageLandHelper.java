@@ -1,5 +1,6 @@
 package com.apocollis.aqtweaks.rtg;
 
+import com.apocollis.aqtweaks.ArcanaQuestTweaks;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.perf.StageTimer;
 import net.minecraft.block.Block;
@@ -20,6 +21,8 @@ import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.registry.ForgeRegistries;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import rtg.api.world.biome.IRealisticBiome;
 import rtg.world.gen.ChunkGeneratorRTG;
 import rtg.world.gen.ChunkLandscape;
@@ -714,27 +717,88 @@ public final class VillageLandHelper {
         return isFlattenSkipColumn(provider, landscape, index, worldX, worldZ);
     }
 
+    /** Bits of the per-biome classification: all four answers are pure functions of the Biome. */
+    private static final Logger LOGGER = LogManager.getLogger(ArcanaQuestTweaks.MODID);
+    private static final int BC_OCEAN = 1;
+    private static final int BC_OCEAN_OR_RIVER = 2;
+    private static final int BC_BEACH = 4;
+    private static final int BC_SWAMP_TAGGED = 8;
+    private static final Map<Biome, Integer> BIOME_CLASS = new ConcurrentHashMap<>();
+    private static volatile boolean biomeClassMismatchLogged;
+
+    private static int biomeClass(Biome biome) {
+        Integer cached = BIOME_CLASS.get(biome);
+        if (cached == null) {
+            int bits = (isOceanBiomeUncached(biome) ? BC_OCEAN : 0)
+                    | (isOceanOrRiverBiomeUncached(biome) ? BC_OCEAN_OR_RIVER : 0)
+                    | (isBeachBiomeUncached(biome) ? BC_BEACH : 0)
+                    | (swampTaggedUncached(biome) ? BC_SWAMP_TAGGED : 0);
+            cached = BIOME_CLASS.putIfAbsent(biome, bits);
+            if (cached == null) cached = bits;
+        }
+        return cached;
+    }
+
+    private static boolean biomeClassBit(Biome biome, int bit, boolean uncached, String what) {
+        boolean cached = (biomeClass(biome) & bit) != 0;
+        if (ArcanaQuestTweaksConfig.RtgModuleConfig.surface.verifyBiomeClassCache
+                && cached != uncached && !biomeClassMismatchLogged) {
+            biomeClassMismatchLogged = true;
+            LOGGER.error("[AQ-VERIFY] biome class cache mismatch {} for {}: cached={} uncached={}",
+                    what, biomeId(biome), cached, uncached);
+        }
+        return cached;
+    }
+
     /**
      * Ocean, kelp forest, coral reef, and similar water biomes. Pure beach is not ocean.
      */
     public static boolean isOceanBiome(Biome biome) {
         if (biome == null) return false;
+        return biomeClassBit(biome, BC_OCEAN, verifyOn() && isOceanBiomeUncached(biome), "ocean");
+    }
+
+    public static boolean isOceanOrRiverBiome(Biome biome) {
+        if (biome == null) return false;
+        return biomeClassBit(biome, BC_OCEAN_OR_RIVER, verifyOn() && isOceanOrRiverBiomeUncached(biome), "oceanOrRiver");
+    }
+
+    public static boolean isBeachBiome(Biome biome) {
+        if (biome == null) return false;
+        return biomeClassBit(biome, BC_BEACH, verifyOn() && isBeachBiomeUncached(biome), "beach");
+    }
+
+    private static boolean swampTagged(Biome biome) {
+        if (biome == null) return false;
+        return biomeClassBit(biome, BC_SWAMP_TAGGED, verifyOn() && swampTaggedUncached(biome), "swampTagged");
+    }
+
+    private static boolean verifyOn() {
+        return ArcanaQuestTweaksConfig.RtgModuleConfig.surface.verifyBiomeClassCache;
+    }
+
+    public static boolean isSwampBiome(Biome biome) {
+        if (biome == null || isBeachBiome(biome) || isNeverRaiseBiome(biome)) return false;
+        return swampTagged(biome);
+    }
+
+    private static boolean isOceanBiomeUncached(Biome biome) {
         if (oceanLikeName(biome)) return true;
-        if (isBeachBiome(biome)) return false;
+        if (isBeachBiomeUncached(biome)) return false;
         try {
             if (BiomeDictionary.hasType(biome, BiomeDictionary.Type.OCEAN)) {
                 return true;
             }
-            if (swampTagged(biome)) return false;
+            if (swampTaggedUncached(biome)) return false;
             return BiomeDictionary.hasType(biome, BiomeDictionary.Type.WATER);
         } catch (Throwable ignored) {
             return false;
         }
     }
 
-    public static boolean isOceanOrRiverBiome(Biome biome) {
-        if (isOceanBiome(biome)) return true;
-        if (biome == null || isBeachBiome(biome)) return false;
+    private static boolean isOceanOrRiverBiomeUncached(Biome biome) {
+        if (isOceanBiomeUncached(biome)) return true;
+        if (isBeachBiomeUncached(biome)) return false;
         try {
             if (BiomeDictionary.hasType(biome, BiomeDictionary.Type.RIVER)) {
                 return true;
@@ -747,8 +811,7 @@ public final class VillageLandHelper {
         }
     }
 
-    public static boolean isBeachBiome(Biome biome) {
-        if (biome == null) return false;
+    private static boolean isBeachBiomeUncached(Biome biome) {
         try {
             if (BiomeDictionary.hasType(biome, BiomeDictionary.Type.BEACH)) {
                 return true;
@@ -760,13 +823,7 @@ public final class VillageLandHelper {
         }
     }
 
-    public static boolean isSwampBiome(Biome biome) {
-        if (biome == null || isBeachBiome(biome) || isNeverRaiseBiome(biome)) return false;
-        return swampTagged(biome);
-    }
-
-    private static boolean swampTagged(Biome biome) {
-        if (biome == null) return false;
+    private static boolean swampTaggedUncached(Biome biome) {
         try {
             if (BiomeDictionary.hasType(biome, BiomeDictionary.Type.SWAMP)) {
                 return true;

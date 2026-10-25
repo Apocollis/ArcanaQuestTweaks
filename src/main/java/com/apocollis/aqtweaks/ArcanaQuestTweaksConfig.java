@@ -949,6 +949,38 @@ public class ArcanaQuestTweaksConfig {
             @Config.Name("Verify HeightManager Cache")
             @Config.Comment("Dev-only verification: compare every HeightCache lookup against the original HeightManager map and log the first mismatch. Off by default.")
             public boolean heightCacheVerify = false;
+
+            @Config.Name("Verify Upper Tunnel Noise")
+            @Config.Comment("Dev-only verification: recompute every Upper Tunnel column with the original unskipped noise sampling and log the first mismatch ([AQ-VERIFY]). Roughly doubles that cost. Off by default.")
+            public boolean verifyUpperTunnelNoise = false;
+
+            @Config.Name("Bulk Template Relight")
+            @Config.Comment("While a large Template paste runs (Dungeon Additions High City and other big structures), record the per-block Chunk.relightBlock and World.checkLight calls and run them once per column when the paste returns. Cuts the lighting cost of a paste from tens of seconds to a fraction. New chunks only.")
+            public boolean bulkTemplateRelight = true;
+
+            @Config.Name("Bulk Template Relight Min Volume")
+            @Config.Comment("Template bounding-box volume (x*y*z) at or above which Bulk Template Relight applies. Default 4096 (16x16x16).")
+            @Config.RangeInt(min = 1, max = 1000000)
+            public int bulkTemplateRelightMinVolume = 4096;
+
+            @Config.Name("Defer Template Relight")
+            @Config.Comment("Queue the Bulk Template Relight replay and drain it over later ticks with the Chunk Steward pacing slice instead of inside the paste tick. Chunks near a player are replayed at once; pending work for a chunk runs before that chunk is saved. Needs Bulk Template Relight.")
+            public boolean deferTemplateRelight = true;
+
+            @Config.Name("Defer Template Relight Max Slice Ms")
+            @Config.Comment("Most milliseconds of deferred template relight per server tick at 20 TPS, capped by Chunk Steward headroom. A floor of two units per tick always runs. 0 leaves only the floor.")
+            @Config.RangeDouble(min = 0.0, max = 50.0)
+            public double deferTemplateRelightMaxSliceMs = 15.0;
+
+            @Config.Name("Defer Template Relight Near Chunks")
+            @Config.Comment("If a player is within this many chunks of any chunk a paste touched, its relight runs at once instead of being deferred.")
+            @Config.RangeInt(min = 0, max = 16)
+            public int deferTemplateRelightNearChunks = 4;
+
+            @Config.Name("Defer Template Relight Max Age Ticks")
+            @Config.Comment("A deferred paste still pending after this many ticks is flushed at once. Default 6000 (5 minutes).")
+            @Config.RangeInt(min = 20, max = 72000)
+            public int deferTemplateRelightMaxAgeTicks = 6000;
         }
 
         public static class Client {
@@ -1163,6 +1195,10 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Performance Stage Timers")
         @Config.Comment("Log 5-second worldgen stage timing summaries ([AQ-PERF] in latest.log) for village layout, flatten, seal, paste, and Dungeon Additions starts. Off by default.")
         public boolean perfTimers = false;
+
+        @Config.Name("Verify Biome Class Cache")
+        @Config.Comment("Dev-only verification: compare every cached ocean/river/beach/swamp biome classification against the uncached computation and log the first mismatch ([AQ-VERIFY]). Off by default.")
+        public boolean verifyBiomeClassCache = false;
 
         @Config.Name("Enable Village Well Chunk Cache")
         @Config.Comment("Peek loadedChunks first, cache generated chunks permanently, and cache negative chunkExists answers briefly during village well evaluation.")

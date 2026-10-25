@@ -133,6 +133,7 @@ Flatten looks up `VillagePlate` records by **land-box overlap** first, via a per
 | `mixin/MixinWorldGenLakes.java` | Skip vanilla water lakes on village 12-pad. Required `mixins.aqtweaks.json`. Remap **true**, MCP `generate`; lake fluid via `block` / `field_150589_a` (no `@Shadow block` — Unimined maps that MCP name to the wrong SRG). Lava lakes are not skipped |
 | `mixin/biomesoplenty/MixinGeneratorLakes.java` | Skip BOP water and quicksand lakes on village overlap. Optional `mixins.aqtweaks.biomesoplenty.json` |
 | `mixin/da/MixinDaStructureStart.java` | Cancel Dungeon Additions structure starts on overworld village overlap (no retry) and time `create` / `func_75068_a` when `perfTimers` is on. Optional `mixins.aqtweaks.da.json` |
+| `mixin/rtg/MixinRtgFixLightingProbe.java` | Diagnostic: counts RTG `fixLighting` wool-trick relights (`rtg.woolRelight`) and times `fixLightingAround` (`rtg.fixLightingAround`) into `StageTimer`. No behaviour change |
 | `perf/StageTimer.java` | Step 0 worldgen stage timer (`[AQ-PERF]` 5s summaries when `Performance Stage Timers` is on) |
 | `pacing/StewardPacing.java` | Runtime headroom pacing bridge to `ChunkStewardAPI` (loaded only when `chunksteward` is present). Full TPS slice is `min(max, headroom)`; optional work pauses when behind, or when generating with under 4 ms of headroom |
 | `ArcanaQuestTweaksConfig.RtgModuleConfig.surface` | `config/arcanaquesttweaks/aqtweaks_rtg.cfg` |
@@ -285,6 +286,7 @@ Teleport is **on the generated ground** at that column (`world.getHeight`, skip 
 | Small Shrine Pad | 3 | yes | Buffer around small shrine/ruin settle and village shrine AABB |
 | Cambion House Pad | 6 | yes | Full plate around Cambion house AABB |
 | Cambion House Falloff | 12 | yes | Hermite beyond Cambion pad, raise-only |
+| Verify Biome Class Cache | false | yes | Dev-only: compare each cached ocean/river/beach/swamp biome answer to the uncached computation and log the first `[AQ-VERIFY]` mismatch |
 | Performance Stage Timers | false | yes | Log 5s worldgen stage timing summaries (`[AQ-PERF]` in `latest.log`) for village layout, flatten, seal, paste, wellReject/findDryWell, and DA starts |
 | Enable Village Well Disk Cache | true | yes | Cache `VillageLandHelper.chunkExists` per dimension (peeks `loadedChunks` without touching `unloadQueued`, permanent positive set, short-TTL negative map) to avoid repeated `RegionFileCache` disk probes |
 | Village Well Negative Cache TTL Ticks | 200 | yes | Server-tick TTL (0..6000) for negative `chunkExists` entries; `0` disables negative caching |

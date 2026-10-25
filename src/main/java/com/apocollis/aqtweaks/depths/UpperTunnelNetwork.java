@@ -1,7 +1,10 @@
 package com.apocollis.aqtweaks.depths;
 
+import com.apocollis.aqtweaks.ArcanaQuestTweaks;
+import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.yungnickyoung.minecraft.bettercaves.noise.FastNoise;
 import net.minecraft.util.math.MathHelper;
+import org.apache.logging.log4j.LogManager;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -155,8 +158,9 @@ public final class UpperTunnelNetwork {
     /**
      * BC CaveCarver dig for one dual-noise system: y-adjust upward → dig if both ≥ thr.
      * Consumes the raw samples in place, so the caller passes copies it does not need again.
+     * Returns bit {@code y - DIG_BOTTOM} set where the cell digs.
      */
-    private static boolean[] blendAndDig(float[] a, float[] b, float baseThr, float f1, float f2) {
+    private static int blendAndDig(float[] a, float[] b, float baseThr, float f1, float f2) {
         // preprocess: top → bottom; when cell digs, blend into cells above (headroom)
         for (int y = DIG_TOP; y >= DIG_BOTTOM; --y) {
             int i = y - DIG_BOTTOM;
@@ -175,34 +179,52 @@ public final class UpperTunnelNetwork {
             }
         }
 
-        boolean[] dig = new boolean[DIG_HEIGHT];
+        int dig = 0;
         for (int y = DIG_BOTTOM; y <= DIG_TOP; ++y) {
             int i = y - DIG_BOTTOM;
             float thr = thresholdAt(y, baseThr);
-            dig[i] = a[i] >= thr && b[i] >= thr;
+            if (a[i] >= thr && b[i] >= thr) dig |= 1 << i;
         }
         return dig;
     }
 
     /**
+     * Lowest index whose raw A sample reaches its threshold, or {@link #DIG_HEIGHT} if none.
+     * No cell below it can dig (digging needs A and B at or above the threshold, and blending only
+     * spreads values from digging cells), so B never needs sampling there.
+     */
+    private static int firstA(float[] a, float baseThr) {
+        for (int i = 0; i < DIG_HEIGHT; ++i) {
+            if (a[i] >= thresholdAt(DIG_BOTTOM + i, baseThr)) return i;
+        }
+        return DIG_HEIGHT;
+    }
+
+    /**
      * Both noise systems sampled once for the whole column, giving the raw (no y-adjust) dig bits
-     * and the blended Type 1 / Type 2 dig used for tunnels. Both come from the same 108 samples.
+     * and the blended Type 1 / Type 2 dig used for tunnels. The A noises are sampled for every Y; the
+     * B noises only from the first Y where A can dig (see {@link #firstA}), which is exact.
      */
     private static ColumnData columnData(int worldX, int worldZ, Caches caches) {
         long key = key(worldX, worldZ);
         ColumnData cached = caches.columns.get(key);
         if (cached != null) return cached;
 
-        float[] a1 = new float[DIG_HEIGHT];
-        float[] b1 = new float[DIG_HEIGHT];
-        float[] a2 = new float[DIG_HEIGHT];
-        float[] b2 = new float[DIG_HEIGHT];
-        for (int y = DIG_BOTTOM; y <= DIG_TOP; ++y) {
-            int i = y - DIG_BOTTOM;
+        float[] a1 = caches.a1;
+        float[] b1 = caches.b1;
+        float[] a2 = caches.a2;
+        float[] b2 = caches.b2;
+        for (int i = 0; i < DIG_HEIGHT; ++i) {
+            int y = DIG_BOTTOM + i;
             a1[i] = type1A.GetNoise(worldX * T1_XZ, y * T1_Y, worldZ * T1_XZ);
-            b1[i] = type1B.GetNoise(worldX * T1_XZ, y * T1_Y, worldZ * T1_XZ);
             a2[i] = type2A.GetNoise(worldX * T2_XZ, y * T2_Y, worldZ * T2_XZ);
-            b2[i] = type2B.GetNoise(worldX * T2_XZ, y * T2_Y, worldZ * T2_XZ);
+        }
+        int from1 = firstA(a1, T1_THR);
+        int from2 = firstA(a2, T2_THR);
+        for (int i = 0; i < DIG_HEIGHT; ++i) {
+            int y = DIG_BOTTOM + i;
+            b1[i] = i >= from1 ? type1B.GetNoise(worldX * T1_XZ, y * T1_Y, worldZ * T1_XZ) : 0.0f;
+            b2[i] = i >= from2 ? type2B.GetNoise(worldX * T2_XZ, y * T2_Y, worldZ * T2_XZ) : 0.0f;
         }
 
         // Raw bits first — blendAndDig overwrites the sample arrays.
@@ -216,16 +238,79 @@ public final class UpperTunnelNetwork {
             }
         }
 
-        boolean[] t1 = blendAndDig(a1, b1, T1_THR, T1_F1, T1_F2);
-        boolean[] t2 = blendAndDig(a2, b2, T2_THR, T2_F1, T2_F2);
-        boolean[] tunnel = new boolean[DIG_HEIGHT];
-        for (int i = 0; i < DIG_HEIGHT; ++i) {
-            tunnel[i] = t1[i] || t2[i];
-        }
-
-        ColumnData data = new ColumnData(rawMask, tunnel);
+        int t1 = blendAndDig(a1, b1, T1_THR, T1_F1, T1_F2);
+        int t2 = blendAndDig(a2, b2, T2_THR, T2_F1, T2_F2);
+        ColumnData data = new ColumnData(rawMask, t1 | t2);
         caches.columns.put(key, data);
+
+        if (ArcanaQuestTweaksConfig.DepthsModuleConfig.general.verifyUpperTunnelNoise) {
+            verifyColumn(worldX, worldZ, data);
+        }
         return data;
+    }
+
+    private static volatile boolean verifyLogged;
+
+    /** Dev-only A/B: the original unskipped, boolean[] implementation against the optimised result. */
+    private static void verifyColumn(int worldX, int worldZ, ColumnData got) {
+        float[] a1 = new float[DIG_HEIGHT];
+        float[] b1 = new float[DIG_HEIGHT];
+        float[] a2 = new float[DIG_HEIGHT];
+        float[] b2 = new float[DIG_HEIGHT];
+        for (int y = DIG_BOTTOM; y <= DIG_TOP; ++y) {
+            int i = y - DIG_BOTTOM;
+            a1[i] = type1A.GetNoise(worldX * T1_XZ, y * T1_Y, worldZ * T1_XZ);
+            b1[i] = type1B.GetNoise(worldX * T1_XZ, y * T1_Y, worldZ * T1_XZ);
+            a2[i] = type2A.GetNoise(worldX * T2_XZ, y * T2_Y, worldZ * T2_XZ);
+            b2[i] = type2B.GetNoise(worldX * T2_XZ, y * T2_Y, worldZ * T2_XZ);
+        }
+        int rawMask = 0;
+        for (int y = DIG_BOTTOM; y <= DIG_TOP; ++y) {
+            int i = y - DIG_BOTTOM;
+            float thr1 = thresholdAt(y, T1_THR);
+            float thr2 = thresholdAt(y, T2_THR);
+            if ((a1[i] >= thr1 && b1[i] >= thr1) || (a2[i] >= thr2 && b2[i] >= thr2)) {
+                rawMask |= 1 << i;
+            }
+        }
+        boolean[] t1 = blendAndDigLegacy(a1, b1, T1_THR, T1_F1, T1_F2);
+        boolean[] t2 = blendAndDigLegacy(a2, b2, T2_THR, T2_F1, T2_F2);
+        int tunnel = 0;
+        for (int i = 0; i < DIG_HEIGHT; ++i) {
+            if (t1[i] || t2[i]) tunnel |= 1 << i;
+        }
+        if ((rawMask != got.rawMask || tunnel != got.tunnel) && !verifyLogged) {
+            verifyLogged = true;
+            LogManager.getLogger(ArcanaQuestTweaks.MODID).error(
+                    "[AQ-VERIFY] UpperTunnelNetwork mismatch at ({}, {}): raw {} vs {}, tunnel {} vs {}",
+                    worldX, worldZ, Integer.toBinaryString(rawMask), Integer.toBinaryString(got.rawMask),
+                    Integer.toBinaryString(tunnel), Integer.toBinaryString(got.tunnel));
+        }
+    }
+
+    private static boolean[] blendAndDigLegacy(float[] a, float[] b, float baseThr, float f1, float f2) {
+        for (int y = DIG_TOP; y >= DIG_BOTTOM; --y) {
+            int i = y - DIG_BOTTOM;
+            float thr = thresholdAt(y, baseThr);
+            if (a[i] < thr || b[i] < thr) continue;
+            if (y + 1 <= DIG_TOP) {
+                int j = i + 1;
+                a[j] = (1.0f - f1) * a[j] + f1 * a[i];
+                b[j] = (1.0f - f1) * b[j] + f1 * b[i];
+            }
+            if (y + 2 <= DIG_TOP) {
+                int j = i + 2;
+                a[j] = (1.0f - f2) * a[j] + f2 * a[i];
+                b[j] = (1.0f - f2) * b[j] + f2 * b[i];
+            }
+        }
+        boolean[] dig = new boolean[DIG_HEIGHT];
+        for (int y = DIG_BOTTOM; y <= DIG_TOP; ++y) {
+            int i = y - DIG_BOTTOM;
+            float thr = thresholdAt(y, baseThr);
+            dig[i] = a[i] >= thr && b[i] >= thr;
+        }
+        return dig;
     }
 
     /** True if this block is inside a tunnel dig (either Type 1 or Type 2), raw (no y-adjust). */
@@ -273,8 +358,8 @@ public final class UpperTunnelNetwork {
     }
 
     private static ColumnDigCache buildColumn(int worldX, int worldZ, Caches caches) {
-        // Connectors mutate the dig flags, so work on a copy of the cached column.
-        boolean[] tunnel = columnData(worldX, worldZ, caches).tunnel.clone();
+        // Connectors mutate the dig flags; the cached column stays untouched (ints copy by value).
+        int tunnel = columnData(worldX, worldZ, caches).tunnel;
 
         int[] ft = new int[2];
         boolean hasChamber = chamberBoundsRaw(worldX, worldZ, ft, caches);
@@ -285,7 +370,7 @@ public final class UpperTunnelNetwork {
         if (hasChamber) {
             for (int y = DIG_BOTTOM; y <= DIG_TOP; ++y) {
                 int i = y - DIG_BOTTOM;
-                if (tunnel[i]) continue;
+                if ((tunnel & (1 << i)) != 0) continue;
                 if (y < chamberFloor - 1 || y > chamberTop + 1) continue;
                 outer:
                 for (int dx = -1; dx <= 1; ++dx) {
@@ -293,7 +378,7 @@ public final class UpperTunnelNetwork {
                         if (dx == 0 && dz == 0) continue;
                         if (wormDigCore(worldX + dx, y, worldZ + dz, caches)
                                 || (y - 1 >= DIG_BOTTOM && wormDigCore(worldX + dx, y - 1, worldZ + dz, caches))) {
-                            tunnel[i] = true;
+                            tunnel |= 1 << i;
                             break outer;
                         }
                     }
@@ -303,7 +388,7 @@ public final class UpperTunnelNetwork {
 
         int tunnelFloorY = Integer.MAX_VALUE;
         for (int y = DIG_BOTTOM; y <= DIG_TOP; ++y) {
-            if (tunnel[y - DIG_BOTTOM]) {
+            if ((tunnel & (1 << (y - DIG_BOTTOM))) != 0) {
                 tunnelFloorY = y;
                 break;
             }
@@ -315,7 +400,7 @@ public final class UpperTunnelNetwork {
 
         boolean openSeam = false;
         for (int y = -2; y <= SEAM_TOP; ++y) {
-            if (y >= DIG_BOTTOM && y <= DIG_TOP && tunnel[y - DIG_BOTTOM]) {
+            if (y >= DIG_BOTTOM && y <= DIG_TOP && (tunnel & (1 << (y - DIG_BOTTOM))) != 0) {
                 openSeam = true;
                 break;
             }
@@ -414,10 +499,10 @@ public final class UpperTunnelNetwork {
     private static final class ColumnData {
         /** Bit {@code i} set when {@code wormDigCore} digs {@code DIG_BOTTOM + i}. */
         private final int rawMask;
-        /** Blended Type 1 / Type 2 dig, before chamber connectors. */
-        private final boolean[] tunnel;
+        /** Blended Type 1 / Type 2 dig bits, before chamber connectors. */
+        private final int tunnel;
 
-        private ColumnData(int rawMask, boolean[] tunnel) {
+        private ColumnData(int rawMask, int tunnel) {
             this.rawMask = rawMask;
             this.tunnel = tunnel;
         }
@@ -455,6 +540,11 @@ public final class UpperTunnelNetwork {
     /** Per-thread memo. Worldgen can run off the server thread, so this is never shared. */
     private static final class Caches {
         private int generation = -1;
+        /** Scratch for {@link #columnData}; per-thread, never held across calls. */
+        private final float[] a1 = new float[DIG_HEIGHT];
+        private final float[] b1 = new float[DIG_HEIGHT];
+        private final float[] a2 = new float[DIG_HEIGHT];
+        private final float[] b2 = new float[DIG_HEIGHT];
         private final Map<Long, ColumnData> columns = lru(COLUMN_CACHE_MAX);
         private final Map<Long, ColumnDigCache> digs = lru(COLUMN_CACHE_MAX);
         private final Map<Long, ChamberCell> cells = lru(CELL_CACHE_MAX);
@@ -477,14 +567,14 @@ public final class UpperTunnelNetwork {
 
     /** Per-column dig/chamber/seam cache for primer and seam hot paths. */
     public static final class ColumnDigCache {
-        private final boolean[] tunnel;
+        private final int tunnel;
         private final boolean hasChamber;
         private final int chamberFloor;
         private final int chamberTop;
         private final boolean openSeam;
         private final int tunnelFloorY;
 
-        private ColumnDigCache(boolean[] tunnel, boolean hasChamber, int chamberFloor, int chamberTop,
+        private ColumnDigCache(int tunnel, boolean hasChamber, int chamberFloor, int chamberTop,
                                boolean openSeam, int tunnelFloorY) {
             this.tunnel = tunnel;
             this.hasChamber = hasChamber;
@@ -496,7 +586,7 @@ public final class UpperTunnelNetwork {
 
         public boolean carveTunnelAt(int y) {
             if (y < DIG_BOTTOM || y > DIG_TOP) return false;
-            return tunnel[y - DIG_BOTTOM];
+            return (tunnel & (1 << (y - DIG_BOTTOM))) != 0;
         }
 
         public boolean carveUpperAt(int y) {

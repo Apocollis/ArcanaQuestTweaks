@@ -104,9 +104,17 @@ Vertical bands (defaults, `minWorldY` = -64):
 | Upper worms | -22 .. +4 | BC-style dual-noise tunnels + chambers |
 | Seam | -1 .. +4 (3×3 at -1..+2) | Mouths into +Y BC |
 
+### Bulk Template Relight
+
+Big `Template` pastes (Dungeon Additions High City and similar) place every block through `World.setBlockState`, and each call runs `Chunk.relightBlock` and `World.checkLight`. In a 2026-10-24 capture one High City paste was 26.0 s and 22.6 s of it was that relight work. `BulkTemplateRelight` (thread-local, server side) records those two calls while a paste with volume at least `Bulk Template Relight Min Volume` is running, and replays them once on return: one `relightBlock` per column using the highest touched Y (the vanilla and Depths handlers recompute the column height from the blocks, so the height map ends the same), then each recorded `checkLight` position. `MixinChunkBulkRelight` has priority 500 so its HEAD hook runs before Depths' own `relightBlock` handler (priority 1000); the replay goes back through both. State is flushed if the world tick changes before the paste returns (an exception skipped the return). Needs no verify flag: visit a pasted structure and check light at its edges and chunk borders.
+
+**Deferred replay (`PasteRelightQueue`).** With `Defer Template Relight` on, the replay is queued per paste and drained over later server ticks instead of running at the end of the paste (the first High City test: 16.0 s paste, 13.2 s of it replay). Drain: world-tick END, `StewardPacing.sliceBudgetMs(Defer Template Relight Max Slice Ms, 0.5)`, below 20 TPS guarded by `remainingMs(40) >= 2`, a floor of 2 units per tick, 24 units per tick when Chunk Steward is absent. A unit is one column `relightBlock` or one `checkLight`. A batch relights all its columns (nearest chunk to a player first) before it runs its checks. While work is pending, those columns' height map and skylight are stale. Flush rules: a player within `Defer Template Relight Near Chunks` of any touched chunk (replay at once), `ChunkEvent.Unload` for that chunk (it fires before the chunk is saved), world unload, server stop, and age over `Defer Template Relight Max Age Ticks`. Chunks are stored by coordinate; a chunk no longer loaded when its turn comes is dropped (its unload already flushed it).
+
 ### Upper tunnels (`UpperTunnelNetwork`)
 
 Mimic Better Caves 1.12 `CaveCarver`: sample two noises, require both ≥ threshold, then blend upward (F1 into y+1, F2 into y+2) for headroom. Soft-close: threshold rises 30% over the top 5 blocks (`DIG_TOP` 4, `TOP_CUTOFF` 5).
+
+**B-noise skip.** Per column, the A noises (`type1A`, `type2A`) are sampled for all 27 Y values; the B noises only from the first Y where A reaches its threshold. Nothing below that cell can dig and blending only spreads values from digging cells, so the result is identical (checked by `Verify Upper Tunnel Noise`). Dig flags are `int` bitmasks and the sample arrays are per-thread scratch.
 
 **Memoised.** Every value here is a pure function of world XZ and the seed, so results are cached per thread (`ThreadLocal`, LRU-bounded, cleared when `init` rebuilds noise). Do not make it a shared map — worldgen is not guaranteed to be single-threaded. Three caches:
 
@@ -177,6 +185,13 @@ Same `UpperTunnelNetwork` as -Y upper worms. Overworld only (`dimension == 0`).
 | Better Depths Caves | true | yes | AQTweaks primer carve + BC mouths + chunk seam. Off: those skip; Depths still has no -Y samples |
 | Enable Quark Speleothems | true | yes | Lower-cavern primer Quark clusters. Off or Quark missing: skip; cave shape unchanged |
 | Enable HeightManager Cache | true | yes | Dimension-indexed array lookup for `HeightManager.get(int)` and `isExtended(int)` |
+| Bulk Template Relight | true | yes | Record per-block relight/checkLight during big Template pastes and replay once per column when the paste returns |
+| Defer Template Relight | true | yes | Drain the bulk replay over later ticks with the Chunk Steward slice (needs Bulk Template Relight) |
+| Defer Template Relight Max Slice Ms | 15 | yes | Most ms per tick at 20 TPS, capped by headroom; floor of 2 units always runs |
+| Defer Template Relight Near Chunks | 4 | yes | Replay at once when a player is within this many chunks of a touched chunk |
+| Defer Template Relight Max Age Ticks | 6000 | yes | Flush a batch still pending after this many ticks |
+| Bulk Template Relight Min Volume | 4096 | yes | Template bounding-box volume (x*y*z) at or above which the bulk mode applies |
+| Verify Upper Tunnel Noise | false | yes | Dev-only: recompute every Upper Tunnel column with the original unskipped noise sampling and log the first `[AQ-VERIFY]` mismatch |
 | Verify HeightManager Cache | false | yes | Dev-only check: compare every `HeightCache` lookup against `HeightManager.contexts` and log the first mismatch |
 | Deep Cave Fog | true | yes | Client fog below Y0 |
 | Hide Skybox Below Y 0 | true | yes | Client skip `renderSky` |
@@ -205,6 +220,8 @@ Same `UpperTunnelNetwork` as -Y upper worms. Overworld only (`dimension == 0`).
 | `mixin/reccomplex/MixinRayMatcher.java` | `@Overwrite` rays to -64 |
 | `depths/SeamReinforcer.java` | Seam reinforce / water seal (Y 0-4) via `ChunkAccess`; called from `MixinChunkGeneratorRTG` at RETURN of `generateChunk` (`func_185932_a`), once per new chunk |
 | `mixin/MixinRenderGlobal.java` | Hide sky |
+| `world/PasteRelightQueue.java` | Deferred drain of the bulk replay (tick, unload, stop flushes) |
+| `world/BulkTemplateRelight.java`, `mixin/lighting/MixinChunkBulkRelight.java`, `mixin/lighting/MixinTemplateBulkRelight.java` | Bulk Template Relight (early json) |
 | `depths/UpperTunnelNetwork.java` | Shared tunnel / chamber / seam / shaft paths |
 | `depths/PrimerAccess.java` | Direct (remapped) primer/state reads + open-sky surface scan |
 | `depths/ChunkAccess.java` | Direct (remapped) chunk get/set + world seed for Y≥0 seam |

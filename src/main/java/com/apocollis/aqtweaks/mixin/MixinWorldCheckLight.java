@@ -1,5 +1,6 @@
 package com.apocollis.aqtweaks.mixin;
 
+import com.apocollis.aqtweaks.world.BulkTemplateRelight;
 import com.apocollis.aqtweaks.world.DeferredRelight;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -15,6 +16,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  */
 @Mixin(World.class)
 public class MixinWorldCheckLight {
+
+    /** Big Template pastes record their checks and replay them once ({@link BulkTemplateRelight}). */
+    @Inject(method = "checkLight(Lnet/minecraft/util/math/BlockPos;)Z", at = @At("HEAD"), cancellable = true)
+    private void aqtweaks$bulkCheckLight(BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
+        if (BulkTemplateRelight.onCheck((World) (Object) this, pos)) {
+            cir.setReturnValue(true);
+        }
+    }
 
     @Inject(method = "checkLight(Lnet/minecraft/util/math/BlockPos;)Z", at = @At("RETURN"))
     private void aqtweaks$deferFailedLightCheck(BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
