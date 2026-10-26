@@ -1,6 +1,6 @@
 # RTG module (1.9)
 
-Last updated: 2026-10-19.
+Last updated: 2026-10-26.
 
 This is the RTG module: village flatten/placement, then post-terrain structure skip/settle. Locked intent, current pipeline, and why earlier approaches were dropped. Read this before changing village flatten, spawn veto, piece retry, or shrine/house/hut land settle.
 
@@ -133,7 +133,9 @@ Flatten looks up `VillagePlate` records by **land-box overlap** first, via a per
 | `mixin/MixinWorldGenLakes.java` | Skip vanilla water lakes on village 12-pad. Required `mixins.aqtweaks.json`. Remap **true**, MCP `generate`; lake fluid via `block` / `field_150589_a` (no `@Shadow block` — Unimined maps that MCP name to the wrong SRG). Lava lakes are not skipped |
 | `mixin/biomesoplenty/MixinGeneratorLakes.java` | Skip BOP water and quicksand lakes on village overlap. Optional `mixins.aqtweaks.biomesoplenty.json` |
 | `mixin/da/MixinDaStructureStart.java` | Cancel Dungeon Additions structure starts on overworld village overlap (no retry) and time `create` / `func_75068_a` when `perfTimers` is on. Optional `mixins.aqtweaks.da.json` |
-| `mixin/rtg/MixinRtgFixLightingProbe.java` | Diagnostic: counts RTG `fixLighting` wool-trick relights (`rtg.woolRelight`) and times `fixLightingAround` (`rtg.fixLightingAround`) into `StageTimer`. No behaviour change |
+| `mixin/rtg/MixinRtgFixLightingDefer.java`, `world/RtgLightFixQueue.java` | Defer and dedupe RTG's `fixLighting(World, ChunkPos)` and `fixLightingOnLoad`. Adaptive drain orders chunks by the player's view and spends spare headroom on unseen chunks. See RTG light fix queue below |
+| `mixin/rtg/MixinRtgFixLightingRepair.java` | When `RTG Light Fix Wool` is false, redirects the wool place-and-remove inside `fixLighting(Chunk, int, int)` to one `World.checkLightFor(EnumSkyBlock.SKY, pos)`. Default is true (wool). Also records `rtg.woolRelight` |
+| `mixin/rtg/MixinRtgFixLightingProbe.java` | Diagnostic: times `fixLightingAround` (`rtg.fixLightingAround`) into `StageTimer`. No behaviour change |
 | `perf/StageTimer.java` | Step 0 worldgen stage timer (`[AQ-PERF]` 5s summaries when `Performance Stage Timers` is on) |
 | `pacing/StewardPacing.java` | Runtime headroom pacing bridge to `ChunkStewardAPI` (loaded only when `chunksteward` is present). Full TPS slice is `min(max, headroom)`; optional work pauses when behind, or when generating with under 4 ms of headroom |
 | `ArcanaQuestTweaksConfig.RtgModuleConfig.surface` | `config/arcanaquesttweaks/aqtweaks_rtg.cfg` |
@@ -141,6 +143,16 @@ Flatten looks up `VillagePlate` records by **land-box overlap** first, via a per
 | `mixins.aqtweaks.charm.json` | **Required:** Charm ASM village paste skip (jar `MixinConfigs` with early json; `@Mod required-after:charm`) |
 
 Related but separate: `MixinChunkGeneratorRTG.java` fills Deepslate below Y=0 for Depths. Do not conflate with village flatten. See [depths.md](depths.md).
+
+### RTG light fix queue
+
+`Defer RTG Light Fix` queues `fixLighting(World, ChunkPos)` and `fixLightingOnLoad`. A repeat request for the same chunk only refreshes the quiet timer. Chunks within `RTG Light Fix Immediate Chunks` still run inside the call. The queue replays the original method with a bypass flag, so RTG still requires the four diagonal neighbours to exist before it walks columns.
+
+`RTG Light Fix Adaptive Slice` (default on) scores every queued chunk against the nearest player each pass. Direction is horizontal travel when the player moves faster than 0.15 blocks per tick, otherwise look direction. Tier 0 is inside the immediate radius, or inside `RTG Light Fix Near Chunks` and a `RTG Light Fix View Cone Degrees` cone (default 140). Tier 1 is the rest of that near radius. Tier 2 is everything else. Tier 0 drains first, nearest first, and may spend up to `RTG Light Fix Near Slice Ms` but never more than Chunk Steward's remaining 40 ms budget minus `RTG Light Fix Reserve Ms`. Tier 1 is capped by `RTG Light Fix Max Slice Ms` the same way. Tier 2 runs only when remaining headroom is at least `RTG Light Fix Unseen Min Headroom Ms`. A running average of recent chunk-fix times has to fit the time still left on the shared `TickSlice`. Tier 0 always gets one chunk per tick. Below 20 TPS that floor is the only start. When the slice is already full, one tier-1 chunk still runs every 20 ticks and one tier-2 chunk every 40 ticks. Off restores distance order and the fixed slices.
+
+`RTG Light Fix Neighbourhood Trigger` runs a chunk as soon as its four diagonal neighbours are loaded and terrain-populated. Until then, tier 0 and tier 1 wait at most 10 ticks of quiet, and tier 2 waits `RTG Light Fix Unseen Settle Ticks` (80). With the adaptive slice off, near chunks still use that 10-tick cap and other chunks use `RTG Light Fix Settle Ticks`.
+
+`[AQ-PERF]` (when stage timers are on): `rtg.lightFix.latency.t0` / `.t1` / `.t2` print the wait in ticks in the millisecond field (1 tick recorded as 1 ms). `rtg.lightFix.pending.t0` / `.t1` / `.t2` print the queue size the same way. `rtg.lightFix.budget` is milliseconds spent, with `granted=` the visible-tier cap. `.run` detail is `t0`, `t1`, or `t2`.
 
 ## Current flatten algorithm
 
@@ -279,13 +291,21 @@ Teleport is **on the generated ground** at that column (`world.getHeight`, skip 
 | Enable Structure Land Settle | true | yes | Fill under those structures and ramp the rim |
 | Enable Astral Shrine Settle | true | yes | Village-skip + land settle for surface shrines |
 | Enable Cambion House Settle | true | yes | Village-skip; house +1 (cobble on grass); skip air; pad at plains Y hole-fill only |
-| Enable Astral Small Shrine Village Piece | true | yes | At most one small shrine as a village building |
+| Enable Astral Small Shrine Village Piece | false | yes | Allow Astral small shrines as a village building (default false; Astral shrines generate abundantly in the wild) |
 | Enable Mystical Hut Settle | true | yes | Hut village-skip/retry + land settle. Barrows skip/retry when Skip Structures is on; no barrow plate |
 | Structure Fill Depth | 16 | yes | Max blocks filled down under a pad |
 | Structure Rim Bank | 16 | yes | Slope from large shrine / hut pad to land |
 | Small Shrine Pad | 3 | yes | Buffer around small shrine/ruin settle and village shrine AABB |
 | Cambion House Pad | 6 | yes | Full plate around Cambion house AABB |
 | Cambion House Falloff | 12 | yes | Hermite beyond Cambion pad, raise-only |
+| Defer RTG Light Fix | true | yes | Queue RTG's per-chunk `fixLighting` and `fixLightingOnLoad`, merge repeats, run once after the neighbourhood settles, paced by the Chunk Steward slice |
+| RTG Light Fix Settle Ticks | 40 | yes | Quiet ticks before a queued chunk runs (priority chunks at most 10) |
+| RTG Light Fix Max Slice Ms | 15 | yes | Slice per tick; one due chunk always runs |
+| RTG Light Fix Near Slice Ms | 30 | yes | Slice for priority chunks |
+| RTG Light Fix Near Chunks | 6 | yes | Priority distance |
+| RTG Light Fix Immediate Chunks | 2 | yes | Fixed at once within this distance; -1 off |
+| RTG Light Fix Max Age Ticks | 6000 | yes | Flush a queued chunk after this age |
+| RTG Light Fix Wool | **true** | yes | True (default): RTG's original wool place-and-remove. False: the column repair calls `World.checkLightFor(SKY, pos)` directly instead (no block-change packet, so clients that already hold the chunk may keep stale light; test before using) |
 | Verify Biome Class Cache | false | yes | Dev-only: compare each cached ocean/river/beach/swamp biome answer to the uncached computation and log the first `[AQ-VERIFY]` mismatch |
 | Performance Stage Timers | false | yes | Log 5s worldgen stage timing summaries (`[AQ-PERF]` in `latest.log`) for village layout, flatten, seal, paste, wellReject/findDryWell, and DA starts |
 | Enable Village Well Disk Cache | true | yes | Cache `VillageLandHelper.chunkExists` per dimension (peeks `loadedChunks` without touching `unloadQueued`, permanent positive set, short-TTL negative map) to avoid repeated `RegionFileCache` disk probes |

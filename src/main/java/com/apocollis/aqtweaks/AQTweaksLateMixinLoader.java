@@ -44,13 +44,21 @@ public class AQTweaksLateMixinLoader implements ILateMixinLoader {
                 "mixins.aqtweaks.treechopper.json",
                 "mixins.aqtweaks.sereneseasons.json",
                 "mixins.aqtweaks.libraryex.json",
-                "mixins.aqtweaks.geographicraft.json");
+                "mixins.aqtweaks.geographicraft.json",
+                "mixins.aqtweaks.atum.json",
+                "mixins.aqtweaks.dsurround.json");
     }
 
     @Override
     public boolean shouldMixinConfigQueue(String mixinConfig) {
         if ("mixins.aqtweaks.geographicraft.json".equals(mixinConfig)) {
             return Loader.isModLoaded("geographicraft");
+        }
+        if ("mixins.aqtweaks.atum.json".equals(mixinConfig)) {
+            return Loader.isModLoaded("atum");
+        }
+        if ("mixins.aqtweaks.dsurround.json".equals(mixinConfig)) {
+            return Loader.isModLoaded("dsurround");
         }
         return true;
     }

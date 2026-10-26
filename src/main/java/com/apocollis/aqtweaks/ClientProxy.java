@@ -35,6 +35,10 @@ public class ClientProxy extends CommonProxy {
             BaublesMenuClient.register();
         }
         MinecraftForge.EVENT_BUS.register(new DepthsFogHandler());
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("atum")) {
+            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.client.atum.AtumFogHandler());
+            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.client.atum.AtumOutdoorDustEmitter());
+        }
         MinecraftForge.EVENT_BUS.register(new ClientModule());
         MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.reskillable.client.ProspectorOutline());
     }

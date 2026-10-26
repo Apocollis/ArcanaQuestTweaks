@@ -36,11 +36,4 @@ public abstract class MixinRtgFixLightingProbe {
         StageTimer.end("rtg.fixLightingAround", start[0]);
         start[0] = 0L;
     }
-
-    @Inject(method = "fixLighting(Lnet/minecraft/world/chunk/Chunk;II)V",
-            at = @At(value = "INVOKE",
-                    target = "Lnet/minecraft/world/World;func_180501_a(Lnet/minecraft/util/math/BlockPos;Lnet/minecraft/block/state/IBlockState;I)Z"))
-    private static void aqtweaks$woolRelight(CallbackInfo ci) {
-        StageTimer.recordNs("rtg.woolRelight", 0L, null);
-    }
 }

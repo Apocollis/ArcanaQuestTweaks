@@ -58,6 +58,10 @@ Light reaches the client only inside chunk data, or when the client runs its own
 | --- | --- |
 | `ArcanaQuestTweaksConfig.ClientModuleConfig` | `aqtweaks_client.cfg` |
 | `client/ClientModule.java` | Tooltip handler; registered in `ClientProxy` |
+| `client/atum/AtumFogHandler.java` | Overrides Atum fog with uniform linear fog and smooth cave transition |
+| `client/atum/AtumOutdoorDustEmitter.java` | Spawns volumetric 3D drifting sand particles outdoors, dynamically scaling during sandstorms |
+| `client/atum/ParticleAtumDustSheet.java` | Custom 3D billboard dust particle with soft depth blending |
+| `mixin/atum/MixinAtumClientEvents.java` | Late mixin canceling Atum's yellow EXP fog and 2D screen-space `renderSand` storm overlay |
 | `mixin/MixinGuiCreateWorld.java` | Sets default world type on Create New World |
 | `mixin/toughnessbar/MixinEventHandlerClient.java` | Optional Toughness Bar overlay |
 
@@ -68,6 +72,27 @@ Light reaches the client only inside chunk data, or when the client runs its own
 | Move Toughness Bar To Armor Side | true | Armor column, LTR. Old `aqtweaks_stamina.cfg` HUD key is dead |
 | Metallurgy Tooltip Compat | true | Non-Metallurgy mining tools only |
 | Default World Type | "RTG" | Category "world creation". Registry name (e.g. RTG), not button label. Empty keeps Default |
+| Disable Underground Fog | true | Category "Atum Fog". Completely cancels Atum's yellow EXP fog and 2D screen sandstorm in favor of linear fog and 3D particles |
+| Enable Outdoor Dust Particles | true | Category "Atum Fog". Spawns volumetric 3D drifting sand particles in open outdoor air |
+| Max Outdoor Dust Particles | 200 | Category "Atum Fog". Baseline cap on active simultaneous outdoor dust particles in clear weather (scales to 3x during sandstorms, max 500) |
+
+## Atum visual overhaul & weather particles
+
+Atum 2's default visuals have two major issues:
+1. **Blinding Yellow Fog:** `ClientEvents.renderFog` forces OpenGL `EXP` fog (`0.08` density) with golden-yellow sky fog color, turning caves and pyramids into blinding yellow walls and snapping jarringly at cave thresholds.
+2. **Indoor 2D Sandstorms:** Atum has no 3D weather particles; its sandstorm is a 2D HUD overlay in `ClientEvents.renderSand` rendering `sandstormoverlay.png` 6 times in screen space. Because its fade-out logic takes ~50 seconds upon entering shelter, players experience intense screen storms inside sealed rooms and deep underground.
+
+### Tweaks Overhaul (`client/atum/` & `mixin/atum/`):
+- **Late Mixin (`MixinAtumClientEvents`):** Injects at `HEAD` of `renderFog` and `renderSand(float, int...)` when `disableUndergroundFog` is enabled, canceling Atum's yellow EXP fog and 2D screen storm entirely.
+- **Uniform Linear Fog (`AtumFogHandler`):** Enforces clean `FogMode.LINEAR` across sky pass (`0.0F` to `farPlane`) and terrain pass (`0.75 * farPlane` to `farPlane`, or `0.40 * farPlane` during sandstorms). Horizon colors are untouched, so the outdoor horizon viewed through doorways, windows, or ruins remains bright and sunny without artificial indoor darkening.
+- **Volumetric 3D Dust Particles (`AtumOutdoorDustEmitter` & `ParticleAtumDustSheet`):**
+  - Particles render in true 3D space (`FX_LAYER_TRANSLUCENT`, depth blending enabled) with sandy golden tint `(0.92, 0.78, 0.44)`.
+  - **Single Unified Wind Direction:** Wind vector is strictly locked to a single, uniform cinematic heading across the entire dimension (angle $\theta = 0.45$ rad). All particles stream in unison in the exact same direction without conflicting gusts or angle jitter.
+  - **Dynamic Surroundings & Weather Suppression:** Late mixin `MixinDustJetEffect` suppresses DSurround's block dust motes in Atum, while `AtumOutdoorDustEmitter` installs an `IRenderHandler` weather suppressor to block DSurround's diagonal rain/dust precipitation, ensuring only one unified wind particle effect exists.
+  - **Atmospheric Particle Mixture:** Spawns ~75% large billowing dust clouds (3.6–5.2 blocks in clear weather, 5.0–7.5 blocks during sandstorms) and ~25% small blowing sand grains/flecks (0.6–1.1 blocks in clear, 0.8–1.5 blocks in storms), all streaming along the exact same wind heading.
+  - **Indoor & Cave Protection:** Enforces `world.canSeeSky(checkPos)` on spawn and in-flight, instantly despawning particles if wind blows them beneath ceilings or into caves.
+  - Clear weather maintains a steady desert breeze (32 attempts/tick, 0.22 blocks/tick, up to 300 particles).
+  - During sandstorms (`/atumweather sandstorm`), wind speed accelerates to 0.90–1.30 blocks/tick, spawn frequency jumps to **160 attempts/tick** (>2x increase), and budget scales up to **1400 particles** for a dense, howling desert storm.
 
 ## Default world type
 

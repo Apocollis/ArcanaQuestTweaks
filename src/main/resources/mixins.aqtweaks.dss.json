@@ -10,7 +10,9 @@
     "MixinEntitySwordBeam",
     "MixinDynamicStealthAttack",
     "MixinEntitySightData",
-    "MixinDSEntityTrackerEntry"
+    "MixinDSEntityTrackerEntry",
+    "MixinImprovedRayTracing",
+    "MixinDSVisibilityPacket"
   ],
   "client": [
     "MixinDSSKeyHandler"

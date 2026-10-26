@@ -26,12 +26,13 @@ Each file covers: what Tweaks changes, how the **parent mod** implements the fea
 | Bewitchment | Bewitchment + Thaumcraft | [bewitchment.md](bewitchment.md) |
 | Comfort | Vanilla + optional Thaumcraft, Simple Difficulty, Biomes O' Plenty | [comfort.md](comfort.md) |
 | Portal | Tweaks-owned (no parent) | [portal.md](portal.md) |
+| Dynamic Stealth cost | Dynamic Stealth + FantasticLib | [dynamicstealth.md](dynamicstealth.md) |
 | Twilight Forest | RandomPortals + Twilight Forest | [twilightforest.md](twilightforest.md) |
 | Aether | RandomPortals + The Aether (`aether_legacy`) | [aether.md](aether.md) |
 | Depths | Depths Update, YUNG's Better Caves, RTG, CoFH World, Recurrent Complex, optional Quark | [depths.md](depths.md) |
 | RTG | Realistic Terrain Generation + vanilla `MapGenVillage` + Recurrent Complex + Astral / Bewitchment Cambion / Mystical World huts | [rtg.md](rtg.md) |
 | Village gen (pack pipeline) | Vanilla + RTG + Geographicraft + Recurrent Complex + Charm + Tweaks overlay | [villagegen_info.md](villagegen_info.md) |
-| Client | Toughness Bar (optional), tooltip lines for non-Metallurgy tools, default world type (RTG) | [client.md](client.md) |
+| Client | Toughness Bar (optional), tooltip lines for non-Metallurgy tools, default world type (RTG), Atum underground fog | [client.md](client.md) |
 | MineMenu | Vanilla client mouse grab (MineMenu, Reskillable, Hwyla screens) | [minemenu.md](minemenu.md) |
 | Spawning | Vanilla `PotentialSpawns` + pack `mob_overworldspawntype.json` (InControl still owns deny) | [spawning.md](spawning.md) |
 | Recipes | Forge `CraftingHelper` (Metallurgy / Spartan JSON) | [recipes.md](recipes.md) |

@@ -1,6 +1,6 @@
 # Thaumcraft module (1.9)
 
-Last updated: 2026-10-18.
+Last updated: 2026-10-25.
 
 Config: `config/arcanaquesttweaks/aqtweaks_thaumcraft.cfg`. Event handler registers only if `thaumcraft` is loaded (`CommonProxy.init`). Warp API is compile-hard (`ThaumcraftHelper` calls `ThaumcraftCapabilities.getWarp` / `IPlayerWarp` directly). Comfort and the Bewitchment ritual wrapper call it only behind `Loader.isModLoaded("thaumcraft")`, and the helper itself no-ops without TC, so TC types are never touched when it is absent. Focus mixins **compile-hard** TC **6.1 BETA26** (`libs/`); missing that jar fails compile. Optional `mixins.aqtweaks.thaumcraft.json` (`required: false`) skips at runtime if TC is absent.
 
@@ -115,6 +115,16 @@ Bonus rolls run at RETURN of `getSmeltingBonus`, once per bellows pass, and only
 
 The flag is read on each call. Off does not restore the CraftTweaker removals. `canSmelt` stays false and the Infernal Furnace destroys those stacks.
 
+### Deep vis crystals
+
+`ThaumcraftWorldGenerator.generateOres` picks crystal Y with `nextInt(max(5, getTopSolidOrLiquidBlock(x, 0, z) - 5))`, so the lowest sample is 0. The method returns at once in the Nether, and `generateNether` is empty. `DeepCrystalGenerator` is a Tweaks `IWorldGenerator` registered from `CommonProxy.init` when `thaumcraft` is loaded. It runs on new Overworld chunks only (`ModConfig.CONFIG_WORLD.overworldDim`).
+
+Skipped when `Enable Deep Vis Crystals` is off, when Thaumcraft `generateCrystals` is off, or when `BiomeHandler.getDimBlacklist(dim)` or `getBiomeBlacklist` of the biome at chunk centre Y 50 is 0 or 2 (the same values that skip the parent's ore pass).
+
+Per chunk, at `oreDensity` 100 and scale 1.0: 8 attempts and a size budget of 64. `Deep Crystal Density Scale` multiplies both. Each attempt picks X/Z within −6..+6 of the chunk centre and Y uniform in `[Deep Crystal Min Y, Deep Crystal Max Y]` (defaults −60 and −1). The shard roll matches the parent: `nextInt(6)` (metas 0..5), and one time in three a biome tag via `getRandomBiomeTag` / `getMetaByAspect` (a null tag re-rolls 0..5). Flux is meta 6, so a flux crystal is seeded only when that tag is flux. The 3×3×3 skips a cell when `nextInt(3) == 0`. A cell is placed when it is not liquid, is air or replaceable, and `BlockUtils.isBlockTouching(..., Material.ROCK, true)`. Size is `1 + nextInt(3)`, written with `setBlockState` flag 0. Placed sizes add up and further attempts stop once the sum exceeds the budget. `BlockDeepslate` uses `Material.ROCK`, so crystals attach to deepslate cave walls.
+
+`BlockCrystal.spreadCrystal` and the random tick have no Y clamp. Growth, vis drain and flux pollution use the chunk aura, the same pool as the surface of that chunk. Explored chunks are left as they are.
+
 ### Runic shielding HUD
 
 Thaumic Tweaker with **Runic Shielding Overhaul** off stores the shield in vanilla absorption, so damage is absorbed before armor. `handleRunicArmor` fills `PlayerEvents.runicInfo` on the **server only** (`!isRemote`). The client cap is the same sum: `getRunicCharge` on the four armor slots and baubles, then `RunicShieldingCalculateEvent.fire` (Astral). Recharge fills up to that cap. A golden apple adds to the same number and stays when it sits above the cap.
@@ -169,6 +179,10 @@ Client mixins in `mixins.aqtweaks.baubles.json` (`required: false`). The `getMod
 | Exposure Sound Effect | `thaumcraft:whispers` | yes | |
 | Exposure Sound Volume | 2.0 | yes | |
 | Enable Infernal Furnace Gated Metals | true | yes | Infernal Furnace smelts the furnace-gated ores and dusts (one ingot) and may add a nugget or Rare Earth for those ores. Off does not restore the furnace recipes; the Infernal Furnace destroys those stacks |
+| Enable Deep Vis Crystals | true | yes | Seed vis crystal clusters below Y 0 on new Overworld chunks. Off leaves Thaumcraft's surface pass as it is. Also skipped when Thaumcraft `generateCrystals` is off |
+| Deep Crystal Min Y | −60 | yes | Inclusive low Y for a cluster centre |
+| Deep Crystal Max Y | −1 | yes | Inclusive high Y for a cluster centre |
+| Deep Crystal Density Scale | 1.0 | yes | Multiplies the parent's attempt count (8) and size budget (64), both already times `oreDensity/100`. 0 places nothing |
 
 ## Files
 
@@ -177,6 +191,7 @@ Client mixins in `mixins.aqtweaks.baubles.json` (`required: false`). The `getMod
 - `thaumcraft/ThaumcraftFocusHooks.java` — `markMagic`, Heal scale (direct `ReskillableBonuses.scaleOutgoingHeal` behind `isModLoaded("reskillable")`)
 - `thaumcraft/ThaumcraftPerkHooks.java` — Vis Thrift / Quiet Mind / Full Font stamp (`PerkAccess.has`, guarded direct `ReskillableBonuses.stampFullFont`)
 - `thaumcraft/InfernalFurnaceHelper.java` — gated-metal ingot, experience fallback, and nugget / Rare Earth rolls for `MixinTileInfernalFurnace`
+- `thaumcraft/DeepCrystalGenerator.java` — below-Y-0 vis crystal clusters on new Overworld chunks. Compile-hard Thaumcraft. Constructed only from the `thaumcraft`-loaded gate in `CommonProxy.init`
 - `mixin/thaumcraft/MixinFocusEffectExecute.java`, `MixinFocusEffectHeal.java`, `MixinCasterManager.java`, `MixinWarpEvents.java`, `MixinTileCrucible.java`, `MixinTileInfernalFurnace.java`
 - `thaumcraft/RunicShieldHud.java` — client gear cap, rune rows, and gold surplus. Not `@SideOnly`
 - `mixin/thaumcraft/MixinGuiIngameForgeRunicShield.java` — early json client, `GuiIngameForge.renderHealth`
@@ -200,9 +215,11 @@ Client mixins in `mixins.aqtweaks.baubles.json` (`required: false`). The `getMod
 - Runic HUD does not change recharge, vis cost, or the overhaul attribute. The health redirect stays in the early json. A late mixin on `GuiIngameForge` does not apply. Overhaul off keeps absorption for damage. The client cap is worn `TC.RUNIC` plus Astral's calculate event, not `runicInfo`. First 10 runes sit on the red hearts. Past 10 uses empty sockets above the health stack. Gold hearts are only the surplus above that cap.
 - Ring skip is only `thaumcraft:baubles` meta 1, 3, and 5. Amulets (0, 4) and girdles (2, 6) keep BaublesEX models. A null texture cancels `renderWithTexture` before `bindTexture`. Do not cancel `ModelAmulet.render` after that bind.
 - Infernal Furnace gated smelt returns the vanilla result when one exists. One ingot, never null. Dusts do not roll nuggets. Do not add a nugget when a `SmeltBonus` for that ore already outputs it. Flag off does not restore the removed furnace recipes.
+- Deep vis crystals do not change `generateOres`. The deep pass uses the parent's shard roll, 3×3×3, rock test, attempt count and size budget. `setBlockState` flag stays 0. Flag off or `generateCrystals` off places nothing below Y 0.
 
 ## Out of scope unless asked
 
+- Rift placement below Y 0 (Thaumcraft still uses its surface height)
 - Permanent warp from dimensions/sleep/exposure
 - Mixin into Roguelike structure lookup
 - Wiring `villageMinWellHeight` or village detection into dungeon warp

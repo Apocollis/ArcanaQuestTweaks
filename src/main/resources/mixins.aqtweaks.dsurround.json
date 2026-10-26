@@ -1,0 +1,13 @@
+{
+  "required": false,
+  "package": "com.apocollis.aqtweaks.mixin.dsurround",
+  "refmap": "mixins.aqtweaks.refmap.json",
+  "target": "@env(DEFAULT)",
+  "compatibilityLevel": "JAVA_8",
+  "client": [
+    "MixinDustJetEffect"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

@@ -8,6 +8,7 @@ import com.apocollis.aqtweaks.stamina.PacketLedgeClimb;
 
 import com.apocollis.aqtweaks.stamina.PacketSyncGrappleInput;
 
+import com.apocollis.aqtweaks.thaumcraft.DeepCrystalGenerator;
 import com.apocollis.aqtweaks.thaumcraft.ThaumcraftModule;
 
 import com.apocollis.aqtweaks.stamina.StaminaModule;
@@ -58,6 +59,7 @@ public class CommonProxy {
 
         if (net.minecraftforge.fml.common.Loader.isModLoaded("thaumcraft")) {
             MinecraftForge.EVENT_BUS.register(new ThaumcraftModule());
+            DeepCrystalGenerator.register();
         }
 
         if (net.minecraftforge.fml.common.Loader.isModLoaded("bewitchment")) {

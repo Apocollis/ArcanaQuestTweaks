@@ -25,6 +25,8 @@
     "bettercaves.MixinChunkGeneratorRTG",
     "bettercaves.MixinChunkGeneratorRTGVillage",
     "rtg.MixinRtgFixLightingProbe",
+    "rtg.MixinRtgFixLightingDefer",
+    "rtg.MixinRtgFixLightingRepair",
     "MixinStructureVillagePieces",
     "MixinStructureStartVillagePaste",
     "MixinWorldGenLakes",

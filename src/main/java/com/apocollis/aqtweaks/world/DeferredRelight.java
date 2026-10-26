@@ -225,7 +225,7 @@ public final class DeferredRelight {
         SLICE.clock = true;
         SLICE.fullTps = StewardPacing.getLoadFactor() >= 1.0;
         SLICE.ms = budget;
-        SLICE.startNs = System.nanoTime();
+        SLICE.startNs = com.apocollis.aqtweaks.pacing.TickSlice.start(server);
     }
 
     private static void noteSlice(World world) {

@@ -43,6 +43,7 @@ public class ArcanaQuestTweaks {
     @Mod.EventHandler
     public void serverStopping(FMLServerStoppingEvent event) {
         com.apocollis.aqtweaks.world.PasteRelightQueue.flushAll();
+        com.apocollis.aqtweaks.world.RtgLightFixQueue.flushAll();
     }
 
     @Mod.EventHandler

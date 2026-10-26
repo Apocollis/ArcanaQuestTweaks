@@ -72,6 +72,7 @@ $deps = @(
     "PotionCore-1.9_for_1.12.2.jar",
     "lycanitesmobs-1.12.2-2.0.8.10.jar",
     "DynamicStealth-1.12.2.120.jar",
+    "FantasticLib-1.12.2.070.jar",
     "PlayerRevive_v1.2.40_mc1.12.2.jar",
     "FarmersDelightLegacy-1.1.7.jar",
     "extra-delight-legacy-1.1.6.jar",

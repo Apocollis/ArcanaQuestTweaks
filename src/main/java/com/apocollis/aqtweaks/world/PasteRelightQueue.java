@@ -3,6 +3,7 @@ package com.apocollis.aqtweaks.world;
 import com.apocollis.aqtweaks.ArcanaQuestTweaks;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.pacing.StewardPacing;
+import com.apocollis.aqtweaks.pacing.TickSlice;
 import com.apocollis.aqtweaks.perf.StageTimer;
 import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
@@ -45,6 +46,7 @@ public final class PasteRelightQueue {
 
     private static final int FLOOR_UNITS = 2;
     private static final int MAX_UNITS_NO_CLOCK = 24;
+    private static final int MAX_UNITS_NO_CLOCK_PRIORITY = 96;
 
     private static final class Batch {
         final long queuedTick;
@@ -53,6 +55,8 @@ public final class PasteRelightQueue {
         int nextCheck;
         final int totalColumns;
         final int totalChecks;
+        /** A player is near: drains first and with the larger near-player slice. */
+        boolean priority;
 
         Batch(long queuedTick, int totalColumns, int totalChecks) {
             this.queuedTick = queuedTick;
@@ -69,6 +73,7 @@ public final class PasteRelightQueue {
         boolean clock;
         boolean fullTps;
         double ms;
+        double nearMs;
         long startNs;
     }
 
@@ -81,8 +86,11 @@ public final class PasteRelightQueue {
     }
 
     /**
-     * Takes the work of one paste. Replays at once when a player is near any touched chunk; otherwise queues it.
-     * {@code columns} maps a chunk to (column index, highest Y); {@code checks} are packed positions in order.
+     * Takes the work of one paste. Columns in chunks within {@code Immediate Chunks} of a player are relit now (the
+     * player can see them). A paste touching a chunk within {@code Near Chunks} of a player is queued as a priority
+     * batch: it drains first, with the larger near-player slice, instead of freezing the paste tick. Everything else
+     * is queued at normal priority. {@code columns} maps a chunk to (column index, highest Y); {@code checks} are
+     * packed positions in order.
      */
     static void enqueue(World world, Map<Chunk, Int2IntOpenHashMap> columns, LongArrayList checks) {
         int totalColumns = 0;
@@ -91,30 +99,38 @@ public final class PasteRelightQueue {
         }
         if (totalColumns == 0 && checks.isEmpty()) return;
         Batch batch = new Batch(world.getTotalWorldTime(), totalColumns, checks.size());
-        boolean nearPlayer = false;
         int near = cfg().deferTemplateRelightNearChunks;
+        int immediate = cfg().deferTemplateRelightImmediateChunks;
+        int immediateCols = 0;
         for (Map.Entry<Chunk, Int2IntOpenHashMap> e : columns.entrySet()) {
             Chunk chunk = e.getKey();
+            if (immediate >= 0 && playerWithin(world, chunk.x, chunk.z, immediate)) {
+                for (Int2IntMap.Entry col : e.getValue().int2IntEntrySet()) {
+                    relightColumn(chunk, col.getIntKey(), col.getIntValue());
+                    immediateCols++;
+                }
+                continue;
+            }
             batch.columns.put(ChunkPos.asLong(chunk.x, chunk.z), e.getValue());
-            nearPlayer |= playerWithin(world, chunk.x, chunk.z, near);
+            batch.priority |= playerWithin(world, chunk.x, chunk.z, near);
         }
-        for (int i = 0; i < checks.size() && !nearPlayer; i++) {
+        for (int i = 0; i < checks.size() && !batch.priority; i++) {
             BlockPos pos = BlockPos.fromLong(checks.getLong(i));
-            nearPlayer = playerWithin(world, pos.getX() >> 4, pos.getZ() >> 4, near);
+            batch.priority = playerWithin(world, pos.getX() >> 4, pos.getZ() >> 4, near);
         }
         batch.checks = checks;
         StageTimer.recordNs("paste.queued", 0L, "cols=" + totalColumns + ",checks=" + checks.size()
-                + (nearPlayer ? ",near" : ""));
-        if (nearPlayer) {
-            flushBatch(world, batch);
-            return;
-        }
+                + ",immediate=" + immediateCols + (batch.priority ? ",priority" : ""));
         ArrayDeque<Batch> queue;
         synchronized (QUEUES) {
             queue = QUEUES.computeIfAbsent(world, w -> new ArrayDeque<>());
         }
         synchronized (queue) {
-            queue.addLast(batch);
+            if (batch.priority) {
+                queue.addFirst(batch);
+            } else {
+                queue.addLast(batch);
+            }
         }
     }
 
@@ -224,26 +240,31 @@ public final class PasteRelightQueue {
         int tick = server == null ? SLICE.tick : server.getTickCounter();
         if (server != null && SLICE.tick == tick) return;
         double budget = StewardPacing.sliceBudgetMs(cfg().deferTemplateRelightMaxSliceMs, 0.5);
+        double nearBudget = StewardPacing.sliceBudgetMs(
+                Math.max(cfg().deferTemplateRelightMaxSliceMs, cfg().deferTemplateRelightNearSliceMs), 0.5);
         SLICE.tick = tick;
         if (budget < 0.0) {
             SLICE.clock = false;
             SLICE.fullTps = false;
             SLICE.ms = 0.0;
+            SLICE.nearMs = 0.0;
             SLICE.startNs = 0L;
             return;
         }
         SLICE.clock = true;
         SLICE.fullTps = StewardPacing.getLoadFactor() >= 1.0;
         SLICE.ms = budget;
-        SLICE.startNs = System.nanoTime();
+        SLICE.nearMs = Math.max(budget, nearBudget);
+        SLICE.startNs = TickSlice.start(server);
     }
 
     /** More work this tick? The floor always allows a few units; after that the slice (or the count cap) decides. */
-    private static boolean allow(int units) {
+    private static boolean allow(int units, boolean priority) {
         if (units < FLOOR_UNITS) return true;
-        if (!SLICE.clock) return units < MAX_UNITS_NO_CLOCK;
-        if (SLICE.ms <= 0.0) return false;
-        if ((System.nanoTime() - SLICE.startNs) / 1_000_000.0 >= SLICE.ms) return false;
+        if (!SLICE.clock) return units < (priority ? MAX_UNITS_NO_CLOCK_PRIORITY : MAX_UNITS_NO_CLOCK);
+        double limit = priority ? SLICE.nearMs : SLICE.ms;
+        if (limit <= 0.0) return false;
+        if ((System.nanoTime() - SLICE.startNs) / 1_000_000.0 >= limit) return false;
         return SLICE.fullTps || StewardPacing.remainingMs(40.0) >= 2.0;
     }
 
@@ -316,7 +337,7 @@ public final class PasteRelightQueue {
                     continue;
                 }
                 for (Iterator<Int2IntMap.Entry> it = cols.int2IntEntrySet().iterator(); it.hasNext(); ) {
-                    if (!allow(unitsSoFar + units)) return units;
+                    if (!allow(unitsSoFar + units, batch.priority)) return units;
                     Int2IntMap.Entry col = it.next();
                     relightColumn(chunk, col.getIntKey(), col.getIntValue());
                     it.remove();
@@ -328,7 +349,7 @@ public final class PasteRelightQueue {
         // Phase 2 only once every column of the batch is done, so light checks read final height maps.
         if (batch.columns.isEmpty()) {
             while (batch.nextCheck < batch.checks.size()) {
-                if (!allow(unitsSoFar + units)) return units;
+                if (!allow(unitsSoFar + units, batch.priority)) return units;
                 world.checkLight(BlockPos.fromLong(batch.checks.getLong(batch.nextCheck++)));
                 units++;
             }

@@ -16,7 +16,9 @@ public final class VillageAstralSmallShrineHandler implements VillagerRegistry.I
 
     public static void register() {
         MapGenStructureIO.registerStructureComponent(VillagePieceAstralSmallShrine.class, "AQTSmallShrine");
-        VillagerRegistry.instance().registerVillageCreationHandler(new VillageAstralSmallShrineHandler());
+        if (ArcanaQuestTweaksConfig.RtgModuleConfig.surface.enableAstralSmallShrineVillagePiece) {
+            VillagerRegistry.instance().registerVillageCreationHandler(new VillageAstralSmallShrineHandler());
+        }
     }
 
     @Override

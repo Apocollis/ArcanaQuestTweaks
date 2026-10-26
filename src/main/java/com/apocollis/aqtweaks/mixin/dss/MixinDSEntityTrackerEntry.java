@@ -49,6 +49,30 @@ public abstract class MixinDSEntityTrackerEntry {
         cir.setReturnValue(watching);
     }
 
+    /**
+     * The sight test for every tracked entity and player each tick (12.4 s of a 296 s capture). Reuses the answer
+     * for a few ticks while neither moved more than a block; the AI and the gauge keep the real
+     * {@code Sight.canSee}. Config {@code Tracker Sight Memo Ticks} (0 = off). See {@code StealthPerf}.
+     */
+    @org.spongepowered.asm.mixin.injection.Redirect(method = "func_180233_c", at = @At(value = "INVOKE",
+            target = "Lcom/fantasticsource/dynamicstealth/server/senses/sight/Sight;canSee(Lnet/minecraft/entity/EntityLivingBase;Lnet/minecraft/entity/Entity;Z)Z"))
+    private boolean aqtweaks$memoCanSee(net.minecraft.entity.EntityLivingBase viewer, Entity target, boolean flag) {
+        if (viewer instanceof EntityPlayerMP) {
+            Boolean memo = com.apocollis.aqtweaks.dynamicstealth.StealthPerf.trackerLookup((EntityPlayerMP) viewer, target);
+            if (memo != null) {
+                com.apocollis.aqtweaks.perf.StageTimer.recordNs("ds.trackerMemoHit", 0L, null);
+                return memo;
+            }
+        }
+        long t0 = com.apocollis.aqtweaks.perf.StageTimer.start();
+        boolean seen = com.fantasticsource.dynamicstealth.server.senses.sight.Sight.canSee(viewer, target, flag);
+        com.apocollis.aqtweaks.perf.StageTimer.end("ds.trackerCanSee", t0);
+        if (viewer instanceof EntityPlayerMP) {
+            com.apocollis.aqtweaks.dynamicstealth.StealthPerf.trackerStore((EntityPlayerMP) viewer, target, seen);
+        }
+        return seen;
+    }
+
     @org.spongepowered.asm.mixin.Unique
     private static boolean aqtweaks$logged;
 }

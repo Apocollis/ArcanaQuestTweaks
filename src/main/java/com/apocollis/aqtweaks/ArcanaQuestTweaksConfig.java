@@ -655,6 +655,10 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("World creation GUI options.")
         public static final WorldCreation worldCreation = new WorldCreation();
 
+        @Config.Name("Atum Fog")
+        @Config.Comment("Client-side fog adjustments in the Atum dimension.")
+        public static final AtumFog atumFog = new AtumFog();
+
         public static String getDefaultWorldType() {
             return worldCreation.defaultWorldType;
         }
@@ -686,6 +690,21 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Metallurgy Tooltip Compat")
         @Config.Comment("Add Metallurgy-style harvest / durability / efficiency lines to non-Metallurgy pickaxes, axes, shovels, and tools.")
         public boolean metallurgyTooltipCompat = true;
+    }
+
+    public static class AtumFog {
+        @Config.Name("Disable Underground Fog")
+        @Config.Comment("Replaces Atum's blinding exponential yellow fog with clean linear fog across the dimension, so sky, pyramids, caves, and desert horizon have clear visibility.")
+        public boolean disableUndergroundFog = true;
+
+        @Config.Name("Enable Outdoor Dust Particles")
+        @Config.Comment("Spawn 3D yellowish-sandy volumetric dust particles in outdoor desert air to provide rich atmosphere without blinding screen tint.")
+        public boolean enableOutdoorDustParticles = true;
+
+        @Config.Name("Max Outdoor Dust Particles")
+        @Config.Comment("Maximum simultaneous active outdoor dust particles in clear weather (scales to 4x during sandstorms).")
+        @Config.RangeInt(min = 20, max = 1500)
+        public int maxOutdoorDustParticles = 250;
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_somnia")
@@ -874,6 +893,25 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Enable Infernal Furnace Gated Metals")
         @Config.Comment("Infernal Furnace smelts the furnace-gated ores and dusts and may add nugget / Rare Earth bonuses for those ores. Off leaves the CraftTweaker furnace removals in place, and the Infernal Furnace destroys those stacks.")
         public static boolean enableInfernalFurnaceGatedMetals = true;
+
+        @Config.Name("Enable Deep Vis Crystals")
+        @Config.Comment("Seed Thaumcraft vis crystal clusters on cave surfaces below Y 0 in new Overworld chunks. Off leaves Thaumcraft's own surface pass unchanged. Also skipped when Thaumcraft's generateCrystals is off.")
+        public static boolean enableDeepVisCrystals = true;
+
+        @Config.Name("Deep Crystal Min Y")
+        @Config.Comment("Inclusive lowest Y for a deep crystal cluster centre. Bedrock at the Depths floor is solid, so crystals still only attach in air that touches rock.")
+        @Config.RangeInt(min = -256, max = 256)
+        public static int deepCrystalMinY = -60;
+
+        @Config.Name("Deep Crystal Max Y")
+        @Config.Comment("Inclusive highest Y for a deep crystal cluster centre.")
+        @Config.RangeInt(min = -256, max = 256)
+        public static int deepCrystalMaxY = -1;
+
+        @Config.Name("Deep Crystal Density Scale")
+        @Config.Comment("Multiplies Thaumcraft's crystal attempt count (8 * oreDensity/100) and size budget (64 * oreDensity/100) for the deep band. 1.0 matches the surface pass's per-chunk budget. 0 disables placement.")
+        @Config.RangeDouble(min = 0.0, max = 8.0)
+        public static float deepCrystalDensityScale = 1.0F;
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_bewitchment")
@@ -973,14 +1011,43 @@ public class ArcanaQuestTweaksConfig {
             public double deferTemplateRelightMaxSliceMs = 15.0;
 
             @Config.Name("Defer Template Relight Near Chunks")
-            @Config.Comment("If a player is within this many chunks of any chunk a paste touched, its relight runs at once instead of being deferred.")
+            @Config.Comment("A paste touching a chunk within this many chunks of a player is a priority batch: it drains first, with Defer Template Relight Near Slice Ms.")
             @Config.RangeInt(min = 0, max = 16)
             public int deferTemplateRelightNearChunks = 4;
+
+            @Config.Name("Defer Template Relight Near Slice Ms")
+            @Config.Comment("Most milliseconds of deferred template relight per server tick for a priority (near-player) batch, capped by Chunk Steward headroom. Default 40.")
+            @Config.RangeDouble(min = 0.0, max = 50.0)
+            public double deferTemplateRelightNearSliceMs = 40.0;
+
+            @Config.Name("Defer Template Relight Immediate Chunks")
+            @Config.Comment("Columns in chunks within this many chunks of a player are relit at once in the paste tick, because the player can see them. -1 turns the immediate replay off. Default 1.")
+            @Config.RangeInt(min = -1, max = 8)
+            public int deferTemplateRelightImmediateChunks = 1;
 
             @Config.Name("Defer Template Relight Max Age Ticks")
             @Config.Comment("A deferred paste still pending after this many ticks is flushed at once. Default 6000 (5 minutes).")
             @Config.RangeInt(min = 20, max = 72000)
             public int deferTemplateRelightMaxAgeTicks = 6000;
+
+            @Config.Name("Pace Chunk Gap Recheck")
+            @Config.Comment("Vanilla Chunk.onTick rechecks every flagged skylight column of a chunk in one call on the server; a big structure paste flags dozens of chunks and one tick ran 18 s. When on, the server rechecks one column per call (as the client does) and skips the call when the shared Chunk Steward slice is spent; the flags stay set and work resumes next tick. New chunks and pastes only.")
+            public boolean paceChunkGapRecheck = true;
+
+            @Config.Name("Gap Recheck Max Slice Ms")
+            @Config.Comment("Most milliseconds of skylight gap recheck per server tick at 20 TPS for chunks away from players, capped by Chunk Steward headroom. A floor of 2 columns per tick always runs.")
+            @Config.RangeDouble(min = 0.0, max = 50.0)
+            public double gapRecheckMaxSliceMs = 10.0;
+
+            @Config.Name("Gap Recheck Near Slice Ms")
+            @Config.Comment("Slice for chunks within Gap Recheck Near Chunks of a player, so visible light settles first.")
+            @Config.RangeDouble(min = 0.0, max = 50.0)
+            public double gapRecheckNearSliceMs = 30.0;
+
+            @Config.Name("Gap Recheck Near Chunks")
+            @Config.Comment("Chunks within this distance of a player use the near slice.")
+            @Config.RangeInt(min = 0, max = 16)
+            public int gapRecheckNearChunks = 3;
         }
 
         public static class Client {
@@ -1160,8 +1227,8 @@ public class ArcanaQuestTweaksConfig {
         public boolean enableCambionHouseSettle = true;
 
         @Config.Name("Enable Astral Small Shrine Village Piece")
-        @Config.Comment("Allow Astral small shrines as a village building, at most once per village.")
-        public boolean enableAstralSmallShrineVillagePiece = true;
+        @Config.Comment("Allow Astral small shrines as a village building, at most once per village. Disabled by default.")
+        public boolean enableAstralSmallShrineVillagePiece = false;
 
         @Config.Name("Enable Mystical Hut Settle")
         @Config.Comment("Apply village-skip, nearby retry, and land settle to Mystical World thatch huts. Barrows skip/retry on village overlap but are not plated.")
@@ -1191,6 +1258,72 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Hermite slope beyond Cambion House Pad, raise-only, back to RTG. Default 12.")
         @Config.RangeInt(min = 0, max = 64)
         public int cambionHouseFalloff = 12;
+
+        @Config.Name("Defer RTG Light Fix")
+        @Config.Comment("RTG fixes the four diagonal neighbours of every chunk it populates, so a chunk can be processed up to four times, each column that trips its wool trick costing two light floods. When on, the fix is queued per chunk (repeat requests are merged), run once after the neighbourhood has been quiet for RTG Light Fix Settle Ticks, and paced by the Chunk Steward slice. Chunks near players are fixed at once or drained first. Flushed on chunk unload, world unload and server stop.")
+        public boolean deferRtgLightFix = true;
+
+        @Config.Name("RTG Light Fix Settle Ticks")
+        @Config.Comment("Ticks without a new request for a chunk before its light fix runs (priority chunks use at most 10). Default 40 (2 s).")
+        @Config.RangeInt(min = 0, max = 1200)
+        public int rtgLightFixSettleTicks = 40;
+
+        @Config.Name("RTG Light Fix Max Slice Ms")
+        @Config.Comment("Most milliseconds of deferred RTG light fix per server tick at 20 TPS, capped by Chunk Steward headroom. One chunk always runs per tick when due.")
+        @Config.RangeDouble(min = 0.0, max = 50.0)
+        public double rtgLightFixMaxSliceMs = 15.0;
+
+        @Config.Name("RTG Light Fix Near Slice Ms")
+        @Config.Comment("Slice for priority chunks (within RTG Light Fix Near Chunks of a player).")
+        @Config.RangeDouble(min = 0.0, max = 50.0)
+        public double rtgLightFixNearSliceMs = 30.0;
+
+        @Config.Name("RTG Light Fix Near Chunks")
+        @Config.Comment("Chunks within this distance of a player are priority entries.")
+        @Config.RangeInt(min = 0, max = 16)
+        public int rtgLightFixNearChunks = 6;
+
+        @Config.Name("RTG Light Fix Immediate Chunks")
+        @Config.Comment("Chunks within this distance of a player are fixed at once (not deferred). -1 turns the immediate path off.")
+        @Config.RangeInt(min = -1, max = 8)
+        public int rtgLightFixImmediateChunks = 2;
+
+        @Config.Name("RTG Light Fix Max Age Ticks")
+        @Config.Comment("A queued chunk older than this is fixed at once. Default 6000 (5 minutes).")
+        @Config.RangeInt(min = 20, max = 72000)
+        public int rtgLightFixMaxAgeTicks = 6000;
+
+        @Config.Name("RTG Light Fix Wool")
+        @Config.Comment("When true (default), RTG's column light repair keeps its original wool place-and-remove. When false, it calls World.checkLightFor(SKY, pos) directly instead, avoiding a second light flood and neighbor block notifications; clients that already hold the chunk may not see the corrected light (no block-change packet is sent), so test before using.")
+        public boolean rtgLightFixWool = true;
+
+        @Config.Name("RTG Light Fix Adaptive Slice")
+        @Config.Comment("When on, the deferred light-fix drain sizes its slice from Chunk Steward headroom and the shared tick clock, and orders chunks by what the player can see. Off restores the fixed near/far slices and distance-only order.")
+        public boolean rtgLightFixAdaptiveSlice = true;
+
+        @Config.Name("RTG Light Fix Reserve Ms")
+        @Config.Comment("Milliseconds of tick headroom left unused by the adaptive drain. The visible tier may spend up to Near Slice Ms, and never more than remaining headroom minus this reserve.")
+        @Config.RangeDouble(min = 0.0, max = 40.0)
+        public double rtgLightFixReserveMs = 4.0;
+
+        @Config.Name("RTG Light Fix View Cone Degrees")
+        @Config.Comment("Total width of the forward cone. A chunk inside Near Chunks and inside this cone (travel direction while moving, otherwise look direction) drains with the visible tier. 360 treats the whole near radius as visible.")
+        @Config.RangeInt(min = 0, max = 360)
+        public int rtgLightFixViewConeDegrees = 140;
+
+        @Config.Name("RTG Light Fix Unseen Settle Ticks")
+        @Config.Comment("Quiet ticks before an unseen queued chunk runs, when its four diagonal neighbours are not all terrain-populated yet. Visible and near chunks keep the shorter settle (at most 10).")
+        @Config.RangeInt(min = 0, max = 1200)
+        public int rtgLightFixUnseenSettleTicks = 80;
+
+        @Config.Name("RTG Light Fix Unseen Min Headroom Ms")
+        @Config.Comment("Unseen chunks drain only when remaining tick headroom is at least this many milliseconds. Below 20 TPS they wait.")
+        @Config.RangeDouble(min = 0.0, max = 50.0)
+        public double rtgLightFixUnseenMinHeadroomMs = 15.0;
+
+        @Config.Name("RTG Light Fix Neighbourhood Trigger")
+        @Config.Comment("Run a queued chunk as soon as its four diagonal neighbours are loaded and terrain-populated. The settle timer remains the fallback while any of those neighbours is still unpopulated.")
+        public boolean rtgLightFixNeighbourhoodTrigger = true;
 
         @Config.Name("Performance Stage Timers")
         @Config.Comment("Log 5-second worldgen stage timing summaries ([AQ-PERF] in latest.log) for village layout, flatten, seal, paste, and Dungeon Additions starts. Off by default.")
@@ -2174,6 +2307,29 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Highest Y for the start tunnel. Clamped to 255. Swapped with min if inverted. Does not go into Depths −Y.")
         @Config.RangeInt(min = 1, max = 255)
         public int tunnelMaxY = 37;
+    }
+
+    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_dynamicstealth", category = "")
+    public static class DynamicStealthPerfConfig {
+        @Config.Name("General")
+        @Config.Comment("Server cost trimming for Dynamic Stealth. No ranges, thresholds or formulas are changed.")
+        public static final DynamicStealthPerfGeneral general = new DynamicStealthPerfGeneral();
+    }
+
+    public static class DynamicStealthPerfGeneral {
+        @Config.Name("Ray Chunk Cache")
+        @Config.Comment("Within one line-of-sight trace, keep the last chunk and read block states from it instead of looking the chunk up for every step. Same result as World.getBlockState.")
+        public boolean rayChunkCache = true;
+
+        @Config.Name("Tracker Sight Memo Ticks")
+        @Config.Comment("Dynamic Stealth's entity tracker asks 'can this player see this entity' for every tracked entity every tick. Reuse the answer for this many ticks while neither moved more than a block. An entity can appear or disappear on the client up to this many ticks late. AI sight and the stealth gauge are not affected. 0 turns it off. Default 3.")
+        @Config.RangeInt(min = 0, max = 20)
+        public int trackerSightMemoTicks = 3;
+
+        @Config.Name("Visibility Packet Memo Ticks")
+        @Config.Comment("Dynamic Stealth rebuilds the per-player 'seen entities' list every tick for its client packet. Reuse the list for this many ticks. Client gauges and outlines update up to this many ticks late. 0 turns it off. Default 3.")
+        @Config.RangeInt(min = 0, max = 20)
+        public int visibilityPacketMemoTicks = 3;
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_minemenu", category = "")
