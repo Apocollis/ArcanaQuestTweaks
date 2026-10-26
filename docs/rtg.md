@@ -134,7 +134,7 @@ Flatten looks up `VillagePlate` records by **land-box overlap** first, via a per
 | `mixin/biomesoplenty/MixinGeneratorLakes.java` | Skip BOP water and quicksand lakes on village overlap. Optional `mixins.aqtweaks.biomesoplenty.json` |
 | `mixin/da/MixinDaStructureStart.java` | Cancel Dungeon Additions structure starts on overworld village overlap (no retry) and time `create` / `func_75068_a` when `perfTimers` is on. Optional `mixins.aqtweaks.da.json` |
 | `mixin/rtg/MixinRtgFixLightingDefer.java`, `world/RtgLightFixQueue.java` | Defer and dedupe RTG's `fixLighting(World, ChunkPos)` and `fixLightingOnLoad`. Adaptive drain orders chunks by the player's view and spends spare headroom on unseen chunks. See RTG light fix queue below |
-| `mixin/rtg/MixinRtgFixLightingRepair.java` | When `RTG Light Fix Wool` is false, redirects the wool place-and-remove inside `fixLighting(Chunk, int, int)` to one `World.checkLightFor(EnumSkyBlock.SKY, pos)`. Default is true (wool). Also records `rtg.woolRelight` |
+| `mixin/rtg/MixinRtgFixLightingRepair.java` | When `RTG Light Hack Fix` is true (default), redirects the wool place-and-remove inside `fixLighting(Chunk, int, int)` to one `World.checkLightFor(EnumSkyBlock.SKY, pos)`. False leaves the wool place-and-remove. Also records `rtg.woolRelight` |
 | `mixin/rtg/MixinRtgFixLightingProbe.java` | Diagnostic: times `fixLightingAround` (`rtg.fixLightingAround`) into `StageTimer`. No behaviour change |
 | `perf/StageTimer.java` | Step 0 worldgen stage timer (`[AQ-PERF]` 5s summaries when `Performance Stage Timers` is on) |
 | `pacing/StewardPacing.java` | Runtime headroom pacing bridge to `ChunkStewardAPI` (loaded only when `chunksteward` is present). Full TPS slice is `min(max, headroom)`; optional work pauses when behind, or when generating with under 4 ms of headroom |
@@ -305,7 +305,13 @@ Teleport is **on the generated ground** at that column (`world.getHeight`, skip 
 | RTG Light Fix Near Chunks | 6 | yes | Priority distance |
 | RTG Light Fix Immediate Chunks | 2 | yes | Fixed at once within this distance; -1 off |
 | RTG Light Fix Max Age Ticks | 6000 | yes | Flush a queued chunk after this age |
-| RTG Light Fix Wool | **true** | yes | True (default): RTG's original wool place-and-remove. False: the column repair calls `World.checkLightFor(SKY, pos)` directly instead (no block-change packet, so clients that already hold the chunk may keep stale light; test before using) |
+| RTG Light Hack Fix | **true** | yes | True (default): repair a failing column with `World.checkLightFor(SKY, pos)` instead of wool. False: RTG's wool place-and-remove. The direct call sends no block-change packet, so a client that already holds the chunk may keep stale light until the chunk is resent |
+| RTG Light Fix Adaptive Slice | true | yes | View-ordered drain sized from tick headroom. Off restores distance order and the fixed slices |
+| RTG Light Fix Reserve Ms | 4 | yes | Headroom left unused by the adaptive drain |
+| RTG Light Fix View Cone Degrees | 140 | yes | Total width of the forward cone for the visible tier |
+| RTG Light Fix Unseen Settle Ticks | 80 | yes | Quiet ticks for an unseen chunk whose diagonal neighbours are not all populated |
+| RTG Light Fix Unseen Min Headroom Ms | 15 | yes | Unseen chunks wait until remaining headroom is at least this |
+| RTG Light Fix Neighbourhood Trigger | true | yes | Run as soon as the four diagonal neighbours are terrain-populated |
 | Verify Biome Class Cache | false | yes | Dev-only: compare each cached ocean/river/beach/swamp biome answer to the uncached computation and log the first `[AQ-VERIFY]` mismatch |
 | Performance Stage Timers | false | yes | Log 5s worldgen stage timing summaries (`[AQ-PERF]` in `latest.log`) for village layout, flatten, seal, paste, wellReject/findDryWell, and DA starts |
 | Enable Village Well Disk Cache | true | yes | Cache `VillageLandHelper.chunkExists` per dimension (peeks `loadedChunks` without touching `unloadQueued`, permanent positive set, short-TTL negative map) to avoid repeated `RegionFileCache` disk probes |

@@ -2,6 +2,14 @@
 
 Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-10-26 — `RTG Light Hack Fix` replaces the wool switch
+
+- The repair switch is now `RTG Light Hack Fix` in `aqtweaks_rtg.cfg`. **True (default) uses the direct `checkLightFor(SKY)` repair.** False restores RTG's wool place-and-remove. The old key `RTG Light Fix Wool` is unread; true on that key meant wool. See [rtg.md](rtg.md).
+
+## 2026-10-26 — RTG light-fix drain follows the player
+
+- `RtgLightFixQueue` drains in three tiers when `RTG Light Fix Adaptive Slice` is on (default). Chunks in the travel or look cone, and chunks inside the immediate radius, run first and may use up to the near slice, capped by Chunk Steward headroom minus `RTG Light Fix Reserve Ms` (4). Near chunks outside the cone use the normal slice. Unseen chunks wait for `RTG Light Fix Unseen Min Headroom Ms` (15) and a longer quiet period (`RTG Light Fix Unseen Settle Ticks`, 80). One visible chunk still runs each tick; below 20 TPS that is the only start. `RTG Light Fix Neighbourhood Trigger` skips the quiet wait once the four diagonal neighbours are terrain-populated. `[AQ-PERF]` adds `rtg.lightFix.latency.t0` / `.t1` / `.t2`, `pending.t0` / `.t1` / `.t2` (the printed milliseconds are tick counts and queue sizes), and `rtg.lightFix.budget`. See [rtg.md](rtg.md).
+
 ## 2026-10-25 — RTG `fixLightingOnLoad` deferral and direct `checkLightFor` repair (Steps C & D)
 
 - **Queue `fixLightingOnLoad` (`mixin/rtg/MixinRtgFixLightingDefer`)**: `EventHandlerCommon.fixLightingOnLoad(ChunkEvent.Load)` is now intercepted at `HEAD` and enqueued into `RtgLightFixQueue` when `Defer RTG Light Fix` is enabled. Loaded chunks deduplicate with populate-time requests and drain under the shared tick slice budget, eliminating synchronous 256-column walks on `ChunkEvent.Load`.

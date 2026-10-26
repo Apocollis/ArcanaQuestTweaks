@@ -1293,9 +1293,9 @@ public class ArcanaQuestTweaksConfig {
         @Config.RangeInt(min = 20, max = 72000)
         public int rtgLightFixMaxAgeTicks = 6000;
 
-        @Config.Name("RTG Light Fix Wool")
-        @Config.Comment("When true (default), RTG's column light repair keeps its original wool place-and-remove. When false, it calls World.checkLightFor(SKY, pos) directly instead, avoiding a second light flood and neighbor block notifications; clients that already hold the chunk may not see the corrected light (no block-change packet is sent), so test before using.")
-        public boolean rtgLightFixWool = true;
+        @Config.Name("RTG Light Hack Fix")
+        @Config.Comment("When true (default), a column that fails RTG's skylight test is repaired with World.checkLightFor(SKY, pos) instead of placing and removing wool. When false, RTG's original wool place-and-remove runs. The direct call sends no block-change packet, so a client that already holds the chunk may keep stale light until the chunk is resent.")
+        public boolean rtgLightHackFix = true;
 
         @Config.Name("RTG Light Fix Adaptive Slice")
         @Config.Comment("When on, the deferred light-fix drain sizes its slice from Chunk Steward headroom and the shared tick clock, and orders chunks by what the player can see. Off restores the fixed near/far slices and distance-only order.")
