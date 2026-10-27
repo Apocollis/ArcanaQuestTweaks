@@ -782,15 +782,47 @@ public class ArcanaQuestTweaksConfig {
         public static boolean enableSandInhalationChoking = true;
 
         @Config.Name("Enable Abrasive Sand Scour")
-        @Config.Comment("If true, an unsheltered player missing chest, legs, or boots, or with armor below 10, takes abrasion damage every 4 seconds. Atum wanderer or mummy cloth on those three slots stops it. Shelter stops it.")
+        @Config.Comment("If true, unsheltered entities in a sandstorm take periodic sand scour damage every 4 seconds. Shelter prevents damage.")
         public static boolean enableAbrasiveSandScour = true;
 
         @Config.Name("Enable Desert Storm Ambience")
         @Config.Comment("If true, an unsheltered player in a strong sandstorm occasionally hears a low cave-wind howl.")
         public static boolean enableDesertStormAmbience = true;
 
+        @Config.Name("Enable Baubles Goggles Protection")
+        @Config.Comment("If true, goggles equipped in the Baubles head slot protect against sandstorm blindness and choking.")
+        public static boolean enableBaublesGogglesProtection = true;
+
+        @Config.Name("Scour Damage Exposed")
+        @Config.Comment("Damage dealt every 4 seconds when unsheltered and missing any of the 4 armor slots (HEAD, CHEST, LEGS, FEET).")
+        @Config.RangeDouble(min = 0.0D, max = 40.0D)
+        public static double scourDamageExposed = 6.0D;
+
+        @Config.Name("Scour Damage Full Armor")
+        @Config.Comment("Damage dealt every 4 seconds when unsheltered and wearing full standard armor across all 4 slots.")
+        @Config.RangeDouble(min = 0.0D, max = 40.0D)
+        public static double scourDamageFullArmor = 4.0D;
+
+        @Config.Name("Scour Damage Atum Armor")
+        @Config.Comment("Damage dealt every 4 seconds when unsheltered and wearing full Atum or whitelisted resistant armor across all 4 slots.")
+        @Config.RangeDouble(min = 0.0D, max = 40.0D)
+        public static double scourDamageAtumArmor = 2.0D;
+
+        @Config.Name("Enable Sandstorm Mob Effects")
+        @Config.Comment("If true, unsheltered mobs in an Atum sandstorm experience physical wind push, slowness, and scour damage.")
+        public static boolean enableSandstormMobEffects = true;
+
+        @Config.Name("Enable Armor Abrasion Wear")
+        @Config.Comment("If true, sandstorms slowly degrade durability on unsheltered non-Atum, non-whitelisted armor.")
+        public static boolean enableArmorAbrasionWear = true;
+
+        @Config.Name("Abrasion Wear Interval Seconds")
+        @Config.Comment("Seconds between durability wear ticks on unsheltered non-Atum armor.")
+        @Config.RangeInt(min = 1, max = 60)
+        public static int abrasionWearIntervalSeconds = 10;
+
         @Config.Name("Protective Headgear Whitelist")
-        @Config.Comment("Item registry names for helmets, veils, turbans, or goggles that protect from stinging sand grit blindness.")
+        @Config.Comment("Item registry names (wildcards supported) for helmets, veils, turbans, or goggles that protect from stinging sand grit blindness.")
         public static String[] protectiveHeadgear = new String[] {
                 "atum:desert_helmet_iron",
                 "atum:desert_helmet_gold",
@@ -799,6 +831,15 @@ public class ArcanaQuestTweaksConfig {
                 "atum:mummy_helmet",
                 "atum:mask_of_nuit",
                 "thaumcraft:goggles"
+        };
+
+        @Config.Name("Sandstorm Resistant Armor Whitelist")
+        @Config.Comment("Item registry names (wildcards supported) for non-Atum armor that grants Tier 2 scour reduction (2.0 dmg) and resists durability abrasion wear.")
+        public static String[] sandstormResistantArmorWhitelist = new String[] {
+                "thaumcraft:goggles",
+                "thaumcraft:thaumium_robes_*",
+                "thaumcraft:fortress_*",
+                "bewitchment:besmirched_*"
         };
     }
 

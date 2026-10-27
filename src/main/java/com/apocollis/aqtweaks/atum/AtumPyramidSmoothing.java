@@ -76,10 +76,17 @@ public final class AtumPyramidSmoothing {
         it.unimi.dsi.fastutil.longs.Long2ObjectMap<StructureStart> starts =
                 ((com.apocollis.aqtweaks.mixin.vanilla.AccessorMapGenStructure) pyramid).aqtweaks$getStructureMap();
         if (starts == null || starts.isEmpty()) return;
-        for (int dx = -4; dx <= 4; dx++) {
-            for (int dz = -4; dz <= 4; dz++) {
+        // A plate reshapes terrain up to this many chunks from its start (5 with the default margins). Starts that
+        // never went through create (saved structure data) only reach the plate registry through adopt, so the
+        // scan has to cover the full reach (plan 20261027-1527).
+        int reach = AtumPyramidPlate.reachChunks();
+        for (int dx = -reach; dx <= reach; dx++) {
+            for (int dz = -reach; dz <= reach; dz++) {
                 StructureStart start = starts.get(net.minecraft.util.math.ChunkPos.asLong(chunkX + dx, chunkZ + dz));
-                if (start != null) AtumPyramidPlate.adopt(world, start);
+                if (start != null && AtumPyramidPlate.adopt(world, start) && Math.max(Math.abs(dx), Math.abs(dz)) > 4) {
+                    org.apache.logging.log4j.LogManager.getLogger("AQTweaks-Atum").debug(
+                            "[AQ-VERIFY] atum late plate adopt chunk={},{} start={},{}", chunkX, chunkZ, chunkX + dx, chunkZ + dz);
+                }
             }
         }
     }

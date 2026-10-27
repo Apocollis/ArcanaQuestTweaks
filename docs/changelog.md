@@ -2,6 +2,30 @@
 
 Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-10-27 — Atum sandstorm gameplay expansion: 3-tier scour, baubles goggles, mob physics & scour
+
+- **3-Tier Sand Scour Damage** (`AtumStormGameplayHandler`, `aqtweaks_atum.cfg`): Reworked unsheltered sandstorm abrasion damage (evaluated every 80 ticks / 4 seconds, bypassing standard armor absorption):
+  - *Tier 0 (Exposed)*: Missing any armor slot (`HEAD`, `CHEST`, `LEGS`, `FEET`) deals **6.0 damage** (3 hearts).
+  - *Tier 1 (Fully Armored)*: All 4 armor slots filled with standard armor deals **4.0 damage** (2 hearts).
+  - *Tier 2 (Full Atum / Whitelisted Magic Armor)*: All 4 armor slots filled with Atum-native armor or whitelisted sets (`sandstormResistantArmorWhitelist`) deals **2.0 damage** (1 heart).
+- **Protective Headgear & Baubles Goggles** (`BaublesGogglesHelper`): Stinging grit blindness and sand inhalation choking now strictly require Atum-specific headgear (`desert_helmet_*`, `wanderer_helmet`, `mummy_helmet`, `eyes_of_atem`, `halo_of_ra`, `mask_of_nuit`) or goggles. Non-Atum helmets (iron, diamond, etc.) no longer protect eyes/airways. Goggles (such as Thaumcraft Goggles of Revealing) worn in the **Baubles head accessory slot** provide full protection while leaving the primary armor helmet slot free.
+- **Sandblasting Armor Durability Wear** (`enableArmorAbrasionWear`, `abrasionWearIntervalSeconds`): Unsheltered non-Atum armor pieces take 1 point of durability wear every 10 seconds. All `atum:*` armor pieces and configured whitelisted magic armors are immune to abrasive sandblasting.
+- **Mob Physical Wind Push & Storm Scour** (`handleServerMobEffects`):
+  - Unsheltered mobs in Atum sandstorms receive physical wind push, scaled by knockback resistance.
+  - *Atum Undead, Constructs, and Fauna*: Mummies, Wraiths, Forsaken, Bonestorms, Pharaohs, Stoneguards, Stonewardens, Efreet, and native animals (Desert Wolves, Camels, Scarabs, Tarantulas, Desert Rabbits) have full immunity to storm scour damage.
+  - *Atum Bandits & Brigands* (`EntityBanditBase`): Mortal brigands are treated as wearing full Atum gear, taking **2.0 damage per 4 seconds** when unsheltered.
+  - *Non-Native Invading Mobs*: Evaluated under standard 6 / 4 / 2 tier damage rules based on equipped armor, plus slowness.
+  - Staggered shelter checks (every 20 ticks per entity ID) ensure zero TPS impact.
+
+## 2026-10-27 — Atum plate footprint alignment
+
+- **One plate per pyramid** (`AtumPyramidPlate.adopt`): `adopt` used to register the template box (33 by 33, vanilla sizes a template box `0..size`) while `retarget` registers a 32 by 32 footprint, so a rotated pyramid got two plates with different keys and bounds, and which one smoothing used depended on map order. `adopt` now recovers the template origin from the box and rotation and registers the same `footprint(...)` as `retarget`, so it finds the existing plate. A new `[AQ-VERIFY] atum duplicate plate` warning (once) fires if a plate is about to be added that overlaps an existing one. Per-thread plate maps are a separate, later pass.
+
+## 2026-10-27 — Atum plate reach and off-thread well memo
+
+- **Atum plate order** (`AtumPyramidSmoothing.adoptNearby`, `AtumPyramidPlate.reachChunks`): the adopt scan now covers the plate's full reach, `(32 + apron + falloff + corridor + 15) >> 4` chunks (5 with the defaults), instead of a fixed 4. A saved start 5 chunks away is registered before the chunk is smoothed, whatever order chunks are visited in. A late adopt (more than 4 chunks) logs once at debug level as `[AQ-VERIFY] atum late plate adopt`.
+- **Village well worker memo** (`VillageWellCache`): `startRejectReason` and `findDryWell` called off the server thread (Chunk Steward pipeline legs) used to skip the memo and rescan up to 4,224 columns each time. Workers now use their own memo maps (`workerRejectMemo`, `workerDryWellMemo`, same TTL, cap and config reset); the server-thread memo is unchanged and never shared with workers, so verdicts do not leak between threads and the pipeline verify stays an independent comparison. `[AQ-PERF]` detail strings carry ` worker` on those calls. `chunkExists` is unchanged.
+
 ## 2026-10-27 — Village start loads again
 
 - **Launch crash** (`MixinMapGenVillageWell`): the `@Shadow` on `hasMoreThanTwoComponents` missed the runtime field and `MapGenVillage.Start` failed to load. The sizeable flag is now the start class's own boolean. After expansion it is set when non-road pieces, including the well, are more than two.

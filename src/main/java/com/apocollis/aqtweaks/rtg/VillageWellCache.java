@@ -74,6 +74,9 @@ public final class VillageWellCache {
 
         final Long2ObjectOpenHashMap<RejectEntry> rejectMemo = new Long2ObjectOpenHashMap<>();
         final Long2ObjectOpenHashMap<DryWellEntry> dryWellMemo = new Long2ObjectOpenHashMap<>();
+        /** Verdicts computed off the server thread. Never shared with the maps above (see plan 20261027-1600). */
+        final Long2ObjectOpenHashMap<RejectEntry> workerRejectMemo = new Long2ObjectOpenHashMap<>();
+        final Long2ObjectOpenHashMap<DryWellEntry> workerDryWellMemo = new Long2ObjectOpenHashMap<>();
 
         final LongOpenHashSet seenRejectCoords = new LongOpenHashSet();
         final LongOpenHashSet seenDryWellCoords = new LongOpenHashSet();
@@ -97,6 +100,8 @@ public final class VillageWellCache {
                 this.configFingerprint = currentFingerprint;
                 this.rejectMemo.clear();
                 this.dryWellMemo.clear();
+                this.workerRejectMemo.clear();
+                this.workerDryWellMemo.clear();
             }
         }
     }
@@ -174,16 +179,18 @@ public final class VillageWellCache {
     public static String startRejectReason(World world, int chunkX, int chunkZ, Supplier<String> computer) {
         if (world == null) return null;
         long t0 = StageTimer.start();
-        boolean server = !world.isRemote && isServerThread(world);
-        if (!server) {
+        if (world.isRemote) {
             String res = computer.get();
             if (t0 != 0L) {
                 StageTimer.end("village.wellReject", t0, chunkX + "," + chunkZ);
             }
             return res;
         }
+        boolean worker = !isServerThread(world);
+        String tag = worker ? " worker" : "";
 
         DimState state = stateFor(world);
+        Long2ObjectOpenHashMap<RejectEntry> memo = worker ? state.workerRejectMemo : state.rejectMemo;
         long key = ChunkPos.asLong(chunkX, chunkZ);
         long now = world.getTotalWorldTime();
         int fp = configFingerprint();
@@ -206,7 +213,7 @@ public final class VillageWellCache {
                 state.rejectRepeats++;
             }
             if (memoOn) {
-                RejectEntry cached = state.rejectMemo.get(key);
+                RejectEntry cached = memo.get(key);
                 if (cached != null) {
                     boolean validTick = now <= cached.expireTick && cached.expireTick - now <= ttl;
                     boolean validAllow = cached.reason != null || !hasStart;
@@ -214,7 +221,7 @@ public final class VillageWellCache {
                         hit = cached;
                         state.rejectMemoHits++;
                     } else {
-                        state.rejectMemo.remove(key);
+                        memo.remove(key);
                     }
                 }
             }
@@ -234,7 +241,7 @@ public final class VillageWellCache {
             }
             if (t0 != 0L) {
                 StageTimer.end("village.wellReject", t0,
-                        chunkX + "," + chunkZ + " distinct=" + distinct + " repeats=" + repeats + " hits=" + hits);
+                        chunkX + "," + chunkZ + tag + " distinct=" + distinct + " repeats=" + repeats + " hits=" + hits);
             }
             return hit.reason;
         }
@@ -242,15 +249,15 @@ public final class VillageWellCache {
         String computed = computer.get();
         if (memoOn && (computed != null || !hasStart)) {
             synchronized (state) {
-                if (state.rejectMemo.size() >= MAX_MEMO_ENTRIES) {
-                    state.rejectMemo.clear();
+                if (memo.size() >= MAX_MEMO_ENTRIES) {
+                    memo.clear();
                 }
-                state.rejectMemo.put(key, new RejectEntry(computed, now + ttl));
+                memo.put(key, new RejectEntry(computed, now + ttl));
             }
         }
         if (t0 != 0L) {
             StageTimer.end("village.wellReject", t0,
-                    chunkX + "," + chunkZ + " distinct=" + distinct + " repeats=" + repeats + " hits=" + hits);
+                    chunkX + "," + chunkZ + tag + " distinct=" + distinct + " repeats=" + repeats + " hits=" + hits);
         }
         return computed;
     }
@@ -258,16 +265,18 @@ public final class VillageWellCache {
     public static int[] findDryWell(World world, int wellX, int wellZ, Supplier<int[]> computer) {
         if (world == null) return null;
         long t0 = StageTimer.start();
-        boolean server = !world.isRemote && isServerThread(world);
-        if (!server) {
+        if (world.isRemote) {
             int[] res = computer.get();
             if (t0 != 0L) {
                 StageTimer.end("village.findDryWell", t0, wellX + "," + wellZ);
             }
             return res;
         }
+        boolean worker = !isServerThread(world);
+        String tag = worker ? " worker" : "";
 
         DimState state = stateFor(world);
+        Long2ObjectOpenHashMap<DryWellEntry> memo = worker ? state.workerDryWellMemo : state.dryWellMemo;
         long key = packXZ(wellX, wellZ);
         long now = world.getTotalWorldTime();
         int fp = configFingerprint();
@@ -289,13 +298,13 @@ public final class VillageWellCache {
                 state.dryWellRepeats++;
             }
             if (memoOn) {
-                DryWellEntry cached = state.dryWellMemo.get(key);
+                DryWellEntry cached = memo.get(key);
                 if (cached != null) {
                     if (now <= cached.expireTick && cached.expireTick - now <= ttl) {
                         hit = cached;
                         state.dryWellMemoHits++;
                     } else {
-                        state.dryWellMemo.remove(key);
+                        memo.remove(key);
                     }
                 }
             }
@@ -316,7 +325,7 @@ public final class VillageWellCache {
             }
             if (t0 != 0L) {
                 StageTimer.end("village.findDryWell", t0,
-                        wellX + "," + wellZ + " distinct=" + distinct + " repeats=" + repeats + " hits=" + hits);
+                        wellX + "," + wellZ + tag + " distinct=" + distinct + " repeats=" + repeats + " hits=" + hits);
             }
             return cachedOut;
         }
@@ -324,15 +333,15 @@ public final class VillageWellCache {
         int[] computed = computer.get();
         if (memoOn) {
             synchronized (state) {
-                if (state.dryWellMemo.size() >= MAX_MEMO_ENTRIES) {
-                    state.dryWellMemo.clear();
+                if (memo.size() >= MAX_MEMO_ENTRIES) {
+                    memo.clear();
                 }
-                state.dryWellMemo.put(key, new DryWellEntry(computed, now + ttl));
+                memo.put(key, new DryWellEntry(computed, now + ttl));
             }
         }
         if (t0 != 0L) {
             StageTimer.end("village.findDryWell", t0,
-                    wellX + "," + wellZ + " distinct=" + distinct + " repeats=" + repeats + " hits=" + hits);
+                    wellX + "," + wellZ + tag + " distinct=" + distinct + " repeats=" + repeats + " hits=" + hits);
         }
         return computed;
     }

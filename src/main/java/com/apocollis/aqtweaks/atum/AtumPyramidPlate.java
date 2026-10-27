@@ -31,6 +31,7 @@ public final class AtumPyramidPlate {
     public static final int MIN_PLATE_Y = 55;
 
     private static final ThreadLocal<Sample> PREPARE = new ThreadLocal<>();
+    private static final java.util.concurrent.atomic.AtomicBoolean DUPLICATE_LOGGED = new java.util.concurrent.atomic.AtomicBoolean();
     private static final ConcurrentHashMap<Key, AtumPyramidPlate> PLATES = new ConcurrentHashMap<>();
 
     public final int dimension;
@@ -78,8 +79,9 @@ public final class AtumPyramidPlate {
         return raised;
     }
 
-    public static void adopt(World world, StructureStart start) {
-        if (world == null || start == null || !enabled() || !start.isSizeableStructure()) return;
+    /** @return true when this call registered a plate that was not there yet */
+    public static boolean adopt(World world, StructureStart start) {
+        if (world == null || start == null || !enabled() || !start.isSizeableStructure()) return false;
         StructureComponent template = null;
         for (StructureComponent component : start.getComponents()) {
             if (component != null && component.getClass().getName().endsWith("PyramidTemplate")) {
@@ -87,16 +89,42 @@ public final class AtumPyramidPlate {
                 break;
             }
         }
-        if (template == null) return;
+        if (template == null) return false;
         StructureBoundingBox box = template.getBoundingBox();
-        if (box == null || world.provider == null) return;
-        if (PLATES.containsKey(new Key(world.provider.getDimension(), box.minX, box.minZ))) return;
+        if (box == null || world.provider == null) return false;
         Rotation rotation = null;
         if (template instanceof com.apocollis.aqtweaks.mixin.atum.AccessorPyramidTemplate) {
             rotation = ((com.apocollis.aqtweaks.mixin.atum.AccessorPyramidTemplate) template).aqtweaks$rotation();
         }
+        // The template box is one block wider than the 32 block footprint that retarget registers (vanilla sizes a
+        // template box 0..size). Recover the origin from the box and the rotation and use the same footprint, so
+        // this finds the plate retarget registered instead of adding a second, offset one (plan 20261027-1726).
+        Rotation turn = rotation != null ? rotation : Rotation.NONE;
+        int originX = turn == Rotation.CLOCKWISE_90 || turn == Rotation.CLOCKWISE_180 ? box.maxX : box.minX;
+        int originZ = turn == Rotation.COUNTERCLOCKWISE_90 || turn == Rotation.CLOCKWISE_180 ? box.maxZ : box.minZ;
+        int[] footprint = footprint(originX, originZ, turn);
+        int dimension = world.provider.getDimension();
+        if (PLATES.containsKey(new Key(dimension, footprint[0], footprint[2]))) return false;
+        for (AtumPyramidPlate other : PLATES.values()) {
+            if (other.dimension == dimension && other.minX <= footprint[1] && other.maxX >= footprint[0]
+                    && other.minZ <= footprint[3] && other.maxZ >= footprint[2]) {
+                if (!DUPLICATE_LOGGED.getAndSet(true)) {
+                    org.apache.logging.log4j.LogManager.getLogger("AQTweaks-Atum").warn(
+                            "[AQ-VERIFY] atum duplicate plate: new [{},{}]x[{},{}] overlaps [{},{}]x[{},{}]",
+                            footprint[0], footprint[1], footprint[2], footprint[3],
+                            other.minX, other.maxX, other.minZ, other.maxZ);
+                }
+                break;
+            }
+        }
         int plateY = box.minY + BASE_TEMPLATE_Y - doorLift();
-        register(world, new int[] {box.minX, box.maxX, box.minZ, box.maxZ}, plateY, rotation);
+        register(world, footprint, plateY, rotation);
+        return true;
+    }
+
+    /** Chunks from a pyramid start that its plate (footprint plus margin) can still reshape. */
+    public static int reachChunks() {
+        return (FOOTPRINT + margin() + 15) >> 4;
     }
 
     public static List<AtumPyramidPlate> overlapping(int dimension, int chunkX, int chunkZ) {
