@@ -2,10 +2,19 @@
 
 Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-10-27 — Village start loads again
+
+- **Launch crash** (`MixinMapGenVillageWell`): the `@Shadow` on `hasMoreThanTwoComponents` missed the runtime field and `MapGenVillage.Start` failed to load. The sizeable flag is now the start class's own boolean. After expansion it is set when non-road pieces, including the well, are more than two.
+
 ## 2026-10-26 — Village paths stay on their line
 
 - **Path continuation** (`VillageLandHelper.pathContinuationCandidates`): a wet path is rebuilt on its own line, back along the road and forward, in the original facing. It is kept only when the new box meets the old one and it is not 1 to 4 blocks beside a road already placed. Pieces that path had added are removed with it. Houses, waystones, and RC village pieces still use the inland search.
 - **Cap** (`Village Path Retry Cap`, default 3): after three successful path slides, further wet paths in that village are omitted. `0` omits every wet path.
+
+## 2026-10-27 — Village bridges: dead ends dropped, approach at deck height
+
+- **Dead-end bridges** (`VillageBridgePrune`, called from `MixinMapGenVillageStart` before `VillagePlate.remember`): a bridge road (a road crossing water) whose either end touches no other kept piece (within 2 blocks of the end slice) is dropped, together with the pieces that were reachable from the well only through it. A bridge that runs out into open water fails the far-end test. The village is never vetoed. New `Village Bridge Require Both Ends` (default true). Log: `bridge drop dead-end reason=no-near-piece|no-far-piece`.
+- **Approach at deck height** (`VillageBridges.approach`): the road's dry columns within 8 slices of water are brought to the deck Y (`max(round(plate), sea level + 1)`): ground below is filled with dirt and topped with grass path (gravel on sand and the gravel list), ground above (seal wall, cliff lip, up to 6 blocks) is cut through the road width only. Deck and approach share one Y. Wet slices come from landscape and are cached, so every clip agrees.
 
 ## 2026-10-26 — RC relocation and village path link
 

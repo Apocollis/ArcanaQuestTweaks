@@ -1,5 +1,6 @@
 package com.apocollis.aqtweaks.rtg;
 
+import com.apocollis.aqtweaks.ArcanaQuestTweaks;
 import com.apocollis.aqtweaks.mixin.vanilla.AccessorChunkProviderServer;
 import com.apocollis.aqtweaks.mixin.vanilla.AccessorMapGenBase;
 import com.apocollis.aqtweaks.mixin.vanilla.AccessorMapGenStructure;
@@ -25,6 +26,8 @@ import net.minecraft.world.gen.structure.StructureComponent;
 import net.minecraft.world.gen.structure.StructureStart;
 import net.minecraft.world.gen.structure.StructureVillagePieces;
 import net.minecraft.world.storage.WorldInfo;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -44,6 +47,9 @@ import java.util.Random;
  * fields of unknown third-party generator wrappers.
  */
 public final class StructureAccess {
+
+    private static final Logger LOGGER = LogManager.getLogger(ArcanaQuestTweaks.MODID);
+    private static boolean loggedMissingSizeableFlag;
 
     private static final ThreadLocal<BlockPos.MutableBlockPos> POS =
             ThreadLocal.withInitial(BlockPos.MutableBlockPos::new);
@@ -194,6 +200,54 @@ public final class StructureAccess {
         if (start instanceof StructureStart) {
             ((InvokerStructureStart) start).aqtweaks$updateBoundingBox();
         }
+    }
+
+    /**
+     * Vanilla {@code isSizeableStructure} reads the one boolean on {@code MapGenVillage.Start}.
+     * Cleanroom does not expose that field under one stable name, and the parent start also has a
+     * notch field {@code c} ({@code chunkPosX}). Only this class's own boolean fields are considered.
+     */
+    public static void setVillageHasMoreThanTwoComponents(Object start, boolean value) {
+        if (start == null) return;
+        Field named = declaredBoolean(start.getClass(), "hasMoreThanTwoComponents");
+        if (named == null) named = declaredBoolean(start.getClass(), "field_75076_c");
+        if (named == null) named = declaredBoolean(start.getClass(), "c");
+        if (named == null) named = soleDeclaredBoolean(start.getClass());
+        if (named == null) {
+            if (!loggedMissingSizeableFlag) {
+                loggedMissingSizeableFlag = true;
+                LOGGER.warn("[AQ-RTG] MapGenVillage.Start has no sizeable-structure boolean; small villages may be dropped");
+            }
+            return;
+        }
+        try {
+            named.setAccessible(true);
+            named.setBoolean(start, value);
+        } catch (Throwable t) {
+            if (!loggedMissingSizeableFlag) {
+                loggedMissingSizeableFlag = true;
+                LOGGER.warn("[AQ-RTG] Could not set the village sizeable flag", t);
+            }
+        }
+    }
+
+    private static Field declaredBoolean(Class<?> type, String name) {
+        try {
+            Field field = type.getDeclaredField(name);
+            return field.getType() == boolean.class ? field : null;
+        } catch (NoSuchFieldException e) {
+            return null;
+        }
+    }
+
+    private static Field soleDeclaredBoolean(Class<?> type) {
+        Field found = null;
+        for (Field field : type.getDeclaredFields()) {
+            if (field.getType() != boolean.class) continue;
+            if (found != null) return null;
+            found = field;
+        }
+        return found;
     }
 
     public static BiomeProvider getVillageStartBiomeProvider(Object start) {

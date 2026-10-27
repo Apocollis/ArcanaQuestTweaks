@@ -1,13 +1,16 @@
 package com.apocollis.aqtweaks.mixin;
 
+import com.apocollis.aqtweaks.rtg.StructureAccess;
 import com.apocollis.aqtweaks.rtg.VillageDebug;
+import com.apocollis.aqtweaks.rtg.VillageExpander;
 import com.apocollis.aqtweaks.rtg.VillageLandHelper;
 import net.minecraft.world.World;
+import net.minecraft.world.gen.structure.StructureComponent;
+import net.minecraft.world.gen.structure.StructureStart;
 import net.minecraft.world.biome.BiomeProvider;
 import net.minecraft.world.gen.structure.MapGenVillage;
 import net.minecraft.world.gen.structure.StructureVillagePieces;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -30,9 +33,6 @@ public abstract class MixinMapGenVillageWell {
     private static final ThreadLocal<Deque<World>> AQTWEAKS$LAYOUT_WORLD =
             ThreadLocal.withInitial(ArrayDeque::new);
 
-    @Shadow(remap = false)
-    private boolean hasMoreThanTwoComponents;
-
     @Inject(method = "<init>(Lnet/minecraft/world/World;Ljava/util/Random;III)V", at = @At("HEAD"))
     private static void aqtweaks$pushLayoutWorld(World world, Random rand, int chunkX, int chunkZ, int size, CallbackInfo ci) {
         AQTWEAKS$LAYOUT_WORLD.get().push(world);
@@ -40,9 +40,10 @@ public abstract class MixinMapGenVillageWell {
 
     @Inject(method = "<init>(Lnet/minecraft/world/World;Ljava/util/Random;III)V", at = @At("RETURN"))
     private void aqtweaks$onLayoutComplete(World world, Random rand, int chunkX, int chunkZ, int size, CallbackInfo ci) {
-        com.apocollis.aqtweaks.rtg.VillageExpander.expandVillageIfNeeded((net.minecraft.world.gen.structure.StructureStart) (Object) this, rand, world);
-        if (com.apocollis.aqtweaks.rtg.VillageExpander.countBuildings(((net.minecraft.world.gen.structure.StructureStart) (Object) this).getComponents()) > 2) {
-            this.hasMoreThanTwoComponents = true;
+        StructureStart start = (StructureStart) (Object) this;
+        VillageExpander.expandVillageIfNeeded(start, rand, world);
+        if (aqtweaks$nonRoadPieces(start) > 2) {
+            StructureAccess.setVillageHasMoreThanTwoComponents(start, true);
         }
         Deque<World> stack = AQTWEAKS$LAYOUT_WORLD.get();
         if (!stack.isEmpty()) {
@@ -67,5 +68,18 @@ public abstract class MixinMapGenVillageWell {
             VillageDebug.log("well-before from=%d,%d to=%d,%d", x, z, resolved[0], resolved[1]);
         }
         return new StructureVillagePieces.Start(provider, type, rand, resolved[0], resolved[1], weights, size);
+    }
+
+    /** Vanilla {@code isSizeableStructure}: every piece that is not a road, including the well. */
+    @Unique
+    private static int aqtweaks$nonRoadPieces(StructureStart start) {
+        int count = 0;
+        if (start == null || start.getComponents() == null) return 0;
+        for (StructureComponent component : start.getComponents()) {
+            if (component != null && !(component instanceof StructureVillagePieces.Road)) {
+                count++;
+            }
+        }
+        return count;
     }
 }

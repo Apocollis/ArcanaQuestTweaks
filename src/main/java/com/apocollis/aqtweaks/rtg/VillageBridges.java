@@ -23,6 +23,12 @@ public final class VillageBridges {
     private static final int PIER_EVERY = 4;
     private static final int SCAN_ABOVE = 6;
     private static final int SCAN_MIN_Y = 20;
+    /** Dry road columns on each bank that are brought to deck height. */
+    private static final int APPROACH = 8;
+    /** A bank more than this far above the deck is left as it is rather than cut. */
+    private static final int MAX_CUT = 6;
+
+    private static final java.util.Map<String, boolean[]> WET_CACHE = new java.util.HashMap<String, boolean[]>();
 
     private VillageBridges() {}
 
@@ -70,7 +76,7 @@ public final class VillageBridges {
                 if (!inClipXZ(clip, x, z)) continue;
                 int surfaceY = waterSurfaceAfterRevert(world, pos, x, z, plate);
                 if (surfaceY < 0) continue;
-                int deckY = deckY(plate, surfaceY);
+                int deckY = deckY(world, plate, surfaceY);
                 if (deckY > 250) continue;
                 pos.setPos(x, deckY, z);
                 world.setBlockState(pos, Blocks.STONEBRICK.getDefaultState(), 2);
@@ -88,7 +94,75 @@ public final class VillageBridges {
                 railColumn(world, pos, sx, sz, deckY, pierAt[a - axisMin]);
             }
         }
+        decks += approach(world, pos, alongX, axisMin, axisMax, crossMin, crossMax, clip, plate);
         return decks;
+    }
+
+    /**
+     * Brings the road's dry columns within {@link #APPROACH} slices of water to deck height, so the path meets the
+     * deck at one level (no step down at a cliff wall and back up). Ground below the deck is filled, ground above
+     * it (seal wall, cliff lip) is cut through the road width only. Which slices are near water comes from the
+     * landscape, so every clip of one road agrees.
+     */
+    private static int approach(World world, BlockPos.MutableBlockPos pos, boolean alongX, int axisMin, int axisMax,
+                                int crossMin, int crossMax, StructureBoundingBox clip, float plate) {
+        if (Float.isNaN(plate)) return 0;
+        int len = axisMax - axisMin + 1;
+        boolean[] wet = wetSlices(world, alongX, axisMin, axisMax, crossMin, crossMax);
+        int deckY = Math.max(Math.round(plate), world.getSeaLevel() + 1);
+        int columns = 0;
+        for (int i = 0; i < len; i++) {
+            if (wet[i] || !nearWet(wet, i)) continue;
+            int a = axisMin + i;
+            for (int c = crossMin; c <= crossMax; c++) {
+                int x = alongX ? a : c;
+                int z = alongX ? c : a;
+                if (!inClipXZ(clip, x, z)) continue;
+                if (levelColumn(world, pos, x, z, deckY)) columns++;
+            }
+        }
+        return columns;
+    }
+
+    private static boolean nearWet(boolean[] wet, int i) {
+        for (int d = 1; d <= APPROACH; d++) {
+            if (i - d >= 0 && wet[i - d]) return true;
+            if (i + d < wet.length && wet[i + d]) return true;
+        }
+        return false;
+    }
+
+    private static boolean levelColumn(World world, BlockPos.MutableBlockPos pos, int x, int z, int deckY) {
+        int ground = -1;
+        IBlockState top = null;
+        for (int y = Math.min(255, deckY + MAX_CUT + 3); y >= SCAN_MIN_Y; y--) {
+            pos.setPos(x, y, z);
+            IBlockState state = world.getBlockState(pos);
+            if (airLike(state)) continue;
+            if (state.getMaterial().isLiquid()) return false;
+            ground = y;
+            top = state;
+            break;
+        }
+        if (ground < 0 || ground > deckY + MAX_CUT) return false;
+        IBlockState surface = top.getBlock() == Blocks.SAND || VillageRoadStamper.matches(top)
+                ? Blocks.GRAVEL.getDefaultState() : Blocks.GRASS_PATH.getDefaultState();
+        if (ground == deckY) return false;
+        if (ground < deckY) {
+            for (int y = ground + 1; y < deckY; y++) {
+                pos.setPos(x, y, z);
+                world.setBlockState(pos, Blocks.DIRT.getDefaultState(), 2);
+            }
+        } else {
+            for (int y = ground; y > deckY; y--) {
+                pos.setPos(x, y, z);
+                world.setBlockState(pos, Blocks.AIR.getDefaultState(), 2);
+            }
+        }
+        pos.setPos(x, deckY, z);
+        world.setBlockState(pos, surface, 2);
+        clearAbove(world, pos, x, deckY, z);
+        return true;
     }
 
     /**
@@ -116,9 +190,9 @@ public final class VillageBridges {
         return -1;
     }
 
-    private static int deckY(float plate, int surfaceY) {
+    private static int deckY(World world, float plate, int surfaceY) {
         if (Float.isNaN(plate)) return surfaceY + 2;
-        return Math.max(Math.round(plate), surfaceY + 1);
+        return Math.max(Math.max(Math.round(plate), world.getSeaLevel() + 1), surfaceY + 1);
     }
 
     private static void clearAbove(World world, BlockPos.MutableBlockPos pos, int x, int deckY, int z) {
@@ -152,17 +226,8 @@ public final class VillageBridges {
      * Runs of {@link #PIER_EVERY} or less get none.
      */
     private static boolean[] pierPlan(World world, boolean alongX, int axisMin, int axisMax, int crossMin, int crossMax) {
-        int len = axisMax - axisMin + 1;
-        boolean[] wet = new boolean[len];
-        BiomeProvider provider = world.getBiomeProvider();
-        for (int i = 0; i < len; i++) {
-            int a = axisMin + i;
-            for (int c = crossMin; c <= crossMax && !wet[i]; c++) {
-                int x = alongX ? a : c;
-                int z = alongX ? c : a;
-                wet[i] = VillageLandHelper.isVillageWaterColumn(world, provider, null, x, z);
-            }
-        }
+        boolean[] wet = wetSlices(world, alongX, axisMin, axisMax, crossMin, crossMax);
+        int len = wet.length;
         boolean[] pier = new boolean[len];
         int i = 0;
         while (i < len) {
@@ -179,6 +244,36 @@ public final class VillageBridges {
             }
         }
         return pier;
+    }
+
+    /** Slices along the road with a landscape water column across the width; the same in every clip. */
+    private static boolean[] wetSlices(World world, boolean alongX, int axisMin, int axisMax, int crossMin, int crossMax) {
+        String key = world.getSeed() + ":" + alongX + ":" + axisMin + "," + axisMax + "," + crossMin + "," + crossMax;
+        synchronized (WET_CACHE) {
+            boolean[] hit = WET_CACHE.get(key);
+            if (hit != null) return hit;
+        }
+        boolean[] wet = computeWetSlices(world, alongX, axisMin, axisMax, crossMin, crossMax);
+        synchronized (WET_CACHE) {
+            if (WET_CACHE.size() > 512) WET_CACHE.clear();
+            WET_CACHE.put(key, wet);
+        }
+        return wet;
+    }
+
+    private static boolean[] computeWetSlices(World world, boolean alongX, int axisMin, int axisMax, int crossMin, int crossMax) {
+        int len = axisMax - axisMin + 1;
+        boolean[] wet = new boolean[len];
+        BiomeProvider provider = world.getBiomeProvider();
+        for (int i = 0; i < len; i++) {
+            int a = axisMin + i;
+            for (int c = crossMin; c <= crossMax && !wet[i]; c++) {
+                int x = alongX ? a : c;
+                int z = alongX ? c : a;
+                wet[i] = VillageLandHelper.isVillageWaterColumn(world, provider, null, x, z);
+            }
+        }
+        return wet;
     }
 
     private static boolean inClipXZ(StructureBoundingBox clip, int x, int z) {

@@ -1268,6 +1268,10 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Keep a village path that crosses a river (not ocean) when both ends are dry and each water run is at most Village Bridge Max Span. The path becomes a stone brick bridge at plate height with cobblestone wall rails and piers. False = omit river paths.")
         public boolean villageRiverBridges = true;
 
+        @Config.Name("Village Bridge Require Both Ends")
+        @Config.Comment("After a village is laid out, drop a bridge road whose either end touches no other village piece (a bridge into open water, or onto an empty bank), and the pieces reachable from the well only through it. False keeps every bridge that passes the river test.")
+        public boolean villageBridgeRequireBothEnds = true;
+
         @Config.Name("Village Bridge Max Span")
         @Config.Comment("Longest water run (blocks along the path) a village bridge may cross.")
         @Config.RangeInt(min = 1, max = 48)

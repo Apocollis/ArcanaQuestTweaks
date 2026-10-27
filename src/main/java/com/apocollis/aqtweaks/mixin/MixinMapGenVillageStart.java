@@ -2,6 +2,7 @@ package com.apocollis.aqtweaks.mixin;
 
 import com.apocollis.aqtweaks.rtg.StructureAccess;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
+import com.apocollis.aqtweaks.rtg.VillageBridgePrune;
 import com.apocollis.aqtweaks.rtg.VillageDebug;
 import com.apocollis.aqtweaks.rtg.VillageLandHelper;
 import com.apocollis.aqtweaks.rtg.VillagePlate;
@@ -46,6 +47,7 @@ public abstract class MixinMapGenVillageStart {
             StructureAccess.removeStructureStart(this, chunkX, chunkZ);
             return;
         }
+        VillageBridgePrune.prune(world, start);
         VillagePlate.remember(world, start, chunkX, chunkZ, wellX, wellZ);
         if (!VillageDebug.enabled()) return;
         int[] xz = StructureAccess.getStructureStartBoxXZ(start);

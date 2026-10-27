@@ -109,7 +109,7 @@ Flatten looks up `VillagePlate` records by **land-box overlap** first, via a per
 | `mixin/bettercaves/MixinChunkGeneratorRTGVillage.java` | Stash gens on RTG construct; layout once per chunk after `generateLandscape` RETURN + flatten noise once + seal pad after caves/ravines |
 | `mixin/MixinMapGenVillageSpawn.java` | Well veto (`func_75047_a`) |
 | `mixin/MixinMapGenVillageStart.java` | Remember start after create (`func_75049_b`). The well block is already the dry column; this does not shift pieces |
-| `mixin/MixinMapGenVillageWell.java` | Before `StructureVillagePieces.Start` is built, move that well to `resolvedWellXZ`. The Start's chunk key stays the original chunk |
+| `mixin/MixinMapGenVillageWell.java` | Before `StructureVillagePieces.Start` is built, move that well to `resolvedWellXZ`. The Start's chunk key stays the original chunk. After layout, `isSizeableStructure` is set from non-road pieces (the well counts) without a `@Shadow` on that boolean |
 | `mixin/MixinMapGenVillageWorld.java` | Push/pop `World` around village `generate` (`MapGenBase.func_186125_a`, HEAD and RETURN); unwrap RTG from wrapped chunk gens. Per-thread stack tracks which nested call pushed a generator, because layout re-enters `generate` for neighbouring well chunks |
 | `rtg/VillagePieceVillagePlate.java` | Non-placing pad children saved on the Start (`AQTVillagePlate`). Houses/paths/RC stay separate |
 | `mixin/MixinMapGenVillageInside.java` | Flatten plate as “inside village” on vanilla miss; hull/XZ before sample |
@@ -288,6 +288,7 @@ Teleport is **on the generated ground** at that column (`world.getHeight`, skip 
 | Village Path Retry Cap | 3 | yes | Successful path slides per village (0..16). 0 omits every wet path. Buildings do not count |
 | Village River Bridges | true | yes | Keep river-crossing paths with dry ends; stone brick deck at plate Y, cobble wall rails, piers. False = omit |
 | Village Bridge Max Span | 16 | yes | Longest water run a bridge path may cross |
+| Village Bridge Require Both Ends | true | yes | Drop a bridge road whose either end touches no other village piece (bridge into open water or onto an empty bank) and pieces only reachable through it |
 | Village Water Retry Distance | 20 | yes | How far a building walks inland, and how far a path may slide along its line |
 | Reject Coastal Village Starts | true | yes | Well veto: never-raise with no dry slot; ocean coast buffer. Walk river/ocean wells inland |
 | Village Min Well Height | 64 | yes | Dry well / lake plate floor. Live DEVBOX cfg already 64 |
