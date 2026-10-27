@@ -2,6 +2,51 @@
 
 Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-10-26 — Village paths stay on their line
+
+- **Path continuation** (`VillageLandHelper.pathContinuationCandidates`): a wet path is rebuilt on its own line, back along the road and forward, in the original facing. It is kept only when the new box meets the old one and it is not 1 to 4 blocks beside a road already placed. Pieces that path had added are removed with it. Houses, waystones, and RC village pieces still use the inland search.
+- **Cap** (`Village Path Retry Cap`, default 3): after three successful path slides, further wet paths in that village are omitted. `0` omits every wet path.
+
+## 2026-10-26 — RC relocation and village path link
+
+- **RC relocation** (`RcStructureVillageOverlapHandler`): a cancelled overlapping natural structure is held (id and box). On the next server tick one walk of `Village RC Relocate Walk` blocks (default 64, steps of 8, nearest first) looks for a shifted box outside the village whose chunks are loaded; the structure is generated there once (seed from world seed, id and original box; RC's placer picks Y). No spot, or RC refuses it: dropped, no retry. The relocated suggest never queues another walk. `[AQ-RC]` lines in `latest.log`.
+- **Path link** (`VillagePathLinker`, after `VillageRoadStamper` in the paste hook): a road end in the open is joined to the nearest other road or the well within `Village Path Link Gap` (default 16) by a one-wide grass path (gravel on sand and the gravel block list). Never crosses a village piece or water; clip-bounded and a pure function of the kept pieces. 0 turns it off.
+
+## 2026-10-26 — Village plate snapshot (T1, behaviour-preserving)
+
+- `VillagePlateSnapshot`: the flatten (`aqtweaks$flattenNoise`) and seal (`aqtweaks$sealVillagePlate`) passes now read an immutable value copy of the village records near the chunk (xz, well, start chunk, land, building and shrine boxes) plus each plate height, built once per pass by `aqtweaks$snapshot`. Same records, same order, same plate-height resolve, so the output does not change. Groundwork for running these passes in a Chunk Steward worker (plan `20261026-0008-village-plate-snapshot-for-chunksteward-pipeline.md`; T2 needs the Chunk Steward 1.1 jar).
+- `PipelineContext.active()` (constant `false` until T2) guards the generator stash and `registerVillages`, so a pipeline worker generator can never become the stashed one. The layout scratch `ChunkPrimer` is now one per thread.
+- New `Verify Village Snapshot` (`aqtweaks_rtg.cfg`, Surface, dev-only, default off): compares each snapshot with the live records and a fresh plate-height resolve and logs the first `[AQ-VERIFY] village snapshot mismatch`.
+
+## 2026-10-26 — Village well before layout, BOP gravel roads, swamp paths, RC overlap
+
+- **Well before layout** (`MixinMapGenVillageWell`): a never-raise well column is resolved before the town grows, so roads and houses are laid out on the dry spot. The structure-map key stays the original chunk. The old post-layout shift is gone (`well-before` in `villagepatch.log`).
+- **BOP roads** (`VillageRoadStamper`): after paste, a road column whose top is `biomesoplenty:grass` or `biomesoplenty:dirt` with air above becomes gravel. Vanilla grass path, sand-to-gravel, and river bridges are unchanged. List: `Village Road Gravel Blocks`.
+- **Swamp and lake paths** (`pathWetFraction`): flooded columns that are not ocean or river, and that sit inside another kept piece's pad, count as dry. Ocean, river, and the bridge rule are unchanged.
+- **RC natural structures** (`RcStructureVillageOverlapHandler`): a first-time suggest whose box overlaps a village is cancelled before paste. RC village pieces are not this event. `latest.log`: `[AQ-RC]`.
+
+## 2026-10-26 — Atum sandstorm upwind reach and exposure
+
+- **Upwind band** (`AtumOutdoorDustEmitter`): in a storm, outdoor dust spawns from 50 blocks upwind to 16 blocks downwind, and lives 38 ticks, so looking into the wind is a wall of sand. Clear weather stays ±25 blocks along the wind.
+- **Inflow** (`ParticleAtumDustSheet`): sand still spawns only under open sky. Once moving, it can blow through a doorway or window and dies when it hits a solid block.
+- **Exposure** (`AtumStormGameplayHandler`): without protective headgear, an unsheltered player loses breath and chokes when the bar is empty. Missing chest, legs, or boots (or armor under 10) takes abrasion every 4 seconds; Atum wanderer or mummy cloth on those slots stops it. A strong storm plays an occasional low howl. Keys: `Enable Sand Inhalation Choking`, `Enable Abrasive Sand Scour`, `Enable Desert Storm Ambience`.
+
+## 2026-10-26 — Light chunk resend, pyramid door lift, denser sandstorm
+
+- **Direct light repair resends the chunk** (`RtgLightFixQueue.finishColumnRepair`): when `RTG Light Hack Fix` is on and a fix entry repaired at least one column, that chunk is sent once to players who already have it. The direct `checkLightFor` writes sky light on the server only; the resend is the same chunk packet a relog sends. Wool mode does not send it. RTG and Atum share the repair, so one send covers both. `/aqlight fix direct` still does not.
+- **Atum pyramid door lift** (`AtumPyramidPlate`, `Pyramid Door Lift`, default 3): a new pyramid's apron stays on the dune average, and the template is raised so the door is 3 blocks above that apron. The entrance walk slopes from the door down to the sand. Pyramids already pasted keep their door.
+- **Atum sandstorm** (`AtumOutdoorDustEmitter`, `AtumFogHandler`): clear weather and storms both spawn 80% small flecks and 20% moderate sheets, at the same sizes and speeds. Storm attempts are `700 + stormStrength * 1100`. `Max Sandstorm Dust Particles` defaults to 12000. Outdoors at full storm the terrain fog runs from the camera to about `0.12 * far`; under a roof the fog stays at the clear range.
+
+## 2026-10-26 — Village layout counts, Atum pyramid plateau
+
+- **Village layout audit** (`rtg/VillageLayoutAudit`): placement is unchanged. When village debug or the perf timers are on, each new village logs roads and houses placed, how many were retried off water, which slot won (back, lateral, toward the well, spiral), and a 5×5 dry/height sample around the well. Lateral is still the first dry street slot, which is the parallel-road case the counts are there to measure.
+- **Atum pyramid plateau** (`atum/AtumPyramidPlate`, `atum/AtumPyramidSmoothing`): on new Atum chunks the pyramid's exterior base (template Y=8) sits on the average height of its rotated 32×32 footprint, clamped to at least Y 55. A 4-block apron and a 16-block Hermite slope blend the dunes, and a 6-wide entrance walk slopes from that plateau out to the sand. The two blocks under the sand cap are limestone (Atum has no sandstone block). Keys in `aqtweaks_atum.cfg`.
+
+## 2026-10-26 — Atum gets RTG's light fix, and `/aqlight`
+
+- **Non-RTG light fix** (`world/NonRtgLightFixTrigger`, `mixin/lighting/MixinChunkPopulateLight`, `RtgLightFixQueue.request`): chunks in `Non-RTG Light Fix Dimensions` (default `17`, Atum) now get RTG's own column light fix, with the same direct repair (`RTG Light Hack Fix`) and the same Chunk Steward paced, tiered, deduped queue. RTG's `fixLightingAround` and `fixLightingOnLoad` only run for `BiomeProviderRTG`, so Atum never got the fix and showed black cells under overhangs. A chunk is requested on load and, when a chunk finishes populating (a hook at the end of `Chunk.populate`), the chunk and its four diagonal neighbours. Keys: `Non-RTG Light Fix Enable`, `Non-RTG Light Fix Dimensions`. Same limits as RTG: Y 255 to 49 only, in-chunk neighbours only, and the direct repair sends no block-change packet.
+- **`/aqlight`** (OP): server-side light at the block you look at (sky, block, neighbours, height map, `canSeeSky`, queued, whether RTG's rule would fire); `/aqlight scan [radius]` counts cells RTG's test would repair, plus the cells it misses (below Y 49, only brighter across the chunk edge); `/aqlight fix [direct|wool] [radius] [all]` repairs on the spot. Use it to tell missing light from client-stale light.
+
 ## 2026-10-26 — `RTG Light Hack Fix` replaces the wool switch
 
 - The repair switch is now `RTG Light Hack Fix` in `aqtweaks_rtg.cfg`. **True (default) uses the direct `checkLightFor(SKY)` repair.** False restores RTG's wool place-and-remove. The old key `RTG Light Fix Wool` is unread; true on that key meant wool. See [rtg.md](rtg.md).

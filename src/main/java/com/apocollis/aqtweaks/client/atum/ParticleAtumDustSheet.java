@@ -1,5 +1,7 @@
 package com.apocollis.aqtweaks.client.atum;
 
+import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
@@ -10,25 +12,29 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Client-only 3D billboard dust sheet particle for Atum.
  * Renders a soft, translucent drifting dust cloud in outdoor air.
- * Maintains uniform billboard size and moves strictly in unison with the wind.
+ * Maintains uniform billboard size and dynamically moves strictly in unison with the wind.
  */
 @SideOnly(Side.CLIENT)
 public class ParticleAtumDustSheet extends Particle {
 
     public static final AtomicInteger ACTIVE_COUNT = new AtomicInteger(0);
 
+    private final float speed;
     private final float baseAlpha;
     private final net.minecraft.util.math.BlockPos.MutableBlockPos posCheck = new net.minecraft.util.math.BlockPos.MutableBlockPos();
 
     public ParticleAtumDustSheet(World worldIn, double x, double y, double z,
-                                double motX, double motY, double motZ,
-                                float scale, float maxAlpha, int lifetime) {
-        super(worldIn, x, y, z, motX, motY, motZ);
+                                float speed, float scale, float maxAlpha, int lifetime) {
+        super(worldIn, x, y, z,
+                AtumOutdoorDustEmitter.getWindDirX() * speed,
+                0.0D,
+                AtumOutdoorDustEmitter.getWindDirZ() * speed);
         ACTIVE_COUNT.incrementAndGet();
 
-        this.motionX = motX;
-        this.motionY = motY;
-        this.motionZ = motZ;
+        this.speed = speed;
+        this.motionX = AtumOutdoorDustEmitter.getWindDirX() * speed;
+        this.motionY = 0.0D;
+        this.motionZ = AtumOutdoorDustEmitter.getWindDirZ() * speed;
         this.canCollide = false;
         this.particleGravity = 0.0F;
 
@@ -79,6 +85,12 @@ public class ParticleAtumDustSheet extends Particle {
             return;
         }
 
+        // Dynamic wind following: particle dynamically steers as wind direction veers
+        if (ArcanaQuestTweaksConfig.ClientModuleConfig.atumFog.enableDynamicWindDirection) {
+            this.motionX = AtumOutdoorDustEmitter.getWindDirX() * this.speed;
+            this.motionZ = AtumOutdoorDustEmitter.getWindDirZ() * this.speed;
+        }
+
         // Smooth alpha envelope: fade in over first 15% of life, fade out over last 25%
         float lifeFraction = (float) this.particleAge / (float) this.particleMaxAge;
         if (lifeFraction < 0.15F) {
@@ -91,9 +103,11 @@ public class ParticleAtumDustSheet extends Particle {
 
         this.move(this.motionX, this.motionY, this.motionZ);
 
-        // Despawn immediately if particle drifts inside a building, under a roof, or into a cave
-        if ((this.particleAge & 3) == 0 && this.world.isBlockLoaded(this.posCheck.setPos(this.posX, this.posY, this.posZ))) {
-            if (!this.world.canSeeSky(this.posCheck)) {
+        // Spawn still requires open sky. Once airborne, sand may blow through doorways and windows.
+        // It dies when it hits a solid block.
+        if ((this.particleAge & 1) == 0 && this.world.isBlockLoaded(this.posCheck.setPos(this.posX, this.posY, this.posZ))) {
+            IBlockState state = this.world.getBlockState(this.posCheck);
+            if (state.getMaterial().isSolid()) {
                 this.setExpired();
             }
         }

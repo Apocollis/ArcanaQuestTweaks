@@ -7,11 +7,14 @@ import com.apocollis.aqtweaks.pacing.TickSlice;
 import com.apocollis.aqtweaks.perf.StageTimer;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.network.play.server.SPacketChunkData;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.management.PlayerChunkMapEntry;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
+import net.minecraft.world.WorldServer;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.IChunkProvider;
 import net.minecraftforge.event.world.ChunkEvent;
@@ -21,6 +24,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import rtg.event.EventHandlerCommon;
 
+import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Locale;
@@ -57,6 +61,8 @@ public final class RtgLightFixQueue {
     private static final Map<World, Long2LongOpenHashMap> LAST = Collections.synchronizedMap(new WeakHashMap<>());
     private static final Map<World, Long2LongOpenHashMap> FIRST = Collections.synchronizedMap(new WeakHashMap<>());
     private static final ThreadLocal<Boolean> BYPASS = ThreadLocal.withInitial(() -> Boolean.FALSE);
+    /** Columns repaired by the direct call, one count per in-flight {@code fixLighting} entry. */
+    private static final ThreadLocal<ArrayDeque<Integer>> REPAIRED = ThreadLocal.withInitial(ArrayDeque::new);
 
     private RtgLightFixQueue() {}
 
@@ -72,7 +78,12 @@ public final class RtgLightFixQueue {
             StageTimer.recordNs("rtg.lightFix.immediate", 0L, null);
             return false;
         }
-        long key = ChunkPos.asLong(pos.x, pos.z);
+        enqueue(world, ChunkPos.asLong(pos.x, pos.z));
+        return true;
+    }
+
+    /** Records a chunk for the drain; a repeat request only refreshes its "last request" tick. */
+    private static void enqueue(World world, long key) {
         long now = world.getTotalWorldTime();
         Long2LongOpenHashMap last = map(LAST, world);
         Long2LongOpenHashMap first = map(FIRST, world);
@@ -84,7 +95,66 @@ public final class RtgLightFixQueue {
             }
             last.put(key, now);
         }
-        return true;
+    }
+
+    /**
+     * Entry point for dimensions RTG does not handle (see {@link NonRtgLightFixTrigger}): the same fix as RTG, queued
+     * the same way. A chunk within the immediate radius whose surroundings already exist is fixed at once; any other
+     * chunk is queued and fixed when it is ready. With {@code Defer RTG Light Fix} off, a ready chunk is fixed at once.
+     */
+    public static void request(World world, ChunkPos pos) {
+        if (world == null || world.isRemote || BYPASS.get()) return;
+        StageTimer.recordNs("rtg.lightFix.calls", 0L, "dim=" + world.provider.getDimension());
+        long key = ChunkPos.asLong(pos.x, pos.z);
+        if (!cfg().deferRtgLightFix) {
+            if (ready(world, pos.x, pos.z)) run(world, key);
+            return;
+        }
+        if (playerWithin(world, pos.x, pos.z, cfg().rtgLightFixImmediateChunks) && ready(world, pos.x, pos.z)) {
+            StageTimer.recordNs("rtg.lightFix.immediate", 0L, "dim=" + world.provider.getDimension());
+            run(world, key);
+            return;
+        }
+        enqueue(world, key);
+    }
+
+    /** Called at the start of one RTG light-fix entry. Nested entries keep their own counts. */
+    public static void beginColumnRepair() {
+        REPAIRED.get().push(0);
+    }
+
+    /** One column repaired by the direct {@code checkLightFor} path. Wool mode does not call this. */
+    public static void noteRepairedColumn() {
+        ArrayDeque<Integer> stack = REPAIRED.get();
+        if (stack.isEmpty()) return;
+        stack.push(stack.pop() + 1);
+    }
+
+    /**
+     * After that entry returns: if it repaired at least one column in direct mode, send the chunk once to players
+     * who already have it. Players who have not received the chunk yet get the repaired light in the first packet.
+     * The full-chunk packet is what a relog sends; a block-change packet does not carry sky light.
+     */
+    public static void finishColumnRepair(World world, ChunkPos pos) {
+        ArrayDeque<Integer> stack = REPAIRED.get();
+        if (stack.isEmpty()) return;
+        int repaired = stack.pop();
+        if (repaired <= 0 || world == null || world.isRemote || pos == null) return;
+        if (!cfg().rtgLightHackFix || !(world instanceof WorldServer)) return;
+        Chunk chunk = world.getChunkProvider().getLoadedChunk(pos.x, pos.z);
+        if (chunk == null) return;
+        PlayerChunkMapEntry entry = ((WorldServer) world).getPlayerChunkMap().getEntry(pos.x, pos.z);
+        if (entry == null) return;
+        entry.sendPacket(new SPacketChunkData(chunk, 65535));
+    }
+
+    /** True when the chunk is waiting in this queue (used by {@code /aqlight}). */
+    public static boolean isQueued(World world, ChunkPos pos) {
+        Long2LongOpenHashMap last = LAST.get(world);
+        if (last == null) return false;
+        synchronized (last) {
+            return last.containsKey(ChunkPos.asLong(pos.x, pos.z));
+        }
     }
 
     private static Long2LongOpenHashMap map(Map<World, Long2LongOpenHashMap> maps, World world) {

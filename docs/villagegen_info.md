@@ -134,16 +134,17 @@ Tweaks’ `@Redirect` on `StructureComponent.func_74875_a` inside `StructureStar
 | --- | --- |
 | `MixinMapGenVillageSpawn` | After vanilla `canSpawn`, veto never-raise wells with no dry slot; ocean coast buffer. Always runs. |
 | `forgetRejectedStarts` | Drops vetoed Starts from `structureMap` + `VillagePlate` so `/locate` cannot find them. Walked wells stay. Does not cache kept wells during layout. |
-| `MixinMapGenVillageStart` | Offset walked wells; `VillagePlate.remember` **replaces** that AABB Record with actual well XZ. |
+| `MixinMapGenVillageWell` | Dry well column is chosen before `StructureVillagePieces.Start`, so roads and houses grow there. Chunk key unchanged. |
+| `MixinMapGenVillageStart` | `VillagePlate.remember` **replaces** that AABB Record with the well XZ already used for layout. No second shift. |
 | `layoutVillageGrid` | Dummy-primer `generate()` **once per chunk** after `generateLandscape` (post-`newRepair`) so AABBs exist before flatten with F3 biomes. Stash generators for `/aqvillage` (also at RTG construct + seed+dim). Nested landscape samples do not re-layout. |
 | `MixinChunkGeneratorRTGVillage` | Rewrite `landscape.noise` from **land boxes** + pad 12 + Hermite falloff. Inside the hard pad, skip ocean/river **biome** from provider, RTG landscape biome, or loaded chunk array (except 1-block close); dry RTG river **noise** on land still plates. Outside the pad, `landscape.river > 0.4` still never-raise. Raise dry land to min well Y. Reseal pad after caves/ravines. Brick only on 2+ plate cliffs (coping included). Mud → loamy grass:2 only. `ensureStarts` if Tweaks cache empty; else `rememberNearby` well-grid only. |
 | `VillagePlate.ensureStarts` | Backfill from vanilla `structureMap` once after world load when Tweaks’ list is empty. |
 | `VillagePlate` chunk index | Per-seed buckets for land-box / start-AABB overlap; `STARTS` is the registry. |
 | `VillagePlate.rememberNearby` | `rememberIfAbsent` for well chunks in layout radius. Does not walk every Start. |
-| `MixinStructureVillagePieces` | House/waystone skip/retry inland on never-raise; wet paths retry inland then omit leftover ocean/river or mostly-wet docks. |
+| `MixinStructureVillagePieces` | House/waystone skip/retry inland on never-raise. Wet paths slide along their own line (original facing, steps of 4, cap 3) and omit when that line stays wet. Swamp and lake inside another piece's pad count as dry for that path test. |
 | `MixinGenericVillageCreationHandler` | Same skip/retry for RC AABBs (full `.rcst` box). |
 | `MixinASMHooksVillagePaste` | Charm populate abort if any column of the full AABB is ocean/river biome (roads exempt). Jar `MixinConfigs`; `VillageCharmPaste` at paste time. |
-| `MixinStructureStartVillagePaste` | Snapshot component iterator; populate walk/drop if remembered well is never-raise; abort if any column of the full AABB is ocean/river biome (incl. well; roads exempt); stamp pad children; `VillageBridges` stone brick river bridge at plate Y on kept river paths; relight clip. |
+| `MixinStructureStartVillagePaste` | Snapshot component iterator; populate walk/drop if remembered well is never-raise; abort if any column of the full AABB is ocean/river biome (incl. well; roads exempt); stamp pad children; `VillageBridges` stone brick river bridge at plate Y on kept river paths; `VillageRoadStamper` gravel on configured grass/dirt roads; relight clip. |
 | `MixinMapGenVillageInside` | Detection = pad + Hermite (vanilla child hit first, then `startAt` XZ/Y). Also stamped into `Village.dat`. Well floor through plate + `villageBoxHeight`. |
 
 `isLandscapeLake`: a **null** sample (or nested sampling) is **not** wet. Load-time forget must not treat missing landscape as a flooded plains well. Layout must not treat missing landscape as a lake (that omitted every road).

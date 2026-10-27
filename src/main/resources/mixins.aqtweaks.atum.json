@@ -8,5 +8,9 @@
   "client": [
     "MixinAtumClientEvents"
   ],
-  "mixins": []
+  "mixins": [
+    "MixinMapGenPyramidStart",
+    "MixinChunkGeneratorAtum",
+    "AccessorPyramidTemplate"
+  ]
 }

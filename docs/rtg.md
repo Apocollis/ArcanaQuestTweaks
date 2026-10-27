@@ -32,17 +32,18 @@ Pieces use AABBs. Tweaks does not replace piece types; it vetoes starts **and re
 
 ### Recurrent Complex
 
-`GenericVillageCreationHandler.buildComponent` adds RC buildings as village pieces, same start/facing as vanilla houses. Tweaks retries wet AABBs like vanilla houses. RC worldgen rays for **non-village** structures are the Depths module (`RayMatcher`), not this file.
+`GenericVillageCreationHandler.buildComponent` adds RC buildings as village pieces, same start/facing as vanilla houses. Tweaks retries wet AABBs like vanilla houses.
+For natural (non-village) RC structures, `RcStructureVillageOverlapHandler` listens to Forge `StructureGenerationEventLite.Suggest` and cancels natural RC structures whose bounding box intersects a village pad (`StructureVillageOverlap.overlapsVillage`). Future relocation (§16.1) re-generates the structure on nearby dry land outside the village. RC worldgen rays for subterranean structures are the Depths module (`RayMatcher`), not this file.
 
 ## Locked intent
 
 Keep **what** villages create (vanilla pieces + Recurrent Complex, plus at most one Astral small shrine). Change **where** they may start and **how RTG land under them is shaped**.
 
-- Do **not** pave oceans or rivers into piers or docks. 1-block ocean/river notches inside the village pad may fill when Village Shore Close Ocean is on. Do **not** place wooden docks: a path that touches ocean, or that is mostly flooded lake, is omitted, not converted to planks. A path over a **river** with dry ends and short water runs becomes a **stone brick bridge** at plate Y (Village River Bridges); the river stays water under it.
+- Do **not** pave oceans or rivers into piers or docks. 1-block ocean/river notches inside the village pad may fill when Village Shore Close Ocean is on. Do **not** place wooden docks: a path that touches ocean, or that is mostly flooded lake **outside** another kept piece's pad, is omitted, not converted to planks. Flooded swamp or lake **inside** that pad counts as dry for the path test, because flatten raises it. A path over a **river** with dry ends and short water runs becomes a **stone brick bridge** at plate Y (Village River Bridges); the river stays water under it.
 - Houses, RC buildings, and waystones retry inland if they touch **ocean/river** (biome or RTG `landscape.river`). Low dry land (noise below min well Y) is **raised**, not skipped.
 - **Ocean-like** (never raise, never well start unless a dry slot exists): `Type.OCEAN` or `Type.WATER` (not swamp), plus names `ocean`, `kelp` (BOP Kelp Forest `kelp_forest`), `coral`, `reef`, `atoll`, `lagoon`. Pure **BEACH** is not ocean. RTG `landscape.river` above `STRONG_RIVER` is never-raise even if the biome provider says plains.
 - Wells may sit **16 blocks from the coast** (Chebyshev). Do not veto a land/beach well just because ocean is nearby beyond that. Veto if ocean-like is **closer than** `villageCoastBuffer`. Nearby **river does not** cancel a dry well. A well **in** ocean/river walks inland within `villageWaterRetryDistance`; open ocean with no dry slot is cancelled.
-- In **swamp-like** biomes, pieces may stay. Plate buildings, mixed roads, **and the yards between them** (12-block component pad, overlapping). Open-water paths that are mostly lake are omitted rather than docked.
+- In **swamp-like** biomes, pieces may stay. Plate buildings, mixed roads, **and the yards between them** (12-block component pad, overlapping). A path that is mostly lake outside another piece's pad is omitted rather than docked. Inside that pad it stays, and flatten raises the water.
 - Never raise or plate ocean-like or river columns, even inside a house or road AABB, **except** 1-block ocean/river notches inside the hard pad when Village Shore Close Ocean is on. No village piece may remain on those biomes.
 - A **kept** house/RC/shrine/road on flooded non-ocean land (swamp water, plains lake) gets dirt **up to plate Y for the whole 12-pad**. Pads overlap into one village footprint. Lake **outside** the pads stays water. Dry wells below `villageMinWellHeight` are **kept** and the plate is `max(raw, knob)`.
 - Keep a **flat plate under dry-land roads**, including stretches with no buildings. Omit a road from the plate (and from layout) if it touches ocean/river or is mostly lake.
@@ -107,15 +108,19 @@ Flatten looks up `VillagePlate` records by **land-box overlap** first, via a per
 | `rtg/StructureLandSettle.java` | Fill under a placed schematic + rim slope; swamp-liquid fill; overwrite plant-like blocks |
 | `mixin/bettercaves/MixinChunkGeneratorRTGVillage.java` | Stash gens on RTG construct; layout once per chunk after `generateLandscape` RETURN + flatten noise once + seal pad after caves/ravines |
 | `mixin/MixinMapGenVillageSpawn.java` | Well veto (`func_75047_a`) |
-| `mixin/MixinMapGenVillageStart.java` | Remember start after create (`func_75049_b`) |
+| `mixin/MixinMapGenVillageStart.java` | Remember start after create (`func_75049_b`). The well block is already the dry column; this does not shift pieces |
+| `mixin/MixinMapGenVillageWell.java` | Before `StructureVillagePieces.Start` is built, move that well to `resolvedWellXZ`. The Start's chunk key stays the original chunk |
 | `mixin/MixinMapGenVillageWorld.java` | Push/pop `World` around village `generate` (`MapGenBase.func_186125_a`, HEAD and RETURN); unwrap RTG from wrapped chunk gens. Per-thread stack tracks which nested call pushed a generator, because layout re-enters `generate` for neighbouring well chunks |
 | `rtg/VillagePieceVillagePlate.java` | Non-placing pad children saved on the Start (`AQTVillagePlate`). Houses/paths/RC stay separate |
 | `mixin/MixinMapGenVillageInside.java` | Flatten plate as “inside village” on vanilla miss; hull/XZ before sample |
 | `rtg/CommandAqVillage.java` | OP `/aqvillage` (level 2): TP on generated ground ~6 off the well; prefers unexplored. Miss logs provider/generator to `latest.log` |
-| `mixin/MixinStructureVillagePieces.java` | House skip/retry inland on water; waystone relocates inland as the same piece; wet paths retry inland then omit |
+| `mixin/MixinStructureVillagePieces.java` | House skip/retry inland on water; waystone relocates inland as the same piece; wet paths slide along their own line, then omit |
+| `rtg/VillageLayoutAudit.java` | Counts only. One line per new village when village debug or perf timers are on: roads and houses placed, retried, missed, and which retry slot won |
 | `rtg/VillagePlate.java` | Remembered starts, plate Y, land-box query (chunk-bucket index), stamp `AQTVillagePlate` |
 | `rtg/VillageRelight.java` | After village paste, `checkLight` at emitters in placing-component AABBs ∩ clip (not Y 0..255) |
 | `rtg/VillageBridges.java` | After village paste, stone brick river bridge at plate Y on road ∩ clip (revert vanilla water planks, rails, piers) |
+| `rtg/VillageRoadStamper.java` | After that, gravel on road columns whose top is a `Village Road Gravel Blocks` id with air above (BOP grass and dirt) |
+| `rtg/RcStructureVillageOverlapHandler.java` | Forge listener, registered when `reccomplex` is loaded. Cancels `StructureGenerationEventLite.Suggest` when the box overlaps a village. Nothing is pasted or recorded. RC village pieces are not this event |
 | `mixin/MixinStructureStartVillagePaste.java` | Snapshot `components` iterator; drop/walk ocean well at paste HEAD; populate abort on ocean/river floor (incl. well); stamp `AQTVillagePlate`; river bridges; relight clip |
 | `mixin/charm/MixinASMHooksVillagePaste.java` | Charm `ASMHooks.addComponentParts` HEAD; compile-hard `ASMHooks`; no `VillageLandHelper` import. Json on jar `MixinConfigs` |
 | `rtg/VillageCharmPaste.java` | Wet-paste skip body; loaded on first Charm paste, not mixin prepare |
@@ -133,8 +138,10 @@ Flatten looks up `VillagePlate` records by **land-box overlap** first, via a per
 | `mixin/MixinWorldGenLakes.java` | Skip vanilla water lakes on village 12-pad. Required `mixins.aqtweaks.json`. Remap **true**, MCP `generate`; lake fluid via `block` / `field_150589_a` (no `@Shadow block` — Unimined maps that MCP name to the wrong SRG). Lava lakes are not skipped |
 | `mixin/biomesoplenty/MixinGeneratorLakes.java` | Skip BOP water and quicksand lakes on village overlap. Optional `mixins.aqtweaks.biomesoplenty.json` |
 | `mixin/da/MixinDaStructureStart.java` | Cancel Dungeon Additions structure starts on overworld village overlap (no retry) and time `create` / `func_75068_a` when `perfTimers` is on. Optional `mixins.aqtweaks.da.json` |
+| `world/NonRtgLightFixTrigger.java`, `mixin/lighting/MixinChunkPopulateLight.java` (early json), `RtgLightFixQueue.request` | Gives non-RTG dimensions (default Atum, 17) RTG's light fix: RTG's own triggers only fire for `BiomeProviderRTG`. Requests a chunk on `ChunkEvent.Load` and, at the end of `Chunk.populate`, the chunk and its four diagonal neighbours (as RTG's `fixLightingAround` does); the queue merges repeats, waits for the four diagonal neighbours, tiers by visibility and paces with the Chunk Steward slice. The fix itself is RTG's `fixLighting(World, ChunkPos)` (no biome-provider check inside) with the same direct repair. Same caveats as RTG: scan Y 255 to 49 only, in-chunk neighbours only. Direct mode sends the repaired chunk once to players who already have it |
+| `world/CommandAqLight.java` | `/aqlight` (OP): reports server-side light at the block you look at, `scan [radius]` runs RTG's column test and counts what it would repair (also what it misses: below Y 49, across chunk edges), `fix [direct\|wool] [radius] [all]` repairs on the spot. Server values only: a cell that reads right here but looks black on your client is client-stale |
 | `mixin/rtg/MixinRtgFixLightingDefer.java`, `world/RtgLightFixQueue.java` | Defer and dedupe RTG's `fixLighting(World, ChunkPos)` and `fixLightingOnLoad`. Adaptive drain orders chunks by the player's view and spends spare headroom on unseen chunks. See RTG light fix queue below |
-| `mixin/rtg/MixinRtgFixLightingRepair.java` | When `RTG Light Hack Fix` is true (default), redirects the wool place-and-remove inside `fixLighting(Chunk, int, int)` to one `World.checkLightFor(EnumSkyBlock.SKY, pos)`. False leaves the wool place-and-remove. Also records `rtg.woolRelight` |
+| `mixin/rtg/MixinRtgFixLightingRepair.java` | When `RTG Light Hack Fix` is true (default), redirects the wool place-and-remove inside `fixLighting(Chunk, int, int)` to one `World.checkLightFor(EnumSkyBlock.SKY, pos)`. False leaves the wool place-and-remove. Also records `rtg.woolRelight`. A chunk with at least one direct repair is resent once by `RtgLightFixQueue.finishColumnRepair` |
 | `mixin/rtg/MixinRtgFixLightingProbe.java` | Diagnostic: times `fixLightingAround` (`rtg.fixLightingAround`) into `StageTimer`. No behaviour change |
 | `perf/StageTimer.java` | Step 0 worldgen stage timer (`[AQ-PERF]` 5s summaries when `Performance Stage Timers` is on) |
 | `pacing/StewardPacing.java` | Runtime headroom pacing bridge to `ChunkStewardAPI` (loaded only when `chunksteward` is present). Full TPS slice is `min(max, headroom)`; optional work pauses when behind, or when generating with under 4 ms of headroom |
@@ -153,6 +160,8 @@ Related but separate: `MixinChunkGeneratorRTG.java` fills Deepslate below Y=0 fo
 `RTG Light Fix Neighbourhood Trigger` runs a chunk as soon as its four diagonal neighbours are loaded and terrain-populated. Until then, tier 0 and tier 1 wait at most 10 ticks of quiet, and tier 2 waits `RTG Light Fix Unseen Settle Ticks` (80). With the adaptive slice off, near chunks still use that 10-tick cap and other chunks use `RTG Light Fix Settle Ticks`.
 
 `[AQ-PERF]` (when stage timers are on): `rtg.lightFix.latency.t0` / `.t1` / `.t2` print the wait in ticks in the millisecond field (1 tick recorded as 1 ms). `rtg.lightFix.pending.t0` / `.t1` / `.t2` print the queue size the same way. `rtg.lightFix.budget` is milliseconds spent, with `granted=` the visible-tier cap. `.run` detail is `t0`, `t1`, or `t2`.
+
+When `RTG Light Hack Fix` is on and a fix entry repaired at least one column, that chunk's data is sent once to players who already have the chunk. The direct repair writes sky light on the server and sends no block-change packet, so without this send the client keeps the light from when the chunk first arrived. Wool mode already notifies the client and does not send the extra packet. `/aqlight fix direct` does not send it either. One packet per repaired chunk, shared by RTG and Atum because both use this repair.
 
 ## Current flatten algorithm
 
@@ -206,7 +215,7 @@ Cached per world seed + **well chunk** `(startChunkX, startChunkZ)` in `VillageP
 
 ### Well veto (`startRejectReason`)
 
-Reject only if the well column (`chunkX * 16 + 2`, `chunkZ * 16 + 2`) is **never-raise** (ocean-like biome, river biome, or RTG `landscape.river` &gt; `STRONG_RIVER`) **and** there is no dry column within `villageWaterRetryDistance`. If a dry slot exists, keep the Start (structureMap key stays the original well chunk) and offset pieces to that XZ (`well-walk` in the log).
+Reject only if the well column (`chunkX * 16 + 2`, `chunkZ * 16 + 2`) is **never-raise** (ocean-like biome, river biome, or RTG `landscape.river` &gt; `STRONG_RIVER`) **and** there is no dry column within `villageWaterRetryDistance`. If a dry slot exists, keep the Start (structureMap key stays the original well chunk). `MixinMapGenVillageWell` builds the well and the town at that dry column (`well-before` in the log). Pieces are not shifted again after layout.
 
 A dry land well below `villageMinWellHeight` is **not** rejected; the plate is `max(raw, knob)`.
 
@@ -218,9 +227,9 @@ If an existing `aqtweaks_rtg.cfg` still has Coast Buffer **32**, Forge keeps tha
 
 ### Houses, RC, and village shrine
 
-`isBuildingWet`: ocean/river biome (provider, RTG landscape biome, or loaded chunk array), RTG river noise above `STRONG_RIVER`, or RTG `getRiverBiome()` / river type when that overlay is on (`landscape.river > STRONG_RIVER`). Swamp-like and low dry land (noise below min well Y) are not building-wet; that land is raised to the plate. `isFloodedAt` still treats lakes as flooded so mostly-lake paths are omitted.
+`isBuildingWet`: ocean/river biome (provider, RTG landscape biome, or loaded chunk array), RTG river noise above `STRONG_RIVER`, or RTG `getRiverBiome()` / river type when that overlay is on (`landscape.river > STRONG_RIVER`). Swamp-like and low dry land (noise below min well Y) are not building-wet; that land is raised to the plate. `isFloodedAt` still treats lakes as flooded. A mostly-lake path is omitted only where those columns sit outside another piece's pad.
 
-Retry walks inland (`villageWaterRetryDistance`, default 20): street slots, then toward the well, then a spiral around the well. A path that touches ocean/river or is **at least half** wet retries inland the same way; if every slot still fails, it is omitted (no lake bridge). **Exception (bridge):** with Village River Bridges on, `isBridgeablePath` keeps the path if no column is ocean, both end slices along the long axis are dry, and every water run (`isVillageWaterColumn` in any column across the width) is ≤ Village Bridge Max Span (16). At paste, `VillageBridges` (stamp inject after all pieces, so Charm-wrapped paste too) walks each road ∩ clip: vanilla water-level planks over water are turned back into water, a stone brick deck goes at `max(round(plate), water + 1)`, plants/leaves are cleared 3 above, and each outside side column that is air/liquid at deck Y gets a brick lip plus cobblestone wall rail. Piers (brick from deck − 1 to the bed) sit on the side columns every 4 blocks inside a landscape water run longer than 4; the pier plan comes from landscape so every clip agrees. Any liquid left under a kept road is decked the same way. Flatten is unchanged: river columns under the road stay water; dry banks plate. A forest path with a puddle stays. The Astral small-shrine village piece uses the same wet skip/retry. At populate, Charm `ASMHooks.addComponentParts` (and vanilla `MixinStructureStartVillagePaste` if Charm did not wrap the invoke) skips a non-road building **or well** if **any** column of the full AABB is ocean/river biome (return `true`, keep the piece). Roads stay exempt so a mixed land/water path chunk is not dropped. Leftover lakes still paste. Layout omission is the real drop. The plate does **not** follow an RC schematic into ocean/river. `landBoxesOf` / `buildingBoxesOf` drop a non-road, non-well village piece whose full AABB touches ocean/river biome (`isPasteSkippedPiece`, same test as paste skip), so no plate spur is built for a building that will not paste.
+Houses, RC pieces, shrines, and waystones walk inland (`villageWaterRetryDistance`, default 20): street slots, then toward the well, then a spiral around the well. A path that touches ocean/river, or is **at least half** wet **outside** the pad of another piece already on the start, is not given that search. It is rebuilt on its own line: steps of 4 back along the road and forward, same facing, out to the same distance. The new box has to meet the old one on that line, and it is rejected when it would run parallel to a road already placed (same axis, long sides overlap, 1 to 4 blocks apart). Pieces that wet path had already added are removed with it. After `Village Path Retry Cap` successes (default 3), further wet paths are omitted. A wet path with no dry column on its line is omitted (no lake bridge). Flooded swamp or lake within `villageComponentPad` of the well, a house, or another kept road does not count toward that half. **Exception (bridge):** with Village River Bridges on, `isBridgeablePath` keeps the path if no column is ocean, both end slices along the long axis are dry, and every water run (`isVillageWaterColumn` in any column across the width) is ≤ Village Bridge Max Span (16). At paste, `VillageBridges` (stamp inject after all pieces, so Charm-wrapped paste too) walks each road ∩ clip: vanilla water-level planks over water are turned back into water, a stone brick deck goes at `max(round(plate), water + 1)`, plants/leaves are cleared 3 above, and each outside side column that is air/liquid at deck Y gets a brick lip plus cobblestone wall rail. Piers (brick from deck − 1 to the bed) sit on the side columns every 4 blocks inside a landscape water run longer than 4; the pier plan comes from landscape so every clip agrees. Any liquid left under a kept road is decked the same way. Flatten is unchanged: river columns under the road stay water; dry banks plate. A forest path with a puddle stays. The Astral small-shrine village piece uses the same wet skip/retry. At populate, Charm `ASMHooks.addComponentParts` (and vanilla `MixinStructureStartVillagePaste` if Charm did not wrap the invoke) skips a non-road building **or well** if **any** column of the full AABB is ocean/river biome (return `true`, keep the piece). Roads stay exempt so a mixed land/water path chunk is not dropped. Leftover lakes still paste. Layout omission is the real drop. The plate does **not** follow an RC schematic into ocean/river. `landBoxesOf` / `buildingBoxesOf` drop a non-road, non-well village piece whose full AABB touches ocean/river biome (`isPasteSkippedPiece`, same test as paste skip), so no plate spur is built for a building that will not paste.
 
 **Waystones:** `ComponentVillageWaystone` is not retried as a random house. A wet (never-raise) waystone is rebuilt inland (street, then toward the well, then a spiral around the well, all four facings). Failed wet retries are removed from the start lists. Ocean/river still never get a plate. Waystones’ own `villageChance` can still skip a village; this only keeps a rolled waystone from being deleted.
 
@@ -275,10 +284,11 @@ Teleport is **on the generated ground** at that column (`world.getHeight`, skip 
 | Village Shore Smooth Radius | 1 | yes | Chebyshev opening kernel. `0` = no opening |
 | Village Shore Close Ocean | true | yes | Fill 1-block ocean/river notches and cardinal channels in the hard pad (also after opening) |
 | Village Plate Slope | 0 | yes | Extra dome from box center; 0 = flat |
-| Skip Water Village Pieces | true | yes | House/RC/shrine/waystone/path retry inland; omit leftover ocean/river or mostly-wet paths; paste abort |
+| Skip Water Village Pieces | true | yes | House/RC/shrine/waystone retry inland; wet paths slide along their line; omit leftover ocean/river or mostly-wet paths; paste abort |
+| Village Path Retry Cap | 3 | yes | Successful path slides per village (0..16). 0 omits every wet path. Buildings do not count |
 | Village River Bridges | true | yes | Keep river-crossing paths with dry ends; stone brick deck at plate Y, cobble wall rails, piers. False = omit |
 | Village Bridge Max Span | 16 | yes | Longest water run a bridge path may cross |
-| Village Water Retry Distance | 20 | yes | Retry walk |
+| Village Water Retry Distance | 20 | yes | How far a building walks inland, and how far a path may slide along its line |
 | Reject Coastal Village Starts | true | yes | Well veto: never-raise with no dry slot; ocean coast buffer. Walk river/ocean wells inland |
 | Village Min Well Height | 64 | yes | Dry well / lake plate floor. Live DEVBOX cfg already 64 |
 | Village Coast Buffer | 16 | yes | Chebyshev; veto dry well if ocean-like closer than this. Nearby river does not cancel. `0` = well column only |
@@ -305,7 +315,9 @@ Teleport is **on the generated ground** at that column (`world.getHeight`, skip 
 | RTG Light Fix Near Chunks | 6 | yes | Priority distance |
 | RTG Light Fix Immediate Chunks | 2 | yes | Fixed at once within this distance; -1 off |
 | RTG Light Fix Max Age Ticks | 6000 | yes | Flush a queued chunk after this age |
-| RTG Light Hack Fix | **true** | yes | True (default): repair a failing column with `World.checkLightFor(SKY, pos)` instead of wool. False: RTG's wool place-and-remove. The direct call sends no block-change packet, so a client that already holds the chunk may keep stale light until the chunk is resent |
+| Non-RTG Light Fix Enable | true | yes | Run RTG's own column light fix, through the same paced queue and with the same repair, on chunks in the dimensions below that RTG does not generate |
+| Non-RTG Light Fix Dimensions | `17` | yes | Dimension ids that get the fix (default Atum). RTG-generated dimensions are skipped automatically |
+| RTG Light Hack Fix | **true** | yes | True (default): repair a failing column with `World.checkLightFor(SKY, pos)` instead of wool, then send that chunk once to players who already have it. False: RTG's wool place-and-remove, which already notifies the client |
 | RTG Light Fix Adaptive Slice | true | yes | View-ordered drain sized from tick headroom. Off restores distance order and the fixed slices |
 | RTG Light Fix Reserve Ms | 4 | yes | Headroom left unused by the adaptive drain |
 | RTG Light Fix View Cone Degrees | 140 | yes | Total width of the forward cone for the visible tier |
@@ -313,12 +325,17 @@ Teleport is **on the generated ground** at that column (`world.getHeight`, skip 
 | RTG Light Fix Unseen Min Headroom Ms | 15 | yes | Unseen chunks wait until remaining headroom is at least this |
 | RTG Light Fix Neighbourhood Trigger | true | yes | Run as soon as the four diagonal neighbours are terrain-populated |
 | Verify Biome Class Cache | false | yes | Dev-only: compare each cached ocean/river/beach/swamp biome answer to the uncached computation and log the first `[AQ-VERIFY]` mismatch |
+| Verify Village Snapshot | false | yes | Dev-only: compare the immutable village snapshot the flatten and seal passes read (records, boxes, well, plate heights) with the live records and a fresh plate-height resolve, and log the first `[AQ-VERIFY]` mismatch |
+| Village RC Relocate Walk | 64 | yes | Blocks of walk (steps of 8) to relocate a Recurrent Complex natural structure that overlapped a village; 0 = drop only |
+| Village Path Link Gap | 16 | yes | Max gap to join a road end in the open to the nearest road or well after paste; 0 = off |
 | Performance Stage Timers | false | yes | Log 5s worldgen stage timing summaries (`[AQ-PERF]` in `latest.log`) for village layout, flatten, seal, paste, wellReject/findDryWell, and DA starts |
 | Enable Village Well Disk Cache | true | yes | Cache `VillageLandHelper.chunkExists` per dimension (peeks `loadedChunks` without touching `unloadQueued`, permanent positive set, short-TTL negative map) to avoid repeated `RegionFileCache` disk probes |
 | Village Well Negative Cache TTL Ticks | 200 | yes | Server-tick TTL (0..6000) for negative `chunkExists` entries; `0` disables negative caching |
 | Enable Village Well Verdict Memo | true | yes | Short-TTL memoization of `startRejectReason` and `findDryWell` per `(dimension, seed, configFingerprint)`. `null` (allow) verdicts are only cached/used while no `StructureStart` exists at that well chunk |
 | Village Well Verdict Memo TTL Ticks | 600 | yes | Server-tick TTL (0..6000) for `startRejectReason` and `findDryWell` memo entries |
 | Verify Village Well Verdict Memo | false | yes | Dev verification: recompute `startRejectReason` / `findDryWell` on memo hits and log a one-shot `[AQ-RTG]` warning on mismatch |
+
+With `Village Flatten Debug` or `Performance Stage Timers` on, one `village layout` line records placed, retried, missed, and hit slot. Path hits are `back` only. House hits may still be `lat`, `well`, or `spiral`. The size cap stays 112.
 
 ## Post-terrain structures (not village flatten)
 
@@ -344,6 +361,7 @@ Used after Astral surface shrines, Mystical huts, and Cambion houses place. Serv
 - After fill, plant-like blocks from plate Y through plate+3 are cleared to air. Logs/leaves stop that plant clear.
 - Large temples: `clearFoliage` removes wood/leaves/vines in the template AABB through `maxY + 16`.
 - Rim: Euclidean distance to the AABB, smoothstep over `structureRimBank` (16) for huts and large shrines, `smallShrinePad` (3) for small shrine/ruin, or `cambionHouseFalloff` (12) beyond the Cambion hole-fill pad toward **ground Y** (not above plains). Only raises toward plate (will not dig). `settleTemplate` uses origin Y as floor after rotation AABB.
+- **Cambion River Walk-in (`walkInFromRiver`):** Bewitchment's `canSpawnHere` only checks 2 corners for height delta (<= 3) and ignores water/rivers, causing houses to generate half-submerged in rivers. When `enableCambionRiverWalkIn` is true, if a Cambion house (`cambion1` or `cambionmedium1`) outline intersects water or river biomes/noise (`isRiverOrWaterColumn`), an inland direction vector is computed pointing away from wet perimeter columns. Attempt 1 walks inland by half-width (`span / 2`). If still over water or terrain is unsuitable, Attempt 2 walks inland by full width (`span`). If still over water after 2 attempts, it places as-is.
 
 `StructureVillageOverlap` tests real AABB/Y against remembered village starts (not chunk origin at Y=0). Treasure shrines are excluded from the Astral skip **and** settle mixins.
 
@@ -356,13 +374,16 @@ Useful lines:
 - `register chunk=... biome=... landBoxes=... buildings=...` — start remembered
 - `layout cell=... origin=... wellChunk=... hit=yes|no` — well chunk laid out for flatten
 - `veto chunk=... ocean_well|river_well|coast_ocean ...` — well rejected (open ocean / no dry slot)
-- `well-walk chunk=... from=... to=...` — never-raise well kept; pieces offset inland
+- `well-before from=... to=...` — never-raise well; the town is built at the dry column
+- `well-walk populate chunk=...` — populate still found the remembered well on never-raise land and shifted it
+- `road-gravel clip=... columns=` — BOP grass or dirt road columns stamped to gravel
+- `[AQ-RC] Canceled overlapping natural structure` — RC natural structure dropped (`latest.log`, and `villagepatch.log` when debug is on)
 - `plateSample … target=64` — dry low well raised to min well height (not `flooded_well`)
 - `plate Y=... landBoxes=... componentPad=... falloff=...` — per-village flatten shape
 - `flatten chunk=... boxes=... dry=... wet=... written=... pad=... raised=...` — writes this chunk
 - `house` / `rc` / `astral shrine` retry hit/miss
 - `waystone aabb wet` / `waystone relocate hit|miss` — same gazebo moved inland
-- `path aabb wet ... retrying inland` / `path retry hit` / `path retry miss ... omitted` — wet path moves inland; leftover ocean/river or lake-bridge is dropped
+- `path aabb wet ... retrying along the path` / `path retry hit` / `path retry miss ... omitted` / `cap, omitted` — wet path slides along its line, or is dropped when the line stays wet or the village already slid 3 paths
 - `village piece skip water floor` — paste refused because a clipped column is ocean/river (RC: any column of the full `.rcst` box)
 - `astral` / `cambion` / `da ... skip village overlap` / `mystical hut|barrow skip|relocate` — post-terrain skip or retry
 - `cambion plate at=...` — Cambion pad written
@@ -617,8 +638,10 @@ Every `layoutVillageGrid` pass and `MapGenVillage.canSpawnStructureAtCoords` che
 - **Wanted:** village Astral small shrine **capable of generating** (weight 5, not every village); when it does, complete on the plate, no dirt/grass collar; true ocean/river biome columns still skip.
 - **Wanted:** coastal plate — cleaner XZ outline (open 1-block sea inlets filled); stone-brick **only on 2+ cliffs** including the top block; sand/grass on level rims and interior; inland hill cliffs still dirt/stone. **No brick patches in yards/farms or along chunk lines inside town**; tall brick along river and ocean faces.
 - **Wanted:** village path across a river (`10753, 91, -846` area) — stone brick bridge at plate Y, cobble wall rails, piers on longer spans, water flowing under it; no oak planks at water level. Ocean paths still omitted.
+- **Wanted:** BOP village paths (e.g. Coniferous Forest, Seasonal Forest) — road columns over `biomesoplenty:grass` or `biomesoplenty:dirt` turn into matching native BOP grass paths (`variant=loamy`, `variant=sandy`, `variant=silty`) with dynamic surface Y detection; surface foliage/snow above roads cleared.
+- **Wanted:** open-land villages (e.g. Shrubland, Plains, Meadow) — if initial layout finishes below `villageMinBuildingCount` (default 10), roads and houses expand outward from dead-ends and missing well branches to achieve at least 10 buildings whenever dry space permits within the 112-block cap.
 - **Wanted:** no pad straight across a Land of Lakes / forest watercourse; no bare plate spur without a building.
-- **Unwanted (fixed in flatten, verify on new chunks):** beach sand piers into ocean (except 1-block enclosed notches); ocean ledges; swamp/beach vertical plate walls into water; 1-block grass pads under houses with path one lower; village well in coral reef / kelp forest / open ocean; **river well in the water** (walk inland); plains hill villages stepping instead of one pad; **chunk-aligned stone cliff / forgotten 16×16 in town**; dirt cliff at the far end of a tall RC village piece; in-village grass basins between roads and houses; oak plank path sitting in a lake; **small water pond through village foundations**; houses/roads in F3 River; well over a ravine; floating lamps after cave carve; whole pad forced to loamy grass; leftover BOP mud on the pad; **half marble shrine**; raw sand/ore ocean plate face; **toothed sand/red-sand plate in desert/mesa**; **dirt collar around village shrine**; **BOP quicksand in a village square**; **stone circle through a village farm**; **sawtooth coastal plate / mixed dirt-stone-sand ocean face**.
+- **Unwanted (fixed in flatten, verify on new chunks):** tiny 3-4 building villages in wide open, flat terrain with dead-ended roads; BOP villages with missing or broken paths (due to dummy Y=64..66 path bounding box or unrecognized BOP grass); beach sand piers into ocean (except 1-block enclosed notches); ocean ledges; swamp/beach vertical plate walls into water; 1-block grass pads under houses with path one lower; village well in coral reef / kelp forest / open ocean; **river well in the water** (walk inland); plains hill villages stepping instead of one pad; **chunk-aligned stone cliff / forgotten 16×16 in town**; dirt cliff at the far end of a tall RC village piece; in-village grass basins between roads and houses; oak plank path sitting in a lake; **small water pond through village foundations**; houses/roads in F3 River; well over a ravine; floating lamps after cave carve; whole pad forced to loamy grass; leftover BOP mud on the pad; **half marble shrine**; raw sand/ore ocean plate face; **toothed sand/red-sand plate in desert/mesa**; **dirt collar around village shrine**; **BOP quicksand in a village square**; **stone circle through a village farm**; **sawtooth coastal plate / mixed dirt-stone-sand ocean face**.
 - Swamp villages still keep pieces in swamp water; that water **inside the 12-pad** is filled to plate Y. Open swamp **outside** the pads stays water. Ocean/river columns are never filled except 1-block pad notches.
 
 ## Likely next levers

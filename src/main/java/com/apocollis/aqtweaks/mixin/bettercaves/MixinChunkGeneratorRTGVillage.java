@@ -1,12 +1,14 @@
 package com.apocollis.aqtweaks.mixin.bettercaves;
 
 import com.apocollis.aqtweaks.depths.PrimerAccess;
+import com.apocollis.aqtweaks.rtg.PipelineContext;
 import com.apocollis.aqtweaks.rtg.StructureAccess;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.perf.StageTimer;
 import com.apocollis.aqtweaks.rtg.VillageDebug;
 import com.apocollis.aqtweaks.rtg.VillageLandHelper;
 import com.apocollis.aqtweaks.rtg.VillagePlate;
+import com.apocollis.aqtweaks.rtg.VillagePlateSnapshot;
 import com.apocollis.aqtweaks.rtg.VillageShoreMask;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
@@ -36,8 +38,9 @@ import java.util.List;
 @Mixin(value = ChunkGeneratorRTG.class, remap = false)
 public abstract class MixinChunkGeneratorRTGVillage {
 
+    /** Scratch primer for the village layout pass; one per thread so a pipeline worker never shares it. */
     @Unique
-    private static final ChunkPrimer AQTWEAKS$DUMMY_PRIMER = new ChunkPrimer();
+    private static final ThreadLocal<ChunkPrimer> AQTWEAKS$DUMMY_PRIMER = ThreadLocal.withInitial(ChunkPrimer::new);
 
     @Unique
     private static final int AQTWEAKS$WALL_MIN_DROP = 2;
@@ -63,7 +66,8 @@ public abstract class MixinChunkGeneratorRTGVillage {
 
     @Inject(method = "<init>", at = @At("RETURN"))
     private void aqtweaks$stashGeneratorsOnConstruct(CallbackInfo ci) {
-        if (world != null && villageGenerator != null) {
+        // A pipeline worker generator must never become the stashed one (always inert until plan T2).
+        if (world != null && villageGenerator != null && !PipelineContext.active()) {
             VillageLandHelper.stashGenerators(world, villageGenerator, (ChunkGeneratorRTG) (Object) this);
         }
     }
@@ -134,6 +138,9 @@ public abstract class MixinChunkGeneratorRTGVillage {
 
     @Unique
     private void aqtweaks$registerVillages(int cx, int cz) {
+        if (PipelineContext.active()) {
+            return; // layout runs in the pipeline preparer (plan T2); inert until then
+        }
         if (cx == aqtweaks$laidOutCx && cz == aqtweaks$laidOutCz) {
             return;
         }
@@ -150,7 +157,7 @@ public abstract class MixinChunkGeneratorRTGVillage {
             VillageLandHelper.pushGenerator((ChunkGeneratorRTG) (Object) this);
             try {
                 VillageLandHelper.stashGenerators(world, villageGenerator, (ChunkGeneratorRTG) (Object) this);
-                VillageLandHelper.layoutVillageGrid(villageGenerator, world, cx, cz, AQTWEAKS$DUMMY_PRIMER);
+                VillageLandHelper.layoutVillageGrid(villageGenerator, world, cx, cz, AQTWEAKS$DUMMY_PRIMER.get());
             } finally {
                 VillageLandHelper.popGenerator();
             }
@@ -194,9 +201,11 @@ public abstract class MixinChunkGeneratorRTGVillage {
         long seed = world.getSeed();
 
         boolean recovered = false;
-        List<VillagePlate.Record> hits = aqtweaks$villageHits(cx, cz, reach, true);
+        VillagePlateSnapshot snapshot = aqtweaks$snapshot(cx, cz, reach, true, "flatten");
+        List<VillagePlateSnapshot.Rec> hits = snapshot.records;
         if (hits.isEmpty()) {
-            if (VillageDebug.enabled() && VillageDebug.once("flatten:" + seed + ":" + cx + "," + cz)) {
+            if (VillageDebug.enabled() && !PipelineContext.active()
+                    && VillageDebug.once("flatten:" + seed + ":" + cx + "," + cz)) {
                 List<VillagePlate.Record> startHits = VillagePlate.overlappingStartAabb(
                         seed, startX, chunkMaxX, startZ, chunkMaxZ, reach);
                 VillageDebug.log("flatten skip chunk=%d,%d reason=no-land-boxes starts=%d",
@@ -214,12 +223,12 @@ public abstract class MixinChunkGeneratorRTGVillage {
         int[] raisePads = new int[32];
         int raiseCount = 0;
         int landBoxCount = 0;
-        for (VillagePlate.Record rec : hits) {
-            float target = getOrComputePlateHeight(rec);
+        for (VillagePlateSnapshot.Rec rec : hits) {
+            float target = rec.plateY;
             if (Float.isNaN(target)) continue;
             List<int[]> land = rec.landBoxesOrEmpty();
             List<int[]> shrines = rec.shrineBoxesOrEmpty();
-            if (VillageDebug.once("plate:" + VillagePlate.wellKey(seed, rec))) {
+            if (VillageDebug.once("plate:" + rec.wellKey(seed))) {
                 VillageDebug.log("plate Y=%.1f start=[%d,%d]x[%d,%d] landBoxes=%d buildings=%d shrines=%d componentPad=%d falloff=%d bank=%d shrinePad=%d",
                         target,
                         rec.xz[0], rec.xz[1], rec.xz[2], rec.xz[3],
@@ -476,15 +485,15 @@ public abstract class MixinChunkGeneratorRTGVillage {
         int sealMinY = ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villagePlateMinY;
         int sealDepth = ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villagePlateDepth;
 
-        List<VillagePlate.Record> hits = aqtweaks$villageHits(cx, cz, reach, false);
+        List<VillagePlateSnapshot.Rec> hits = aqtweaks$snapshot(cx, cz, reach, false, "seal").records;
         if (hits.isEmpty()) return;
 
         List<int[]> plateBoxes = new ArrayList<>();
         List<Float> plateTargets = new ArrayList<>();
         List<int[]> shrineBoxes = new ArrayList<>();
         List<Float> shrineTargets = new ArrayList<>();
-        for (VillagePlate.Record rec : hits) {
-            float target = getOrComputePlateHeight(rec);
+        for (VillagePlateSnapshot.Rec rec : hits) {
+            float target = rec.plateY;
             if (Float.isNaN(target)) continue;
             for (int[] box : rec.landBoxesOrEmpty()) {
                 plateBoxes.add(box);
@@ -587,6 +596,30 @@ public abstract class MixinChunkGeneratorRTGVillage {
             VillageDebug.log("seal chunk=%d,%d columns=%d wall=%d pad=%d shrinePad=%d",
                     cx, cz, sealed, walled, componentPad, shrinePad);
         }
+    }
+
+    /**
+     * The one input of the flatten and seal passes: the villages near this chunk and their plate heights, copied
+     * once (see {@link VillagePlateSnapshot}). {@code recover} is the flatten behaviour (rebuild and recover records),
+     * seal reads the registry as it is. With {@code Verify Village Snapshot} on, the copy is compared with the live
+     * records and a fresh plate-height resolve.
+     */
+    @Unique
+    private VillagePlateSnapshot aqtweaks$snapshot(int cx, int cz, int reach, boolean recover, String where) {
+        List<VillagePlate.Record> live = aqtweaks$villageHits(cx, cz, reach, recover);
+        float[] plateY = new float[live.size()];
+        for (int i = 0; i < plateY.length; i++) {
+            plateY[i] = getOrComputePlateHeight(live.get(i));
+        }
+        VillagePlateSnapshot snapshot = VillagePlateSnapshot.of(world.getSeed(), live, plateY);
+        if (ArcanaQuestTweaksConfig.RtgModuleConfig.surface.verifyVillageSnapshot) {
+            float[] fresh = new float[live.size()];
+            for (int i = 0; i < fresh.length; i++) {
+                fresh[i] = getOrComputePlateHeight(live.get(i));
+            }
+            VillagePlateSnapshot.verify(snapshot, live, fresh, where);
+        }
+        return snapshot;
     }
 
     @Unique

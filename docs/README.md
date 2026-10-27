@@ -142,6 +142,7 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `
 | `mixins.aqtweaks.mysticalworld.json` | false | RTG Mystical huts | Skip |
 | `mixins.aqtweaks.biomesoplenty.json` | false | RTG BOP water/quicksand village skip | Skip |
 | `mixins.aqtweaks.da.json` | false | RTG Dungeon Additions village overlap skip | Skip |
+| `mixins.aqtweaks.atum.json` | **true** when queued | Atum fog (client) and pyramid plateau. Queued only when `atum` is loaded | Not queued |
 | `mixins.aqtweaks.depthsupdate.json` | false | Depths: `MixinHeightManager` dimension-indexed `HeightCache` for `HeightManager.get(int)` and `isExtended(int)` | Skip |
 | `mixins.aqtweaks.gaia.json` | false | Grimoire of Gaia drop pierce + recast bolts/bombs + Deathword ranged | Skip |
 | `mixins.aqtweaks.effortlessbuilding.json` | false | Reskillable Building EB place reach + max blocks | Skip |

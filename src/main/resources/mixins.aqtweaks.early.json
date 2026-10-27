@@ -14,6 +14,7 @@
     "MixinWorldCheckLight",
     "lighting.MixinChunkBulkRelight",
     "lighting.MixinChunkGapRecheck",
+    "lighting.MixinChunkPopulateLight",
     "lighting.MixinTemplateBulkRelight",
     "MixinBlockRiftLight",
     "MixinMobSpawnerBaseLogic",

@@ -26,14 +26,22 @@ public abstract class MixinRtgFixLightingDefer {
     @Inject(method = "fixLighting(Lnet/minecraft/world/World;Lnet/minecraft/util/math/ChunkPos;)V",
             at = @At("HEAD"), cancellable = true)
     private static void aqtweaks$deferFixLighting(World world, ChunkPos pos, CallbackInfo ci) {
+        RtgLightFixQueue.beginColumnRepair();
         if (RtgLightFixQueue.intercept(world, pos)) {
             ci.cancel();
         }
     }
 
+    @Inject(method = "fixLighting(Lnet/minecraft/world/World;Lnet/minecraft/util/math/ChunkPos;)V",
+            at = @At("RETURN"))
+    private static void aqtweaks$resyncFixedChunk(World world, ChunkPos pos, CallbackInfo ci) {
+        RtgLightFixQueue.finishColumnRepair(world, pos);
+    }
+
     @Inject(method = "fixLightingOnLoad(Lnet/minecraftforge/event/world/ChunkEvent$Load;)V",
             at = @At("HEAD"), cancellable = true)
     private static void aqtweaks$deferFixLightingOnLoad(ChunkEvent.Load event, CallbackInfo ci) {
+        RtgLightFixQueue.beginColumnRepair();
         World world = event.getWorld();
         if (world == null || world.isRemote) return;
         if (!(world.getBiomeProvider() instanceof BiomeProviderRTG)) return;
@@ -43,5 +51,12 @@ public abstract class MixinRtgFixLightingDefer {
         if (RtgLightFixQueue.intercept(world, chunk.getPos())) {
             ci.cancel();
         }
+    }
+
+    @Inject(method = "fixLightingOnLoad(Lnet/minecraftforge/event/world/ChunkEvent$Load;)V",
+            at = @At("RETURN"))
+    private static void aqtweaks$resyncLoadedChunk(ChunkEvent.Load event, CallbackInfo ci) {
+        Chunk chunk = event.getChunk();
+        RtgLightFixQueue.finishColumnRepair(event.getWorld(), chunk == null ? null : chunk.getPos());
     }
 }

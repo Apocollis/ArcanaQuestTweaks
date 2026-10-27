@@ -49,6 +49,7 @@ public class ArcanaQuestTweaks {
     @Mod.EventHandler
     public void serverStarting(FMLServerStartingEvent event) {
         event.registerServerCommand(new com.apocollis.aqtweaks.rtg.CommandAqVillage());
+        event.registerServerCommand(new com.apocollis.aqtweaks.world.CommandAqLight());
         event.registerServerCommand(new com.apocollis.aqtweaks.comfort.CommandAqComfort());
         if (Loader.isModLoaded("simpletomb")) {
             event.registerServerCommand(new com.apocollis.aqtweaks.simpletomb.CommandAqTomb());

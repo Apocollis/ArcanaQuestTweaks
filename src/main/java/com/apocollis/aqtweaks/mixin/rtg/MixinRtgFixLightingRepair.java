@@ -2,6 +2,7 @@ package com.apocollis.aqtweaks.mixin.rtg;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.perf.StageTimer;
+import com.apocollis.aqtweaks.world.RtgLightFixQueue;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.EnumSkyBlock;
@@ -15,8 +16,8 @@ import rtg.event.EventHandlerCommon;
  * Replaces RTG's wool place-and-remove skylight repair inside {@code EventHandlerCommon.fixLighting(Chunk, int, int)}
  * with a single direct {@link World#checkLightFor(EnumSkyBlock, BlockPos)} call when {@code RTG Light Hack Fix} is
  * true (the default). Avoids a second light flood, block state changes, and neighbor block notifications. The direct
- * call sends no block-change packet, so a client that already holds the chunk may keep stale light until that chunk
- * is resent. False leaves RTG's wool place-and-remove in place.
+ * call sends no block-change packet. {@link com.apocollis.aqtweaks.world.RtgLightFixQueue#finishColumnRepair}
+ * resends the chunk once when this path repaired at least one column. False leaves RTG's wool place-and-remove.
  */
 @Mixin(value = EventHandlerCommon.class, remap = false)
 public abstract class MixinRtgFixLightingRepair {
@@ -27,6 +28,7 @@ public abstract class MixinRtgFixLightingRepair {
     private static boolean aqtweaks$directCheckLightOrWool(World world, BlockPos pos, IBlockState state, int flags) {
         StageTimer.recordNs("rtg.woolRelight", 0L, null);
         if (ArcanaQuestTweaksConfig.RtgModuleConfig.surface.rtgLightHackFix) {
+            RtgLightFixQueue.noteRepairedColumn();
             return world.checkLightFor(EnumSkyBlock.SKY, pos);
         }
         return world.setBlockState(pos, state, flags);

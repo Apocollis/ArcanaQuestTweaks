@@ -702,9 +702,104 @@ public class ArcanaQuestTweaksConfig {
         public boolean enableOutdoorDustParticles = true;
 
         @Config.Name("Max Outdoor Dust Particles")
-        @Config.Comment("Maximum simultaneous active outdoor dust particles in clear weather (scales to 4x during sandstorms).")
-        @Config.RangeInt(min = 20, max = 1500)
+        @Config.Comment("Maximum simultaneous active outdoor dust particles in clear weather.")
+        @Config.RangeInt(min = 20, max = 3000)
         public int maxOutdoorDustParticles = 250;
+
+        @Config.Name("Max Sandstorm Dust Particles")
+        @Config.Comment("Maximum simultaneous active outdoor dust particles during Atum sandstorms. Provides dense, vision-obscuring haboob sandstorms.")
+        @Config.RangeInt(min = 100, max = 25000)
+        public int maxSandstormDustParticles = 10000;
+
+        @Config.Name("Enable Dynamic Wind Direction")
+        @Config.Comment("If true, desert wind direction dynamically veers over time and all active particles follow the shifting wind in unison.")
+        public boolean enableDynamicWindDirection = true;
+    }
+
+    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_atum")
+    public static class AtumModuleConfig {
+        @Config.Name("Enable Pyramid Terrain Smoothing")
+        @Config.Comment("On new Atum chunks, set the apron to the average height of the pyramid's 32x32 footprint and blend the dunes into that plateau. The door is raised by Pyramid Door Lift. The maze stays underground.")
+        public static boolean enablePyramidTerrainSmoothing = true;
+
+        @Config.Name("Pyramid Apron Blocks")
+        @Config.Comment("Flat terrace, in blocks, around the pyramid footprint before the slope starts.")
+        @Config.RangeInt(min = 1, max = 8)
+        public static int pyramidApronBlocks = 4;
+
+        @Config.Name("Pyramid Falloff Blocks")
+        @Config.Comment("Width of the Hermite slope that blends the apron into the surrounding dunes.")
+        @Config.RangeInt(min = 4, max = 32)
+        public static int pyramidFalloffBlocks = 16;
+
+        @Config.Name("Enable Pyramid Entrance Corridor")
+        @Config.Comment("Clear a 6-block-wide walk from the entrance face out to the dunes, with the floor sloping from the raised door down to the natural sand.")
+        public static boolean enablePyramidEntranceCorridor = true;
+
+        @Config.Name("Pyramid Entrance Corridor Length")
+        @Config.Comment("How far, in blocks, the entrance walk extends past the pyramid face.")
+        @Config.RangeInt(min = 6, max = 24)
+        public static int pyramidEntranceCorridorLength = 14;
+
+        @Config.Name("Pyramid Door Lift")
+        @Config.Comment("Blocks a new pyramid is raised above the dune apron, so the entrance stairs stand on the sand and the door is above them. 0 keeps the door at sand level. Pyramids already pasted keep the door they were given.")
+        @Config.RangeInt(min = 0, max = 8)
+        public static int pyramidDoorLift = 3;
+
+        @Config.Name("Enable Sandstorm Gameplay Effects")
+        @Config.Comment("If true, players exposed to the wind path of an Atum sandstorm experience physical and survival gameplay mechanics.")
+        public static boolean enableSandstormGameplayEffects = true;
+
+        @Config.Name("Enable Wind Push")
+        @Config.Comment("If true, unsheltered players in a sandstorm are physically pushed by the gale (tailwind boost, headwind resistance).")
+        public static boolean enableWindPush = true;
+
+        @Config.Name("Wind Push Force")
+        @Config.Comment("Base physical velocity force applied to unsheltered players in a sandstorm.")
+        @Config.RangeDouble(min = 0.005D, max = 0.100D)
+        public static double windPushForce = 0.020D;
+
+        @Config.Name("Enable Headwind Stamina Drain")
+        @Config.Comment("If true, sprinting or fighting movement directly against the howling wind drains stamina (feathers) and increases exhaustion.")
+        public static boolean enableHeadwindStaminaDrain = true;
+
+        @Config.Name("Enable Stinging Grit Blindness")
+        @Config.Comment("If true, looking directly into the blowing sandstorm without protective headgear causes stinging sand blindness and slowness.")
+        public static boolean enableStingingGritBlindness = true;
+
+        @Config.Name("Grit Exposure Seconds Before Blindness")
+        @Config.Comment("Seconds of continuous headwind eye exposure before stinging sand blindness triggers.")
+        @Config.RangeDouble(min = 1.0D, max = 10.0D)
+        public static double gritExposureSecondsBeforeBlindness = 3.0D;
+
+        @Config.Name("Shelter Wind Shadow Distance")
+        @Config.Comment("Distance in blocks upwind to raytrace for solid obstacles (dune crests, walls, cliffs) that block the wind and grant shelter.")
+        @Config.RangeDouble(min = 3.0D, max = 16.0D)
+        public static double shelterWindShadowDistance = 6.5D;
+
+        @Config.Name("Enable Sand Inhalation Choking")
+        @Config.Comment("If true, an unsheltered player in a sandstorm without protective headgear loses breath and takes choking damage when the air bar is empty. Shelter or headgear refills it.")
+        public static boolean enableSandInhalationChoking = true;
+
+        @Config.Name("Enable Abrasive Sand Scour")
+        @Config.Comment("If true, an unsheltered player missing chest, legs, or boots, or with armor below 10, takes abrasion damage every 4 seconds. Atum wanderer or mummy cloth on those three slots stops it. Shelter stops it.")
+        public static boolean enableAbrasiveSandScour = true;
+
+        @Config.Name("Enable Desert Storm Ambience")
+        @Config.Comment("If true, an unsheltered player in a strong sandstorm occasionally hears a low cave-wind howl.")
+        public static boolean enableDesertStormAmbience = true;
+
+        @Config.Name("Protective Headgear Whitelist")
+        @Config.Comment("Item registry names for helmets, veils, turbans, or goggles that protect from stinging sand grit blindness.")
+        public static String[] protectiveHeadgear = new String[] {
+                "atum:desert_helmet_iron",
+                "atum:desert_helmet_gold",
+                "atum:desert_helmet_diamond",
+                "atum:wanderer_helmet",
+                "atum:mummy_helmet",
+                "atum:mask_of_nuit",
+                "thaumcraft:goggles"
+        };
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_somnia")
@@ -1152,6 +1247,23 @@ public class ArcanaQuestTweaksConfig {
         @Config.RangeInt(min = 0, max = 48)
         public int villageWaterRetryDistance = 20;
 
+        @Config.Name("Village Min Building Count")
+        @Config.Comment("Minimum number of buildings a village attempts to layout. If vanilla layout finishes with fewer buildings and there is dry land available within the 112-block radius, roads and paths are expanded from open ends to layout more buildings. 0 disables expansion.")
+        @Config.RangeInt(min = 0, max = 50)
+        public int villageMinBuildingCount = 10;
+
+        @Config.Name("Village Path Retry Cap")
+        @Config.Comment("How many wet paths one village may slide along their own line. Further wet paths are left out. 0 leaves every wet path out. Buildings use the inland search and do not count toward this.")
+        @Config.RangeInt(min = 0, max = 16)
+        public int villagePathRetryCap = 3;
+
+        @Config.Name("Village Road Gravel Blocks")
+        @Config.Comment("After paste, village road columns on BOP loamy, sandy, and silty grass/dirt turn into the matching BOP grass path. Other variants or configured blocks here become gravel. Vanilla grass still becomes a grass path, sand still becomes gravel, and river bridges are unchanged.")
+        public String[] villageRoadGravelBlocks = new String[] {
+                "biomesoplenty:grass",
+                "biomesoplenty:dirt"
+        };
+
         @Config.Name("Village River Bridges")
         @Config.Comment("Keep a village path that crosses a river (not ocean) when both ends are dry and each water run is at most Village Bridge Max Span. The path becomes a stone brick bridge at plate height with cobblestone wall rails and piers. False = omit river paths.")
         public boolean villageRiverBridges = true;
@@ -1210,6 +1322,16 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Write village terrain traces to logs/villagepatch.log (not latest.log). Off by default: appends stall chunk gen. Turn on only while diagnosing villages.")
         public boolean villageFlattenDebug = false;
 
+        @Config.Name("Village Path Link Gap")
+        @Config.Comment("After village paste, a road that ends in the open is joined to the nearest other road or the well within this many blocks (a one-wide grass path, or gravel on sand and the Village Road Gravel Blocks). It never crosses a village piece or water. 0 turns the link off.")
+        @Config.RangeInt(min = 0, max = 48)
+        public int villagePathLinkGap = 16;
+
+        @Config.Name("Village RC Relocate Walk")
+        @Config.Comment("A Recurrent Complex natural structure cancelled for overlapping a village is held and, on the next server tick, generated once at the nearest shifted spot (steps of 8) whose whole box is outside the village and in loaded chunks, out to this many blocks. 0 drops the structure (no relocation). If no spot is found, or RC refuses the spot, the structure is dropped.")
+        @Config.RangeInt(min = 0, max = 128)
+        public int rcRelocateWalk = 64;
+
         @Config.Name("Skip Structures On Village")
         @Config.Comment("Cancel Astral shrines, Bewitchment Cambion houses, and Dungeon Additions structures on village overlap. Mystical World huts/barrows and Bewitchment stone circles/menhir/wickerman skip that spot and retry nearby. Vanilla water lakes and BOP water/quicksand lakes that overlap a village pad are skipped. Lava lakes are not skipped.")
         public boolean skipStructuresOnVillage = true;
@@ -1225,6 +1347,10 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Enable Cambion House Settle")
         @Config.Comment("Skip Bewitchment Cambion houses that overlap a village. House pastes one above ground (cobble on the grass). The 6-pad stays at plains Y and only fills air holes.")
         public boolean enableCambionHouseSettle = true;
+
+        @Config.Name("Enable Cambion River Walk In")
+        @Config.Comment("If a Bewitchment Cambion house attempts to generate over a river or water, walk it inland and retest outline up to two times before placing as is.")
+        public boolean enableCambionRiverWalkIn = true;
 
         @Config.Name("Enable Astral Small Shrine Village Piece")
         @Config.Comment("Allow Astral small shrines as a village building, at most once per village. Disabled by default.")
@@ -1294,8 +1420,16 @@ public class ArcanaQuestTweaksConfig {
         public int rtgLightFixMaxAgeTicks = 6000;
 
         @Config.Name("RTG Light Hack Fix")
-        @Config.Comment("When true (default), a column that fails RTG's skylight test is repaired with World.checkLightFor(SKY, pos) instead of placing and removing wool. When false, RTG's original wool place-and-remove runs. The direct call sends no block-change packet, so a client that already holds the chunk may keep stale light until the chunk is resent.")
+        @Config.Comment("When true (default), a column that fails RTG's skylight test is repaired with World.checkLightFor(SKY, pos) instead of placing and removing wool. When false, RTG's original wool place-and-remove runs. The direct call sends no block-change packet; after a chunk with at least one repaired column finishes, that chunk is sent once to players who already have it. Wool mode does not send that extra packet.")
         public boolean rtgLightHackFix = true;
+
+        @Config.Name("Non-RTG Light Fix Enable")
+        @Config.Comment("Run RTG's own column light fix, through the same Chunk Steward paced queue and with the same repair (RTG Light Hack Fix), on chunks in the dimensions listed in Non-RTG Light Fix Dimensions. Those dimensions are not generated by RTG, so RTG never fixes them itself.")
+        public boolean nonRtgLightFixEnable = true;
+
+        @Config.Name("Non-RTG Light Fix Dimensions")
+        @Config.Comment("Dimension ids that get RTG's light fix (the overhang test: sky light lower than the brightest neighbour minus 1). Default 17 (Atum). Dimensions generated by RTG are skipped automatically.")
+        public int[] nonRtgLightFixDimensions = new int[] {17};
 
         @Config.Name("RTG Light Fix Adaptive Slice")
         @Config.Comment("When on, the deferred light-fix drain sizes its slice from Chunk Steward headroom and the shared tick clock, and orders chunks by what the player can see. Off restores the fixed near/far slices and distance-only order.")
@@ -1328,6 +1462,10 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Performance Stage Timers")
         @Config.Comment("Log 5-second worldgen stage timing summaries ([AQ-PERF] in latest.log) for village layout, flatten, seal, paste, and Dungeon Additions starts. Off by default.")
         public boolean perfTimers = false;
+
+        @Config.Name("Verify Village Snapshot")
+        @Config.Comment("Dev-only verification: every flatten and seal pass compares its immutable village snapshot (records, boxes, well, plate heights) with the live village records and a fresh plate-height resolve, and logs the first difference ([AQ-VERIFY]). Off by default.")
+        public boolean verifyVillageSnapshot = false;
 
         @Config.Name("Verify Biome Class Cache")
         @Config.Comment("Dev-only verification: compare every cached ocean/river/beach/swamp biome classification against the uncached computation and log the first mismatch ([AQ-VERIFY]). Off by default.")

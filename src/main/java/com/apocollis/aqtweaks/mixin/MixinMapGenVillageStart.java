@@ -35,16 +35,11 @@ public abstract class MixinMapGenVillageStart {
                 return;
             }
         }
-        int wellX = chunkX * 16 + 2;
-        int wellZ = chunkZ * 16 + 2;
-        int[] resolved = VillageLandHelper.resolvedWellXZ(world, wellX, wellZ);
-        if (resolved[0] != wellX || resolved[1] != wellZ) {
-            VillageLandHelper.offsetStructureStart(start, resolved[0] - wellX, resolved[1] - wellZ);
-            VillageDebug.log("well-walk chunk=%d,%d from=%d,%d to=%d,%d",
-                    chunkX, chunkZ, wellX, wellZ, resolved[0], resolved[1]);
-            wellX = resolved[0];
-            wellZ = resolved[1];
-        }
+        int originX = chunkX * 16 + 2;
+        int originZ = chunkZ * 16 + 2;
+        int[] resolved = VillageLandHelper.resolvedWellXZ(world, originX, originZ);
+        int wellX = resolved[0];
+        int wellZ = resolved[1];
         if (world != null && VillageLandHelper.isNeverRaiseAt(world, wellX, wellZ)) {
             VillageDebug.log("reject-start chunk=%d,%d well=%d,%d ocean_well after-walk",
                     chunkX, chunkZ, wellX, wellZ);

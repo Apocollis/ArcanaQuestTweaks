@@ -4,6 +4,8 @@ import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.teammetallurgy.atum.world.WorldProviderAtum;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.entity.Entity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.WorldProvider;
 import net.minecraftforge.client.event.EntityViewRenderEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
@@ -39,14 +41,20 @@ public class AtumFogHandler {
             GlStateManager.setFogStart(0.0F);
             GlStateManager.setFogEnd(farPlaneDistance);
         } else {
-            // Terrain pass: clean linear horizon fog everywhere in Atum
-            // Caves and rooms stay crisp and clear, while outdoors horizon fades naturally.
-            // During sandstorms, fog pulls in slightly to enhance the storm atmosphere.
-            float stormStrength = (provider instanceof WorldProviderAtum) ? ((WorldProviderAtum) provider).stormStrength : 0.0F;
-            float fogStart = (stormStrength > 0.05F) ? (farPlaneDistance * 0.40F) : (farPlaneDistance * 0.75F);
+            // Terrain pass. Under a roof, and in clear weather, the horizon stays at 0.75*far to far.
+            // Outdoors in a sandstorm the fog closes with storm strength. At full strength it starts at
+            // the camera and ends near 0.12*far, so the desert is only readable for a short distance.
+            float storm = 0.0F;
+            if (provider instanceof WorldProviderAtum) {
+                storm = MathHelper.clamp(((WorldProviderAtum) provider).stormStrength, 0.0F, 1.0F);
+            }
+            BlockPos eye = new BlockPos(entity.posX, entity.posY + entity.getEyeHeight(), entity.posZ);
+            if (!entity.world.canSeeSky(eye)) storm = 0.0F;
+            float fogStart = farPlaneDistance * (0.75F * (1.0F - storm));
+            float fogEnd = farPlaneDistance * ((1.0F - storm) + 0.12F * storm);
 
             GlStateManager.setFogStart(fogStart);
-            GlStateManager.setFogEnd(farPlaneDistance);
+            GlStateManager.setFogEnd(fogEnd);
         }
     }
 }

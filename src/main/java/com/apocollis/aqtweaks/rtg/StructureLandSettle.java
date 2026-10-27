@@ -348,4 +348,202 @@ public final class StructureLandSettle {
         if (dx == 0 && dz == 0) return 0.0;
         return Math.sqrt((double) dx * dx + (double) dz * dz);
     }
+
+    /**
+     * If a structure footprint attempts to place over a river or water, walk it inland
+     * and retest outline up to 2 times before placing as is.
+     * Attempt 1: walk inland along opposite-water direction by half width.
+     * Attempt 2: walk inland by full width.
+     * Fallback: return original origin.
+     */
+    public static BlockPos walkInFromRiver(World world, BlockPos origin, BlockPos size) {
+        if (world == null || origin == null || world.isRemote) return origin;
+        if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.enableCambionHouseSettle) return origin;
+        if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.enableCambionRiverWalkIn) return origin;
+
+        int sizeX = size != null ? size.getX() : 11;
+        int sizeZ = size != null ? size.getZ() : 11;
+        if (sizeX <= 0) sizeX = 11;
+        if (sizeZ <= 0) sizeZ = 11;
+
+        int minX = origin.getX();
+        int maxX = origin.getX() + Math.max(0, sizeX - 1);
+        int minZ = origin.getZ();
+        int maxZ = origin.getZ() + Math.max(0, sizeZ - 1);
+
+        double[] inlandVec = new double[2];
+        int wetCount = countWetOutlineColumns(world, minX, maxX, minZ, maxZ, origin.getY(), inlandVec);
+        if (wetCount == 0) {
+            return origin;
+        }
+
+        double vx = inlandVec[0];
+        double vz = inlandVec[1];
+        double len = Math.sqrt(vx * vx + vz * vz);
+        if (len < 0.001) {
+            int[] fallback = findDryDirection(world, origin, sizeX, sizeZ);
+            vx = fallback[0];
+            vz = fallback[1];
+            len = Math.sqrt(vx * vx + vz * vz);
+        }
+        if (len < 0.001) {
+            return origin;
+        }
+
+        double dirX = vx / len;
+        double dirZ = vz / len;
+        int span = Math.max(sizeX, sizeZ);
+        int step = Math.max(6, span / 2);
+
+        // Attempt 1: walk inland by half width
+        int dx1 = (int) Math.round(dirX * step);
+        int dz1 = (int) Math.round(dirZ * step);
+        if (dx1 == 0 && dz1 == 0) {
+            dx1 = dirX > 0 ? 1 : (dirX < 0 ? -1 : 0);
+            dz1 = dirZ > 0 ? 1 : (dirZ < 0 ? -1 : 0);
+        }
+
+        BlockPos cand1 = evaluateCandidate(world, origin.getX() + dx1, origin.getZ() + dz1, sizeX, sizeZ);
+        if (cand1 != null) {
+            VillageDebug.log("cambion river walk-in attempt 1 success: from=%d,%d,%d to=%d,%d,%d",
+                    origin.getX(), origin.getY(), origin.getZ(),
+                    cand1.getX(), cand1.getY(), cand1.getZ());
+            return cand1;
+        }
+
+        // Attempt 2: walk inland by full width
+        int dx2 = (int) Math.round(dirX * step * 2);
+        int dz2 = (int) Math.round(dirZ * step * 2);
+        BlockPos cand2 = evaluateCandidate(world, origin.getX() + dx2, origin.getZ() + dz2, sizeX, sizeZ);
+        if (cand2 != null) {
+            VillageDebug.log("cambion river walk-in attempt 2 success: from=%d,%d,%d to=%d,%d,%d",
+                    origin.getX(), origin.getY(), origin.getZ(),
+                    cand2.getX(), cand2.getY(), cand2.getZ());
+            return cand2;
+        }
+
+        // Fallback: place as is
+        VillageDebug.log("cambion river walk-in failed after 2 attempts, placing as-is at=%d,%d,%d",
+                origin.getX(), origin.getY(), origin.getZ());
+        return origin;
+    }
+
+    private static BlockPos evaluateCandidate(World world, int targetX, int targetZ, int sizeX, int sizeZ) {
+        int y0 = surfaceY(world, targetX, targetZ);
+        if (y0 <= 0 || y0 > 250) return null;
+
+        int minX = targetX;
+        int maxX = targetX + Math.max(0, sizeX - 1);
+        int minZ = targetZ;
+        int maxZ = targetZ + Math.max(0, sizeZ - 1);
+
+        // Check opposite corner for Bewitchment canSpawnHere
+        int y1 = surfaceY(world, targetX + sizeX, targetZ + sizeZ);
+        if (y1 <= 0 || y1 > 250) return null;
+
+        // Choose target Y so both corners satisfy Bewitchment's isCornerValid:
+        // isCornerValid requires: groundY > position.getY() - 1 && groundY < position.getY() + 3
+        int targetY = Math.min(y0, y1);
+        if (Math.max(y0, y1) - targetY > 2) {
+            return null;
+        }
+
+        // Retest outline to ensure no part of footprint sits on river/water
+        if (isOutlineOverWater(world, minX, maxX, minZ, maxZ, targetY)) {
+            return null;
+        }
+
+        // Check the other two corners for general slope stability
+        int y10 = surfaceY(world, maxX, minZ);
+        int y01 = surfaceY(world, minX, maxZ);
+        int minY = Math.min(targetY, Math.min(y10, y01));
+        int maxY = Math.max(Math.max(y0, y1), Math.max(y10, y01));
+        if (maxY - minY > 4) {
+            return null;
+        }
+
+        return new BlockPos(targetX, targetY, targetZ);
+    }
+
+    private static int countWetOutlineColumns(World world, int minX, int maxX, int minZ, int maxZ,
+                                              int refY, double[] inlandVec) {
+        int wetCount = 0;
+        double cx = (minX + maxX) / 2.0;
+        double cz = (minZ + maxZ) / 2.0;
+
+        for (int x = minX; x <= maxX; x++) {
+            if (isRiverOrWaterColumn(world, x, minZ, refY)) {
+                wetCount++;
+                inlandVec[0] += (cx - x);
+                inlandVec[1] += (cz - minZ);
+            }
+            if (minZ != maxZ && isRiverOrWaterColumn(world, x, maxZ, refY)) {
+                wetCount++;
+                inlandVec[0] += (cx - x);
+                inlandVec[1] += (cz - maxZ);
+            }
+        }
+
+        for (int z = minZ + 1; z < maxZ; z++) {
+            if (isRiverOrWaterColumn(world, minX, z, refY)) {
+                wetCount++;
+                inlandVec[0] += (cx - minX);
+                inlandVec[1] += (cz - z);
+            }
+            if (minX != maxX && isRiverOrWaterColumn(world, maxX, z, refY)) {
+                wetCount++;
+                inlandVec[0] += (cx - maxX);
+                inlandVec[1] += (cz - z);
+            }
+        }
+
+        int midX = (int) Math.round(cx);
+        int midZ = (int) Math.round(cz);
+        if (isRiverOrWaterColumn(world, midX, midZ, refY)) {
+            wetCount++;
+        }
+
+        return wetCount;
+    }
+
+    private static boolean isOutlineOverWater(World world, int minX, int maxX, int minZ, int maxZ, int refY) {
+        for (int x = minX; x <= maxX; x++) {
+            if (isRiverOrWaterColumn(world, x, minZ, refY)) return true;
+            if (minZ != maxZ && isRiverOrWaterColumn(world, x, maxZ, refY)) return true;
+        }
+        for (int z = minZ + 1; z < maxZ; z++) {
+            if (isRiverOrWaterColumn(world, minX, z, refY)) return true;
+            if (minX != maxX && isRiverOrWaterColumn(world, maxX, z, refY)) return true;
+        }
+        int midX = (minX + maxX) / 2;
+        int midZ = (minZ + maxZ) / 2;
+        return isRiverOrWaterColumn(world, midX, midZ, refY);
+    }
+
+    public static boolean isRiverOrWaterColumn(World world, int x, int z, int refY) {
+        if (world == null) return false;
+        if (VillageLandHelper.isNeverRaiseAt(world, x, z)) return true;
+        int topY = world.getHeight(x, z);
+        if (topY > 0 && isLiquid(world.getBlockState(new BlockPos(x, topY - 1, z)))) return true;
+        if (refY > 0) {
+            if (isLiquid(world.getBlockState(new BlockPos(x, refY, z)))) return true;
+            if (isLiquid(world.getBlockState(new BlockPos(x, refY - 1, z)))) return true;
+        }
+        if (isLiquid(world.getBlockState(new BlockPos(x, 62, z)))) return true;
+        if (isLiquid(world.getBlockState(new BlockPos(x, 63, z)))) return true;
+        return false;
+    }
+
+    private static int[] findDryDirection(World world, BlockPos origin, int sizeX, int sizeZ) {
+        int span = Math.max(sizeX, sizeZ);
+        int[][] dirs = new int[][] {{0, -1}, {0, 1}, {-1, 0}, {1, 0}};
+        for (int[] d : dirs) {
+            int testX = origin.getX() + d[0] * span;
+            int testZ = origin.getZ() + d[1] * span;
+            if (!isRiverOrWaterColumn(world, testX, testZ, origin.getY())) {
+                return d;
+            }
+        }
+        return new int[] {0, 0};
+    }
 }

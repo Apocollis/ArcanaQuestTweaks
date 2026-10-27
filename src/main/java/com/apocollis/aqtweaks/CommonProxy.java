@@ -108,6 +108,14 @@ public class CommonProxy {
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.aether.AetherPortalLandingHandler());
         }
 
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("reccomplex")) {
+            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.rtg.RcStructureVillageOverlapHandler());
+        }
+
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("atum")) {
+            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.atum.AtumStormGameplayHandler());
+        }
+
         if (net.minecraftforge.fml.common.Loader.isModLoaded("qualitytools")) {
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.qualitytools.QualityToolsModule());
         }

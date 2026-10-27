@@ -16,6 +16,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
@@ -26,6 +27,24 @@ public abstract class MixinWorldGenCambionHome {
 
     @Unique
     private BlockPos aqtweaks$pastePos;
+
+    @ModifyVariable(
+            method = "func_180709_b",
+            at = @At("HEAD"),
+            argsOnly = true,
+            ordinal = 0
+    )
+    private BlockPos aqtweaks$walkInCambion(BlockPos position, World world, Random rand) {
+        if (world == null || position == null) return position;
+        if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.enableCambionHouseSettle) return position;
+        if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.enableCambionRiverWalkIn) return position;
+        if (!(world instanceof WorldServer) || world.getMinecraftServer() == null) return position;
+        TemplateManager manager = ((WorldServer) world).getStructureTemplateManager();
+        Template template = manager.getTemplate(world.getMinecraftServer(),
+                new ResourceLocation("bewitchment", "cambion1"));
+        BlockPos size = template != null ? template.getSize() : null;
+        return StructureLandSettle.walkInFromRiver(world, position, size);
+    }
 
     @Inject(method = "func_180709_b", at = @At("HEAD"))
     private void aqtweaks$resetPaste(World world, Random rand, BlockPos position,

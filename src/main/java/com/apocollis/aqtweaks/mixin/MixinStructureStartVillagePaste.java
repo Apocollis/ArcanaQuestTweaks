@@ -5,6 +5,8 @@ import com.apocollis.aqtweaks.perf.StageTimer;
 import com.apocollis.aqtweaks.rtg.StructureAccess;
 import com.apocollis.aqtweaks.rtg.StructureVillageOverlap;
 import com.apocollis.aqtweaks.rtg.VillageBridges;
+import com.apocollis.aqtweaks.rtg.VillagePathLinker;
+import com.apocollis.aqtweaks.rtg.VillageRoadStamper;
 import com.apocollis.aqtweaks.rtg.VillageDebug;
 import com.apocollis.aqtweaks.rtg.VillageLandHelper;
 import com.apocollis.aqtweaks.rtg.VillagePlate;
@@ -112,6 +114,8 @@ public abstract class MixinStructureStartVillagePaste {
             long tBridges = StageTimer.start();
             try {
                 VillageBridges.afterVillagePaste(world, (StructureStart) (Object) this, box, plateY);
+                VillageRoadStamper.afterVillagePaste(world, (StructureStart) (Object) this, box);
+                VillagePathLinker.afterVillagePaste(world, (StructureStart) (Object) this, box);
             } finally {
                 StageTimer.end("village.paste.bridges", tBridges);
             }

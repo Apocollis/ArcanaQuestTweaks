@@ -1,8 +1,10 @@
 package com.apocollis.aqtweaks.mixin;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
+import com.apocollis.aqtweaks.rtg.StructureAccess;
 import com.apocollis.aqtweaks.rtg.VillageDebug;
 import com.apocollis.aqtweaks.rtg.VillageLandHelper;
+import com.apocollis.aqtweaks.rtg.VillageLayoutAudit;
 import com.apocollis.aqtweaks.rtg.WaystoneBridge;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.world.gen.structure.StructureComponent;
@@ -12,8 +14,11 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 import java.util.Random;
 
@@ -25,6 +30,10 @@ public abstract class MixinStructureVillagePieces {
 
     @Unique
     private static final ThreadLocal<Boolean> AQTWEAKS$RETRYING_PATH = ThreadLocal.withInitial(() -> Boolean.FALSE);
+
+    /** Component-list size at the start of each path build, so a rejected path can drop the pieces it added. */
+    @Unique
+    private static final ThreadLocal<Deque<Integer>> AQTWEAKS$PATH_MARK = ThreadLocal.withInitial(ArrayDeque::new);
 
     @Shadow(remap = false)
     private static StructureComponent func_176066_d(StructureVillagePieces.Start start, List<StructureComponent> structureComponents,
@@ -42,11 +51,22 @@ public abstract class MixinStructureVillagePieces {
     private static void aqtweaks$rejectHouseAabbOnWater(StructureVillagePieces.Start start, List<StructureComponent> structureComponents,
                                                         Random rand, int x, int y, int z, EnumFacing facing, int type,
                                                         CallbackInfoReturnable<StructureComponent> cir) {
-        if (Boolean.TRUE.equals(AQTWEAKS$RETRYING_HOUSE.get())) return;
-        if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.skipWaterVillagePieces) return;
+        if (Boolean.TRUE.equals(AQTWEAKS$RETRYING_HOUSE.get())) {
+            StructureComponent nested = cir.getReturnValue();
+            if (nested != null) VillageLayoutAudit.stackHouse(start, nested);
+            return;
+        }
+        if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.skipWaterVillagePieces) {
+            if (cir.getReturnValue() != null) VillageLayoutAudit.acceptHouse(start, cir.getReturnValue());
+            return;
+        }
         StructureComponent placed = cir.getReturnValue();
-        if (placed == null || !VillageLandHelper.isAabbWet(start, placed)) return;
+        if (placed == null || !VillageLandHelper.isAabbWet(start, placed)) {
+            if (placed != null) VillageLayoutAudit.acceptHouse(start, placed);
+            return;
+        }
         VillageLandHelper.removeVillagePiece(start, structureComponents, placed);
+        VillageLayoutAudit.retryHouse(start);
         if (VillageLandHelper.isWaystonePiece(placed)) {
             VillageDebug.log("waystone aabb wet origin=%d,%d, relocating inland", x, z);
             cir.setReturnValue(aqtweaks$relocateWaystone(start, structureComponents, rand, x, y, z, facing, type));
@@ -66,6 +86,7 @@ public abstract class MixinStructureVillagePieces {
                 StructureComponent placed = func_176066_d(start, structureComponents, rand, slot[0], y, slot[1], facing, type);
                 if (placed != null && !VillageLandHelper.isAabbWet(start, placed)) {
                     VillageDebug.log("house retry hit origin=%d,%d slot=%d,%d", x, z, slot[0], slot[1]);
+                    VillageLayoutAudit.hitHouse(start, placed, aqtweaks$slotKind(slot));
                     return placed;
                 }
                 if (placed != null) {
@@ -73,6 +94,7 @@ public abstract class MixinStructureVillagePieces {
                 }
             }
             VillageDebug.log("house retry miss origin=%d,%d", x, z);
+            VillageLayoutAudit.missHouse(start);
             return null;
         } finally {
             AQTWEAKS$RETRYING_HOUSE.set(Boolean.FALSE);
@@ -89,6 +111,7 @@ public abstract class MixinStructureVillagePieces {
                 StructureComponent retry = aqtweaks$buildWaystone(start, pieces, rand, slot[0], y, slot[1], face, type);
                 if (retry != null && !VillageLandHelper.isAabbWet(start, retry)) {
                     VillageDebug.log("waystone relocate hit origin=%d,%d slot=%d,%d", x, z, slot[0], slot[1]);
+                    VillageLayoutAudit.hitHouse(start, retry, aqtweaks$slotKind(slot));
                     return retry;
                 }
                 if (retry != null) {
@@ -97,7 +120,13 @@ public abstract class MixinStructureVillagePieces {
             }
         }
         VillageDebug.log("waystone relocate miss origin=%d,%d", x, z);
+        VillageLayoutAudit.missHouse(start);
         return null;
+    }
+
+    @Unique
+    private static int aqtweaks$slotKind(int[] slot) {
+        return slot != null && slot.length > 2 ? slot[2] : VillageLandHelper.SLOT_BACK;
     }
 
     @Unique
@@ -112,41 +141,72 @@ public abstract class MixinStructureVillagePieces {
         return WaystoneBridge.build(start, pieces, rand, x, y, z, facing, type);
     }
 
+    @Inject(method = "func_176069_e", at = @At("HEAD"))
+    private static void aqtweaks$markPathList(StructureVillagePieces.Start start, List<StructureComponent> structureComponents,
+                                             Random rand, int x, int y, int z, EnumFacing facing, int type,
+                                             CallbackInfoReturnable<StructureComponent> cir) {
+        AQTWEAKS$PATH_MARK.get().push(structureComponents == null ? 0 : structureComponents.size());
+    }
+
     @Inject(method = "func_176069_e", at = @At("RETURN"), cancellable = true)
     private static void aqtweaks$omitWetRoad(StructureVillagePieces.Start start, List<StructureComponent> structureComponents,
                                             Random rand, int x, int y, int z, EnumFacing facing, int type,
                                             CallbackInfoReturnable<StructureComponent> cir) {
-        if (Boolean.TRUE.equals(AQTWEAKS$RETRYING_PATH.get())) return;
-        if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.skipWaterVillagePieces) return;
+        Deque<Integer> marks = AQTWEAKS$PATH_MARK.get();
+        int mark = marks.isEmpty() ? 0 : marks.pop();
+        if (Boolean.TRUE.equals(AQTWEAKS$RETRYING_PATH.get())) {
+            StructureComponent nested = cir.getReturnValue();
+            if (nested != null) VillageLayoutAudit.stackRoad(start, nested);
+            return;
+        }
+        if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.skipWaterVillagePieces) {
+            if (cir.getReturnValue() != null) VillageLayoutAudit.acceptRoad(start, cir.getReturnValue());
+            return;
+        }
         StructureComponent placed = cir.getReturnValue();
         if (placed == null || !VillageLandHelper.isVillageRoad(placed)) return;
-        if (!VillageLandHelper.shouldOmitPath(start, placed)) return;
-        VillageLandHelper.removeVillagePiece(start, structureComponents, placed);
-        VillageDebug.log("path aabb wet origin=%d,%d %s, retrying inland",
-                x, z, VillageLandHelper.pathOmitReason(start, placed));
-        cir.setReturnValue(aqtweaks$placePathOnLand(start, structureComponents, rand, x, y, z, facing, type));
+        if (!VillageLandHelper.shouldOmitPath(start, placed)) {
+            VillageLayoutAudit.acceptRoad(start, placed);
+            return;
+        }
+        int[] originBox = StructureAccess.getStructureComponentBoxXZ(placed);
+        String reason = VillageLandHelper.pathOmitReason(start, placed);
+        VillageLandHelper.removePiecesAddedSince(start, structureComponents, mark);
+        VillageLayoutAudit.retryRoad(start);
+        if (VillageLandHelper.pathRetryBlocked(start)) {
+            VillageDebug.log("path aabb wet origin=%d,%d %s, cap, omitted", x, z, reason);
+            VillageLayoutAudit.missRoad(start);
+            cir.setReturnValue(null);
+            return;
+        }
+        VillageDebug.log("path aabb wet origin=%d,%d %s, retrying along the path", x, z, reason);
+        cir.setReturnValue(aqtweaks$placePathOnLand(start, structureComponents, rand, x, y, z, facing, type, originBox));
     }
 
     @Unique
     private static StructureComponent aqtweaks$placePathOnLand(StructureVillagePieces.Start start, List<StructureComponent> structureComponents,
-                                                              Random rand, int x, int y, int z, EnumFacing facing, int type) {
+                                                              Random rand, int x, int y, int z, EnumFacing facing, int type,
+                                                              int[] originBox) {
         AQTWEAKS$RETRYING_PATH.set(Boolean.TRUE);
         try {
             int maxStep = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageWaterRetryDistance);
-            EnumFacing[] faces = aqtweaks$facingOrder(facing);
-            for (int[] slot : VillageLandHelper.inlandCandidates(start, x, z, facing, maxStep)) {
-                for (EnumFacing face : faces) {
-                    StructureComponent retry = func_176069_e(start, structureComponents, rand, slot[0], y, slot[1], face, type);
-                    if (retry != null && !VillageLandHelper.shouldOmitPath(start, retry)) {
-                        VillageDebug.log("path retry hit origin=%d,%d slot=%d,%d", x, z, slot[0], slot[1]);
-                        return retry;
-                    }
-                    if (retry != null) {
-                        VillageLandHelper.removeVillagePiece(start, structureComponents, retry);
-                    }
+            for (int[] slot : VillageLandHelper.pathContinuationCandidates(start, x, z, facing, maxStep)) {
+                int before = structureComponents == null ? 0 : structureComponents.size();
+                StructureComponent retry = func_176069_e(start, structureComponents, rand, slot[0], y, slot[1], facing, type);
+                int[] retryBox = StructureAccess.getStructureComponentBoxXZ(retry);
+                if (retry != null
+                        && !VillageLandHelper.shouldOmitPath(start, retry)
+                        && VillageLandHelper.pathContinuesLine(originBox, retryBox, facing)
+                        && !VillageLandHelper.pathRunsParallel(retry, structureComponents, before, facing)) {
+                    VillageLandHelper.notePathRetry(start);
+                    VillageDebug.log("path retry hit origin=%d,%d slot=%d,%d", x, z, slot[0], slot[1]);
+                    VillageLayoutAudit.hitRoad(start, retry, aqtweaks$slotKind(slot));
+                    return retry;
                 }
+                VillageLandHelper.removePiecesAddedSince(start, structureComponents, before);
             }
             VillageDebug.log("path retry miss origin=%d,%d, omitted", x, z);
+            VillageLayoutAudit.missRoad(start);
             return null;
         } finally {
             AQTWEAKS$RETRYING_PATH.set(Boolean.FALSE);

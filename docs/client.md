@@ -74,7 +74,8 @@ Light reaches the client only inside chunk data, or when the client runs its own
 | Default World Type | "RTG" | Category "world creation". Registry name (e.g. RTG), not button label. Empty keeps Default |
 | Disable Underground Fog | true | Category "Atum Fog". Completely cancels Atum's yellow EXP fog and 2D screen sandstorm in favor of linear fog and 3D particles |
 | Enable Outdoor Dust Particles | true | Category "Atum Fog". Spawns volumetric 3D drifting sand particles in open outdoor air |
-| Max Outdoor Dust Particles | 200 | Category "Atum Fog". Baseline cap on active simultaneous outdoor dust particles in clear weather (scales to 3x during sandstorms, max 500) |
+| Max Outdoor Dust Particles | 200 | Category "Atum Fog". Baseline cap on active simultaneous outdoor dust particles in clear weather |
+| Max Sandstorm Dust Particles | 10000 | Category "Atum Fog". Cap during a sandstorm. Range 100..25000. A saved cfg value overrides this default |
 
 ## Atum visual overhaul & weather particles
 
@@ -84,15 +85,23 @@ Atum 2's default visuals have two major issues:
 
 ### Tweaks Overhaul (`client/atum/` & `mixin/atum/`):
 - **Late Mixin (`MixinAtumClientEvents`):** Injects at `HEAD` of `renderFog` and `renderSand(float, int...)` when `disableUndergroundFog` is enabled, canceling Atum's yellow EXP fog and 2D screen storm entirely.
-- **Uniform Linear Fog (`AtumFogHandler`):** Enforces clean `FogMode.LINEAR` across sky pass (`0.0F` to `farPlane`) and terrain pass (`0.75 * farPlane` to `farPlane`, or `0.40 * farPlane` during sandstorms). Horizon colors are untouched, so the outdoor horizon viewed through doorways, windows, or ruins remains bright and sunny without artificial indoor darkening.
+- **Uniform Linear Fog (`AtumFogHandler`):** Enforces clean `FogMode.LINEAR`. The sky pass stays `0.0F` to `farPlane`. The terrain pass is `0.75 * farPlane` to `farPlane` in clear weather and under a roof (`canSeeSky` false at the camera), including during a storm. Outdoors in a sandstorm the terrain fog closes with storm strength: at full strength it starts at 0 and ends near `0.12 * farPlane`. Horizon colors are untouched. Atum's yellow exponential fog stays off.
 - **Volumetric 3D Dust Particles (`AtumOutdoorDustEmitter` & `ParticleAtumDustSheet`):**
   - Particles render in true 3D space (`FX_LAYER_TRANSLUCENT`, depth blending enabled) with sandy golden tint `(0.92, 0.78, 0.44)`.
-  - **Single Unified Wind Direction:** Wind vector is strictly locked to a single, uniform cinematic heading across the entire dimension (angle $\theta = 0.45$ rad). All particles stream in unison in the exact same direction without conflicting gusts or angle jitter.
+  - **Single Unified Wind Direction:** `AtumWindHelper` picks one heading from world time (a slow veer, plus a faster veer in a storm) when dynamic wind is on. Every particle uses that same vector.
   - **Dynamic Surroundings & Weather Suppression:** Late mixin `MixinDustJetEffect` suppresses DSurround's block dust motes in Atum, while `AtumOutdoorDustEmitter` installs an `IRenderHandler` weather suppressor to block DSurround's diagonal rain/dust precipitation, ensuring only one unified wind particle effect exists.
-  - **Atmospheric Particle Mixture:** Spawns ~75% large billowing dust clouds (3.6–5.2 blocks in clear weather, 5.0–7.5 blocks during sandstorms) and ~25% small blowing sand grains/flecks (0.6–1.1 blocks in clear, 0.8–1.5 blocks in storms), all streaming along the exact same wind heading.
-  - **Indoor & Cave Protection:** Enforces `world.canSeeSky(checkPos)` on spawn and in-flight, instantly despawning particles if wind blows them beneath ceilings or into caves.
-  - Clear weather maintains a steady desert breeze (32 attempts/tick, 0.22 blocks/tick, up to 300 particles).
-  - During sandstorms (`/atumweather sandstorm`), wind speed accelerates to 0.90–1.30 blocks/tick, spawn frequency jumps to **160 attempts/tick** (>2x increase), and budget scales up to **1400 particles** for a dense, howling desert storm.
+  - **Atmospheric Particle Mixture:** In a storm, 85% small flecks (0.6–1.1 blocks) and 15% moderate sheets (3.6–5.2 blocks). In clear weather, 65% flecks and 35% sheets. Sizes do not grow in a storm. Storm flecks fade up to about 0.95 alpha and sheets up to about 0.85, scaled by storm strength.
+  - **Wind-aligned band:** Outdoor spawns sit on a rectangle around the player. In a storm the along-wind offset is −50 to +16 blocks (50 blocks of sand upwind) and the crosswind offset is ±35. In clear weather both axes are ±25. Indoor candidates stay in the look cone.
+  - **Openings:** A spawn still requires open sky, so sand does not appear inside a room. Once spawned, a particle keeps moving under a roof and through a doorway until it hits a solid block or its life ends. Storm life starts at 38 ticks.
+  - Clear weather keeps the breeze (`max(6, 32 * breezeFactor)` attempts, speed `0.16 + 0.16 * breezeFactor`) and the clear-weather cap.
+  - During sandstorms (`/atumweather sandstorm`), wind speed is `1.40 + stormStrength * 0.70` blocks/tick. Spawn attempts are `600 + stormStrength * 900`. The cap is `Max Sandstorm Dust Particles` (default 10000).
+  - **Exposure** (`AtumStormGameplayHandler`, `aqtweaks_atum.cfg`): an unsheltered player with no protective headgear loses breath (about 4 air per tick, choking damage once the bar is empty). Missing chest, legs, or boots, or armor under 10, takes half a heart of abrasion every 4 seconds. A wanderer or mummy set on those three slots stops the abrasion. A strong storm occasionally plays a low howl. Shelter and the existing wind push, headwind drain, and grit blindness are unchanged.
+
+## Atum pyramid plateau
+
+On a new Atum chunk, `MapGenPyramid$Start.create` still picks the rotation and still bails when its own 5×5 sample is below Y 53. Tweaks then samples a 5×5 grid across the rotated 32×32 template footprint and sets the apron to that average (at least Y 55). The template origin is `apron - 8 + Pyramid Door Lift` (default lift 3), so template Y=8, the door, sits that many blocks above the apron and the stairs stand on the sand. The maze stays below the apron. The primer is blended after that start exists and before the chunk is built: inside the footprint, dunes above the apron become air so the raised base is not buried. Outside, lows fill with limestone and the surface is Atum sand with two limestone blocks under it. A 4-block apron stays flat; the next 16 blocks follow a Hermite slope into the natural dune. The entrance is the template's north face (the stair gap), rotated with the pyramid. A 6-wide walk extends 14 blocks out from that face, floor sloping from the raised door down to the sand, with the blocks above the floor cleared.
+
+`aqtweaks_atum.cfg`: `Enable Pyramid Terrain Smoothing` (true), `Pyramid Apron Blocks` (4), `Pyramid Falloff Blocks` (16), `Enable Pyramid Entrance Corridor` (true), `Pyramid Entrance Corridor Length` (14), `Pyramid Door Lift` (3, range 0..8). Already pasted pyramids keep the door they were given. A start saved before this lift still gets a slope on newly generated neighbour chunks; the apron for that start is the template's minimum Y + 8 − lift. A start just measured from the dune sample keeps that sample.
 
 ## Default world type
 

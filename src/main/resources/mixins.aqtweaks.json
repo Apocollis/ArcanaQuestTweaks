@@ -33,6 +33,7 @@
     "MixinMapGenVillageInside",
     "MixinMapGenVillageSpawn",
     "MixinMapGenVillageStart",
+    "MixinMapGenVillageWell",
     "MixinMapGenVillageWorld",
     "MixinCraftingHelperFindFiles",
     "MixinWorldEntitySpawner"

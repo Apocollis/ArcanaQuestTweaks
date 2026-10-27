@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -64,6 +65,9 @@ public final class VillageLandHelper {
     private static final Map<StashKey, MapGenVillage> STASHED_VILLAGE_BY_DIM = new ConcurrentHashMap<>();
     private static final Map<StashKey, ChunkGeneratorRTG> STASHED_RTG_BY_DIM = new ConcurrentHashMap<>();
     private static final Set<String> VETTED_STARTS = ConcurrentHashMap.newKeySet();
+    /** Successful path slides per start. Always on; not tied to the layout audit. */
+    private static final ThreadLocal<IdentityHashMap<Object, Integer>> PATH_RETRY_COUNT =
+            ThreadLocal.withInitial(IdentityHashMap::new);
     private static IBlockState loamyGrass;
     private static boolean loamyGrassLoaded;
 
@@ -209,6 +213,12 @@ public final class VillageLandHelper {
     public static void popLayout() {
         LAYING_OUT.set(Math.max(0, LAYING_OUT.get() - 1));
     }
+
+    /** Retry slot kinds recorded by the layout audit. Order is the order {@link #inlandCandidates} tries them. */
+    public static final int SLOT_BACK = 0;
+    public static final int SLOT_LATERAL = 1;
+    public static final int SLOT_TOWARD_WELL = 2;
+    public static final int SLOT_SPIRAL = 3;
 
     /**
      * Reuse {@code getLandscape} results while scanning one Start's road AABBs.
@@ -878,6 +888,7 @@ public final class VillageLandHelper {
      */
     public static void removeVillagePiece(Object start, List<?> pieces, Object placed) {
         if (placed == null) return;
+        VillageLayoutAudit.drop(placed);
         if (pieces != null) {
             pieces.remove(placed);
         }
@@ -898,6 +909,42 @@ public final class VillageLandHelper {
     }
 
     /**
+     * Drop every piece appended after {@code sizeBefore}, including a wet path and the pieces it built.
+     */
+    public static void removePiecesAddedSince(Object start, List<?> pieces, int sizeBefore) {
+        if (pieces == null) return;
+        int guard = pieces.size() + 1;
+        while (pieces.size() > sizeBefore && guard-- > 0) {
+            Object piece = pieces.get(pieces.size() - 1);
+            int size = pieces.size();
+            removeVillagePiece(start, pieces, piece);
+            if (pieces.size() >= size) {
+                pieces.remove(pieces.size() - 1);
+            }
+        }
+    }
+
+    /** True when this start has already used its path slides, or the cap is 0. */
+    public static boolean pathRetryBlocked(Object start) {
+        int cap = ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villagePathRetryCap;
+        if (cap <= 0) return true;
+        if (start == null) return true;
+        Integer used = PATH_RETRY_COUNT.get().get(start);
+        return used != null && used >= cap;
+    }
+
+    public static void notePathRetry(Object start) {
+        if (start == null) return;
+        IdentityHashMap<Object, Integer> map = PATH_RETRY_COUNT.get();
+        Integer used = map.get(start);
+        map.put(start, used == null ? 1 : used + 1);
+    }
+
+    public static void clearPathRetries() {
+        PATH_RETRY_COUNT.get().clear();
+    }
+
+    /**
      * Layout the current chunk plus nearby village wells.
      * Wells sit at a seeded offset inside each spacing cell, not at the cell origin.
      */
@@ -908,8 +955,18 @@ public final class VillageLandHelper {
         try {
             layoutVillageGridBody(gen, world, cx, cz, primer);
         } finally {
-            popLayout();
-            StageTimer.end("village.layout", t0);
+            try {
+                pushWorld(world);
+                try {
+                    VillageLayoutAudit.flush(world);
+                } finally {
+                    popWorld();
+                }
+            } finally {
+                popLayout();
+                if (!isLayingOut()) clearPathRetries();
+                StageTimer.end("village.layout", t0);
+            }
         }
     }
 
@@ -1030,7 +1087,7 @@ public final class VillageLandHelper {
      * to catch. A fully flooded path scores 1.0 here, so no separate check is needed.
      */
     public static boolean isAabbMostlyWet(Object villageStart, Object component) {
-        return wetFraction(villageStart, component, true) >= PATH_WET_FRACTION;
+        return pathWetFraction(villageStart, component) >= PATH_WET_FRACTION;
     }
 
     /**
@@ -1065,7 +1122,8 @@ public final class VillageLandHelper {
     }
 
     /**
-     * Drop a path that crosses ocean/river, or that is mostly lake. Swamp paths stay.
+     * Drop a path that crosses ocean/river, or that is mostly lake outside the village pad.
+     * Flooded swamp and lake inside another kept piece's pad count as dry, because flatten raises them.
      * A river crossing that {@link #isBridgeablePath} accepts stays and becomes a bridge at paste.
      */
     public static boolean shouldOmitPath(Object villageStart, Object component) {
@@ -1140,7 +1198,66 @@ public final class VillageLandHelper {
             Biome biome = box == null ? null : StructureAccess.getBiome(provider, box[0], box[2]);
             return "ocean_or_river " + biomeId(biome) + " bridgeRun=" + bridgeRun(villageStart, component);
         }
-        return String.format("mostly_wet %.2f", wetFraction(villageStart, component, true));
+        return String.format("mostly_wet %.2f", pathWetFraction(villageStart, component));
+    }
+
+    /**
+     * Path wet share. A flooded column that is not ocean or river, and sits within the component pad
+     * of another piece on this start, does not count: flatten will raise it with that piece.
+     */
+    private static float pathWetFraction(Object villageStart, Object component) {
+        int[] box = StructureAccess.getStructureComponentBoxXZ(component);
+        if (box == null) return 0.0F;
+        int pad = Math.max(0, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageComponentPad);
+        List<int[]> others = otherPieceBoxes(villageStart, component);
+        World world = currentWorld();
+        if (world == null) {
+            world = StructureAccess.getVillageStartWorld(villageStart);
+        }
+        BiomeProvider provider = StructureAccess.getVillageStartBiomeProvider(villageStart);
+        if (provider == null && world != null) {
+            provider = world.getBiomeProvider();
+        }
+        int wet = 0;
+        int total = 0;
+        pushColumnLandscapeCache();
+        try {
+            Map<Long, ChunkLandscape> cache = columnLandscapeCache();
+            for (int x = box[0]; x <= box[1]; x++) {
+                for (int z = box[2]; z <= box[3]; z++) {
+                    total++;
+                    if (!isFloodedAt(villageStart, x, z)) continue;
+                    ChunkLandscape land = world != null && cache != null
+                            ? landscapeCached(world, x, z, cache) : null;
+                    if (isOceanOrRiverColumnBiome(world, provider, land, x, z)) {
+                        wet++;
+                        continue;
+                    }
+                    if (withinPiecePad(x, z, others, pad)) continue;
+                    wet++;
+                }
+            }
+        } finally {
+            popColumnLandscapeCache();
+        }
+        return total == 0 ? 0.0F : (float) wet / (float) total;
+    }
+
+    private static List<int[]> otherPieceBoxes(Object villageStart, Object component) {
+        List<int[]> boxes = new ArrayList<int[]>();
+        for (Object piece : StructureAccess.getStructureStartComponents(villageStart)) {
+            if (piece == null || piece == component || isVillagePlatePad(piece)) continue;
+            int[] box = StructureAccess.getStructureComponentBoxXZ(piece);
+            if (box != null) boxes.add(box);
+        }
+        return boxes;
+    }
+
+    private static boolean withinPiecePad(int x, int z, List<int[]> boxes, int pad) {
+        for (int i = 0; i < boxes.size(); i++) {
+            if (VillagePlate.distanceToBoxXZ(x, z, boxes.get(i)) <= pad) return true;
+        }
+        return false;
     }
 
     private static boolean isAabbWet(Object villageStart, Object component, boolean flooded) {
@@ -1244,22 +1361,94 @@ public final class VillageLandHelper {
             rightZ = right.getZOffset();
         }
 
-        addSteps(out, villageStart, x, z, backX, backZ, maxStep, 4);
+        addSteps(out, villageStart, x, z, backX, backZ, maxStep, 4, SLOT_BACK);
         int sideMax = Math.min(maxStep, 12);
-        addSteps(out, villageStart, x, z, leftX, leftZ, sideMax, 4);
-        addSteps(out, villageStart, x, z, rightX, rightZ, sideMax, 4);
+        addSteps(out, villageStart, x, z, leftX, leftZ, sideMax, 4, SLOT_LATERAL);
+        addSteps(out, villageStart, x, z, rightX, rightZ, sideMax, 4, SLOT_LATERAL);
         return out;
     }
 
+    /**
+     * Dry columns on a path's own line, forward and back. No lateral, well, or spiral slots.
+     */
+    public static List<int[]> pathContinuationCandidates(Object villageStart, int x, int z, EnumFacing facing, int maxStep) {
+        List<int[]> out = new ArrayList<>();
+        if (maxStep <= 0 || facing == null || facing.getAxis() == EnumFacing.Axis.Y) return out;
+        addSteps(out, villageStart, x, z, -facing.getXOffset(), -facing.getZOffset(), maxStep, 4, SLOT_BACK);
+        addSteps(out, villageStart, x, z, facing.getXOffset(), facing.getZOffset(), maxStep, 4, SLOT_BACK);
+        return out;
+    }
+
+    /**
+     * The rebuilt path stays on the original facing's axis and its long side meets the original box.
+     */
+    public static boolean pathContinuesLine(int[] origin, int[] next, EnumFacing facing) {
+        if (origin == null || next == null || facing == null || facing.getAxis() == EnumFacing.Axis.Y) return false;
+        boolean alongX = facing.getAxis() == EnumFacing.Axis.X;
+        if (rangeGap(crossMin(origin, alongX), crossMax(origin, alongX), crossMin(next, alongX), crossMax(next, alongX)) != 0) {
+            return false;
+        }
+        return rangeGap(longMin(origin, alongX), longMax(origin, alongX), longMin(next, alongX), longMax(next, alongX)) == 0;
+    }
+
+    /**
+     * Same axis, overlapping long side, and 1 to 4 blocks between the roads.
+     * {@code addedSince} is the list size before this attempt, so the attempt's own pieces are ignored.
+     */
+    public static boolean pathRunsParallel(Object pathPiece, List<?> components, int addedSince, EnumFacing facing) {
+        if (pathPiece == null || components == null || facing == null || facing.getAxis() == EnumFacing.Axis.Y) return false;
+        int[] box = StructureAccess.getStructureComponentBoxXZ(pathPiece);
+        if (box == null) return false;
+        boolean alongX = facing.getAxis() == EnumFacing.Axis.X;
+        int limit = Math.min(Math.max(addedSince, 0), components.size());
+        for (int i = 0; i < limit; i++) {
+            Object other = components.get(i);
+            if (other == pathPiece || !isVillageRoad(other)) continue;
+            int[] otherBox = StructureAccess.getStructureComponentBoxXZ(other);
+            if (otherBox == null) continue;
+            boolean otherAlongX = (otherBox[1] - otherBox[0]) >= (otherBox[3] - otherBox[2]);
+            if (otherAlongX != alongX) continue;
+            if (rangeGap(longMin(box, alongX), longMax(box, alongX), longMin(otherBox, alongX), longMax(otherBox, alongX)) != 0) {
+                continue;
+            }
+            int gap = rangeGap(crossMin(box, alongX), crossMax(box, alongX), crossMin(otherBox, alongX), crossMax(otherBox, alongX));
+            if (gap >= 1 && gap <= 4) return true;
+        }
+        return false;
+    }
+
+    private static int crossMin(int[] box, boolean alongX) {
+        return alongX ? box[2] : box[0];
+    }
+
+    private static int crossMax(int[] box, boolean alongX) {
+        return alongX ? box[3] : box[1];
+    }
+
+    private static int longMin(int[] box, boolean alongX) {
+        return alongX ? box[0] : box[2];
+    }
+
+    private static int longMax(int[] box, boolean alongX) {
+        return alongX ? box[1] : box[3];
+    }
+
+    /** 0 when the ranges overlap or touch. Otherwise the empty blocks between them. */
+    private static int rangeGap(int minA, int maxA, int minB, int maxB) {
+        if (maxA < minB) return minB - maxA - 1;
+        if (maxB < minA) return minA - maxB - 1;
+        return 0;
+    }
+
     private static void addSteps(List<int[]> out, Object villageStart,
-                                 int originX, int originZ, int dirX, int dirZ, int maxStep, int stride) {
+                                 int originX, int originZ, int dirX, int dirZ, int maxStep, int stride, int kind) {
         if (dirX == 0 && dirZ == 0) return;
         for (int step = stride; step <= maxStep; step += stride) {
             int nx = originX + dirX * step;
             int nz = originZ + dirZ * step;
             if (!withinVillageCap(villageStart, nx, nz)) continue;
             if (isWaterAt(villageStart, nx, nz)) continue;
-            out.add(new int[] {nx, nz});
+            out.add(new int[] {nx, nz, kind});
         }
     }
 
@@ -1270,7 +1459,8 @@ public final class VillageLandHelper {
         List<int[]> out = new ArrayList<>();
         LinkedHashSet<Long> seen = new LinkedHashSet<>();
         for (int[] slot : landCandidates(villageStart, x, z, facing, streetMax)) {
-            addLandSlot(out, seen, villageStart, slot[0], slot[1]);
+            int kind = slot.length > 2 ? slot[2] : SLOT_BACK;
+            addLandSlot(out, seen, villageStart, slot[0], slot[1], kind);
         }
         int wellX = x;
         int wellZ = z;
@@ -1279,7 +1469,7 @@ public final class VillageLandHelper {
             wellX = (startBox[0] + startBox[1]) >> 1;
             wellZ = (startBox[2] + startBox[3]) >> 1;
         }
-        addLandSlot(out, seen, villageStart, wellX, wellZ);
+        addLandSlot(out, seen, villageStart, wellX, wellZ, SLOT_TOWARD_WELL);
         int sx = Integer.signum(wellX - x);
         int sz = Integer.signum(wellZ - z);
         int dist = Math.max(Math.abs(wellX - x), Math.abs(wellZ - z));
@@ -1288,28 +1478,28 @@ public final class VillageLandHelper {
             int nz = sz == 0 ? z : z + sz * step;
             if (sx != 0 && Math.abs(nx - x) >= Math.abs(wellX - x)) nx = wellX;
             if (sz != 0 && Math.abs(nz - z) >= Math.abs(wellZ - z)) nz = wellZ;
-            addLandSlot(out, seen, villageStart, nx, nz);
+            addLandSlot(out, seen, villageStart, nx, nz, SLOT_TOWARD_WELL);
             if (nx == wellX && nz == wellZ) break;
         }
         for (int r = 4; r <= 80; r += 4) {
             for (int ox = -r; ox <= r; ox += 4) {
-                addLandSlot(out, seen, villageStart, wellX + ox, wellZ - r);
-                addLandSlot(out, seen, villageStart, wellX + ox, wellZ + r);
+                addLandSlot(out, seen, villageStart, wellX + ox, wellZ - r, SLOT_SPIRAL);
+                addLandSlot(out, seen, villageStart, wellX + ox, wellZ + r, SLOT_SPIRAL);
             }
             for (int oz = -r + 4; oz <= r - 4; oz += 4) {
-                addLandSlot(out, seen, villageStart, wellX - r, wellZ + oz);
-                addLandSlot(out, seen, villageStart, wellX + r, wellZ + oz);
+                addLandSlot(out, seen, villageStart, wellX - r, wellZ + oz, SLOT_SPIRAL);
+                addLandSlot(out, seen, villageStart, wellX + r, wellZ + oz, SLOT_SPIRAL);
             }
         }
         return out;
     }
 
-    private static void addLandSlot(List<int[]> out, Set<Long> seen, Object villageStart, int x, int z) {
+    private static void addLandSlot(List<int[]> out, Set<Long> seen, Object villageStart, int x, int z, int kind) {
         if (!withinVillageCap(villageStart, x, z)) return;
         if (isWaterAt(villageStart, x, z)) return;
         long key = ((long) x << 32) | (z & 0xFFFFFFFFL);
         if (!seen.add(key)) return;
-        out.add(new int[] {x, z});
+        out.add(new int[] {x, z, kind});
     }
 
     public static boolean isLandscapeNeverRaise(ChunkLandscape landscape, int index) {
