@@ -23,7 +23,8 @@ $stale = @(
     "BaublesEX-1.12.2-2.3.5.jar",
     "WearableBackpacks-RLCraft-1.12.2-3.2.7.jar",
     "RoguelikeDungeons-Arcana-1.12.2-2.5.0.jar",
-    "RTG-1.12.2-7.3.3.6.jar"
+    "RTG-1.12.2-7.3.3.6.jar",
+    "ChunkSteward-0.3.jar"
 )
 foreach ($old in $stale) {
     $oldPath = Join-Path $libsDir $old
@@ -85,7 +86,7 @@ $deps = @(
     "depthsupdate-1.12.2-1.0.0-a12.jar",
     "SereneSeasons-1.12.2-1.2.18-universal.jar",
     "unseens_dungeon_additions-1.7.5.jar",
-    "ChunkSteward-0.3.jar"
+    "ChunkSteward-1.1.jar"
 )
 foreach ($dep in $deps) {
     $src = "$localModsDir/$dep"
