@@ -110,6 +110,20 @@ Big `Template` pastes (Dungeon Additions High City and similar) place every bloc
 
 **Deferred replay (`PasteRelightQueue`).** With `Defer Template Relight` on, the replay is queued per paste and drained over later server ticks instead of running at the end of the paste (the first High City test: 16.0 s paste, 13.2 s of it replay). Drain: world-tick END, `StewardPacing.sliceBudgetMs(Defer Template Relight Max Slice Ms, 0.5)`, below 20 TPS guarded by `remainingMs(40) >= 2`, a floor of 2 units per tick, 24 units per tick when Chunk Steward is absent. A unit is one column `relightBlock` or one `checkLight`. A batch relights all its columns (nearest chunk to a player first) before it runs its checks. While work is pending, those columns' height map and skylight are stale. Near players: columns in chunks within `Defer Template Relight Immediate Chunks` (default 1) of a player are relit in the paste tick; a paste touching a chunk within `Defer Template Relight Near Chunks` (default 4) is a priority batch that drains first with `Defer Template Relight Near Slice Ms` (default 40, capped by Chunk Steward headroom). Other flush rules: `ChunkEvent.Unload` for that chunk (it fires before the chunk is saved), world unload, server stop, and age over `Defer Template Relight Max Age Ticks`. Chunks are stored by coordinate; a chunk no longer loaded when its turn comes is dropped (its unload already flushed it).
 
+### Populate relight
+
+Every new chunk's populate (trees, plants, ores, structures) places blocks one at a time, and each placement runs `Chunk.relightBlock` and `World.checkLight`; the populate also opens with a full 256 column `Chunk.checkLight`. A 2026-10-27 capture spent 11.2 s of a 23.4 s populate in `relightBlock` (9.3 s of it in `TreeRTG.placeLeavesBlock`) and 4.7 s in the opening check.
+
+**Scope (`PopulateRelight`).** On the server thread, from the opening `checkLight()` call inside `Chunk.populate(IChunkGenerator)` to its return (begun at that call, not at the head, because Chunk Steward can cancel populate at the head and a cancel skips every return hook), `relightBlock` records the highest Y per column on the chunk it was called on and returns, `World.checkLight` records the position on the chunk that holds it, and the opening `Chunk.checkLight` only marks the chunk terrain-populated. A template paste keeps `BulkTemplateRelight`'s own recorder; the populate recorder takes what that one declines.
+
+**Held chunk.** At the outermost return each touched chunk's record goes to `PopulateRelightQueue`. A chunk with a record keeps `isLightPopulated` false (vanilla and Chunk Steward do not send it) and `Chunk.checkLight` is cancelled for it, so Somnia's per-tick `chunkLightCheck` cannot walk 256 columns on a stale height map. Reading a height (`Chunk.getHeightValue`, `getPrecipitationHeight`, so `World.getHeight` / `getPrecipitationHeight`) from a column with a pending record replays that one column first, so snow, ice and height based decorators later in the same populate see final heights.
+
+**Replay (`PopulateRelightQueue`).** Per chunk: one `relightBlock` per dirty column, then the recorded checks, then the real `Chunk.checkLight`. Chunks within `Populate Relight Immediate Chunks` of a player replay at populate return; the rest drain in the Chunk Steward slice (the `Defer Template Relight` slice settings), nearest first, floor of one chunk per tick, chunks within `Populate Relight Near Chunks` first with the near slice. Pending work runs before a chunk is saved (unload), when its world unloads or the server stops, and after `Populate Relight Max Age Ticks`.
+
+**RTG overhang repair waits.** `RtgLightFixQueue` (and the Atum trigger) do not repair a chunk while it or any neighbour has a pending populate record: the repair reads final heights and sky light, and a replay after it would redo the light and bring the overhang gaps back.
+
+Switch: `Populate Relight`. New chunks only.
+
 ### Chunk gap recheck pacing
 
 `Chunk.onTick` calls `recheckGaps` with `onlyOne = false` on the server, so all flagged skylight columns of a chunk are rechecked in one call (the client passes `true`, one column per call). A structure paste flags columns in dozens of chunks; after the High City fix this was the stall (18.3 s in one tick). `MixinChunkGapRecheck` (early json) forces one column per call on the server and `GapRecheckPacer` skips the call when the shared tick slice (`TickSlice`, `StewardPacing.sliceBudgetMs`) is spent: floor 2 columns per tick, chunks within `Gap Recheck Near Chunks` of a player draw from `Gap Recheck Near Slice Ms`. The gap flags stay set so work resumes next tick. Out of scope: RTG's populate-time `Chunk.checkLight` (see [rtg.md](rtg.md)).
@@ -200,6 +214,10 @@ Same `UpperTunnelNetwork` as -Y upper worms. Overworld only (`dimension == 0`).
 | Defer Template Relight Near Slice Ms | 40 | yes | Per-tick slice for a priority batch, capped by Chunk Steward headroom |
 | Defer Template Relight Immediate Chunks | 1 | yes | Columns this close to a player are relit in the paste tick; -1 turns it off |
 | Defer Template Relight Max Age Ticks | 6000 | yes | Flush a batch still pending after this many ticks |
+| Populate Relight | true | yes | Record per-block relight/checkLight during a server populate and replay one relight per dirty column over later ticks; the chunk is held unsent until then |
+| Populate Relight Immediate Chunks | 1 | yes | A populated chunk this close to a player is replayed at once (-1 off) |
+| Populate Relight Near Chunks | 4 | yes | A queued chunk this close to a player drains first with the near slice |
+| Populate Relight Max Age Ticks | 600 | yes | Replay a chunk still waiting after this many ticks |
 | Bulk Template Relight Min Volume | 4096 | yes | Template bounding-box volume (x*y*z) at or above which the bulk mode applies |
 | Verify Upper Tunnel Noise | false | yes | Dev-only: recompute every Upper Tunnel column with the original unskipped noise sampling and log the first `[AQ-VERIFY]` mismatch |
 | Verify HeightManager Cache | false | yes | Dev-only check: compare every `HeightCache` lookup against `HeightManager.contexts` and log the first mismatch |
@@ -231,6 +249,7 @@ Same `UpperTunnelNetwork` as -Y upper worms. Overworld only (`dimension == 0`).
 | `depths/SeamReinforcer.java` | Seam reinforce / water seal (Y 0-4) via `ChunkAccess`; called from `MixinChunkGeneratorRTG` at RETURN of `generateChunk` (`func_185932_a`), once per new chunk |
 | `mixin/MixinRenderGlobal.java` | Hide sky |
 | `world/PasteRelightQueue.java` | Deferred drain of the bulk replay (tick, unload, stop flushes) |
+| `world/PopulateRelight.java`, `world/PopulateRelightQueue.java`, `mixin/lighting/MixinChunkPopulateRelight.java` | Populate scope, per chunk records, held chunk, height-read replay, and the tick drain |
 | `world/BulkTemplateRelight.java`, `mixin/lighting/MixinChunkBulkRelight.java`, `mixin/lighting/MixinTemplateBulkRelight.java` | Bulk Template Relight (early json) |
 | `depths/UpperTunnelNetwork.java` | Shared tunnel / chamber / seam / shaft paths |
 | `depths/PrimerAccess.java` | Direct (remapped) primer/state reads + open-sky surface scan |

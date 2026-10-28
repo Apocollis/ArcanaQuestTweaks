@@ -17,6 +17,12 @@ Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
   - *Non-Native Invading Mobs*: Evaluated under standard 6 / 4 / 2 tier damage rules based on equipped armor, plus slowness.
   - Staggered shelter checks (every 20 ticks per entity ID) ensure zero TPS impact.
 
+## 2026-10-27 — Populate column relight
+
+- **Populate no longer runs a light walk per placed block** (`world/PopulateRelight`, `world/PopulateRelightQueue`, `mixin/lighting/MixinChunkPopulateRelight`; early json): while a new chunk populates on the server thread, `Chunk.relightBlock` and `World.checkLight` are recorded (highest Y per column, checked positions) and the opening full `Chunk.checkLight` only marks the chunk terrain-populated. The records replay later, one `relightBlock` per dirty column, then the checks, then the real `checkLight`, in the Chunk Steward slice, nearest chunk first. The chunk is held unsent until its replay finishes; a chunk near a player (`Populate Relight Immediate Chunks`, default 1) replays at populate return. Reading a height from a pending column replays that column first. Pending work runs on unload, world unload, server stop and after `Populate Relight Max Age Ticks`. Switch `Populate Relight` (`depthsupdate` config). New chunks only. A template paste keeps its own recorder.
+- **RTG overhang repair waits for the replay** (`RtgLightFixQueue`): a chunk is not repaired while it or a neighbour has a pending populate record, so the replay cannot undo the repair.
+- Begins at the opening `checkLight()` call inside populate, not at the head, so Chunk Steward cancelling populate at the head cannot leave a scope open.
+
 ## 2026-10-27 — Atum ruins no longer depend on chunk visit order
 
 - **Ruin check fills the pyramid map first** (`MixinMapGenRuin`, `mixins.aqtweaks.atum.json`): Atum rejects a ruin when a pyramid start is near it, but its check reads the pyramid map up to 4 chunks from the candidate while the pyramid generator only fills 8 chunks around the chunk being generated. A candidate at the edge of that window was judged on whichever pyramids had been stored so far, so two generation orders kept different ruins. On the first `isPyramidInChunk` read of each check the mixin now calls the pyramid generator's own `generate` centred on the check (gated by `AtumConfig.PYRAMID_ENABLED`), so the answer is the same in any order. Saved structure data is unchanged; only new chunks get consistent ruins.
