@@ -2,6 +2,10 @@
 
 Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-10-28 — Light recording for Chunk Steward staged populate (API v4)
+
+- **`PopulateScopeBridge`** (`rtg/`, registered once from mod init through `ChunkStewardAPI.registerPopulateScope`, loaded only when the runtime API version is 4 or higher): Chunk Steward's staged populate applies RTG's decorations, the rest of the populate and the mod world generators after the populate call returned. The bridge opens `PopulateRelight`'s recording scope for that part (`PopulateRelight.beginResume`, which accepts a chunk that is already marked terrain populated), so those block writes and light checks are recorded and replayed in slices like an unstaged populate. A chunk with a record that is still queued keeps it; `take` is keyed by chunk. Compiled against `ChunkSteward-1.1.jar` (API version 4). Nothing changes without Chunk Steward's `features.enabled`.
+
 ## 2026-10-28 — Village plate on a Chunk Steward worker (API v3)
 
 - **Flatten and seal can run on a terrain worker** (`rtg/PipelineContext`, `rtg/VillagePlateJobPreparer`, `rtg/VillagePlateSnapshots`; compiled against `ChunkSteward-1.1.jar`, API version 3). `PipelineContext.active()` now answers `ChunkStewardAPI.isPipelineContext()`, so the guards that were inert are live: a worker generator is never stashed (`MixinChunkGeneratorRTGVillage`, `MixinMapGenVillageWorld`), `registerVillages` does not lay out on a worker, and `MixinMapGenVillageStart` does not write the village registry from a worker. Every Chunk Steward reference sits in a nested class that loads only after the runtime `API_VERSION` (read by reflection, since the constant is inlined by javac) is 3 or higher; on a version 2 jar, or without Chunk Steward, nothing changes.

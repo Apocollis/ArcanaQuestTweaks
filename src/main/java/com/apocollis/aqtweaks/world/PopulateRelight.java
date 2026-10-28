@@ -99,11 +99,25 @@ public final class PopulateRelight {
         begin(world, chunk);
     }
 
+    /**
+     * Chunk Steward staged populate: the decorations and the rest of this chunk's populate run after the populate call
+     * returned, with the chunk already marked terrain populated. Opens the same scope for that part, so its block
+     * writes and light checks are recorded too. Pair with {@link #end}.
+     */
+    public static void beginResume(World world, Chunk chunk) {
+        if (world == null || chunk == null || world.isRemote || !enabled() || !serverThread(world)) return;
+        open(world, chunk);
+    }
+
     /** Head of {@code Chunk.populate(IChunkGenerator)}. */
     public static void begin(World world, Chunk chunk) {
         if (world == null || chunk == null || world.isRemote || !enabled()) return;
         // A populate of an already populated chunk only generates structures; no light work to take out.
         if (chunk.isTerrainPopulated() || !serverThread(world)) return;
+        open(world, chunk);
+    }
+
+    private static void open(World world, Chunk chunk) {
         Scope s = SCOPE.get();
         if (s != null) {
             if (s.world == world && s.worldTime == world.getTotalWorldTime()) {

@@ -25,20 +25,23 @@ public final class PipelineContext {
     private static final ThreadLocal<int[]> PREPARING = ThreadLocal.withInitial(() -> new int[1]);
 
     private static boolean registered;
+    private static boolean scopeRegistered;
 
     private PipelineContext() {}
 
     /** Lazy so the mod list is final when it is first read (first use is world load or later). */
     private static final class Availability {
-        static final boolean API_V3 = detect();
+        static final int VERSION = detect();
+        static final boolean API_V3 = VERSION >= 3;
+        static final boolean API_V4 = VERSION >= 4;
 
-        private static boolean detect() {
+        private static int detect() {
             try {
-                if (!Loader.isModLoaded("chunksteward")) return false;
+                if (!Loader.isModLoaded("chunksteward")) return 0;
                 Class<?> api = Class.forName("com.apocollis.chunksteward.api.ChunkStewardAPI");
-                return api.getField("API_VERSION").getInt(null) >= 3;
+                return api.getField("API_VERSION").getInt(null);
             } catch (Throwable t) {
-                return false;
+                return 0;
             }
         }
     }
@@ -56,6 +59,13 @@ public final class PipelineContext {
 
         static void register() {
             ChunkStewardAPI.registerJobPreparer(new VillagePlateJobPreparer());
+        }
+    }
+
+    /** Version 4 methods; initialized only when the runtime API is version 4 or higher. */
+    private static final class ApiV4 {
+        static void registerScope() {
+            ChunkStewardAPI.registerPopulateScope(new PopulateScopeBridge());
         }
     }
 
@@ -88,6 +98,13 @@ public final class PipelineContext {
         if (registered || !Availability.API_V3) return;
         registered = true;
         Api.register();
+    }
+
+    /** Registers the light-recording scope for Chunk Steward staged populate (API version 4). Call from mod init. */
+    public static synchronized void registerPopulateScope() {
+        if (scopeRegistered || !Availability.API_V4) return;
+        scopeRegistered = true;
+        ApiV4.registerScope();
     }
 
     static void beginPrepare() {

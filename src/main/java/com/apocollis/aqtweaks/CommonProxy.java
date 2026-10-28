@@ -56,6 +56,8 @@ public class CommonProxy {
     public void init(FMLInitializationEvent event) {
         // Chunk Steward API v3: the village-plate preparer, registered once. Inert on a version 2 jar or without it.
         com.apocollis.aqtweaks.rtg.PipelineContext.registerPreparer();
+        // Chunk Steward API v4: record light work for staged populate, as for an unstaged one.
+        com.apocollis.aqtweaks.rtg.PipelineContext.registerPopulateScope();
         MinecraftForge.EVENT_BUS.register(new StaminaModule());
         MinecraftForge.EVENT_BUS.register(new GaiaDamageHandler());
 
