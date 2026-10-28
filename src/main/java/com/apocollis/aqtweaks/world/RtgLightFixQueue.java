@@ -110,7 +110,8 @@ public final class RtgLightFixQueue {
             if (ready(world, pos.x, pos.z)) run(world, key);
             return;
         }
-        if (playerWithin(world, pos.x, pos.z, cfg().rtgLightFixImmediateChunks) && ready(world, pos.x, pos.z)) {
+        if (playerWithin(world, pos.x, pos.z, cfg().rtgLightFixImmediateChunks) && ready(world, pos.x, pos.z)
+                && !PopulateRelight.pendingNear(world, pos.x, pos.z)) {
             StageTimer.recordNs("rtg.lightFix.immediate", 0L, "dim=" + world.provider.getDimension());
             run(world, key);
             return;
@@ -398,6 +399,9 @@ public final class RtgLightFixQueue {
             } else {
                 settle = Math.min(c.rtgLightFixSettleTicks, 10);
             }
+            // The overhang repair reads final heights and sky light: wait for the populate replay of this chunk and
+            // its neighbours, or the replay would redo the light after the repair and bring the overhang gaps back.
+            if (PopulateRelight.pendingNear(world, cx, cz)) continue;
             boolean expired = now - firstTick > c.rtgLightFixMaxAgeTicks;
             if (!expired && now - lastTick < settle) continue;
             if (!expired && !complete && !ready(world, cx, cz)) continue;

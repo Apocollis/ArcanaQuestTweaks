@@ -13,6 +13,7 @@
     "MixinWorldRiftLight",
     "MixinWorldCheckLight",
     "lighting.MixinChunkBulkRelight",
+    "lighting.MixinChunkPopulateRelight",
     "lighting.MixinChunkGapRecheck",
     "lighting.MixinChunkPopulateLight",
     "lighting.MixinTemplateBulkRelight",

@@ -1,6 +1,7 @@
 package com.apocollis.aqtweaks.mixin.lighting;
 
 import com.apocollis.aqtweaks.world.BulkTemplateRelight;
+import com.apocollis.aqtweaks.world.PopulateRelight;
 import net.minecraft.world.chunk.Chunk;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -23,7 +24,9 @@ public abstract class MixinChunkBulkRelight implements BulkTemplateRelight.Relig
 
     @Inject(method = "relightBlock(III)V", at = @At("HEAD"), cancellable = true)
     private void aqtweaks$bulkRelight(int x, int y, int z, CallbackInfo ci) {
-        if (BulkTemplateRelight.onRelight((Chunk) (Object) this, x, y, z)) {
+        // A big paste keeps its own recorder; the populate recorder takes what that one declines.
+        if (BulkTemplateRelight.onRelight((Chunk) (Object) this, x, y, z)
+                || PopulateRelight.onRelight((Chunk) (Object) this, x, y, z)) {
             ci.cancel();
         }
     }

@@ -17,6 +17,10 @@ Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
   - *Non-Native Invading Mobs*: Evaluated under standard 6 / 4 / 2 tier damage rules based on equipped armor, plus slowness.
   - Staggered shelter checks (every 20 ticks per entity ID) ensure zero TPS impact.
 
+## 2026-10-27 — Atum ruins no longer depend on chunk visit order
+
+- **Ruin check fills the pyramid map first** (`MixinMapGenRuin`, `mixins.aqtweaks.atum.json`): Atum rejects a ruin when a pyramid start is near it, but its check reads the pyramid map up to 4 chunks from the candidate while the pyramid generator only fills 8 chunks around the chunk being generated. A candidate at the edge of that window was judged on whichever pyramids had been stored so far, so two generation orders kept different ruins. On the first `isPyramidInChunk` read of each check the mixin now calls the pyramid generator's own `generate` centred on the check (gated by `AtumConfig.PYRAMID_ENABLED`), so the answer is the same in any order. Saved structure data is unchanged; only new chunks get consistent ruins.
+
 ## 2026-10-27 — Atum plate footprint alignment
 
 - **One plate per pyramid** (`AtumPyramidPlate.adopt`): `adopt` used to register the template box (33 by 33, vanilla sizes a template box `0..size`) while `retarget` registers a 32 by 32 footprint, so a rotated pyramid got two plates with different keys and bounds, and which one smoothing used depended on map order. `adopt` now recovers the template origin from the box and rotation and registers the same `footprint(...)` as `retarget`, so it finds the existing plate. A new `[AQ-VERIFY] atum duplicate plate` warning (once) fires if a plate is about to be added that overlaps an existing one. Per-thread plate maps are a separate, later pass.

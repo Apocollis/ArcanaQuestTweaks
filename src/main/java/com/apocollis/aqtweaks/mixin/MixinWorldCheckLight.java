@@ -2,6 +2,7 @@ package com.apocollis.aqtweaks.mixin;
 
 import com.apocollis.aqtweaks.world.BulkTemplateRelight;
 import com.apocollis.aqtweaks.world.DeferredRelight;
+import com.apocollis.aqtweaks.world.PopulateRelight;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Mixin;
@@ -20,7 +21,8 @@ public class MixinWorldCheckLight {
     /** Big Template pastes record their checks and replay them once ({@link BulkTemplateRelight}). */
     @Inject(method = "checkLight(Lnet/minecraft/util/math/BlockPos;)Z", at = @At("HEAD"), cancellable = true)
     private void aqtweaks$bulkCheckLight(BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
-        if (BulkTemplateRelight.onCheck((World) (Object) this, pos)) {
+        if (BulkTemplateRelight.onCheck((World) (Object) this, pos)
+                || PopulateRelight.onCheck((World) (Object) this, pos)) {
             cir.setReturnValue(true);
         }
     }

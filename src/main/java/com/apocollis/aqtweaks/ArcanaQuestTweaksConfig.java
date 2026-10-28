@@ -1166,6 +1166,25 @@ public class ArcanaQuestTweaksConfig {
             @Config.RangeInt(min = 20, max = 72000)
             public int deferTemplateRelightMaxAgeTicks = 6000;
 
+            @Config.Name("Populate Relight")
+            @Config.Comment("While a new chunk populates (trees, plants, structures, ores) on the server thread, record the per-block Chunk.relightBlock and World.checkLight calls and the opening full-chunk light check, and replay one relight per dirty column over later ticks (Chunk Steward pacing slice, nearest chunk first). The chunk is held unsent until its replay finishes. Reading a height from a pending column replays that column first. New chunks only. Uses the Defer Template Relight slice settings.")
+            public boolean populateRelight = true;
+
+            @Config.Name("Populate Relight Immediate Chunks")
+            @Config.Comment("A populated chunk within this many chunks of a player is replayed at once, so the chunk the player stands in is not held. -1 turns the immediate replay off. Default 1.")
+            @Config.RangeInt(min = -1, max = 8)
+            public int populateRelightImmediateChunks = 1;
+
+            @Config.Name("Populate Relight Near Chunks")
+            @Config.Comment("A queued chunk within this many chunks of a player drains first, with Defer Template Relight Near Slice Ms. Default 4.")
+            @Config.RangeInt(min = 0, max = 16)
+            public int populateRelightNearChunks = 4;
+
+            @Config.Name("Populate Relight Max Age Ticks")
+            @Config.Comment("A populated chunk still waiting for its light replay after this many ticks is replayed at once. Default 600 (30 seconds).")
+            @Config.RangeInt(min = 20, max = 72000)
+            public int populateRelightMaxAgeTicks = 600;
+
             @Config.Name("Pace Chunk Gap Recheck")
             @Config.Comment("Vanilla Chunk.onTick rechecks every flagged skylight column of a chunk in one call on the server; a big structure paste flags dozens of chunks and one tick ran 18 s. When on, the server rechecks one column per call (as the client does) and skips the call when the shared Chunk Steward slice is spent; the flags stay set and work resumes next tick. New chunks and pastes only.")
             public boolean paceChunkGapRecheck = true;
