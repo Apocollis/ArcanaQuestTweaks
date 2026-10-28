@@ -2,6 +2,13 @@
 
 Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-10-28 — Village plate on a Chunk Steward worker (API v3)
+
+- **Flatten and seal can run on a terrain worker** (`rtg/PipelineContext`, `rtg/VillagePlateJobPreparer`, `rtg/VillagePlateSnapshots`; compiled against `ChunkSteward-1.1.jar`, API version 3). `PipelineContext.active()` now answers `ChunkStewardAPI.isPipelineContext()`, so the guards that were inert are live: a worker generator is never stashed (`MixinChunkGeneratorRTGVillage`, `MixinMapGenVillageWorld`), `registerVillages` does not lay out on a worker, and `MixinMapGenVillageStart` does not write the village registry from a worker. Every Chunk Steward reference sits in a nested class that loads only after the runtime `API_VERSION` (read by reflection, since the constant is inlined by javac) is 3 or higher; on a version 2 jar, or without Chunk Steward, nothing changes.
+- **`VillagePlateJobPreparer`** (registered once from mod init): `prepare` runs the same village layout and builds the same snapshot the inline hooks build, one list for flatten (recovered, flatten reach) and one for seal (registry as it is, seal reach), plus the start chunks of every village near the chunk. A chunk with no village gets an empty snapshot. `isStillValid` is read-only and false only when the set of villages near the chunk changed since `prepare`; a failed `prepare` returns an unavailable snapshot, so that worker chunk is discarded and generated inline.
+- **Worker passes read the job snapshot**, never the live registry; an empty snapshot writes nothing and a missing or unavailable context skips the pass. On the server thread and on verify the inline path is unchanged (`VillagePlateSnapshots` is that code moved out of the mixin). Landscape reads on a worker use the worker's own generator (pushed for the whole `generateChunk`); with none, `sampleLandscape` returns null instead of falling back to the stash.
+- Not covered, and still live reads on a worker: `world.getBiome` of loaded chunks, `VillageShoreMask` and the village-water checks. No version bump.
+
 ## 2026-10-28 — Populate column relight reaches RTG chunks
 
 - **RTG-Plus populate is now recorded** (`mixin/rtg/MixinRtgLatePopulate`, late json): RTG's `LatePopulatingChunk.doPopulate` calls `checkLight()`, `IChunkGenerator.populate`, `GameRegistry.generateWorld` and `markDirty()` itself and never reaches `Chunk.populate(IChunkGenerator)`, so the populate relight did not apply to RTG overworld chunks (flight: `relightBlock` in `placeLeavesBlock` did not collapse). The hook begins the same scope before `doPopulate` and ends it on return. Key: `Populate Relight RTG` (default true, needs `Populate Relight`). Checked against RTG-1.12.2-9.0.3.

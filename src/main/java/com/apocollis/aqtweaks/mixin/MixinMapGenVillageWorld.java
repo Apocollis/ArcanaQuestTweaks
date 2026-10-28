@@ -1,5 +1,6 @@
 package com.apocollis.aqtweaks.mixin;
 
+import com.apocollis.aqtweaks.rtg.PipelineContext;
 import com.apocollis.aqtweaks.rtg.StructureVillageOverlap;
 import com.apocollis.aqtweaks.rtg.VillageLandHelper;
 import net.minecraft.world.World;
@@ -36,10 +37,18 @@ public abstract class MixinMapGenVillageWorld {
         VillageLandHelper.pushWorld(world);
         if (VillageLandHelper.currentGenerator() != null) {
             AQTWEAKS$PUSHED.get().push(Boolean.FALSE);
-            VillageLandHelper.stashGenerators(world, (MapGenVillage) (Object) this, VillageLandHelper.currentGenerator());
+            // A worker's generator and village generator never become the shared stash (Chunk Steward API v3).
+            if (!PipelineContext.active()) {
+                VillageLandHelper.stashGenerators(world, (MapGenVillage) (Object) this, VillageLandHelper.currentGenerator());
+            }
             return;
         }
         boolean pushed = false;
+        if (PipelineContext.active()) {
+            // No generator pushed on a pipeline thread: do not borrow the server generator from the stash.
+            AQTWEAKS$PUSHED.get().push(Boolean.FALSE);
+            return;
+        }
         ChunkGeneratorRTG found = StructureVillageOverlap.findRtgGenerator(world);
         if (found != null) {
             VillageLandHelper.pushGenerator(found);

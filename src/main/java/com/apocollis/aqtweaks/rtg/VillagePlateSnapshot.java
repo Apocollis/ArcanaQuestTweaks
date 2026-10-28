@@ -73,11 +73,59 @@ public final class VillagePlateSnapshot {
     }
 
     public final long seed;
+    /** The villages the flatten pass reads (the inline flatten input: recovered, flatten reach). */
     public final List<Rec> records;
+    /** The villages the seal pass reads (the inline seal input: registry as it is, seal reach). Empty when inline. */
+    public final List<Rec> sealRecords;
+    /**
+     * Pipeline snapshot only: identity (start chunk) of every village overlapping the chunk when it was taken, sorted.
+     * {@link VillagePlateJobPreparer#isStillValid} compares it with the live set. Empty for the inline snapshot.
+     */
+    public final long[] chunkKeys;
+    /** {@link #keyReach} of a snapshot with no villages to track (smoothing off, map features off): always valid. */
+    public static final int NOT_TRACKED = -1;
+    /** The reach {@link #chunkKeys} was taken with, or {@link #NOT_TRACKED}. */
+    public final int keyReach;
+    /** Pipeline snapshot only: prepare failed or had no generator, so a worker chunk made with it must be discarded. */
+    public final boolean unavailable;
 
-    private VillagePlateSnapshot(long seed, List<Rec> records) {
+    private VillagePlateSnapshot(long seed, List<Rec> records, List<Rec> sealRecords, long[] chunkKeys,
+                                 int keyReach, boolean unavailable) {
         this.seed = seed;
         this.records = Collections.unmodifiableList(records);
+        this.sealRecords = Collections.unmodifiableList(sealRecords);
+        this.chunkKeys = chunkKeys;
+        this.keyReach = keyReach;
+        this.unavailable = unavailable;
+    }
+
+    /** No village near the chunk: both passes write nothing. */
+    public static VillagePlateSnapshot empty(long seed, long[] chunkKeys, int keyReach) {
+        return new VillagePlateSnapshot(seed, new ArrayList<>(), new ArrayList<>(), chunkKeys, keyReach, false);
+    }
+
+    /** Prepare could not take a trustworthy snapshot: a chunk generated on a worker with it is discarded. */
+    public static VillagePlateSnapshot unavailable(long seed) {
+        return new VillagePlateSnapshot(seed, new ArrayList<>(), new ArrayList<>(), new long[0], 0, true);
+    }
+
+    /**
+     * The pipeline form: flatten and seal inputs taken once on the server thread, with the identity set that
+     * {@code isStillValid} checks. Lists and plate arrays are parallel, as in {@link #of(long, List, float[])}.
+     */
+    public static VillagePlateSnapshot ofPipeline(long seed, List<VillagePlate.Record> flatHits, float[] flatPlateY,
+                                                  List<VillagePlate.Record> sealHits, float[] sealPlateY,
+                                                  long[] chunkKeys, int keyReach) {
+        return new VillagePlateSnapshot(seed, copyAll(flatHits, flatPlateY), copyAll(sealHits, sealPlateY),
+                chunkKeys, keyReach, false);
+    }
+
+    private static List<Rec> copyAll(List<VillagePlate.Record> hits, float[] plateY) {
+        List<Rec> out = new ArrayList<>(hits.size());
+        for (int i = 0; i < hits.size(); i++) {
+            out.add(new Rec(hits.get(i), plateY[i]));
+        }
+        return out;
     }
 
     /**
@@ -86,11 +134,7 @@ public final class VillagePlateSnapshot {
      * the snapshot existed.
      */
     public static VillagePlateSnapshot of(long seed, List<VillagePlate.Record> hits, float[] plateY) {
-        List<Rec> out = new ArrayList<>(hits.size());
-        for (int i = 0; i < hits.size(); i++) {
-            out.add(new Rec(hits.get(i), plateY[i]));
-        }
-        return new VillagePlateSnapshot(seed, out);
+        return new VillagePlateSnapshot(seed, copyAll(hits, plateY), new ArrayList<>(), new long[0], 0, false);
     }
 
     private static List<int[]> copy(List<int[]> boxes) {

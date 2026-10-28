@@ -1,5 +1,6 @@
 package com.apocollis.aqtweaks.mixin;
 
+import com.apocollis.aqtweaks.rtg.PipelineContext;
 import com.apocollis.aqtweaks.rtg.StructureAccess;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.rtg.VillageBridgePrune;
@@ -48,6 +49,8 @@ public abstract class MixinMapGenVillageStart {
             return;
         }
         VillageBridgePrune.prune(world, start);
+        // The live registry is written by the server thread only: a worker reads the snapshot taken in prepare().
+        if (PipelineContext.active()) return;
         VillagePlate.remember(world, start, chunkX, chunkZ, wellX, wellZ);
         if (!VillageDebug.enabled()) return;
         int[] xz = StructureAccess.getStructureStartBoxXZ(start);

@@ -100,6 +100,11 @@ public final class VillageLandHelper {
         }
     }
 
+    /** Drops every pushed generator on this thread. A terrain worker has no outer frame to leave them in. */
+    public static void clearGenerators() {
+        GENERATORS.get().clear();
+    }
+
     public static ChunkGeneratorRTG currentGenerator() {
         Deque<ChunkGeneratorRTG> stack = GENERATORS.get();
         return stack.isEmpty() ? null : stack.peek();
@@ -1567,6 +1572,9 @@ public final class VillageLandHelper {
     private static ChunkLandscape sampleLandscape(World world, int x, int z) {
         ChunkGeneratorRTG gen = currentGenerator();
         if (gen == null) {
+            // On a pipeline thread the stash is the server generator: a landscape read must use the generator that
+            // is running generateChunk (pushed by the mixin), so no pushed generator means no read.
+            if (PipelineContext.active()) return null;
             gen = StructureVillageOverlap.findRtgGenerator(world);
         }
         if (gen == null) return null;

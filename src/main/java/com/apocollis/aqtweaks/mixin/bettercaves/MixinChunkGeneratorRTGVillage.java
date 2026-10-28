@@ -9,6 +9,7 @@ import com.apocollis.aqtweaks.rtg.VillageDebug;
 import com.apocollis.aqtweaks.rtg.VillageLandHelper;
 import com.apocollis.aqtweaks.rtg.VillagePlate;
 import com.apocollis.aqtweaks.rtg.VillagePlateSnapshot;
+import com.apocollis.aqtweaks.rtg.VillagePlateSnapshots;
 import com.apocollis.aqtweaks.rtg.VillageShoreMask;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
@@ -32,7 +33,6 @@ import rtg.world.gen.ChunkGeneratorRTG;
 import rtg.world.gen.ChunkLandscape;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 @Mixin(value = ChunkGeneratorRTG.class, remap = false)
@@ -66,7 +66,7 @@ public abstract class MixinChunkGeneratorRTGVillage {
 
     @Inject(method = "<init>", at = @At("RETURN"))
     private void aqtweaks$stashGeneratorsOnConstruct(CallbackInfo ci) {
-        // A pipeline worker generator must never become the stashed one (always inert until plan T2).
+        // A pipeline worker generator must never become the stashed one (Chunk Steward API v3).
         if (world != null && villageGenerator != null && !PipelineContext.active()) {
             VillageLandHelper.stashGenerators(world, villageGenerator, (ChunkGeneratorRTG) (Object) this);
         }
@@ -76,6 +76,20 @@ public abstract class MixinChunkGeneratorRTGVillage {
     private void aqtweaks$beginChunk(int cx, int cz, CallbackInfoReturnable<Chunk> cir) {
         aqtweaks$laidOutCx = Integer.MIN_VALUE;
         aqtweaks$laidOutCz = Integer.MIN_VALUE;
+        if (PipelineContext.active()) {
+            // On a terrain worker every landscape read of this chunk, and the village generator's own calls, must
+            // use this worker's generator, never the server generator in the stash. A worker thread has no outer
+            // frame, so a stack left by an exception is dropped here.
+            VillageLandHelper.clearGenerators();
+            VillageLandHelper.pushGenerator((ChunkGeneratorRTG) (Object) this);
+        }
+    }
+
+    @Inject(method = "func_185932_a", at = @At("RETURN"))
+    private void aqtweaks$endChunk(int cx, int cz, CallbackInfoReturnable<Chunk> cir) {
+        if (PipelineContext.active()) {
+            VillageLandHelper.popGenerator();
+        }
     }
 
     @Inject(method = "generateLandscape", at = @At("RETURN"))
@@ -139,7 +153,7 @@ public abstract class MixinChunkGeneratorRTGVillage {
     @Unique
     private void aqtweaks$registerVillages(int cx, int cz) {
         if (PipelineContext.active()) {
-            return; // layout runs in the pipeline preparer (plan T2); inert until then
+            return; // layout runs in VillagePlateJobPreparer.prepare, on the server thread
         }
         if (cx == aqtweaks$laidOutCx && cz == aqtweaks$laidOutCz) {
             return;
@@ -201,7 +215,15 @@ public abstract class MixinChunkGeneratorRTGVillage {
         long seed = world.getSeed();
 
         boolean recovered = false;
-        VillagePlateSnapshot snapshot = aqtweaks$snapshot(cx, cz, reach, true, "flatten");
+        VillagePlateSnapshot snapshot;
+        if (PipelineContext.active()) {
+            // The live registry is not read on a worker: the snapshot prepare() took is the only input. No context
+            // (or an unavailable one) means skip the pass.
+            snapshot = VillagePlateSnapshots.jobSnapshot();
+            if (snapshot == null) return;
+        } else {
+            snapshot = aqtweaks$snapshot(cx, cz, reach, true, "flatten");
+        }
         List<VillagePlateSnapshot.Rec> hits = snapshot.records;
         if (hits.isEmpty()) {
             if (VillageDebug.enabled() && !PipelineContext.active()
@@ -485,7 +507,14 @@ public abstract class MixinChunkGeneratorRTGVillage {
         int sealMinY = ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villagePlateMinY;
         int sealDepth = ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villagePlateDepth;
 
-        List<VillagePlateSnapshot.Rec> hits = aqtweaks$snapshot(cx, cz, reach, false, "seal").records;
+        List<VillagePlateSnapshot.Rec> hits;
+        if (PipelineContext.active()) {
+            VillagePlateSnapshot jobSnapshot = VillagePlateSnapshots.jobSnapshot();
+            if (jobSnapshot == null) return;
+            hits = jobSnapshot.sealRecords;
+        } else {
+            hits = aqtweaks$snapshot(cx, cz, reach, false, "seal").records;
+        }
         if (hits.isEmpty()) return;
 
         List<int[]> plateBoxes = new ArrayList<>();
@@ -606,44 +635,8 @@ public abstract class MixinChunkGeneratorRTGVillage {
      */
     @Unique
     private VillagePlateSnapshot aqtweaks$snapshot(int cx, int cz, int reach, boolean recover, String where) {
-        List<VillagePlate.Record> live = aqtweaks$villageHits(cx, cz, reach, recover);
-        float[] plateY = new float[live.size()];
-        for (int i = 0; i < plateY.length; i++) {
-            plateY[i] = getOrComputePlateHeight(live.get(i));
-        }
-        VillagePlateSnapshot snapshot = VillagePlateSnapshot.of(world.getSeed(), live, plateY);
-        if (ArcanaQuestTweaksConfig.RtgModuleConfig.surface.verifyVillageSnapshot) {
-            float[] fresh = new float[live.size()];
-            for (int i = 0; i < fresh.length; i++) {
-                fresh[i] = getOrComputePlateHeight(live.get(i));
-            }
-            VillagePlateSnapshot.verify(snapshot, live, fresh, where);
-        }
-        return snapshot;
-    }
-
-    @Unique
-    private List<VillagePlate.Record> aqtweaks$villageHits(int cx, int cz, int reach, boolean recover) {
-        int startX = cx * 16;
-        int startZ = cz * 16;
-        int chunkMaxX = startX + 15;
-        int chunkMaxZ = startZ + 15;
-        long seed = world.getSeed();
-        List<VillagePlate.Record> hits = VillagePlate.overlappingRecords(
-                seed, startX, chunkMaxX, startZ, chunkMaxZ, reach);
-        if (!hits.isEmpty()) {
-            return recover ? VillagePlate.refreshUnlocked(seed, hits) : hits;
-        }
-        if (!recover) return Collections.emptyList();
-        if (VillagePlate.isEmpty(seed)) {
-            VillagePlate.ensureStarts(world, villageGenerator);
-            hits = VillagePlate.overlappingRecords(seed, startX, chunkMaxX, startZ, chunkMaxZ, reach);
-            if (!hits.isEmpty()) return hits;
-        }
-        VillagePlate.rememberNearby(world, villageGenerator, cx, cz);
-        hits = VillagePlate.overlappingRecords(seed, startX, chunkMaxX, startZ, chunkMaxZ, reach);
-        if (!hits.isEmpty()) return hits;
-        return VillagePlate.mergeStartAabbHits(world, hits, startX, chunkMaxX, startZ, chunkMaxZ, reach);
+        return VillagePlateSnapshots.snapshot(world, villageGenerator, (ChunkGeneratorRTG) (Object) this,
+                cx, cz, reach, recover, where);
     }
 
     /**
@@ -729,50 +722,6 @@ public abstract class MixinChunkGeneratorRTGVillage {
                 || material == Material.SNOW
                 || material == Material.LEAVES
                 || (!material.blocksMovement() && !material.isSolid());
-    }
-
-    @Unique
-    private float getOrComputePlateHeight(VillagePlate.Record rec) {
-        long seed = world != null ? world.getSeed() : 0L;
-        Float cached = VillagePlate.get(seed, rec);
-        if (cached != null) return cached;
-
-        BiomeProvider biomeProvider = StructureAccess.getBiomeProvider(world);
-        if (biomeProvider == null) {
-            return Float.NaN;
-        }
-        Biome wellBiome = StructureAccess.getBiome(biomeProvider, rec.wellX, rec.wellZ);
-        boolean swampWell = VillageLandHelper.isSwampLikeForRaise(wellBiome);
-        boolean neverRaiseWell = VillageLandHelper.isNeverRaiseAt(world, rec.wellX, rec.wellZ);
-        int minWell = VillageLandHelper.minWellHeight();
-
-        float wellHeight = VillageLandHelper.sampleNoise((ChunkGeneratorRTG) (Object) this, biomeProvider, rec.wellX, rec.wellZ);
-        if (neverRaiseWell || !VillageLandHelper.isUsableHeight(wellHeight)) {
-            if (swampWell) {
-                VillagePlate.put(seed, rec, (float) minWell);
-                if (VillageDebug.once("plateSample:" + VillagePlate.wellKey(seed, rec))) {
-                    VillageDebug.log("plateSample well=%d,%d biome=%s raw=none target=%.1f source=swamp64 fallback=yes",
-                            rec.wellX, rec.wellZ, VillageLandHelper.biomeId(wellBiome), (float) minWell);
-                }
-                return minWell;
-            }
-            if (VillageDebug.once("plateSample:" + VillagePlate.wellKey(seed, rec))) {
-                VillageDebug.log("plateSample well=%d,%d biome=%s raw=none target=skip reason=%s",
-                        rec.wellX, rec.wellZ, VillageLandHelper.biomeId(wellBiome),
-                        neverRaiseWell ? "never-raise" : "unusable");
-            }
-            return Float.NaN;
-        }
-
-        float target = Math.max(wellHeight, minWell);
-        boolean fallback = wellHeight < minWell;
-        VillagePlate.put(seed, rec, target);
-        if (VillageDebug.once("plateSample:" + VillagePlate.wellKey(seed, rec))) {
-            VillageDebug.log("plateSample well=%d,%d biome=%s raw=%.1f target=%.1f source=well fallback=%s",
-                    rec.wellX, rec.wellZ, VillageLandHelper.biomeId(wellBiome),
-                    wellHeight, target, fallback ? "yes" : "no");
-        }
-        return target;
     }
 
     @Unique
