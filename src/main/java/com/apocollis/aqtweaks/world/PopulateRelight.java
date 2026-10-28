@@ -204,7 +204,19 @@ public final class PopulateRelight {
      */
     public static boolean onCheckLight(Chunk chunk) {
         Pending pending = (Pending) chunk;
-        if (pending.aqtweaks$pending() != null) return true;
+        Record held = pending.aqtweaks$pending();
+        if (held != null) {
+            // A neighbour's populate touched this chunk first, so it already owes a record. Its own populate's opening
+            // check still has to mark it terrain populated and still owes the real check, or the replay never sets the
+            // flags: the chunk stays unpopulated, is never sent, and RTG-Plus populates it again every time it is asked.
+            Scope own = SCOPE.get();
+            if (own != null && REPLAY.get()[0] == 0 && !stale(own) && own.populating.peek() == chunk
+                    && !chunk.isTerrainPopulated()) {
+                held.needsCheck = true;
+                pending.aqtweaks$markTerrainPopulated();
+            }
+            return true;
+        }
         Scope s = SCOPE.get();
         if (s == null || REPLAY.get()[0] > 0 || stale(s)) return false;
         if (s.populating.peek() != chunk || chunk.isTerrainPopulated()) return false;
