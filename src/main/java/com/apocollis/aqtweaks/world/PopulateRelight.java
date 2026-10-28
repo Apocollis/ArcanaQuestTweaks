@@ -93,6 +93,12 @@ public final class PopulateRelight {
 
     // --- scope -----------------------------------------------------------------------------------------------
 
+    /** Head of RTG-Plus {@code LatePopulatingChunk.doPopulate}: the same scope as vanilla populate. */
+    public static void beginRtg(World world, Chunk chunk) {
+        if (!cfg().populateRelightRtg) return;
+        begin(world, chunk);
+    }
+
     /** Head of {@code Chunk.populate(IChunkGenerator)}. */
     public static void begin(World world, Chunk chunk) {
         if (world == null || chunk == null || world.isRemote || !enabled()) return;

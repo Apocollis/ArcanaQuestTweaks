@@ -1170,6 +1170,10 @@ public class ArcanaQuestTweaksConfig {
             @Config.Comment("While a new chunk populates (trees, plants, structures, ores) on the server thread, record the per-block Chunk.relightBlock and World.checkLight calls and the opening full-chunk light check, and replay one relight per dirty column over later ticks (Chunk Steward pacing slice, nearest chunk first). The chunk is held unsent until its replay finishes. Reading a height from a pending column replays that column first. New chunks only. Uses the Defer Template Relight slice settings.")
             public boolean populateRelight = true;
 
+            @Config.Name("Populate Relight RTG")
+            @Config.Comment("Also record populate light for RTG-Plus chunks. RTG's LatePopulatingChunk never calls Chunk.populate(IChunkGenerator), so Populate Relight does not see an RTG populate unless this hook wraps its doPopulate. Needs Populate Relight on. Default true.")
+            public boolean populateRelightRtg = true;
+
             @Config.Name("Populate Relight Immediate Chunks")
             @Config.Comment("A populated chunk within this many chunks of a player is replayed at once, so the chunk the player stands in is not held. -1 turns the immediate replay off. Default 1.")
             @Config.RangeInt(min = -1, max = 8)

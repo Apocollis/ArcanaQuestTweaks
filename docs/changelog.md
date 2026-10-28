@@ -2,6 +2,10 @@
 
 Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-10-28 — Populate column relight reaches RTG chunks
+
+- **RTG-Plus populate is now recorded** (`mixin/rtg/MixinRtgLatePopulate`, late json): RTG's `LatePopulatingChunk.doPopulate` calls `checkLight()`, `IChunkGenerator.populate`, `GameRegistry.generateWorld` and `markDirty()` itself and never reaches `Chunk.populate(IChunkGenerator)`, so the populate relight did not apply to RTG overworld chunks (flight: `relightBlock` in `placeLeavesBlock` did not collapse). The hook begins the same scope before `doPopulate` and ends it on return. Key: `Populate Relight RTG` (default true, needs `Populate Relight`). Checked against RTG-1.12.2-9.0.3.
+
 ## 2026-10-27 — Atum sandstorm gameplay expansion: 3-tier scour, baubles goggles, mob physics & scour
 
 - **3-Tier Sand Scour Damage** (`AtumStormGameplayHandler`, `aqtweaks_atum.cfg`): Reworked unsheltered sandstorm abrasion damage (evaluated every 80 ticks / 4 seconds, bypassing standard armor absorption):

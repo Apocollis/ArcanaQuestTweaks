@@ -27,6 +27,7 @@
     "rtg.MixinRtgFixLightingProbe",
     "rtg.MixinRtgFixLightingDefer",
     "rtg.MixinRtgFixLightingRepair",
+    "rtg.MixinRtgLatePopulate",
     "MixinStructureVillagePieces",
     "MixinStructureStartVillagePaste",
     "MixinWorldGenLakes",
