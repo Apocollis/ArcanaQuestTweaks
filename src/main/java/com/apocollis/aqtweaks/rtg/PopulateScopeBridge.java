@@ -21,4 +21,10 @@ public final class PopulateScopeBridge implements PopulateScope {
     public void end(World world, Chunk chunk) {
         PopulateRelight.end(chunk);
     }
+
+    /** Chunk Steward API version 5: the chunk's light was computed on a worker and installed. */
+    @Override
+    public void lightInstalled(World world, Chunk chunk) {
+        PopulateRelight.dropPending(chunk);
+    }
 }

@@ -132,6 +132,23 @@ public final class PopulateRelight {
         SCOPE.set(s);
     }
 
+    /**
+     * Chunk Steward installed this chunk's light and column heights (computed on a worker): whatever it owes is obsolete.
+     * Clears the record's columns, checks and the opening full check, so the replay has nothing to do for the chunk.
+     */
+    public static void dropPending(Chunk chunk) {
+        Pending pending = (Pending) chunk;
+        Record record = pending.aqtweaks$pending();
+        if (record == null) return;
+        record.columns.clear();
+        record.checks.clear();
+        record.checkSet.clear();
+        record.needsCheck = false;
+        Scope s = SCOPE.get();
+        if (s != null) s.records.remove(chunk);
+        pending.aqtweaks$setPending(null);
+    }
+
     /** Return of {@code Chunk.populate(IChunkGenerator)}. */
     public static void end(Chunk chunk) {
         Scope s = SCOPE.get();
