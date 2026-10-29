@@ -47,7 +47,7 @@ public final class CommandAqSpawnTable extends CommandBase {
 
     @Override
     public String getUsage(ICommandSender sender) {
-        return "/aqspawntable | reload | verify | dump | check | convert";
+        return "/aqspawntable | reload | verify | dump | check | convert | shadow [reset]";
     }
 
     @Override
@@ -65,6 +65,7 @@ public final class CommandAqSpawnTable extends CommandBase {
                 break;
             case "reload":
                 say(sender, "Potential spawn table: " + PotentialSpawnTable.reload());
+                say(sender, "Spawn conditions: " + ConditionShadow.reload());
                 break;
             case "verify":
                 verify(sender);
@@ -77,6 +78,14 @@ public final class CommandAqSpawnTable extends CommandBase {
                 break;
             case "convert":
                 convert(sender);
+                break;
+            case "shadow":
+                if (args.length > 1 && args[1].equalsIgnoreCase("reset")) {
+                    ConditionShadow.reset();
+                    say(sender, "Comparison counts cleared.");
+                } else {
+                    shadow(sender);
+                }
                 break;
             default:
                 throw new CommandException(getUsage(sender));
@@ -222,6 +231,28 @@ public final class CommandAqSpawnTable extends CommandBase {
         } catch (IOException | RuntimeException failure) {
             LOGGER.warn("[AQTweaks] spawn.json conversion failed.", failure);
             say(sender, "Conversion failed: " + failure);
+        }
+    }
+
+    /** The comparison of the conditions table with In Control so far; the full list also goes to a file. */
+    private static void shadow(ICommandSender sender) {
+        List<String> lines = ConditionShadow.summary();
+        File config = PotentialSpawnTable.configDirectory();
+        if (config != null) {
+            File out = new File(config, "arcanaquesttweaks/spawn_shadow.txt");
+            try {
+                Files.createDirectories(out.getParentFile().toPath());
+                Files.write(out.toPath(), lines, StandardCharsets.UTF_8);
+            } catch (IOException failure) {
+                LOGGER.warn("[AQTweaks] Could not write {}.", out.getAbsolutePath(), failure);
+            }
+        }
+        int shown = Math.min(lines.size(), CHAT_LINES + 2);
+        for (int i = 0; i < shown; i++) {
+            say(sender, lines.get(i));
+        }
+        if (lines.size() > shown) {
+            say(sender, "(" + (lines.size() - shown) + " more lines in config/arcanaquesttweaks/spawn_shadow.txt)");
         }
     }
 

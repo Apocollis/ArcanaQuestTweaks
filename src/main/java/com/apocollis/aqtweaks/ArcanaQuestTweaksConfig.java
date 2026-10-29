@@ -1796,6 +1796,11 @@ public class ArcanaQuestTweaksConfig {
                 "If the files cannot be read, In Control's rules are used."})
         public boolean usePotentialSpawnTable = false;
 
+        @Config.Name("Shadow Spawn Conditions")
+        @Config.Comment({"Runs spawn_conditions.json (pack folder) beside In Control at every spawn check and join, without deciding anything,",
+                "and counts every case where it would decide differently. See /aqspawntable shadow. Costs a little per spawn; for testing the rule files."})
+        public boolean shadowSpawnConditions = false;
+
         @Config.Name("Potential Spawn Table Directory")
         @Config.Comment("Pack folder under the Forge config directory that holds the files the table is built from.")
         public String potentialSpawnTableDirectory = "arcanaquest";
@@ -2621,6 +2626,7 @@ public class ArcanaQuestTweaksConfig {
                 com.apocollis.aqtweaks.spawning.SpawnGroupCounts.reload();
                 com.apocollis.aqtweaks.spawning.SpawnGroupSizes.invalidate();
                 com.apocollis.aqtweaks.spawning.PotentialSpawnTable.reload();
+                com.apocollis.aqtweaks.spawning.ConditionShadow.reload();
                 if (net.minecraftforge.fml.common.Loader.isModLoaded("reskillable")) {
                     com.apocollis.aqtweaks.reskillable.ReskillableModule.restampOnlinePlayers();
                 }

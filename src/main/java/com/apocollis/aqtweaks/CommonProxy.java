@@ -46,6 +46,7 @@ public class CommonProxy {
         com.apocollis.aqtweaks.spawning.SpawnParties.load(event.getModConfigurationDirectory());
         com.apocollis.aqtweaks.spawning.SpawnGroupCounts.load(event.getModConfigurationDirectory());
         com.apocollis.aqtweaks.spawning.PotentialSpawnTable.load(event.getModConfigurationDirectory());
+        com.apocollis.aqtweaks.spawning.ConditionShadow.reload();
         com.apocollis.aqtweaks.portal.PortalModule.preInit();
         if (net.minecraftforge.fml.common.Loader.isModLoaded("reskillable")) {
             com.apocollis.aqtweaks.reskillable.ReskillablePerkRegistry.preInit();
@@ -147,6 +148,7 @@ public class CommonProxy {
         // After InControl so PotentialSpawns last-per-class runs after it appends group-count rows.
         if (net.minecraftforge.fml.common.Loader.isModLoaded("incontrol")) {
             com.apocollis.aqtweaks.spawning.SpawnLayerFilter.enableStructureExemption();
+            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.spawning.ConditionShadow());
         }
         MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.spawning.SpawnLayerFilter());
     }

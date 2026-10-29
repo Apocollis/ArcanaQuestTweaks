@@ -1,4 +1,4 @@
-# Spawn tables: file format (loader and converter built; the rules do not run yet)
+# Spawn tables: file format (loader, converter and conditions comparison built)
 
 Replaces `spawn.json` (In Control's spawn rules) with three files that Tweaks reads. In Control stays installed and keeps making the real decisions until a comparison log shows Tweaks would decide the same. Loot stays in In Control. Everything here was checked against the pack's `spawn.json`, In Control 3.10.5 and McJty Tools 1.12-0.0.21.
 
@@ -21,7 +21,15 @@ Commands (`/aqspawntable`):
 - `check` validates `spawn_conditions.json`, `spawn_modifiers.json` and `spawn_gear.json` in the pack folder and lists every problem.
 - `convert` reads `config/incontrol/spawn.json` and writes the three files, plus `convert_report.txt`, to `config/arcanaquesttweaks/converted/`. Nothing in the pack folder is touched; copy the files across when you are happy with them. The report lists what was moved, merged or dropped. On the pack's current `spawn.json`: 78 rules become 48 condition rows, 34 modifier rows and 9 gear rows; the 19 rules that were not `onjoin` become `phase: spawn`; the three Crimson cultist rows move above the cultist underground row; 23 rules that carried both a result and a stat lose the result (no condition rule comes after them, so there was nothing for it to shield).
 
-The rules themselves are not evaluated yet.
+## Conditions evaluator and the comparison with In Control (built; conditions only)
+
+`ConditionTable` (plain Java, `spawning/rules/`) decides a spawn from `spawn_conditions.json`: at the spawn check every row is walked in order, at join only the `both` rows, and the first matching row decides. Each row's tests run in In Control's own order (hostile, spawner, mob, random, dimension, time, height, weather, player distance, sky, biome, stage, structure, collision, mod, counts), with the same definitions: a `spawner` row never matches at join, the stage is the nearest player's within In Control's `maxPlayerDistance`, `mincount` is `count >= amount` and `maxcount` is `count < amount` (amount scaled per player or per chunk as In Control does), time wraps at 24000 and windows are inclusive. `generate` rows are skipped with a note until their generators exist.
+
+**It does not decide anything yet.** With `Shadow Spawn Conditions` on (`aqtweaks_spawning.cfg`, off by default) a handler registered after In Control's runs the table on every spawn check and join and compares the outcome with what In Control did: the result left on the event at the spawn check, whether the join was cancelled at join. Spawns where a `random` row was tried are not compared (each side rolls its own), and neither are joins another mod had already cancelled. `/aqspawntable shadow` shows the counts and each kind of difference with an example; the list is also written to `config/arcanaquesttweaks/spawn_shadow.txt`; `/aqspawntable shadow reset` clears it. Differences are also written to the log as they first appear.
+
+**What the tests establish.** The pack's original `spawn.json`, run the way In Control runs it (every rule at the spawn check, the `onjoin` rules at join, first match decides), and the converted conditions give the same outcome in 300,000 generated situations per run, once with every `random` row passing and once with every one failing; deliberately breaking a converted row (removing the Ghoul bypass, removing a `phase`) makes the test fail. Every one of the 48 converted rows decides at least once, except two that can never decide because an earlier row already covers every case: the second "Deny Deadly tier mobs" rule (`spawner: false`, which the earlier unconditional deny shadows) and the second "Restrict surface-only and structure mobs" rule (`spawner: false`, shadowed by the first); and the random Atum throttle when its roll never passes. Those two are candidates for deletion from `spawn.json`.
+
+The modifiers and gear are not evaluated yet.
 
 ## When things run
 

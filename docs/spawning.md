@@ -97,6 +97,7 @@ Replaces In Control's `potentialspawn.json` rule loop with the same rows built i
 | --- | --- | --- |
 | Enable Spawning Module | true | yes |
 | Index In Control Potential Spawn Rules | true | yes |
+| Shadow Spawn Conditions | false | yes (rows reload with `/aqspawntable reload`) |
 | Use Potential Spawn Table | false | yes (rows reload on Tweaks cfg change or `/aqspawntable reload`) |
 | Potential Spawn Table Directory | `arcanaquest` | reload |
 | Potential Spawn Table Keeps In Control Rules | false | yes |
@@ -140,7 +141,8 @@ JSON layer / parties / structure files: edit needs **restart** (or a Tweaks cfg 
 | `spawning/CageSpawnerHooks.java` | Cage fail-path delay (HEAD/RETURN) |
 | `spawning/PotentialSpawnTable.java` | Table lookup + position tests at `PotentialSpawns`; class resolution; reload |
 | `spawning/CommandAqSpawnTable.java` | `/aqspawntable` info, reload, verify, dump |
-| `spawning/rules/*` | Plain Java: `RuleScanner` (rules with line numbers), `RuleSchema` (keys and values), `RuleFileLoader`, `RuleFiles` (check a pack), `SpawnJsonConverter` (spawn.json to the three files); format in `spawn-tables-format.md`; tests in `src/test` |
+| `spawning/ConditionShadow.java`, `spawning/LiveQuery.java` | Run `spawn_conditions.json` beside In Control after its handlers and count the differences; `LiveQuery` reads the game the way In Control does |
+| `spawning/rules/*` | Plain Java: `RuleScanner` (rules with line numbers), `RuleSchema` (keys and values), `RuleFileLoader`, `RuleFiles` (check a pack), `SpawnJsonConverter` (spawn.json to the three files), `ConditionTable`/`ConditionRow`/`SpawnQuery` (the evaluator); format in `spawn-tables-format.md`; tests in `src/test` |
 | `spawning/table/*` | Plain Java (no Minecraft types): `SpawnTableSources` (reads the pack files), `SpawnTableBuilder`, `SpawnRuleSpec`, `PotentialSpawnVerifier`, `LenientJson`; unit-tested in `src/test` |
 | `mixin/MixinWorldEntitySpawner.java` | Capture entry, fill pack, pack-size 1, hostile cap. Do **not** mixin `WorldServer`. |
 | `mixin/incontrol/MixinStructureCache.java` | RETURN inject (`cancellable = true`): memoized BB expand. `mixins.aqtweaks.incontrol.json` |
