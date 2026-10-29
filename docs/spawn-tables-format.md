@@ -160,6 +160,7 @@ Runs at join, once per mob, after the modifiers. One row per mob (or loadout) wi
 - Conditions and actions are separate rows, so a rule that did both (the Depths bypass, the Elite underground allow) becomes one row in each file.
 - A converted file is checked for rows that mix the two. The converter lists them for you.
 
-## Open questions
+## Decisions recorded
 
-- **Cultist rows:** today the archer's buff row sits below the cultist underground row, so below Y 55 an archer gets 1.25x health and damage (from the spawn check) plus the +8 armour and potions (from join). With `stop` on the underground row the archer row would never apply there. Decide whether the archer row goes above it.
+- **Cultist rows:** the Crimson archer's buff row goes above the cultist underground row, so an archer gets its full buffs (2.0x health, 2.5x damage, +8 armour, potions) at every depth. Today, below Y 55, an archer gets 1.25x health and damage from the underground row, and the buff row adds only armour and potions. The converter makes this one deliberate change; the comparison log reports it as an expected difference.
+- **Reordering:** rows can be reordered at any time; order is evaluation order, and `/aqspawntable reload` applies it.
