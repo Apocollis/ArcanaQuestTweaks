@@ -1,0 +1,16 @@
+{
+  "embers:ancient_golem": {
+    "weight": 600,
+    "groupcountmin": 1,
+    "groupcountmax": 2,
+    "maxcount": 12,
+    "maxheight": -30
+  },
+  "lycanitesmobs:beholder": {
+    "weight": 400,
+    "groupcountmin": 1,
+    "groupcountmax": 1,
+    "maxcount": 1,
+    "maxheight": -30
+  }
+}

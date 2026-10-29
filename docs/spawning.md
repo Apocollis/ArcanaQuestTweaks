@@ -77,11 +77,27 @@ Range: cfg override `modid:path=min-max`, else pack **tier** for that entity id 
 
 Ids missing from `mob_tier.json` keep the picked entry (vanilla 4–4 possible).
 
+## Potential spawn table (`spawning/PotentialSpawnTable`, `spawning/table/`)
+
+Replaces In Control's `potentialspawn.json` rule loop with the same rows built in memory from the pack files, so the pack scripts' classification files are the single source. **Off by default** (`Use Potential Spawn Table`); In Control stays loaded and is the fallback.
+
+**What is built.** `SpawnTableBuilder` reproduces `regenerate_potentialspawn.py` exactly (a unit test builds the pack's files and requires equality with the script's 159-rule output): one Overworld row per mob (sorted by id) with its sorted biome list from `mob_biometypes.json` + `biome_mappings.json`, minus `disabled_mobs.json`, `mob_extraspawns.json`, nether/end/dark mobs (dark exceptions beholder, shade, darkling kept); weight, group min/max and per-player limit from `mob_tier.json` + `mob_spawnrules.cfg` (unlisted mobs are common; underground-only mobs get weight +10); `mob_types.json` `watercreature` mobs become `WATER_CREATURE` rows that need `minecraft:water` under the spawn position; Nether (-1), End (1), Beneath (10) and dimension-wide Overworld rows; `mob_structurespawns.json` rows (dimension 0 + structure); the `mob_depthsspawns.json` pool (`maxheight`, default -30); and the row that removes vanilla mobs from dimension 10. Files are read from `config/<Potential Spawn Table Directory>/` (`ArcanaQuest` is tried when `arcanaquest` is missing) with the script's lenient JSON (comments, trailing commas). Required: `disabled_mobs`, `mob_tier`, `mob_biometypes`, `mob_extraspawns`, `biome_mappings`, `mob_types`, `mob_overworldspawntype`. Optional: `mob_spawnrules.cfg` (script defaults), `mob_structurespawns`, `mob_depthsspawns`. Unreadable files: the table is not built and In Control's rules run.
+
+**Query.** `PotentialSpawnIndex.handle` (the `ForgeEventHandlers.onPotentialSpawns` HEAD hook) calls `PotentialSpawnTable.apply` first. One hash lookup on (dimension, biome registry id, creature type) returns the rows that can apply; then, in In Control's own order of checks, `maxheight` (`pos.getY() <= max`), water (`getBlockState(pos.down())` is `minecraft:water`), `StructureCache.isInStructure`, and In Control's per-player count (`RuleCache.getCount(world, class) < limit * getValidPlayers(world)`, the same numbers `maxcount ... perplayer` uses). All rows are checked before any entry is added, so a failure leaves the list untouched and In Control's rules handle the query. Entity classes are resolved on the first query (after the registry is complete) with `PotentialSpawnRule.fixEntityId`; a mob that cannot be found leaves its row out, as In Control does. When the table applies, In Control's `potentialspawn.json` is not run unless `Potential Spawn Table Keeps In Control Rules` is on (hand-written rules; keep the generated rules out of the file or every mob is added twice).
+
+**Commands** (`/aqspawntable`, permission 2): no argument = state; `reload` = read the pack files again; `verify` = compare the table with `config/incontrol/potentialspawn.json` for every dimension, biome (all registered) and creature type, comparing what each side adds or removes together with the position tests; the full report goes to the log and `config/arcanaquesttweaks/potentialspawn_verify.txt`; it also lists fields the table does not implement (any rule using `mintime`, `seesky`, `gamestage`, ... shows as different); `dump` = write the table as `config/arcanaquesttweaks/potentialspawn_from_table.json`.
+
+**Not done yet** (next step, `spawn.json`): spawn gating and modifiers still run in In Control. The table only replaces `potentialspawn.json`. Mob ids in the file are compared as written; In Control's legacy id fixer is applied only when the table resolves classes.
+
 ## Live config (`aqtweaks_spawning.cfg`)
 
 | Knob | Default | Live? |
 | --- | --- | --- |
 | Enable Spawning Module | true | yes |
+| Index In Control Potential Spawn Rules | true | yes |
+| Use Potential Spawn Table | false | yes (rows reload on Tweaks cfg change or `/aqspawntable reload`) |
+| Potential Spawn Table Directory | `arcanaquest` | reload |
+| Potential Spawn Table Keeps In Control Rules | false | yes |
 | Filter Potential Spawns | true | yes |
 | Spawn Type File | `arcanaquest/mob_overworldspawntype.json` | reload on Tweaks cfg change |
 | Spawn Structure File | `arcanaquest/mob_structurespawns.json` | reload on Tweaks cfg change |
@@ -120,6 +136,9 @@ JSON layer / parties / structure files: edit needs **restart** (or a Tweaks cfg 
 | `spawning/SpawnPackFiller.java` | Extra placements; InControl min-distance |
 | `spawning/SpawnParties.java` | Mixed groups from pack JSON |
 | `spawning/CageSpawnerHooks.java` | Cage fail-path delay (HEAD/RETURN) |
+| `spawning/PotentialSpawnTable.java` | Table lookup + position tests at `PotentialSpawns`; class resolution; reload |
+| `spawning/CommandAqSpawnTable.java` | `/aqspawntable` info, reload, verify, dump |
+| `spawning/table/*` | Plain Java (no Minecraft types): `SpawnTableSources` (reads the pack files), `SpawnTableBuilder`, `SpawnRuleSpec`, `PotentialSpawnVerifier`, `LenientJson`; unit-tested in `src/test` |
 | `mixin/MixinWorldEntitySpawner.java` | Capture entry, fill pack, pack-size 1, hostile cap. Do **not** mixin `WorldServer`. |
 | `mixin/incontrol/MixinStructureCache.java` | RETURN inject (`cancellable = true`): memoized BB expand. `mixins.aqtweaks.incontrol.json` |
 | `mixin/MixinMobSpawnerBaseLogic.java` | Cage `updateSpawner` fail delay. Remap true. `mixins.aqtweaks.early.json` |

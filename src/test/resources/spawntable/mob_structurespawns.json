@@ -1,0 +1,11 @@
+{
+  "Mineshaft": [
+    "minecraft:vindication_illager",
+    "minecraft:evocation_illager",
+    "minecraft:illusion_illager",
+    "raids:pillager",
+    "grimoireofgaia:illager_fire",
+    "grimoireofgaia:illager_inquisitor",
+	"minecraft:witch"
+  ]
+}

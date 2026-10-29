@@ -1788,6 +1788,23 @@ public class ArcanaQuestTweaksConfig {
                 "in the original order, so adding rules costs almost nothing. Rules are matched exactly as before; turn off to compare."})
         public boolean indexPotentialSpawnRules = true;
 
+        @Config.Name("Use Potential Spawn Table")
+        @Config.Comment({"Builds the rows that regenerate_potentialspawn.py writes to In Control's potentialspawn.json from the same pack files",
+                "(mob_tier.json, mob_spawnrules.cfg, mob_biometypes.json, biome_mappings.json and the others) and uses them instead of In Control's rules:",
+                "one lookup per spawn-list query. In Control's potentialspawn.json is then not read for spawning (see the next option).",
+                "Run /aqspawntable verify first: it compares the table with In Control's file for every dimension, biome and creature type.",
+                "If the files cannot be read, In Control's rules are used."})
+        public boolean usePotentialSpawnTable = false;
+
+        @Config.Name("Potential Spawn Table Directory")
+        @Config.Comment("Pack folder under the Forge config directory that holds the files the table is built from.")
+        public String potentialSpawnTableDirectory = "arcanaquest";
+
+        @Config.Name("Potential Spawn Table Keeps In Control Rules")
+        @Config.Comment({"Also run In Control's own potentialspawn.json rules after the table, for hand-written rules.",
+                "Leave off while that file still holds the generated rules, or every mob is added twice."})
+        public boolean potentialSpawnTableKeepsInControlRules = false;
+
         @Config.Name("Filter Potential Spawns")
         @Config.Comment("At the spawn pick coordinate, drop surface-only mobs in caves and underground-only mobs on the surface.")
         public boolean filterPotentialSpawns = true;
@@ -2603,6 +2620,7 @@ public class ArcanaQuestTweaksConfig {
                 com.apocollis.aqtweaks.spawning.SpawnParties.reload();
                 com.apocollis.aqtweaks.spawning.SpawnGroupCounts.reload();
                 com.apocollis.aqtweaks.spawning.SpawnGroupSizes.invalidate();
+                com.apocollis.aqtweaks.spawning.PotentialSpawnTable.reload();
                 if (net.minecraftforge.fml.common.Loader.isModLoaded("reskillable")) {
                     com.apocollis.aqtweaks.reskillable.ReskillableModule.restampOnlinePlayers();
                 }

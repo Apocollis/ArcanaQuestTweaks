@@ -2,6 +2,12 @@
 
 Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-10-29 — Potential spawn table (replaces In Control's `potentialspawn.json` loop, off by default)
+
+- **`PotentialSpawnTable`** (`spawning/`, plain-Java builder in `spawning/table/`): builds the rows `regenerate_potentialspawn.py` writes from the pack's classification files at load and on reload, and answers a spawn-list query with one lookup on (dimension, biome, creature type) plus the height, water, structure and per-player count tests. Hooked at the same `ForgeEventHandlers.onPotentialSpawns` HEAD as the rule index; In Control's rules run when the table is off, cannot be built, or throws. Keys: `Use Potential Spawn Table` (default false), `Potential Spawn Table Directory`, `Potential Spawn Table Keeps In Control Rules`. No new mixin.
+- **`/aqspawntable verify`** compares the table with `config/incontrol/potentialspawn.json` for every dimension, biome and creature type and writes `config/arcanaquesttweaks/potentialspawn_verify.txt`; `reload` and `dump` as well. Details in `spawning.md`.
+- **Tests** (`src/test`, JUnit 5, `build.gradle` `test` task): the builder reproduces the pack's 159-rule `potentialspawn.json` exactly from the pack files (copies in `src/test/resources/spawntable`); the verifier finds a changed weight, a missing rule, an unsupported field and a changed removal order.
+
 ## 2026-10-28 — Light recording for Chunk Steward staged populate (API v4)
 
 - **`PopulateScopeBridge`** (`rtg/`, registered once from mod init through `ChunkStewardAPI.registerPopulateScope`, loaded only when the runtime API version is 4 or higher): Chunk Steward's staged populate applies RTG's decorations, the rest of the populate and the mod world generators after the populate call returned. The bridge opens `PopulateRelight`'s recording scope for that part (`PopulateRelight.beginResume`, which accepts a chunk that is already marked terrain populated), so those block writes and light checks are recorded and replayed in slices like an unstaged populate. A chunk with a record that is still queued keeps it; `take` is keyed by chunk. Compiled against `ChunkSteward-1.1.jar` (API version 4). Nothing changes without Chunk Steward's `features.enabled`.

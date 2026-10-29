@@ -45,6 +45,7 @@ public class CommonProxy {
         com.apocollis.aqtweaks.spawning.SpawnStructureLists.load(event.getModConfigurationDirectory());
         com.apocollis.aqtweaks.spawning.SpawnParties.load(event.getModConfigurationDirectory());
         com.apocollis.aqtweaks.spawning.SpawnGroupCounts.load(event.getModConfigurationDirectory());
+        com.apocollis.aqtweaks.spawning.PotentialSpawnTable.load(event.getModConfigurationDirectory());
         com.apocollis.aqtweaks.portal.PortalModule.preInit();
         if (net.minecraftforge.fml.common.Loader.isModLoaded("reskillable")) {
             com.apocollis.aqtweaks.reskillable.ReskillablePerkRegistry.preInit();

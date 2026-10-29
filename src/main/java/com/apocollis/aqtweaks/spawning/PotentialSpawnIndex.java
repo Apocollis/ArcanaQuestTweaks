@@ -147,10 +147,17 @@ public final class PotentialSpawnIndex {
 
     /** True when the event was handled here; false leaves it to In Control's own loop. */
     public static boolean handle(WorldEvent.PotentialSpawns event) {
-        if (!com.apocollis.aqtweaks.ArcanaQuestTweaksConfig.SpawningModuleConfig.general.enable
-                || !com.apocollis.aqtweaks.ArcanaQuestTweaksConfig.SpawningModuleConfig.general.indexPotentialSpawnRules
-                || ForgeEventHandlers.debug) {
+        com.apocollis.aqtweaks.ArcanaQuestTweaksConfig.SpawningGeneral general =
+                com.apocollis.aqtweaks.ArcanaQuestTweaksConfig.SpawningModuleConfig.general;
+        if (!general.enable || ForgeEventHandlers.debug) {
             return false;
+        }
+        boolean tabled = PotentialSpawnTable.apply(event);
+        if (tabled && !general.potentialSpawnTableKeepsInControlRules) {
+            return true;
+        }
+        if (!general.indexPotentialSpawnRules) {
+            return false; // In Control's own loop runs, after the table when that added its entries
         }
         List<PotentialSpawnRule> all = RulesManager.potentialSpawnRules;
         World world = event.getWorld();

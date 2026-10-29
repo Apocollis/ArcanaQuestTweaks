@@ -1,0 +1,46 @@
+{
+  "cultist": [
+	"thaumcraft:cultistknight",
+	"thaumcraft:cultistcleric",
+	"crimsonrevelations:cultist_archer"
+  ],
+  "gaia_egg": [
+    "grimoireofgaia:creeper_girl",
+    "grimoireofgaia:ender_dragon_girl",
+    "grimoireofgaia:holstaurus",
+    "grimoireofgaia:slime_girl",
+    "grimoireofgaia:trader",
+    "grimoireofgaia:weresheep"
+  ],
+  "illager": [
+    "grimoireofgaia:illager_fire",
+    "grimoireofgaia:illager_inquisitor",
+	"minecraft:illusion_illager",
+	"minecraft:vindication_illager",
+	"minecraft:evocation_illager",
+	"raids:pillager",
+	"minecraft:witch"
+  ],
+  "lava": [
+    "lycanitesmobs:cephignis",
+    "lycanitesmobs:gorger",
+    "lycanitesmobs:lobber",
+    "lycanitesmobs:volcan"
+  ],
+  "spawner": [
+    "lycanitesmobs:aegis",
+    "lycanitesmobs:argus",
+    "lycanitesmobs:cinder",
+    "lycanitesmobs:djinn",
+    "lycanitesmobs:geonach",
+    "lycanitesmobs:jengu",
+    "lycanitesmobs:reaper",
+    "lycanitesmobs:reiver",
+    "lycanitesmobs:spriggan",
+    "lycanitesmobs:tremor",
+    "lycanitesmobs:vapula",
+    "lycanitesmobs:xaphan",
+    "lycanitesmobs:zephyr",
+	"lycanitesmobs:eechetik"
+  ]
+}

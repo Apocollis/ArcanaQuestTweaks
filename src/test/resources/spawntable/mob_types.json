@@ -1,0 +1,188 @@
+{
+  "aberration": [
+    "grimoireofgaia:beholder",
+    "grimoireofgaia:ender_eye",
+    "lycanitesmobs:beholder",
+    "lycanitesmobs:clink",
+    "lycanitesmobs:crusk",
+    "lycanitesmobs:darkling",
+    "lycanitesmobs:gorger",
+    "lycanitesmobs:grell",
+    "lycanitesmobs:grigori",
+    "lycanitesmobs:krake",
+    "lycanitesmobs:serpix",
+    "lycanitesmobs:shade"
+  ],
+  "aquatic": [
+    "grimoireofgaia:mermaid",
+    "grimoireofgaia:selkie",
+    "grimoireofgaia:siren"
+  ],
+  "avian": [
+    "grimoireofgaia:gryphon",
+    "lycanitesmobs:cockatrice",
+    "lycanitesmobs:quetzodracl",
+    "lycanitesmobs:raiko",
+    "lycanitesmobs:roc"
+  ],
+  "beast": [
+    "grimoireofgaia:yeti",
+    "lycanitesmobs:barghest",
+    "lycanitesmobs:bobeko",
+    "lycanitesmobs:chupacabra",
+    "lycanitesmobs:dawon",
+    "lycanitesmobs:feradon",
+    "lycanitesmobs:jabberwock",
+    "lycanitesmobs:maug",
+    "lycanitesmobs:serpix",
+    "lycanitesmobs:troll",
+    "lycanitesmobs:warg",
+    "lycanitesmobs:wildkin"
+  ],
+  "beastman": [
+    "grimoireofgaia:centaur",
+    "grimoireofgaia:harpy",
+    "grimoireofgaia:minotaur",
+    "grimoireofgaia:minotaurus",
+    "grimoireofgaia:satyress"
+  ],
+  "construct": [
+    "grimoireofgaia:deathword",
+	"embers:ancient_golem"
+  ],
+  "creeper": [
+	"minecraft:creeper",
+    "grimoireofgaia:creep"
+  ],
+  "cultist": [
+	"thaumcraft:cultistknight",
+	"thaumcraft:cultistcleric",
+	"crimsonrevelations:cultist_archer"
+  ],
+  "demon": [
+    "grimoireofgaia:baphomet",
+    "grimoireofgaia:oni",
+    "grimoireofgaia:succubus"
+  ],
+  "dragon": [
+    "lycanitesmobs:ignibus",
+    "lycanitesmobs:morock",
+    "lycanitesmobs:zoataur"
+  ],
+  "elemental": [
+    "lycanitesmobs:aegis",
+    "lycanitesmobs:argus",
+    "lycanitesmobs:cinder",
+    "lycanitesmobs:djinn",
+    "lycanitesmobs:geonach",
+    "lycanitesmobs:jengu",
+    "lycanitesmobs:reiver",
+    "lycanitesmobs:spriggan",
+    "lycanitesmobs:tremor",
+    "lycanitesmobs:volcan",
+    "lycanitesmobs:xaphan",
+    "lycanitesmobs:zephyr"
+  ],
+  "fey": [
+    "grimoireofgaia:dryad",
+    "grimoireofgaia:nine_tails",
+    "grimoireofgaia:spriggan",
+    "lycanitesmobs:sylph",
+    "lycanitesmobs:wisp"
+  ],
+  "golem": [
+    "grimoireofgaia:cobble_golem",
+    "grimoireofgaia:cobblestone_golem"
+  ],
+  "humanoid": [
+    "grimoireofgaia:anubis",
+    "grimoireofgaia:dwarf",
+    "grimoireofgaia:hunter",
+    "grimoireofgaia:shaman",
+    "grimoireofgaia:valkyrie",
+    "thebetweenlands:dark_druid",
+	"minecraft:enderman"
+  ],
+  "illager": [
+    "grimoireofgaia:illager_fire",
+    "grimoireofgaia:illager_inquisitor",
+	"raids:pillager",
+	"minecraft:vindication_illager",
+	"minecraft:illusion_illager",
+	"minecraft:evocation_illager",
+	"minecraft:witch",
+  ],
+  "insect": [
+    "lycanitesmobs:eyewig",
+    "lycanitesmobs:frostweaver",
+    "lycanitesmobs:gorgomite",
+    "lycanitesmobs:tarantula",
+    "lycanitesmobs:vespid",
+    "lycanitesmobs:vespidqueen",
+	"minecraft:spider",
+	"minecraft:cave_spider"
+  ],
+  "monstrous": [
+    "grimoireofgaia:goblin",
+    "grimoireofgaia:goblin_feral",
+    "grimoireofgaia:orc"
+  ],
+  "plant": [
+    "grimoireofgaia:matango",
+    "grimoireofgaia:sporeling",
+    "lycanitesmobs:ent",
+    "lycanitesmobs:shambler",
+    "lycanitesmobs:tpumpkyn",
+    "lycanitesmobs:treant",
+    "lycanitesmobs:triffid"
+  ],
+  "slime": [
+    "grimoireofgaia:gelatinous_slime",
+    "grimoireofgaia:sludge_girl",
+	"minecraft:slime"
+  ],
+  "undead": [
+    "grimoireofgaia:banshee",
+    "grimoireofgaia:bone_knight",
+    "grimoireofgaia:dhampir",
+    "grimoireofgaia:dullahan",
+    "grimoireofgaia:flesh_lich",
+    "grimoireofgaia:mummy",
+    "grimoireofgaia:vampire",
+    "grimoireofgaia:yuki-onna",
+    "lycanitesmobs:banshee",
+    "lycanitesmobs:cryptkeeper",
+    "lycanitesmobs:geist",
+    "lycanitesmobs:ghoul",
+    "lycanitesmobs:necrovore",
+    "lycanitesmobs:reaper",
+    "lycanitesmobs:spectre",
+    "lycanitesmobs:wendigo",
+    "lycanitesmobs:wraith",
+	"charm:spectre",
+	"minecraft:zombie",
+	"minecraft:skeleton",
+	"minecraft:zombie_villager",
+	"minecraft:husk",
+	"minecraft:stray"
+  ],
+  "villager": [
+    "grimoireofgaia:creeper_girl",
+    "grimoireofgaia:holstaurus",
+    "grimoireofgaia:slime_girl",
+    "grimoireofgaia:trader",
+    "grimoireofgaia:weresheep"
+  ],
+  "_comment_watercreature": "Note: The following entities must be specified in potentialspawn.json using the classification string -> 'type': 'waterCreature' to ensure water layer spawning behavior",
+  "watercreature": [
+    "lycanitesmobs:abaia",
+    "lycanitesmobs:abtu",
+    "lycanitesmobs:herma",
+    "lycanitesmobs:ika",
+    "lycanitesmobs:ioray",
+    "lycanitesmobs:lacedon",
+    "lycanitesmobs:roa",
+    "lycanitesmobs:silex",
+    "lycanitesmobs:skylus"
+  ]
+}
