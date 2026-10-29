@@ -1782,6 +1782,12 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Master switch. When false, PotentialSpawns is not filtered, pack fill and mixed groups are off, the hostile cap is vanilla 70, and cage fail delay is not applied.")
         public boolean enable = true;
 
+        @Config.Name("Index In Control Potential Spawn Rules")
+        @Config.Comment({"In Control checks every potentialspawn rule for every spawn-list query and each biome-restricted rule asks the world for the biome again.",
+                "With this on, the rules whose dimension, biomereg and creaturetype cannot match the query are skipped before In Control's own matching,",
+                "in the original order, so adding rules costs almost nothing. Rules are matched exactly as before; turn off to compare."})
+        public boolean indexPotentialSpawnRules = true;
+
         @Config.Name("Filter Potential Spawns")
         @Config.Comment("At the spawn pick coordinate, drop surface-only mobs in caves and underground-only mobs on the surface.")
         public boolean filterPotentialSpawns = true;
