@@ -134,4 +134,56 @@ class SpawnTableBuilderTest {
         assertEquals(5, depths.weight);
         assertEquals(2, depths.limit);
     }
+
+    @Test
+    void aCategoryWithADimensionMakesRowsInThatDimension() throws IOException {
+        Map<String, String> files = minimalPack();
+        files.put("mob_biometypes.json", "{\"forest\": [\"x:cave\", \"x:both\"],"
+                + " \"atum\": [\"x:brigand\", \"x:both\"], \"atum_oasis\": [\"x:croc\"], \"nether\": [], \"dark\": [], \"any\": []}");
+        files.put("biome_mappings.json", "{\"forest\": [\"minecraft:forest\"], \"atum\": [\"atum:desert\", \"atum:oasis\"],"
+                + " \"atum_oasis\": [\"atum:oasis\"]}");
+        files.put("biome_dimensions.json", "{\"atum\": 17, \"atum_oasis\": [17]} // others are the Overworld");
+        List<SpawnRuleSpec> rules = SpawnTableBuilder.build(sources(files));
+        SpawnRuleSpec brigand = null;
+        SpawnRuleSpec croc = null;
+        int both = 0;
+        for (SpawnRuleSpec rule : rules) {
+            if ("x:brigand".equals(rule.mob)) {
+                brigand = rule;
+            } else if ("x:croc".equals(rule.mob)) {
+                croc = rule;
+            } else if ("x:both".equals(rule.mob)) {
+                both++;
+            }
+        }
+        assertEquals(17, brigand.dimension);
+        assertEquals(List.of("atum:desert", "atum:oasis"), brigand.biomes);
+        assertEquals(17, croc.dimension);
+        assertEquals(List.of("atum:oasis"), croc.biomes);
+        assertEquals(2, both);
+        assertTrue(brigand.appliesTo(17, "atum:oasis", SpawnRuleSpec.MONSTER));
+        assertFalse(brigand.appliesTo(0, "atum:oasis", SpawnRuleSpec.MONSTER));
+        // x:both is in an Overworld category and an Atum one: one row for each dimension, Overworld first
+        SpawnRuleSpec first = null;
+        SpawnRuleSpec second = null;
+        for (SpawnRuleSpec rule : rules) {
+            if ("x:both".equals(rule.mob)) {
+                if (first == null) {
+                    first = rule;
+                } else {
+                    second = rule;
+                }
+            }
+        }
+        assertEquals(0, first.dimension);
+        assertEquals(List.of("minecraft:forest"), first.biomes);
+        assertEquals(17, second.dimension);
+    }
+
+    @Test
+    void noDimensionsFileMeansEveryCategoryIsOverworld() throws IOException {
+        for (SpawnRuleSpec rule : SpawnTableBuilder.build(sources(minimalPack()))) {
+            assertTrue(rule.dimension == 0 || rule.dimension == -1 || rule.dimension == 10);
+        }
+    }
 }

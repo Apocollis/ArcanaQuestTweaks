@@ -14,8 +14,8 @@ import java.util.TreeSet;
 
 /**
  * Builds the rows {@code regenerate_potentialspawn.py} writes to {@code potentialspawn.json}, in the same order and
- * with the same values, from the classification files alone. The Overworld rows come first (one per mob, sorted by
- * id), then the Nether, End, Beneath and dimension-wide Overworld mobs, the structure rows, the depths pool, and the
+ * with the same values, from the classification files alone. The biome rows come first (one per mob and dimension,
+ * sorted by id; a category is in the Overworld unless {@code biome_dimensions.json} names its dimensions), then the Nether, End, Beneath and dimension-wide Overworld mobs, the structure rows, the depths pool, and the
  * row that takes the vanilla mobs out of the Beneath.
  */
 public final class SpawnTableBuilder {
@@ -72,7 +72,8 @@ public final class SpawnTableBuilder {
         Set<String> darkToFilter = new HashSet<String>(listOf(sources.biomeTypes, "dark"));
         darkToFilter.removeAll(DARK_EXCEPTIONS);
 
-        Map<String, Set<String>> mobBiomes = new TreeMap<String, Set<String>>();
+        // mob -> dimension -> biomes; a category is in the Overworld unless biome_dimensions.json says otherwise
+        Map<String, Map<Integer, Set<String>>> mobBiomes = new TreeMap<String, Map<Integer, Set<String>>>();
         for (Map.Entry<String, List<String>> category : sources.biomeTypes.entrySet()) {
             String name = category.getKey();
             if (name.equals("nether") || name.equals("end") || name.equals("dark") || name.equals("any")) {
@@ -88,20 +89,34 @@ public final class SpawnTableBuilder {
             if (biomes.isEmpty() || active.isEmpty() || name.equals("beneath")) {
                 continue;
             }
+            List<Integer> dimensions = sources.biomeDimensions.get(name);
+            if (dimensions == null || dimensions.isEmpty()) {
+                dimensions = Collections.singletonList(0);
+            }
             for (String mob : active) {
                 if (netherAll.contains(mob) || endAll.contains(mob) || darkToFilter.contains(mob)) {
                     continue;
                 }
-                Set<String> set = mobBiomes.get(mob);
-                if (set == null) {
-                    set = new TreeSet<String>();
-                    mobBiomes.put(mob, set);
+                Map<Integer, Set<String>> byDimension = mobBiomes.get(mob);
+                if (byDimension == null) {
+                    byDimension = new TreeMap<Integer, Set<String>>();
+                    mobBiomes.put(mob, byDimension);
                 }
-                set.addAll(biomes);
+                for (int dimension : dimensions) {
+                    Set<String> set = byDimension.get(dimension);
+                    if (set == null) {
+                        set = new TreeSet<String>();
+                        byDimension.put(dimension, set);
+                    }
+                    set.addAll(biomes);
+                }
             }
         }
-        for (Map.Entry<String, Set<String>> entry : mobBiomes.entrySet()) {
-            rules.add(spawnRow(0, new ArrayList<String>(entry.getValue()), null, null, entry.getKey()));
+        for (Map.Entry<String, Map<Integer, Set<String>>> mob : mobBiomes.entrySet()) {
+            for (Map.Entry<Integer, Set<String>> entry : mob.getValue().entrySet()) {
+                rules.add(spawnRow(entry.getKey(), new ArrayList<String>(entry.getValue()), null, null,
+                        mob.getKey()));
+            }
         }
 
         addDimension(rules, -1, active(listOf(sources.biomeTypes, "nether")));

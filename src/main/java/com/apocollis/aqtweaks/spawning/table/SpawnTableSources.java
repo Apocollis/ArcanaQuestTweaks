@@ -18,7 +18,7 @@ import java.util.regex.Pattern;
  * The pack's classification files that {@code regenerate_potentialspawn.py} reads, parsed but not combined:
  * {@code disabled_mobs}, {@code mob_tier}, {@code mob_spawnrules.cfg}, {@code mob_biometypes},
  * {@code mob_extraspawns}, {@code biome_mappings}, {@code mob_types}, {@code mob_overworldspawntype},
- * {@code mob_structurespawns} and {@code mob_depthsspawns}. The day-spawn files only matter to {@code spawn.json}.
+ * {@code mob_structurespawns}, {@code mob_depthsspawns} and the optional {@code biome_dimensions}. The day-spawn files only matter to {@code spawn.json}.
  */
 public final class SpawnTableSources {
     /** Reads a file of the pack by name; returns null when the file does not exist. */
@@ -74,6 +74,8 @@ public final class SpawnTableSources {
     final Map<String, List<String>> biomeTypes;
     final Map<String, List<String>> extraSpawns;
     final Map<String, List<String>> biomeMappings;
+    /** Category to the dimensions its biomes are in; a category not listed is in the Overworld. */
+    final Map<String, List<Integer>> biomeDimensions;
     final Set<String> waterMobs;
     final Set<String> surface;
     final Set<String> underground;
@@ -83,7 +85,7 @@ public final class SpawnTableSources {
     private SpawnTableSources(Set<String> disabled, Map<String, List<String>> tiers,
                               Map<String, TierParams> tierParams, Map<String, List<String>> biomeTypes,
                               Map<String, List<String>> extraSpawns, Map<String, List<String>> biomeMappings,
-                              Set<String> waterMobs, Set<String> surface, Set<String> underground,
+                              Map<String, List<Integer>> biomeDimensions, Set<String> waterMobs, Set<String> surface, Set<String> underground,
                               Map<String, List<String>> structures, List<DepthsEntry> depths) {
         this.disabled = disabled;
         this.tiers = tiers;
@@ -91,6 +93,7 @@ public final class SpawnTableSources {
         this.biomeTypes = biomeTypes;
         this.extraSpawns = extraSpawns;
         this.biomeMappings = biomeMappings;
+        this.biomeDimensions = biomeDimensions;
         this.waterMobs = waterMobs;
         this.surface = surface;
         this.underground = underground;
@@ -131,8 +134,24 @@ public final class SpawnTableSources {
         if (depthsJson != null) {
             readDepths(depthsJson, disabled, depths);
         }
-        return new SpawnTableSources(disabled, tiers, params, biomeTypes, extraSpawns, biomeMappings, water, surface,
-                underground, structures, depths);
+        Map<String, List<Integer>> dimensions = new LinkedHashMap<String, List<Integer>>();
+        JsonElement dimensionJson = optionalJson(files, "biome_dimensions.json");
+        if (dimensionJson != null && dimensionJson.isJsonObject()) {
+            for (Map.Entry<String, JsonElement> entry : dimensionJson.getAsJsonObject().entrySet()) {
+                List<Integer> ids = new ArrayList<Integer>();
+                JsonElement value = entry.getValue();
+                if (value.isJsonArray()) {
+                    for (JsonElement id : value.getAsJsonArray()) {
+                        ids.add(id.getAsInt());
+                    }
+                } else {
+                    ids.add(value.getAsInt());
+                }
+                dimensions.put(entry.getKey(), ids);
+            }
+        }
+        return new SpawnTableSources(disabled, tiers, params, biomeTypes, extraSpawns, biomeMappings, dimensions,
+                water, surface, underground, structures, depths);
     }
 
     private static Map<String, TierParams> defaultTierParams() {
