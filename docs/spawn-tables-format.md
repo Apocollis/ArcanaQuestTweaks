@@ -126,7 +126,7 @@ Generated placeholders read `mob_spawnrules.cfg` (`du_tier*`, `dim_*`, `deadly_m
 
 ## spawn_gear.json
 
-Runs at join, once per mob, after the modifiers. One row per mob (or loadout) with every slot it sets. A slot left out is left as the mob spawned. Slots: `hand`, `offhand`, `head`, `chest`, `legs`, `feet`. An Enderman's `hand` is the block it carries. Optional match keys: `dimension`, `minheight`, `maxheight`, `seesky`, `weather`. The first matching row for a mob supplies the whole loadout; rows never merge slot by slot.
+Runs at join, once per mob, after the modifiers. One row per mob (or loadout) with every slot it sets. A slot left out is left as the mob spawned. Slots: `hand`, `offhand`, `head`, `chest`, `legs`, `feet`. An Enderman's `hand` is the block it carries. Optional match keys: `dimension`, `minheight`, `maxheight`, `seesky`, `weather`. The first matching row for a mob supplies the whole loadout; rows never merge slot by slot. A row with `random` (a chance, as in the other files) matches only when the roll succeeds, so a chance of a different whole set is a row with `random` above the plain row; further sets chain the same way, each roll applying to what is left. There are no per-slot weighted lists (In Control's pick each slot independently and would mix sets); an N-way `weight` key can be added if chaining proves awkward.
 
 ```json
 [
@@ -159,5 +159,4 @@ Runs at join, once per mob, after the modifiers. One row per mob (or loadout) wi
 
 ## Open questions
 
-- **Weighted gear:** In Control accepts a weighted list for a slot (a random pick). Not in the first version unless you use it. Your `spawn.json` does not.
 - **Default `phase`:** `both`, because most of your rules are `onjoin`. Say if you would rather it were `spawn`.
