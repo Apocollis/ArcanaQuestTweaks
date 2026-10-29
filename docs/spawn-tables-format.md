@@ -21,7 +21,11 @@ Rows use In Control's own key names (`mob`, `dimension`, `minheight`, `seesky`, 
 
 ## spawn_conditions.json
 
-Match keys (all optional, all must hold): `mob` (id or list), `mod`, `dimension` (int or list), `minheight`, `maxheight`, `seesky`, `mintime`, `maxtime` (0 to 24000), `weather`, `structure`, `biomereg`, `hostile`, `spawner`, `notcolliding`, `gamestage`, `random` (chance the row applies), `minplayerdist`, `maxplayerdist` (to the nearest player within 100 blocks, the pack's `maxPlayerDistance`), `mincount`, `maxcount` (In Control's count form: `{"amount", "perplayer" | "perchunk", "mob" | "mod" | "hostile" | "passive"}`; `mincount` matches when the count has reached `amount`, `maxcount` when it is still below).
+Match keys (all optional, all must hold): `mob` (id or list), `mod`, `dimension` (int or list), `minheight`, `maxheight`, `seesky`, `mintime`, `maxtime` (0 to 24000), `time`, `weather`, `biomecat`, `structure`, `biomereg`, `hostile`, `spawner`, `notcolliding`, `gamestage`, `random` (chance the row applies), `minplayerdist`, `maxplayerdist` (to the nearest player within 100 blocks, the pack's `maxPlayerDistance`), `mincount`, `maxcount` (In Control's count form: `{"amount", "perplayer" | "perchunk", "mob" | "mod" | "hostile" | "passive"}`; `mincount` matches when the count has reached `amount`, `maxcount` when it is still below).
+
+`time` is a name or a list of windows, for the cases `mintime`/`maxtime` cannot express because a day wraps around midnight: `"day"` is 0 to 13000 plus 23000 to 24000 (the windows the pack already uses), `"night"` is 13000 to 23000, or a list such as `[[0, 6000], [18000, 24000]]`. `mintime`/`maxtime` still work. So the two Dark Druid rows become `{ "mob": "thebetweenlands:dark_druid", "time": "day", "result": "deny" }`.
+
+`biomecat` is a biome category name (or a list) from `biome_mappings.json`, expanded to that category's biomes when the file loads, so a row can say `"biomecat": "spooky"` instead of listing biome ids. It can sit beside `biomereg`, and works in all three files.
 
 Result: `"result": "allow" | "deny" | "default"`. `allow` forces the spawn past vanilla's own checks (used for Mineshaft mobs and the daytime pool), `deny` blocks it, `default` leaves vanilla to decide **and ends the walk**, which is how the Ghoul, Grue and Depths bypasses skip the denies below them.
 
@@ -65,9 +69,24 @@ The pack scripts build most rows from your classification files. A placeholder r
 | `depths_bypass` | `mob_depthsspawns.json` | default for the Depths pool at its `maxheight` |
 | `stage_gating` | `mob_tier.json`, `mob_spawnrules.cfg` | per tier: underground bypasses, stage-and-cap default, deny fallback (dragon, deadly, elite, crimsoncult) |
 | `layer_restrictions` | `mob_overworldspawntype.json`, `mob_structurespawns.json` | surface-only mobs denied below Y 60 without sky, underground-only denied above Y 60 |
-| `day_spawns` | `mob_dayspawns.json`, `mob_staged_dayspawns.json`, cfg | daytime distance deny, cap deny, allow and staged allow |
+| `day_spawns` | `mob_daypool.json` (below), or `mob_dayspawns.json` + `mob_staged_dayspawns.json` when it is absent; cfg | daytime distance deny, cap deny, allow and staged allow |
 
 The verify command compares each placeholder's rows with what `regenerate_spawn_limits.py` wrote into `spawn.json`. Rows you write by hand go between the placeholders. A placeholder missing from the file means those rows are not generated.
+
+### The daytime pool: mob_daypool.json (optional)
+
+One entry per mob that may spawn by day on the surface. It carries what the two older files hold, plus a biome limit:
+
+```json
+{
+  "grimoireofgaia:centaur": {},
+  "grimoireofgaia:orc": { "stage": "elite" },
+  "lycanitesmobs:ghoul": { "biomes": ["spooky"] },
+  "grimoireofgaia:vampire": { "biomes": ["spooky", "swamp"], "stage": "elite" }
+}
+```
+
+`{}` means every biome and no stage. `biomes` are category names from `biome_mappings.json`. `stage` is a game stage the nearest player must have. With the file present, `day_spawns` reads it; without it, `mob_dayspawns.json` and `mob_staged_dayspawns.json` give today's rows exactly. The allow rows are grouped by stage and biome set and keep the current limits (30 blocks from players, 20 per player across the whole pool). The distance and cap denies cover every pool mob in every biome, and the deny for a player without the stage is not limited by biome, as the Orc's is now. Verify warns when a mob is allowed by day in a category but is not in the potential-spawn pool for those biomes, since it could never spawn there.
 
 ## spawn_modifiers.json
 
