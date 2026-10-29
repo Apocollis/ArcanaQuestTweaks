@@ -7,7 +7,7 @@ Files live in the pack folder (`config/arcanaquest/`) next to the classification
 | File | Decides | Match rule |
 | --- | --- | --- |
 | `spawn_conditions.json` | whether a mob may spawn | first matching row wins |
-| `spawn_modifiers.json` | what a spawned mob gets (stats, potions, angry) | each stat set by the first matching row that sets it; potions from every matching row; `stop` ends the search |
+| `spawn_modifiers.json` | what a spawned mob gets (stats, potions, angry) | first matching row applies, as a whole (stats, potions and `angry`); no other row adds to it |
 | `spawn_gear.json` | what a spawned mob holds and wears | first matching row for the mob wins, as a whole |
 
 Rows use In Control's own key names (`mob`, `dimension`, `minheight`, `seesky`, `gamestage`, `maxcount`, ...), so a row copies across from `spawn.json` unchanged and the old file can be converted by script.
@@ -103,19 +103,18 @@ Actions (In Control's names; `multiply` acts on the base value, `add` is added, 
 | `armortoughnessmultiply/add`, `knockbackresistancemultiply/add`, `followrangemultiply/add`, `flyingspeedmultiply/add` | as named |
 | `potion` | `"id,duration,amplifier"` or a list; added to the mob, merging with an effect it already has |
 | `angry` | the mob targets the nearest player within 50 blocks (Zombie Pigmen get a revenge target); does nothing if nobody is that close |
-| `stop` | `true` ends the search after this row |
 
-How rows combine: health, damage and speed are each set by the first matching row that sets them (In Control tags the mob so it can only happen once). Armour, toughness, knockback and the other stats are proposed to follow the same first-wins rule (see Open questions). Potions from every matching row are added. A row with `stop` applies and nothing below it does.
+How rows combine: **the first matching row applies, as a whole, and no other row adds to it.** A thundering cave creeper gets the creeper row and nothing from the depth rows below, which is how `firstMatchOnly` works in In Control today. Put specific mobs above broad rules (dimension and depth buffs). Because only one row ever applies, each stat is applied once and nothing compounds.
 
 ```json
 [
-  // specific mobs first; stop keeps the depth and dimension rows below from touching them
-  { "mob": "minecraft:creeper", "dimension": 0, "seesky": true, "weather": "thunder", "random": 0.25, "potion": "potioncore:lightning,1,0", "healthmultiply": 2.0, "stop": true },
-  { "mob": "minecraft:enderman", "dimension": 0, "maxheight": 32, "angry": true, "stop": true },
-  { "mob": "minecraft:vex", "dimension": 0, "healthmultiply": 0.25, "damagemultiply": 0.5, "stop": true },
-  { "mob": "artifacts:mimic", "dimension": 0, "healthmultiply": 0.75, "damagemultiply": 1.25, "potion": "minecraft:night_vision,999999,0", "stop": true },
-  { "mob": "minecraft:villager_golem", "dimension": 0, "structure": "Village", "healthmultiply": 2.5, "damagemultiply": 2.0, "potion": ["minecraft:fire_resistance,9999999,0", "extraalchemy:effect.concentration,1,0"], "stop": true },
-  { "mob": "crimsonrevelations:cultist_archer", "healthmultiply": 2.0, "damagemultiply": 2.5, "armoradd": 8.0, "potion": ["minecraft:night_vision,999999,0", "potioncore:archery,999999,1"], "stop": true },
+  // specific mobs first: the first matching row applies and the broad rows below are not reached for them
+  { "mob": "minecraft:creeper", "dimension": 0, "seesky": true, "weather": "thunder", "random": 0.25, "potion": "potioncore:lightning,1,0", "healthmultiply": 2.0 },
+  { "mob": "minecraft:enderman", "dimension": 0, "maxheight": 32, "angry": true },
+  { "mob": "minecraft:vex", "dimension": 0, "healthmultiply": 0.25, "damagemultiply": 0.5 },
+  { "mob": "artifacts:mimic", "dimension": 0, "healthmultiply": 0.75, "damagemultiply": 1.25, "potion": "minecraft:night_vision,999999,0" },
+  { "mob": "minecraft:villager_golem", "dimension": 0, "structure": "Village", "healthmultiply": 2.5, "damagemultiply": 2.0, "potion": ["minecraft:fire_resistance,9999999,0", "extraalchemy:effect.concentration,1,0"] },
+  { "mob": "crimsonrevelations:cultist_archer", "healthmultiply": 2.0, "damagemultiply": 2.5, "armoradd": 8.0, "potion": ["minecraft:night_vision,999999,0", "potioncore:archery,999999,1"] },
 
   { "generate": "tier_underground" },    // per-tier multipliers for the gated mobs underground
   { "generate": "dimension_buffs" },     // Nether, End, Aether, Twilight, Beneath, Atum, Betweenlands, Aurorian, Emptiness
@@ -146,20 +145,19 @@ Runs at join, once per mob, after the modifiers. One row per mob (or loadout) wi
 
 ## Moving from spawn.json without changing behaviour
 
-1. A converter reads `spawn.json` and writes the three files. Each rule is split into its condition part and its action part. Every converted modifier row that ended the search in In Control (any row that matched first) gets `stop: true`, so the first version decides exactly as today.
+1. A converter reads `spawn.json` and writes the three files. Each rule is split into its condition part and its action part. Modifiers keep In Control's first-match rule, so the first version decides exactly as today.
 2. The comparison log runs with In Control still in charge. At each spawn check and join it records the result and the actions Tweaks would give, next to what In Control did, and lists every difference.
 3. When the log is quiet over real play, switch the Tweaks tables on, one file at a time (conditions, then modifiers, then gear), each with its own switch.
-4. After that you can loosen `stop` rows or add stacking as you wish.
+4. After that you can reorder rows or change values freely.
 
 ## Differences from In Control, on purpose
 
 - Modifier-only and gear-only rules no longer end the search for the conditions (in In Control any matching rule does, and your file order hides this).
-- Potions accumulate across matching modifier rows; health, damage and speed are first-wins per stat, as In Control's tags make them.
+- Modifier-only and gear-only rules no longer end the search for the conditions, but within the modifiers table nothing changes: one matching row, applied whole.
 - Conditions and actions are separate rows, so a rule that did both (the Depths bypass, the Elite underground allow) becomes one row in each file.
 - A converted file is checked for rows that mix the two. The converter lists them for you.
 
 ## Open questions
 
-- **Armour and the other untagged stats:** In Control applies `armoradd` and friends every time a matching rule's action runs, with no tag, but with `firstMatchOnly` only one rule ever runs. Proposal: first row that sets the stat wins, same as health.
 - **Weighted gear:** In Control accepts a weighted list for a slot (a random pick). Not in the first version unless you use it. Your `spawn.json` does not.
 - **Default `phase`:** `both`, because most of your rules are `onjoin`. Say if you would rather it were `spawn`.
