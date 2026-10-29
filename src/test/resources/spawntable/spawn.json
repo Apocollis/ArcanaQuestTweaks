@@ -1,0 +1,1454 @@
+[
+  // Deny spawner mobs if they collide with blocks/walls
+  {
+      "spawner": true,
+      "notcolliding": false,
+      "result": "deny"
+    },
+// Limit Bone Knight spawners to 1 active entity per chunk
+  {
+      "mob": "grimoireofgaia:bone_knight",
+      "spawner": true,
+      "mincount": {
+        "amount": 1,
+        "perchunk": true
+      },
+      "result": "deny"
+    },
+// Allow spawner mobs in open air (skips light/path checks while preserving collision safety)
+  {
+      "spawner": true,
+      "notcolliding": true,
+      "result": "allow"
+    },
+// Deny hostile mob spawning in Village structures during daytime
+  {
+      "structure": "Village",
+      "dimension": 0,
+      "minheight": 50,
+      "mintime": 0,
+      "maxtime": 13000,
+      "hostile": true,
+      "result": "deny",
+      "onjoin": true
+    },
+// Deny hostile mob spawning in Village structures during daytime
+  {
+      "structure": "Village",
+      "dimension": 0,
+      "minheight": 50,
+      "mintime": 23000,
+      "maxtime": 24000,
+      "hostile": true,
+      "result": "deny",
+      "onjoin": true
+    },
+// Deny daytime-allowed surface mobs (not all flagged hostile, e.g. feradon) in Village structures during daytime
+   {
+      "mob": [
+        "grimoireofgaia:centaur",
+        "grimoireofgaia:dryad",
+        "grimoireofgaia:goblin_feral",
+        "grimoireofgaia:gryphon",
+        "grimoireofgaia:harpy",
+        "grimoireofgaia:hunter",
+        "grimoireofgaia:matango",
+        "grimoireofgaia:orc",
+        "grimoireofgaia:satyress",
+        "grimoireofgaia:sporeling",
+        "grimoireofgaia:toad",
+        "grimoireofgaia:werecat",
+        "lycanitesmobs:barghest",
+        "lycanitesmobs:bobeko",
+        "lycanitesmobs:conba",
+        "lycanitesmobs:dawon",
+        "lycanitesmobs:dweller",
+        "lycanitesmobs:ent",
+        "lycanitesmobs:ettin",
+        "lycanitesmobs:feradon",
+        "lycanitesmobs:geken",
+        "lycanitesmobs:gorgomite",
+        "lycanitesmobs:jabberwock",
+        "lycanitesmobs:kobold",
+        "lycanitesmobs:maug",
+        "lycanitesmobs:nymph",
+        "lycanitesmobs:pixen",
+        "lycanitesmobs:quillbeast",
+        "lycanitesmobs:raiko",
+        "lycanitesmobs:shambler",
+        "lycanitesmobs:treant",
+        "lycanitesmobs:triffid",
+        "lycanitesmobs:troll",
+        "lycanitesmobs:warg",
+        "lycanitesmobs:wildkin",
+        "lycanitesmobs:wisp"
+      ],
+      "structure": "Village",
+      "dimension": 0,
+      "minheight": 50,
+      "mintime": 0,
+      "maxtime": 13000,
+      "result": "deny",
+      "onjoin": true
+    },
+// Deny daytime-allowed surface mobs in Village structures at dawn (23000-24000)
+   {
+      "mob": [
+        "grimoireofgaia:centaur",
+        "grimoireofgaia:dryad",
+        "grimoireofgaia:goblin_feral",
+        "grimoireofgaia:gryphon",
+        "grimoireofgaia:harpy",
+        "grimoireofgaia:hunter",
+        "grimoireofgaia:matango",
+        "grimoireofgaia:orc",
+        "grimoireofgaia:satyress",
+        "grimoireofgaia:sporeling",
+        "grimoireofgaia:toad",
+        "grimoireofgaia:werecat",
+        "lycanitesmobs:barghest",
+        "lycanitesmobs:bobeko",
+        "lycanitesmobs:conba",
+        "lycanitesmobs:dawon",
+        "lycanitesmobs:dweller",
+        "lycanitesmobs:ent",
+        "lycanitesmobs:ettin",
+        "lycanitesmobs:feradon",
+        "lycanitesmobs:geken",
+        "lycanitesmobs:gorgomite",
+        "lycanitesmobs:jabberwock",
+        "lycanitesmobs:kobold",
+        "lycanitesmobs:maug",
+        "lycanitesmobs:nymph",
+        "lycanitesmobs:pixen",
+        "lycanitesmobs:quillbeast",
+        "lycanitesmobs:raiko",
+        "lycanitesmobs:shambler",
+        "lycanitesmobs:treant",
+        "lycanitesmobs:triffid",
+        "lycanitesmobs:troll",
+        "lycanitesmobs:warg",
+        "lycanitesmobs:wildkin",
+        "lycanitesmobs:wisp"
+      ],
+      "structure": "Village",
+      "dimension": 0,
+      "minheight": 50,
+      "mintime": 23000,
+      "maxtime": 24000,
+      "result": "deny",
+      "onjoin": true
+    },
+// Deny Dark Druid spawning during the day (make it night-only)
+  {
+    "mob": "thebetweenlands:dark_druid",
+    "mintime": 0,
+    "maxtime": 13000,
+    "result": "deny",
+    "onjoin": true
+  },
+// Prevent Dark Druid spawning during dawn transition
+  {
+    "mob": "thebetweenlands:dark_druid",
+    "mintime": 23000,
+    "maxtime": 24000,
+    "result": "deny",
+    "onjoin": true
+  },
+// Allow Ghoul to spawn in Ominous Woods any time of day
+  {
+      "mob": "lycanitesmobs:ghoul",
+      "biomereg": "biomesoplenty:ominous_woods",
+	  "seesky": true,
+      "result": "default",
+      "onjoin": true
+    },
+// Prevent squid spawning outside of ocean
+    {
+      "biomereg": [
+        "minecraft:ocean",
+        "minecraft:deep_ocean"
+      ],
+      "mob": "minecraft:squid",
+      "onjoin": true,
+      "dimension": 0,
+      "result": "default"
+    },
+// Allow structure-specific mobs to spawn in 'Mineshaft'
+  {
+      "mob": [
+        "grimoireofgaia:illager_fire",
+        "grimoireofgaia:illager_inquisitor",
+        "minecraft:evocation_illager",
+        "minecraft:illusion_illager",
+        "minecraft:vindication_illager",
+        "minecraft:witch",
+        "raids:pillager"
+      ],
+      "dimension": 0,
+      "structure": "Mineshaft",
+      "result": "allow",
+      "maxheight": 50,
+      "seesky": false
+    },
+// Allow Grue spawning (e.g. from darkness event) without stage gating
+  {
+      "mob": "lycanitesmobs:grue",
+      "result": "allow",
+      "onjoin": true
+    },
+// Allow Depths pool mobs underground (Y <= -30) regardless of stage (Tier 3 multipliers)
+  {
+      "mob": [
+        "embers:ancient_golem"
+      ],
+      "dimension": 0,
+      "maxheight": -30,
+      "result": "default",
+      "healthmultiply": 2.25,
+      "damagemultiply": 2.25,
+      "armoradd": 8.0,
+      "potion": "minecraft:night_vision,999999,0",
+      "onjoin": true
+    },
+// Allow Dragon tier mobs underground (Y <= 55) if player has 'dragon' stage and count is under limit (1 per player)
+  {
+      "mob": [
+        "lycanitesmobs:ignibus"
+      ],
+      "gamestage": "dragon",
+      "maxcount": {
+        "amount": 1,
+        "perplayer": true
+      },
+      "dimension": 0,
+      "maxheight": 55,
+      "seesky": false,
+      "result": "default",
+      "healthmultiply": 1.25,
+      "damagemultiply": 1.25,
+      "onjoin": true
+    },
+// Allow Dragon tier mobs generally if player has 'dragon' stage and count is under limit (1 per player)
+  {
+      "mob": [
+        "lycanitesmobs:ignibus",
+        "lycanitesmobs:morock",
+        "lycanitesmobs:zoataur"
+      ],
+      "gamestage": "dragon",
+      "maxcount": {
+        "amount": 1,
+        "perplayer": true
+      },
+      "result": "default",
+      "onjoin": true
+    },
+// Deny Dragon tier mobs if player does not have 'dragon' stage or count limit is reached
+  {
+      "mob": [
+        "lycanitesmobs:ignibus",
+        "lycanitesmobs:morock",
+        "lycanitesmobs:zoataur"
+      ],
+      "result": "deny",
+      "onjoin": true
+    },
+// Allow Deadly tier mobs underground (Y <= 0) regardless of stage (Tier 3 multipliers)
+  {
+      "mob": [
+        "grimoireofgaia:bone_knight",
+        "grimoireofgaia:flesh_lich",
+        "grimoireofgaia:minotaur",
+        "lycanitesmobs:beholder",
+        "lycanitesmobs:shade"
+      ],
+      "dimension": 0,
+      "minheight": -60,
+      "maxheight": 0,
+      "seesky": false,
+      "result": "default",
+      "healthmultiply": 2.5,
+      "damagemultiply": 2.5,
+      "armoradd": 12.0,
+      "potion": "dynamicstealth:soulsight,999999,0",
+      "onjoin": true
+    },
+// Allow Deadly tier mobs underground (Y <= 55) if player has 'deadly' stage and count is under limit (1 per player)
+  {
+      "mob": [
+        "grimoireofgaia:bone_knight",
+        "grimoireofgaia:flesh_lich",
+        "grimoireofgaia:minotaur",
+        "lycanitesmobs:beholder",
+        "lycanitesmobs:shade"
+      ],
+      "gamestage": "deadly",
+      "maxcount": {
+        "amount": 1,
+        "perplayer": true
+      },
+      "dimension": 0,
+      "maxheight": 55,
+      "seesky": false,
+      "result": "default",
+      "healthmultiply": 1.25,
+      "damagemultiply": 1.25,
+      "onjoin": true
+    },
+// Allow Deadly tier mobs generally if player has 'deadly' stage and count is under limit (1 per player)
+  {
+      "mob": [
+        "grimoireofgaia:bone_knight",
+        "grimoireofgaia:flesh_lich",
+        "grimoireofgaia:minotaur",
+        "lycanitesmobs:beholder",
+        "lycanitesmobs:shade"
+      ],
+      "gamestage": "deadly",
+      "maxcount": {
+        "amount": 1,
+        "perplayer": true
+      },
+      "result": "default",
+      "onjoin": true
+    },
+// Deny Deadly tier mobs if player does not have 'deadly' stage or count limit is reached
+  {
+      "mob": [
+        "grimoireofgaia:bone_knight",
+        "grimoireofgaia:flesh_lich",
+        "grimoireofgaia:minotaur",
+        "lycanitesmobs:beholder",
+        "lycanitesmobs:shade"
+      ],
+      "result": "deny",
+      "onjoin": true
+    },
+// Allow Elite tier mobs underground (Y <= -15) regardless of stage (Tier 3 multipliers)
+  {
+      "mob": [
+        "grimoireofgaia:banshee",
+        "grimoireofgaia:baphomet",
+        "grimoireofgaia:beholder",
+        "grimoireofgaia:cobblestone_golem",
+        "grimoireofgaia:dhampir",
+        "grimoireofgaia:ender_dragon_girl",
+        "grimoireofgaia:gelatinous_slime",
+        "grimoireofgaia:minotaurus",
+        "grimoireofgaia:vampire",
+        "lycanitesmobs:eechetik",
+        "lycanitesmobs:gorger",
+        "lycanitesmobs:grigori",
+        "lycanitesmobs:grue",
+        "lycanitesmobs:lobber",
+        "lycanitesmobs:tremor",
+        "lycanitesmobs:volcan",
+        "lycanitesmobs:xaphan",
+        "thaumcraft:giantbrainyzombie"
+      ],
+      "dimension": 0,
+      "maxheight": -15,
+      "seesky": false,
+      "result": "default",
+      "healthmultiply": 2.25,
+      "damagemultiply": 2.25,
+      "armoradd": 8.0,
+      "potion": "minecraft:night_vision,999999,0",
+      "onjoin": true
+    },
+// Allow Elite tier mobs underground (Y <= 15) regardless of stage (Tier 2 multipliers)
+  {
+      "mob": [
+        "grimoireofgaia:banshee",
+        "grimoireofgaia:baphomet",
+        "grimoireofgaia:beholder",
+        "grimoireofgaia:cobblestone_golem",
+        "grimoireofgaia:dhampir",
+        "grimoireofgaia:ender_dragon_girl",
+        "grimoireofgaia:gelatinous_slime",
+        "grimoireofgaia:minotaurus",
+        "grimoireofgaia:vampire",
+        "lycanitesmobs:eechetik",
+        "lycanitesmobs:gorger",
+        "lycanitesmobs:grigori",
+        "lycanitesmobs:grue",
+        "lycanitesmobs:lobber",
+        "lycanitesmobs:tremor",
+        "lycanitesmobs:volcan",
+        "lycanitesmobs:xaphan",
+        "thaumcraft:giantbrainyzombie"
+      ],
+      "dimension": 0,
+      "maxheight": 15,
+      "seesky": false,
+      "result": "default",
+      "healthmultiply": 1.75,
+      "damagemultiply": 1.75,
+      "potion": "none",
+      "onjoin": true
+    },
+// Allow Elite tier mobs underground (Y <= 55) if player has 'elite' stage (Tier 1 multipliers)
+  {
+      "mob": [
+        "grimoireofgaia:banshee",
+        "grimoireofgaia:baphomet",
+        "grimoireofgaia:beholder",
+        "grimoireofgaia:cobblestone_golem",
+        "grimoireofgaia:dhampir",
+        "grimoireofgaia:ender_dragon_girl",
+        "grimoireofgaia:gelatinous_slime",
+        "grimoireofgaia:minotaurus",
+        "grimoireofgaia:vampire",
+        "lycanitesmobs:eechetik",
+        "lycanitesmobs:gorger",
+        "lycanitesmobs:grigori",
+        "lycanitesmobs:grue",
+        "lycanitesmobs:lobber",
+        "lycanitesmobs:tremor",
+        "lycanitesmobs:volcan",
+        "lycanitesmobs:xaphan",
+        "thaumcraft:giantbrainyzombie"
+      ],
+      "gamestage": "elite",
+      "maxcount": {
+        "amount": 3,
+        "perplayer": true
+      },
+      "dimension": 0,
+      "maxheight": 55,
+      "seesky": false,
+      "result": "default",
+      "healthmultiply": 1.25,
+      "damagemultiply": 1.25,
+      "onjoin": true
+    },
+// Allow Elite tier mobs generally if player has 'elite' stage
+  {
+      "mob": [
+        "grimoireofgaia:anubis",
+        "grimoireofgaia:banshee",
+        "grimoireofgaia:baphomet",
+        "grimoireofgaia:beholder",
+        "grimoireofgaia:cobblestone_golem",
+        "grimoireofgaia:dhampir",
+        "grimoireofgaia:ender_dragon_girl",
+        "grimoireofgaia:gelatinous_slime",
+        "grimoireofgaia:mermaid",
+        "grimoireofgaia:minotaurus",
+        "grimoireofgaia:naga",
+        "grimoireofgaia:nine_tails",
+        "grimoireofgaia:shaman",
+        "grimoireofgaia:sphinx",
+        "grimoireofgaia:spriggan",
+        "grimoireofgaia:valkyrie",
+        "grimoireofgaia:vampire",
+        "grimoireofgaia:witch",
+        "grimoireofgaia:yeti",
+        "grimoireofgaia:yuki-onna",
+        "lycanitesmobs:cockatrice",
+        "lycanitesmobs:crusk",
+        "lycanitesmobs:eechetik",
+        "lycanitesmobs:gorger",
+        "lycanitesmobs:grigori",
+        "lycanitesmobs:grue",
+        "lycanitesmobs:lobber",
+        "lycanitesmobs:quetzodracl",
+        "lycanitesmobs:roc",
+        "lycanitesmobs:treant",
+        "lycanitesmobs:tremor",
+        "lycanitesmobs:vespidqueen",
+        "lycanitesmobs:volcan",
+        "lycanitesmobs:wendigo",
+        "lycanitesmobs:xaphan",
+        "thaumcraft:giantbrainyzombie",
+        "thebetweenlands:dark_druid"
+      ],
+      "gamestage": "elite",
+      "maxcount": {
+        "amount": 3,
+        "perplayer": true
+      },
+      "result": "default",
+      "onjoin": true
+    },
+// Deny Elite tier mobs if player does not have 'elite' stage or count limit is reached
+  {
+      "mob": [
+        "grimoireofgaia:anubis",
+        "grimoireofgaia:banshee",
+        "grimoireofgaia:baphomet",
+        "grimoireofgaia:beholder",
+        "grimoireofgaia:cobblestone_golem",
+        "grimoireofgaia:dhampir",
+        "grimoireofgaia:ender_dragon_girl",
+        "grimoireofgaia:gelatinous_slime",
+        "grimoireofgaia:mermaid",
+        "grimoireofgaia:minotaurus",
+        "grimoireofgaia:naga",
+        "grimoireofgaia:nine_tails",
+        "grimoireofgaia:shaman",
+        "grimoireofgaia:sphinx",
+        "grimoireofgaia:spriggan",
+        "grimoireofgaia:valkyrie",
+        "grimoireofgaia:vampire",
+        "grimoireofgaia:witch",
+        "grimoireofgaia:yeti",
+        "grimoireofgaia:yuki-onna",
+        "lycanitesmobs:cockatrice",
+        "lycanitesmobs:crusk",
+        "lycanitesmobs:eechetik",
+        "lycanitesmobs:gorger",
+        "lycanitesmobs:grigori",
+        "lycanitesmobs:grue",
+        "lycanitesmobs:lobber",
+        "lycanitesmobs:quetzodracl",
+        "lycanitesmobs:roc",
+        "lycanitesmobs:treant",
+        "lycanitesmobs:tremor",
+        "lycanitesmobs:vespidqueen",
+        "lycanitesmobs:volcan",
+        "lycanitesmobs:wendigo",
+        "lycanitesmobs:xaphan",
+        "thaumcraft:giantbrainyzombie",
+        "thebetweenlands:dark_druid"
+      ],
+      "result": "deny",
+      "onjoin": true
+    },
+// Allow Crimsoncult tier mobs underground (Y <= 55) if player has 'crimsoncult' stage and count is under limit (5 per player)
+  {
+      "mob": [
+        "crimsonrevelations:cultist_archer",
+        "thaumcraft:cultistcleric",
+        "thaumcraft:cultistknight"
+      ],
+      "gamestage": "crimsoncult",
+      "maxcount": {
+        "amount": 5,
+        "perplayer": true
+      },
+      "dimension": 0,
+      "maxheight": 55,
+      "seesky": false,
+      "result": "default",
+      "healthmultiply": 1.25,
+      "damagemultiply": 1.25
+    },
+// Allow Crimsoncult tier mobs generally if player has 'crimsoncult' stage and count is under limit (5 per player)
+  {
+      "mob": [
+        "crimsonrevelations:cultist_archer",
+        "thaumcraft:cultistcleric",
+        "thaumcraft:cultistknight"
+      ],
+      "gamestage": "crimsoncult",
+      "maxcount": {
+        "amount": 5,
+        "perplayer": true
+      },
+      "result": "default"
+    },
+// Deny Crimsoncult tier mobs if player does not have 'crimsoncult' stage or count limit is reached
+  {
+      "mob": [
+        "crimsonrevelations:cultist_archer",
+        "thaumcraft:cultistcleric",
+        "thaumcraft:cultistknight"
+      ],
+      "result": "deny"
+    },
+// Restrict lycanitesmobs:spectre spawning to non-Overworld dimensions only
+  {
+      "mob": "lycanitesmobs:spectre",
+      "dimension": 0,
+      "result": "deny",
+      "onjoin": true
+    },
+// Restrict surface-only and structure mobs to above Y 60 or where sky is visible
+  {
+      "mob": [
+        "grimoireofgaia:anubis",
+        "grimoireofgaia:centaur",
+        "grimoireofgaia:cyclops",
+        "grimoireofgaia:dryad",
+        "grimoireofgaia:dullahan",
+        "grimoireofgaia:gryphon",
+        "grimoireofgaia:harpy",
+        "grimoireofgaia:hunter",
+        "grimoireofgaia:illager_fire",
+        "grimoireofgaia:illager_inquisitor",
+        "grimoireofgaia:matango",
+        "grimoireofgaia:mermaid",
+        "grimoireofgaia:mummy",
+        "grimoireofgaia:naga",
+        "grimoireofgaia:nine_tails",
+        "grimoireofgaia:satyress",
+        "grimoireofgaia:selkie",
+        "grimoireofgaia:shaman",
+        "grimoireofgaia:siren",
+        "grimoireofgaia:sludge_girl",
+        "grimoireofgaia:sphinx",
+        "grimoireofgaia:sporeling",
+        "grimoireofgaia:spriggan",
+        "grimoireofgaia:toad",
+        "grimoireofgaia:valkyrie",
+        "grimoireofgaia:witch",
+        "grimoireofgaia:yeti",
+        "grimoireofgaia:yuki-onna",
+        "lycanitesmobs:aglebemu",
+        "lycanitesmobs:arix",
+        "lycanitesmobs:barghest",
+        "lycanitesmobs:bobeko",
+        "lycanitesmobs:cockatrice",
+        "lycanitesmobs:conba",
+        "lycanitesmobs:crusk",
+        "lycanitesmobs:dawon",
+        "lycanitesmobs:dweller",
+        "lycanitesmobs:ent",
+        "lycanitesmobs:ettin",
+        "lycanitesmobs:feradon",
+        "lycanitesmobs:frostweaver",
+        "lycanitesmobs:geken",
+        "lycanitesmobs:gorgomite",
+        "lycanitesmobs:jabberwock",
+        "lycanitesmobs:maug",
+        "lycanitesmobs:morock",
+        "lycanitesmobs:necrovore",
+        "lycanitesmobs:nymph",
+        "lycanitesmobs:pixen",
+        "lycanitesmobs:quetzodracl",
+        "lycanitesmobs:quillbeast",
+        "lycanitesmobs:raiko",
+        "lycanitesmobs:remobra",
+        "lycanitesmobs:roc",
+        "lycanitesmobs:serpix",
+        "lycanitesmobs:shambler",
+        "lycanitesmobs:sylph",
+        "lycanitesmobs:tpumpkyn",
+        "lycanitesmobs:treant",
+        "lycanitesmobs:triffid",
+        "lycanitesmobs:vespid",
+        "lycanitesmobs:vespidqueen",
+        "lycanitesmobs:warg",
+        "lycanitesmobs:wendigo",
+        "lycanitesmobs:wildkin",
+        "lycanitesmobs:wisp",
+        "lycanitesmobs:zoataur",
+        "minecraft:evocation_illager",
+        "minecraft:illusion_illager",
+        "minecraft:vindication_illager",
+        "minecraft:witch",
+        "raids:pillager",
+        "thebetweenlands:dark_druid"
+      ],
+      "dimension": 0,
+      "maxheight": 60,
+      "seesky": false,
+      "result": "deny"
+    },
+// Restrict underground-only mobs to below Y 60
+  {
+      "mob": [
+        "aqtweaks:deep_dwarf",
+        "charm:spectre",
+        "grimoireofgaia:arachne",
+        "grimoireofgaia:dwarf",
+        "lycanitesmobs:beholder",
+        "lycanitesmobs:chupacabra",
+        "lycanitesmobs:clink",
+        "lycanitesmobs:darkling",
+        "lycanitesmobs:kobold",
+        "lycanitesmobs:krake",
+        "lycanitesmobs:shade",
+        "minecraft:cave_spider"
+      ],
+      "dimension": 0,
+      "minheight": 60,
+      "result": "deny"
+    },
+// Hard cap total hostile mob spawning in Overworld to 250 per player
+  {
+      "dimension": 0,
+      "mincount": {
+        "amount": 250,
+        "hostile": true,
+        "perplayer": true
+      },
+      "result": "deny"
+    },
+// Hard cap total hostile mob spawning in Atum to 30 per player
+  {
+      "dimension": 17,
+      "mincount": {
+        "amount": 30,
+        "hostile": true,
+        "perplayer": true
+      },
+      "result": "deny"
+    },
+// Deny daytime surface bandit spawns in Atum once daytime cap (12 per player) is reached
+  {
+      "mob": [
+        "atum:assassin",
+        "atum:barbarian",
+        "atum:brigand",
+        "atum:nomad"
+      ],
+      "dimension": 17,
+      "seesky": true,
+      "mintime": 0,
+      "maxtime": 13000,
+      "mincount": {
+        "amount": 12,
+        "perplayer": true,
+        "mob": [
+          "atum:assassin",
+          "atum:barbarian",
+          "atum:brigand",
+          "atum:nomad"
+        ]
+      },
+      "result": "deny"
+    },
+// Space out natural spawn cycles in Atum to prevent instant respawn swarming
+  {
+      "dimension": 17,
+      "hostile": true,
+      "random": 0.4,
+      "result": "deny"
+    },
+// Deny surface daytime hostile spawns within minimum player distance (30.0 blocks)
+  {
+      "mob": [
+        "grimoireofgaia:centaur",
+        "grimoireofgaia:dryad",
+        "grimoireofgaia:goblin_feral",
+        "grimoireofgaia:gryphon",
+        "grimoireofgaia:harpy",
+        "grimoireofgaia:hunter",
+        "grimoireofgaia:matango",
+        "grimoireofgaia:orc",
+        "grimoireofgaia:satyress",
+        "grimoireofgaia:sporeling",
+        "grimoireofgaia:toad",
+        "grimoireofgaia:werecat",
+        "lycanitesmobs:barghest",
+        "lycanitesmobs:bobeko",
+        "lycanitesmobs:conba",
+        "lycanitesmobs:dawon",
+        "lycanitesmobs:dweller",
+        "lycanitesmobs:ent",
+        "lycanitesmobs:ettin",
+        "lycanitesmobs:feradon",
+        "lycanitesmobs:geken",
+        "lycanitesmobs:gorgomite",
+        "lycanitesmobs:jabberwock",
+        "lycanitesmobs:kobold",
+        "lycanitesmobs:maug",
+        "lycanitesmobs:nymph",
+        "lycanitesmobs:pixen",
+        "lycanitesmobs:quillbeast",
+        "lycanitesmobs:raiko",
+        "lycanitesmobs:shambler",
+        "lycanitesmobs:treant",
+        "lycanitesmobs:triffid",
+        "lycanitesmobs:troll",
+        "lycanitesmobs:warg",
+        "lycanitesmobs:wildkin",
+        "lycanitesmobs:wisp"
+      ],
+      "dimension": 0,
+      "minheight": 60,
+      "seesky": true,
+      "mintime": 0,
+      "maxtime": 13000,
+      "maxplayerdist": 30.0,
+      "result": "deny"
+    },
+// Deny surface daytime hostile spawns once daytime cap (20 per player) is reached
+  {
+      "mob": [
+        "grimoireofgaia:centaur",
+        "grimoireofgaia:dryad",
+        "grimoireofgaia:goblin_feral",
+        "grimoireofgaia:gryphon",
+        "grimoireofgaia:harpy",
+        "grimoireofgaia:hunter",
+        "grimoireofgaia:matango",
+        "grimoireofgaia:orc",
+        "grimoireofgaia:satyress",
+        "grimoireofgaia:sporeling",
+        "grimoireofgaia:toad",
+        "grimoireofgaia:werecat",
+        "lycanitesmobs:barghest",
+        "lycanitesmobs:bobeko",
+        "lycanitesmobs:conba",
+        "lycanitesmobs:dawon",
+        "lycanitesmobs:dweller",
+        "lycanitesmobs:ent",
+        "lycanitesmobs:ettin",
+        "lycanitesmobs:feradon",
+        "lycanitesmobs:geken",
+        "lycanitesmobs:gorgomite",
+        "lycanitesmobs:jabberwock",
+        "lycanitesmobs:kobold",
+        "lycanitesmobs:maug",
+        "lycanitesmobs:nymph",
+        "lycanitesmobs:pixen",
+        "lycanitesmobs:quillbeast",
+        "lycanitesmobs:raiko",
+        "lycanitesmobs:shambler",
+        "lycanitesmobs:treant",
+        "lycanitesmobs:triffid",
+        "lycanitesmobs:troll",
+        "lycanitesmobs:warg",
+        "lycanitesmobs:wildkin",
+        "lycanitesmobs:wisp"
+      ],
+      "dimension": 0,
+      "minheight": 60,
+      "seesky": true,
+      "mintime": 0,
+      "maxtime": 13000,
+      "mincount": {
+        "amount": 20,
+        "perplayer": true,
+        "mob": [
+          "grimoireofgaia:centaur",
+          "grimoireofgaia:dryad",
+          "grimoireofgaia:goblin_feral",
+          "grimoireofgaia:gryphon",
+          "grimoireofgaia:harpy",
+          "grimoireofgaia:hunter",
+          "grimoireofgaia:matango",
+          "grimoireofgaia:orc",
+          "grimoireofgaia:satyress",
+          "grimoireofgaia:sporeling",
+          "grimoireofgaia:toad",
+          "grimoireofgaia:werecat",
+          "lycanitesmobs:barghest",
+          "lycanitesmobs:bobeko",
+          "lycanitesmobs:conba",
+          "lycanitesmobs:dawon",
+          "lycanitesmobs:dweller",
+          "lycanitesmobs:ent",
+          "lycanitesmobs:ettin",
+          "lycanitesmobs:feradon",
+          "lycanitesmobs:geken",
+          "lycanitesmobs:gorgomite",
+          "lycanitesmobs:jabberwock",
+          "lycanitesmobs:kobold",
+          "lycanitesmobs:maug",
+          "lycanitesmobs:nymph",
+          "lycanitesmobs:pixen",
+          "lycanitesmobs:quillbeast",
+          "lycanitesmobs:raiko",
+          "lycanitesmobs:shambler",
+          "lycanitesmobs:treant",
+          "lycanitesmobs:triffid",
+          "lycanitesmobs:troll",
+          "lycanitesmobs:warg",
+          "lycanitesmobs:wildkin",
+          "lycanitesmobs:wisp"
+        ]
+      },
+      "result": "deny"
+    },
+// Deny Deadly tier mobs if player does not have 'deadly' stage or count limit is reached
+  {
+      "mob": [
+        "grimoireofgaia:bone_knight",
+        "grimoireofgaia:flesh_lich",
+        "grimoireofgaia:minotaur",
+        "lycanitesmobs:beholder",
+        "lycanitesmobs:shade"
+      ],
+      "spawner": false,
+      "result": "deny",
+      "onjoin": true
+    },
+// Restrict surface-only and structure mobs to above Y 60 or where sky is visible
+  {
+      "mob": [
+        "grimoireofgaia:anubis",
+        "grimoireofgaia:centaur",
+        "grimoireofgaia:cyclops",
+        "grimoireofgaia:dryad",
+        "grimoireofgaia:dullahan",
+        "grimoireofgaia:gryphon",
+        "grimoireofgaia:harpy",
+        "grimoireofgaia:hunter",
+        "grimoireofgaia:illager_fire",
+        "grimoireofgaia:illager_inquisitor",
+        "grimoireofgaia:matango",
+        "grimoireofgaia:mermaid",
+        "grimoireofgaia:mummy",
+        "grimoireofgaia:naga",
+        "grimoireofgaia:nine_tails",
+        "grimoireofgaia:satyress",
+        "grimoireofgaia:selkie",
+        "grimoireofgaia:shaman",
+        "grimoireofgaia:siren",
+        "grimoireofgaia:sludge_girl",
+        "grimoireofgaia:sphinx",
+        "grimoireofgaia:sporeling",
+        "grimoireofgaia:spriggan",
+        "grimoireofgaia:toad",
+        "grimoireofgaia:valkyrie",
+        "grimoireofgaia:witch",
+        "grimoireofgaia:yeti",
+        "grimoireofgaia:yuki-onna",
+        "lycanitesmobs:aglebemu",
+        "lycanitesmobs:arix",
+        "lycanitesmobs:barghest",
+        "lycanitesmobs:bobeko",
+        "lycanitesmobs:cockatrice",
+        "lycanitesmobs:conba",
+        "lycanitesmobs:crusk",
+        "lycanitesmobs:dawon",
+        "lycanitesmobs:dweller",
+        "lycanitesmobs:ent",
+        "lycanitesmobs:ettin",
+        "lycanitesmobs:feradon",
+        "lycanitesmobs:frostweaver",
+        "lycanitesmobs:geken",
+        "lycanitesmobs:gorgomite",
+        "lycanitesmobs:jabberwock",
+        "lycanitesmobs:maug",
+        "lycanitesmobs:morock",
+        "lycanitesmobs:necrovore",
+        "lycanitesmobs:nymph",
+        "lycanitesmobs:pixen",
+        "lycanitesmobs:quetzodracl",
+        "lycanitesmobs:quillbeast",
+        "lycanitesmobs:raiko",
+        "lycanitesmobs:remobra",
+        "lycanitesmobs:roc",
+        "lycanitesmobs:serpix",
+        "lycanitesmobs:shambler",
+        "lycanitesmobs:sylph",
+        "lycanitesmobs:tpumpkyn",
+        "lycanitesmobs:treant",
+        "lycanitesmobs:triffid",
+        "lycanitesmobs:vespid",
+        "lycanitesmobs:vespidqueen",
+        "lycanitesmobs:warg",
+        "lycanitesmobs:wendigo",
+        "lycanitesmobs:wildkin",
+        "lycanitesmobs:wisp",
+        "lycanitesmobs:zoataur",
+        "minecraft:evocation_illager",
+        "minecraft:illusion_illager",
+        "minecraft:vindication_illager",
+        "minecraft:witch",
+        "raids:pillager",
+        "thebetweenlands:dark_druid"
+      ],
+      "spawner": false,
+      "dimension": 0,
+      "maxheight": 60,
+      "seesky": false,
+      "result": "deny"
+    },
+// Prevent Silex from spawning on the surface
+  {
+      "mob": "lycanitesmobs:silex",
+      "seesky": true,
+      "result": "deny",
+      "onjoin": true
+    },
+// Prevent shadow/underground mobs from spawning on the surface
+  {
+      "mob": [
+        "lycanitesmobs:chupacabra",
+        "lycanitesmobs:darkling",
+        "lycanitesmobs:shade",
+        "lycanitesmobs:beholder",
+        "lycanitesmobs:spectre"
+      ],
+      "seesky": true,
+      "result": "deny",
+      "onjoin": true
+    },
+// Spawn Limiters
+  {
+      "onjoin": true,
+      "dimension": -2,
+      "mincount": 100,
+      "result": "deny"
+    },
+// Golem/Villager Changes  
+  {
+      "mob": "minecraft:villager_golem",
+      "dimension": 0,
+      "mincount": 40,
+      "result": "deny",
+      "onjoin": true
+    },
+{
+      "mob": "minecraft:squid",
+      "onjoin": true,
+      "dimension": 0,
+      "result": "deny"
+    },
+// Allow hostile non-undead surface creatures to spawn during daytime up to cap (20 per player)
+  {
+      "mob": [
+        "grimoireofgaia:centaur",
+        "grimoireofgaia:dryad",
+        "grimoireofgaia:goblin_feral",
+        "grimoireofgaia:gryphon",
+        "grimoireofgaia:harpy",
+        "grimoireofgaia:hunter",
+        "grimoireofgaia:matango",
+        "grimoireofgaia:satyress",
+        "grimoireofgaia:sporeling",
+        "grimoireofgaia:toad",
+        "grimoireofgaia:werecat",
+        "lycanitesmobs:barghest",
+        "lycanitesmobs:bobeko",
+        "lycanitesmobs:conba",
+        "lycanitesmobs:dawon",
+        "lycanitesmobs:dweller",
+        "lycanitesmobs:ent",
+        "lycanitesmobs:ettin",
+        "lycanitesmobs:feradon",
+        "lycanitesmobs:geken",
+        "lycanitesmobs:gorgomite",
+        "lycanitesmobs:jabberwock",
+        "lycanitesmobs:kobold",
+        "lycanitesmobs:maug",
+        "lycanitesmobs:nymph",
+        "lycanitesmobs:pixen",
+        "lycanitesmobs:quillbeast",
+        "lycanitesmobs:raiko",
+        "lycanitesmobs:shambler",
+        "lycanitesmobs:treant",
+        "lycanitesmobs:triffid",
+        "lycanitesmobs:troll",
+        "lycanitesmobs:warg",
+        "lycanitesmobs:wildkin",
+        "lycanitesmobs:wisp"
+      ],
+      "dimension": 0,
+      "minheight": 60,
+      "seesky": true,
+      "mintime": 0,
+      "maxtime": 13000,
+      "minplayerdist": 30.0,
+      "maxcount": {
+        "amount": 20,
+        "perplayer": true,
+        "mob": [
+          "grimoireofgaia:centaur",
+          "grimoireofgaia:dryad",
+          "grimoireofgaia:goblin_feral",
+          "grimoireofgaia:gryphon",
+          "grimoireofgaia:harpy",
+          "grimoireofgaia:hunter",
+          "grimoireofgaia:matango",
+          "grimoireofgaia:orc",
+          "grimoireofgaia:satyress",
+          "grimoireofgaia:sporeling",
+          "grimoireofgaia:toad",
+          "grimoireofgaia:werecat",
+          "lycanitesmobs:barghest",
+          "lycanitesmobs:bobeko",
+          "lycanitesmobs:conba",
+          "lycanitesmobs:dawon",
+          "lycanitesmobs:dweller",
+          "lycanitesmobs:ent",
+          "lycanitesmobs:ettin",
+          "lycanitesmobs:feradon",
+          "lycanitesmobs:geken",
+          "lycanitesmobs:gorgomite",
+          "lycanitesmobs:jabberwock",
+          "lycanitesmobs:kobold",
+          "lycanitesmobs:maug",
+          "lycanitesmobs:nymph",
+          "lycanitesmobs:pixen",
+          "lycanitesmobs:quillbeast",
+          "lycanitesmobs:raiko",
+          "lycanitesmobs:shambler",
+          "lycanitesmobs:treant",
+          "lycanitesmobs:triffid",
+          "lycanitesmobs:troll",
+          "lycanitesmobs:warg",
+          "lycanitesmobs:wildkin",
+          "lycanitesmobs:wisp"
+        ]
+      },
+      "result": "allow"
+    },
+// Allow staged hostile surface creatures to spawn during daytime if player has 'elite' stage up to cap (20 per player)
+  {
+      "mob": [
+        "grimoireofgaia:orc"
+      ],
+      "dimension": 0,
+      "minheight": 60,
+      "seesky": true,
+      "mintime": 0,
+      "maxtime": 13000,
+      "gamestage": "elite",
+      "minplayerdist": 30.0,
+      "maxcount": {
+        "amount": 20,
+        "perplayer": true,
+        "mob": [
+          "grimoireofgaia:centaur",
+          "grimoireofgaia:dryad",
+          "grimoireofgaia:goblin_feral",
+          "grimoireofgaia:gryphon",
+          "grimoireofgaia:harpy",
+          "grimoireofgaia:hunter",
+          "grimoireofgaia:matango",
+          "grimoireofgaia:orc",
+          "grimoireofgaia:satyress",
+          "grimoireofgaia:sporeling",
+          "grimoireofgaia:toad",
+          "grimoireofgaia:werecat",
+          "lycanitesmobs:barghest",
+          "lycanitesmobs:bobeko",
+          "lycanitesmobs:conba",
+          "lycanitesmobs:dawon",
+          "lycanitesmobs:dweller",
+          "lycanitesmobs:ent",
+          "lycanitesmobs:ettin",
+          "lycanitesmobs:feradon",
+          "lycanitesmobs:geken",
+          "lycanitesmobs:gorgomite",
+          "lycanitesmobs:jabberwock",
+          "lycanitesmobs:kobold",
+          "lycanitesmobs:maug",
+          "lycanitesmobs:nymph",
+          "lycanitesmobs:pixen",
+          "lycanitesmobs:quillbeast",
+          "lycanitesmobs:raiko",
+          "lycanitesmobs:shambler",
+          "lycanitesmobs:treant",
+          "lycanitesmobs:triffid",
+          "lycanitesmobs:troll",
+          "lycanitesmobs:warg",
+          "lycanitesmobs:wildkin",
+          "lycanitesmobs:wisp"
+        ]
+      },
+      "result": "allow"
+    },
+// Deny staged surface daytime hostile spawns if player lacks required stage
+  {
+      "mob": [
+        "grimoireofgaia:orc"
+      ],
+      "dimension": 0,
+      "minheight": 60,
+      "seesky": true,
+      "mintime": 0,
+      "maxtime": 13000,
+      "result": "deny"
+    },
+// Equip Vindicator Illagers with Iron Axe on spawn
+  {
+      "mob": "minecraft:vindication_illager",
+      "helditem": "minecraft:iron_axe",
+      "onjoin": true
+    },
+// Equip Deep Dwarves with Dawnstone Pickaxe on spawn
+  {
+      "mob": "aqtweaks:deep_dwarf",
+      "helditem": "embers:pickaxe_dawnstone",
+      "onjoin": true
+    },
+// Equip Cursed Armor (Upper levels / Y > 15) with Iron Armor and Sword to prevent invisibility
+  {
+      "mob": "eerieentities:cursed_armor",
+      "minheight": 16,
+      "armorhelmet": "minecraft:iron_helmet",
+      "armorchest": "minecraft:iron_chestplate",
+      "armorlegs": "minecraft:iron_leggings",
+      "armorboots": "minecraft:iron_boots",
+      "helditem": "minecraft:iron_sword",
+      "onjoin": true
+    },
+// Equip Cursed Armor (Deep Nexus / Y <= 15) with Thaumium Sentinel Armor and Sword to prevent invisibility
+  {
+      "mob": "eerieentities:cursed_armor",
+      "maxheight": 15,
+      "armorhelmet": "thaumcraft:thaumium_helm",
+      "armorchest": "thaumcraft:thaumium_chest",
+      "armorlegs": "thaumcraft:thaumium_legs",
+      "armorboots": "thaumcraft:thaumium_boots",
+      "helditem": "thaumcraft:thaumium_sword",
+      "onjoin": true
+    },
+// Equip and buff Crimson Cultist Archer on join
+  {
+      "mob": "crimsonrevelations:cultist_archer",
+      "result": "default",
+      "helditem": "minecraft:bow",
+      "armorhelmet": "crimsonrevelations:crimson_archer_helmet",
+      "armorchest": "crimsonrevelations:crimson_archer_chestplate",
+      "armorlegs": "crimsonrevelations:crimson_archer_leggings",
+      "armorboots": "thaumcraft:crimson_boots",
+      "healthmultiply": 2.0,
+      "damagemultiply": 2.5,
+      "armoradd": 8.0,
+      "potion": [
+        "minecraft:night_vision,999999,0",
+        "potioncore:archery,999999,1"
+      ],
+      "onjoin": true
+    },
+// Equip and buff Crimson Cultist Knight on join
+  {
+      "mob": "thaumcraft:cultistknight",
+      "result": "default",
+      "helditem": "thaumcraft:crimson_blade",
+      "armorhelmet": "thaumcraft:crimson_plate_helm",
+      "armorchest": "thaumcraft:crimson_plate_chest",
+      "armorlegs": "thaumcraft:crimson_plate_legs",
+      "armorboots": "thaumcraft:crimson_boots",
+      "healthmultiply": 2.0,
+      "damagemultiply": 2.5,
+      "armoradd": 8.0,
+      "potion": "minecraft:night_vision,999999,0",
+      "onjoin": true
+    },
+// Equip and buff Crimson Cultist Cleric on join
+  {
+      "mob": "thaumcraft:cultistcleric",
+      "result": "default",
+      "armorhelmet": "thaumcraft:crimson_robe_helm",
+      "armorchest": "thaumcraft:crimson_robe_chest",
+      "armorlegs": "thaumcraft:crimson_robe_legs",
+      "armorboots": "thaumcraft:crimson_boots",
+      "healthmultiply": 2.0,
+      "damagemultiply": 2.5,
+      "armoradd": 8.0,
+      "potion": [
+        "minecraft:night_vision,999999,0",
+        "potioncore:magic_focus,999999,1"
+      ],
+      "onjoin": true
+    },
+// Custom modifiers for artifacts:mimic
+  {
+      "mob": "artifacts:mimic",
+      "dimension": 0,
+      "result": "default",
+      "healthmultiply": 0.75,
+      "damagemultiply": 1.25,
+      "potion": "minecraft:night_vision,999999,0",
+      "onjoin": true
+    },
+// Give Grimoire of Gaia Dryads permanent Fertile Feet effect on spawn
+  {
+      "mob": "grimoireofgaia:dryad",
+      "potion": "rusticwitchcraft:fertile_feet,999999,0",
+      "onjoin": true
+    },
+// Equip Skeleton Druids with Golden Hoe and Magic Focus I on join
+  {
+      "mob": "twilightforest:skeleton_druid",
+      "helditem": "minecraft:golden_hoe",
+      "potion": "potioncore:magic_focus,999999,0",
+      "healthmultiply": 1.5,
+      "onjoin": true
+    },
+// Buff Strays with Archery I and Bow on join
+  {
+      "mob": "minecraft:stray",
+      "helditem": "minecraft:bow",
+      "potion": "potioncore:archery,999999,0",
+      "healthmultiply": 1.5,
+      "onjoin": true
+    },
+// Charged Creepers during Storms
+  {
+      "dimension": 0,
+      "seesky": true,
+      "weather": "thunder",
+      "mob": "minecraft:creeper",
+      "random": 0.25,
+      "result": "default",
+      "potion": "potioncore:lightning,1,0",
+      "healthmultiply": 2.0,
+      "onjoin": true
+    },
+// Enderman Changes
+  {
+      "mob": "minecraft:enderman",
+      "dimension": 0,
+      "maxheight": 32,
+      "result": "default",
+      "angry": true,
+      "onjoin": true
+    },
+// Spawn angry Endermen randomly in Outer End/Special dimensions
+  {
+      "mob": "minecraft:enderman",
+      "dimension": -2,
+      "random": 0.1,
+      "result": "default",
+      "angry": true,
+      "onjoin": true
+    },
+// Spawn angry Endermen randomly in The End
+  {
+      "mob": "minecraft:enderman",
+      "dimension": 1,
+      "random": 0.03,
+      "result": "default",
+      "angry": true,
+      "onjoin": true
+    },
+// Vex Nerf
+    {
+      "mob": "minecraft:vex",
+      "dimension": 0,
+      "result": "default",
+      "healthmultiply": 0.25,
+      "damagemultiply": 0.5,
+      "onjoin": true
+    },
+// Buff Village Iron Golems (2.5x health, 2.0x damage, fire resistance, concentration)
+  {
+      "dimension": 0,
+      "structure": "Village",
+      "mob": "minecraft:villager_golem",
+      "result": "default",
+      "healthmultiply": 2.5,
+      "damagemultiply": 2.0,
+      "potion": [
+        "minecraft:fire_resistance,9999999,0",
+        "extraalchemy:effect.concentration,1,0"
+      ],
+      "onjoin": true
+    },
+// Buff Village Villagers (1.5x health, 1.3x speed)
+  {
+      "dimension": 0,
+      "mob": "minecraft:villager",
+      "result": "default",
+      "healthmultiply": 1.5,
+      "speedmultiply": 1.3,
+      "onjoin": true
+    },
+// Give Nether dimension hostile mobs difficulty buff (1.75x health, 1.75x damage, minecraft:night_vision)
+  {
+      "dimension": -1,
+      "hostile": true,
+      "result": "default",
+      "healthmultiply": 1.75,
+      "damagemultiply": 1.75,
+      "onjoin": true,
+      "potion": "minecraft:night_vision,999999,0"
+    },
+// Give The End dimension hostile mobs difficulty buff (2.25x health, 2.25x damage, +8.0 armor, minecraft:night_vision)
+  {
+      "dimension": 1,
+      "hostile": true,
+      "result": "default",
+      "healthmultiply": 2.25,
+      "damagemultiply": 2.25,
+      "onjoin": true,
+      "armoradd": 8.0,
+      "potion": "minecraft:night_vision,999999,0"
+    },
+// Give Aether dimension hostile mobs difficulty buff (1.75x health, 1.75x damage)
+  {
+      "dimension": 4,
+      "hostile": true,
+      "result": "default",
+      "healthmultiply": 1.75,
+      "damagemultiply": 1.75,
+      "onjoin": true
+    },
+// Give Twilight Forest dimension hostile mobs difficulty buff (1.75x health, 1.75x damage)
+  {
+      "dimension": 7,
+      "hostile": true,
+      "result": "default",
+      "healthmultiply": 1.75,
+      "damagemultiply": 1.75,
+      "onjoin": true
+    },
+// Give The Beneath dimension hostile mobs difficulty buff (1.75x health, 1.75x damage, minecraft:night_vision)
+  {
+      "dimension": 10,
+      "hostile": true,
+      "result": "default",
+      "healthmultiply": 1.75,
+      "damagemultiply": 1.75,
+      "onjoin": true,
+      "potion": "minecraft:night_vision,999999,0"
+    },
+// Give Atum dimension hostile mobs difficulty buff (1.75x health, 1.75x damage)
+  {
+      "dimension": 17,
+      "hostile": true,
+      "result": "default",
+      "healthmultiply": 1.75,
+      "damagemultiply": 1.75,
+      "onjoin": true
+    },
+// Give The Betweenlands dimension hostile mobs difficulty buff (1.75x health, 1.75x damage)
+  {
+      "dimension": 20,
+      "hostile": true,
+      "result": "default",
+      "healthmultiply": 1.75,
+      "damagemultiply": 1.75,
+      "onjoin": true
+    },
+// Give The Aurorian dimension hostile mobs difficulty buff (1.75x health, 1.75x damage)
+  {
+      "dimension": 424,
+      "hostile": true,
+      "result": "default",
+      "healthmultiply": 1.75,
+      "damagemultiply": 1.75,
+      "onjoin": true
+    },
+// Give The Emptiness dimension hostile mobs difficulty buff (2.25x health, 2.25x damage, +8.0 armor, minecraft:night_vision)
+  {
+      "dimension": 14676,
+      "hostile": true,
+      "result": "default",
+      "healthmultiply": 2.25,
+      "damagemultiply": 2.25,
+      "onjoin": true,
+      "armoradd": 8.0,
+      "potion": "minecraft:night_vision,999999,0"
+    },
+// Deadlier Underground tier 3 (Y <= -15)
+  {
+      "dimension": 0,
+      "maxheight": -15,
+      "result": "default",
+      "healthmultiply": 2.25,
+      "damagemultiply": 2.25,
+      "armoradd": 8.0,
+      "onjoin": true,
+      "potion": "minecraft:night_vision,999999,0"
+    },
+// Deadlier Underground tier 2 (Y <= 15)
+  {
+      "dimension": 0,
+      "maxheight": 15,
+      "result": "default",
+      "healthmultiply": 1.75,
+      "damagemultiply": 1.75,
+      "onjoin": true
+    },
+// Deadlier Underground tier 1 (Y <= 55)
+  {
+      "dimension": 0,
+      "maxheight": 55,
+      "result": "default",
+      "healthmultiply": 1.25,
+      "damagemultiply": 1.25,
+      "onjoin": true
+    }]

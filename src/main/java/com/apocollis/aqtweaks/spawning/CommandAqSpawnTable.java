@@ -1,5 +1,9 @@
 package com.apocollis.aqtweaks.spawning;
 
+import com.apocollis.aqtweaks.spawning.rules.RuleFiles;
+import com.apocollis.aqtweaks.spawning.rules.RuleKind;
+import com.apocollis.aqtweaks.spawning.rules.RuleProblem;
+import com.apocollis.aqtweaks.spawning.rules.SpawnJsonConverter;
 import com.apocollis.aqtweaks.spawning.table.LenientJson;
 import com.apocollis.aqtweaks.spawning.table.PotentialSpawnVerifier;
 import com.apocollis.aqtweaks.spawning.table.SpawnRuleSpec;
@@ -43,7 +47,7 @@ public final class CommandAqSpawnTable extends CommandBase {
 
     @Override
     public String getUsage(ICommandSender sender) {
-        return "/aqspawntable | /aqspawntable reload | /aqspawntable verify | /aqspawntable dump";
+        return "/aqspawntable | reload | verify | dump | check | convert";
     }
 
     @Override
@@ -67,6 +71,12 @@ public final class CommandAqSpawnTable extends CommandBase {
                 break;
             case "dump":
                 dump(sender);
+                break;
+            case "check":
+                check(sender);
+                break;
+            case "convert":
+                convert(sender);
                 break;
             default:
                 throw new CommandException(getUsage(sender));
@@ -136,6 +146,83 @@ public final class CommandAqSpawnTable extends CommandBase {
             say(sender, "(" + (lines.size() - 1 - shown) + " more lines in " + out.getAbsolutePath() + ")");
         }
         say(sender, lines.get(lines.size() - 1));
+    }
+
+    /** Checks spawn_conditions.json, spawn_modifiers.json and spawn_gear.json in the pack folder. */
+    private static void check(ICommandSender sender) {
+        File dir = PotentialSpawnTable.packDirectory();
+        if (dir == null) {
+            say(sender, "The config folder is not known yet.");
+            return;
+        }
+        try {
+            RuleFiles.Report report = RuleFiles.check(name -> {
+                File file = new File(dir, name);
+                return file.isFile() ? new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8) : null;
+            });
+            for (String line : report.lines) {
+                LOGGER.info("[AQTweaks] spawn rule files: {}", line);
+            }
+            int shown = Math.min(report.lines.size(), CHAT_LINES + 3);
+            for (int i = 0; i < shown; i++) {
+                say(sender, report.lines.get(i));
+            }
+            if (report.lines.size() > shown) {
+                say(sender, "(" + (report.lines.size() - shown) + " more lines in the log)");
+            }
+            say(sender, report.filesPresent == 0 ? "No rule files in " + dir.getAbsolutePath()
+                    : report.ok() ? "All rule files are valid." : report.problems + " problems to fix.");
+        } catch (IOException | RuntimeException failure) {
+            LOGGER.warn("[AQTweaks] Rule file check failed.", failure);
+            say(sender, "Check failed: " + failure);
+        }
+    }
+
+    /**
+     * Converts config/incontrol/spawn.json into the three rule files under config/arcanaquesttweaks/converted/, with
+     * a report of what was changed or dropped. Nothing in the pack folder is touched.
+     */
+    private static void convert(ICommandSender sender) {
+        File config = PotentialSpawnTable.configDirectory();
+        if (config == null) {
+            say(sender, "The config folder is not known yet.");
+            return;
+        }
+        File source = new File(config, "incontrol/spawn.json");
+        if (!source.isFile()) {
+            say(sender, "No " + source.getAbsolutePath() + " to convert.");
+            return;
+        }
+        try {
+            List<RuleProblem> problems = new ArrayList<RuleProblem>();
+            SpawnJsonConverter.Converted converted = SpawnJsonConverter.convert(
+                    new String(Files.readAllBytes(source.toPath()), StandardCharsets.UTF_8), problems);
+            if (!problems.isEmpty()) {
+                for (RuleProblem problem : problems) {
+                    say(sender, problem.toString());
+                }
+                say(sender, "spawn.json could not be read; nothing was written.");
+                return;
+            }
+            File out = new File(config, "arcanaquesttweaks/converted");
+            Files.createDirectories(out.toPath());
+            Files.write(new File(out, RuleKind.CONDITIONS.fileName).toPath(),
+                    converted.conditionsText().getBytes(StandardCharsets.UTF_8));
+            Files.write(new File(out, RuleKind.MODIFIERS.fileName).toPath(),
+                    converted.modifiersText().getBytes(StandardCharsets.UTF_8));
+            Files.write(new File(out, RuleKind.GEAR.fileName).toPath(),
+                    converted.gearText().getBytes(StandardCharsets.UTF_8));
+            Files.write(new File(out, "convert_report.txt").toPath(), converted.report, StandardCharsets.UTF_8);
+            for (String line : converted.report) {
+                LOGGER.info("[AQTweaks] spawn.json conversion: {}", line);
+            }
+            say(sender, converted.report.get(0));
+            say(sender, "Written to " + out.getAbsolutePath() + " (" + (converted.report.size() - 1)
+                    + " notes in convert_report.txt). Copy the files to the pack folder to use them.");
+        } catch (IOException | RuntimeException failure) {
+            LOGGER.warn("[AQTweaks] spawn.json conversion failed.", failure);
+            say(sender, "Conversion failed: " + failure);
+        }
     }
 
     private static void dump(ICommandSender sender) {

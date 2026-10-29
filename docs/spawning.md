@@ -140,6 +140,7 @@ JSON layer / parties / structure files: edit needs **restart** (or a Tweaks cfg 
 | `spawning/CageSpawnerHooks.java` | Cage fail-path delay (HEAD/RETURN) |
 | `spawning/PotentialSpawnTable.java` | Table lookup + position tests at `PotentialSpawns`; class resolution; reload |
 | `spawning/CommandAqSpawnTable.java` | `/aqspawntable` info, reload, verify, dump |
+| `spawning/rules/*` | Plain Java: `RuleScanner` (rules with line numbers), `RuleSchema` (keys and values), `RuleFileLoader`, `RuleFiles` (check a pack), `SpawnJsonConverter` (spawn.json to the three files); format in `spawn-tables-format.md`; tests in `src/test` |
 | `spawning/table/*` | Plain Java (no Minecraft types): `SpawnTableSources` (reads the pack files), `SpawnTableBuilder`, `SpawnRuleSpec`, `PotentialSpawnVerifier`, `LenientJson`; unit-tested in `src/test` |
 | `mixin/MixinWorldEntitySpawner.java` | Capture entry, fill pack, pack-size 1, hostile cap. Do **not** mixin `WorldServer`. |
 | `mixin/incontrol/MixinStructureCache.java` | RETURN inject (`cancellable = true`): memoized BB expand. `mixins.aqtweaks.incontrol.json` |

@@ -150,6 +150,12 @@ public final class PotentialSpawnTable {
         return dir;
     }
 
+    /** The pack folder the table and the rule files are read from, or null before the config folder is known. */
+    public static File packDirectory() {
+        File config = configDir;
+        return config == null ? null : packDirectory(config);
+    }
+
     public static File configDirectory() {
         return configDir;
     }

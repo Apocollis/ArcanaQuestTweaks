@@ -1,4 +1,4 @@
-# Spawn tables: proposed file format (draft, not built)
+# Spawn tables: file format (loader and converter built; the rules do not run yet)
 
 Replaces `spawn.json` (In Control's spawn rules) with three files that Tweaks reads. In Control stays installed and keeps making the real decisions until a comparison log shows Tweaks would decide the same. Loot stays in In Control. Everything here was checked against the pack's `spawn.json`, In Control 3.10.5 and McJty Tools 1.12-0.0.21.
 
@@ -11,6 +11,17 @@ Files live in the pack folder (`config/arcanaquest/`) next to the classification
 | `spawn_gear.json` | what a spawned mob holds and wears | first matching row for the mob wins, as a whole |
 
 Rows use In Control's own key names (`mob`, `dimension`, `minheight`, `seesky`, `gamestage`, `maxcount`, ...), so a row copies across from `spawn.json` unchanged and the old file can be converted by script.
+
+## Loading and checking (built)
+
+`spawning/rules/` reads the three files and checks every rule before anything uses it. A mistake is reported as `file:line: message`, where the line is the one the rule starts on: an unknown key (with a "did you mean" suggestion), a wrong type, a `result` or `phase` that is not allowed, a bad `time` window, a `biomecat` that is not in `biome_mappings.json`, a count in a form In Control does not accept, `minheight` above `maxheight`, a row that changes or equips nothing, a malformed or unclosed rule. A file with any problem is not used.
+
+Commands (`/aqspawntable`):
+
+- `check` validates `spawn_conditions.json`, `spawn_modifiers.json` and `spawn_gear.json` in the pack folder and lists every problem.
+- `convert` reads `config/incontrol/spawn.json` and writes the three files, plus `convert_report.txt`, to `config/arcanaquesttweaks/converted/`. Nothing in the pack folder is touched; copy the files across when you are happy with them. The report lists what was moved, merged or dropped. On the pack's current `spawn.json`: 78 rules become 48 condition rows, 34 modifier rows and 9 gear rows; the 19 rules that were not `onjoin` become `phase: spawn`; the three Crimson cultist rows move above the cultist underground row; 23 rules that carried both a result and a stat lose the result (no condition rule comes after them, so there was nothing for it to shield).
+
+The rules themselves are not evaluated yet.
 
 ## When things run
 
