@@ -17,7 +17,9 @@ Rows use In Control's own key names (`mob`, `dimension`, `minheight`, `seesky`, 
 1. **Spawn check** (`LivingSpawnEvent.CheckSpawn`: natural spawns and spawners). Conditions rows with `phase` of `spawn` or `both` are walked in order. The first match sets the result (allow, deny or default) and ends the walk.
 2. **Join** (`EntityJoinWorldEvent`). Conditions rows with `phase` `both` are walked in order; a deny cancels the join. Then, for a mob that joined, the modifiers table and the gear table are applied **once** (a tag on the mob stops a chunk reload applying them again).
 
-`phase: "spawn"` is In Control's rule without `onjoin`; `phase: "both"` is `onjoin: true`. **Default is `both`.** A mob that arrives by another route (egg, command, another mod) skips step 1 and is checked only by the `both` rows at step 2, which is why the height and cap rows are `spawn` and the stage gates are `both`.
+`phase: "spawn"` is In Control's rule without `onjoin`; `phase: "both"` is `onjoin: true`. A mob that arrives by another route (egg, command, another mod) skips step 1 and is checked only by the `both` rows at step 2, which is why the height and cap rows are `spawn` and the stage gates are `both`.
+
+**Default is `both`**: a row without `phase` runs at both moments, and a row runs at the spawn check alone only when it says `"phase": "spawn"`. Converted rows always carry their phase explicitly, taken from the rule's own `onjoin` flag (59 `both`, 19 `spawn` for the current file).
 
 ## spawn_conditions.json
 
@@ -160,4 +162,4 @@ Runs at join, once per mob, after the modifiers. One row per mob (or loadout) wi
 
 ## Open questions
 
-- **Default `phase`:** `both`, because most of your rules are `onjoin`. Say if you would rather it were `spawn`.
+- **Cultist rows:** today the archer's buff row sits below the cultist underground row, so below Y 55 an archer gets 1.25x health and damage (from the spawn check) plus the +8 armour and potions (from join). With `stop` on the underground row the archer row would never apply there. Decide whether the archer row goes above it.
