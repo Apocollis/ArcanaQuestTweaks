@@ -7,7 +7,7 @@ Files live in the pack folder (`config/arcanaquest/`) next to the classification
 | File | Decides | Match rule |
 | --- | --- | --- |
 | `spawn_conditions.json` | whether a mob may spawn | first matching row wins |
-| `spawn_modifiers.json` | what a spawned mob gets (stats, potions, angry) | first matching row applies, as a whole (stats, potions and `angry`); no other row adds to it |
+| `spawn_modifiers.json` | what a spawned mob gets (stats, potions, angry) | each stat set by the first matching row that sets it; potions from every matching row; `stop` ends the search |
 | `spawn_gear.json` | what a spawned mob holds and wears | first matching row for the mob wins, as a whole |
 
 Rows use In Control's own key names (`mob`, `dimension`, `minheight`, `seesky`, `gamestage`, `maxcount`, ...), so a row copies across from `spawn.json` unchanged and the old file can be converted by script.
@@ -51,7 +51,7 @@ Rows from the current `spawn.json`:
   // caps and throttles
   { "dimension": 0, "mincount": { "amount": 250, "hostile": true, "perplayer": true }, "result": "deny", "phase": "spawn" },
   { "dimension": 17, "hostile": true, "random": 0.4, "result": "deny", "phase": "spawn" },
-  { "mob": "minecraft:villager_golem", "dimension": 0, "mincount": 40, "result": "deny" }
+  { "mob": "minecraft:villager_golem", "dimension": 0, "mincount": 40, "result": "deny", "stop": true },
 ]
 ```
 
@@ -103,18 +103,19 @@ Actions (In Control's names; `multiply` acts on the base value, `add` is added, 
 | `armortoughnessmultiply/add`, `knockbackresistancemultiply/add`, `followrangemultiply/add`, `flyingspeedmultiply/add` | as named |
 | `potion` | `"id,duration,amplifier"` or a list; added to the mob, merging with an effect it already has |
 | `angry` | the mob targets the nearest player within 50 blocks (Zombie Pigmen get a revenge target); does nothing if nobody is that close |
+| `stop` | `true` ends the search after this row: it applies and no row below it does |
 
-How rows combine: **the first matching row applies, as a whole, and no other row adds to it.** A thundering cave creeper gets the creeper row and nothing from the depth rows below, which is how `firstMatchOnly` works in In Control today. Put specific mobs above broad rules (dimension and depth buffs). Because only one row ever applies, each stat is applied once and nothing compounds.
+How rows combine: rows are walked in order and **every matching row contributes** until a row with `stop: true` has applied. Health, damage, speed, armour and the other stats are each set by **the first matching row that sets them**; later rows cannot change a stat that is already set (so nothing multiplies up; In Control tags the mob for health, damage and speed for the same reason). **Potions** from every matching row are added, and `angry` applies if any matching row has it. Put specific mobs above broad rules, and give `stop: true` to any row that must not pick up the broad rows below it: the Vex and Mimic nerfs stay exactly as written because their rows stop.
 
 ```json
 [
-  // specific mobs first: the first matching row applies and the broad rows below are not reached for them
-  { "mob": "minecraft:creeper", "dimension": 0, "seesky": true, "weather": "thunder", "random": 0.25, "potion": "potioncore:lightning,1,0", "healthmultiply": 2.0 },
-  { "mob": "minecraft:enderman", "dimension": 0, "maxheight": 32, "angry": true },
-  { "mob": "minecraft:vex", "dimension": 0, "healthmultiply": 0.25, "damagemultiply": 0.5 },
-  { "mob": "artifacts:mimic", "dimension": 0, "healthmultiply": 0.75, "damagemultiply": 1.25, "potion": "minecraft:night_vision,999999,0" },
-  { "mob": "minecraft:villager_golem", "dimension": 0, "structure": "Village", "healthmultiply": 2.5, "damagemultiply": 2.0, "potion": ["minecraft:fire_resistance,9999999,0", "extraalchemy:effect.concentration,1,0"] },
-  { "mob": "crimsonrevelations:cultist_archer", "healthmultiply": 2.0, "damagemultiply": 2.5, "armoradd": 8.0, "potion": ["minecraft:night_vision,999999,0", "potioncore:archery,999999,1"] },
+  // specific mobs first; stop keeps the depth and dimension rows below from touching them
+  { "mob": "minecraft:creeper", "dimension": 0, "seesky": true, "weather": "thunder", "random": 0.25, "potion": "potioncore:lightning,1,0", "healthmultiply": 2.0, "stop": true },
+  { "mob": "minecraft:enderman", "dimension": 0, "maxheight": 32, "angry": true, "stop": true },
+  { "mob": "minecraft:vex", "dimension": 0, "healthmultiply": 0.25, "damagemultiply": 0.5, "stop": true },
+  { "mob": "artifacts:mimic", "dimension": 0, "healthmultiply": 0.75, "damagemultiply": 1.25, "potion": "minecraft:night_vision,999999,0", "stop": true },
+  { "mob": "minecraft:villager_golem", "dimension": 0, "structure": "Village", "healthmultiply": 2.5, "damagemultiply": 2.0, "potion": ["minecraft:fire_resistance,9999999,0", "extraalchemy:effect.concentration,1,0"], "stop": true },
+  { "mob": "crimsonrevelations:cultist_archer", "healthmultiply": 2.0, "damagemultiply": 2.5, "armoradd": 8.0, "potion": ["minecraft:night_vision,999999,0", "potioncore:archery,999999,1"], "stop": true },
 
   { "generate": "tier_underground" },    // per-tier multipliers for the gated mobs underground
   { "generate": "dimension_buffs" },     // Nether, End, Aether, Twilight, Beneath, Atum, Betweenlands, Aurorian, Emptiness
@@ -145,15 +146,15 @@ Runs at join, once per mob, after the modifiers. One row per mob (or loadout) wi
 
 ## Moving from spawn.json without changing behaviour
 
-1. A converter reads `spawn.json` and writes the three files. Each rule is split into its condition part and its action part. Modifiers keep In Control's first-match rule, so the first version decides exactly as today.
+1. A converter reads `spawn.json` and writes the three files. Each rule is split into its condition part and its action part. Every converted modifier row gets `stop: true`, which is In Control's first-match rule, so the first version decides exactly as today.
 2. The comparison log runs with In Control still in charge. At each spawn check and join it records the result and the actions Tweaks would give, next to what In Control did, and lists every difference.
 3. When the log is quiet over real play, switch the Tweaks tables on, one file at a time (conditions, then modifiers, then gear), each with its own switch.
-4. After that you can reorder rows or change values freely.
+4. After that you loosen the rows you choose by removing `stop` (for example the Stray, so it also picks up the Nether and depth buffs for the stats its own row does not set), and keep it on the ones that must stay as written (Vex, Mimic).
 
 ## Differences from In Control, on purpose
 
 - Modifier-only and gear-only rules no longer end the search for the conditions (in In Control any matching rule does, and your file order hides this).
-- Modifier-only and gear-only rules no longer end the search for the conditions, but within the modifiers table nothing changes: one matching row, applied whole.
+- Modifier rows can combine (each stat from the first row that sets it, potions from all), where In Control applies one rule only; converted rows keep `stop` so nothing changes until you remove it.
 - Conditions and actions are separate rows, so a rule that did both (the Depths bypass, the Elite underground allow) becomes one row in each file.
 - A converted file is checked for rows that mix the two. The converter lists them for you.
 
