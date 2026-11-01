@@ -54,8 +54,6 @@ public final class ConditionShadow {
     private static long unlogged;
     private static boolean failureLogged;
 
-    private Event.Result before = Event.Result.DEFAULT;
-    private boolean cancelledBefore;
 
     /** Reads spawn_conditions.json from the pack folder; the shadow stays off when it is missing or has problems. */
     public static String reload() {
@@ -119,18 +117,40 @@ public final class ConditionShadow {
                 && !SpawnRuleDecider.deciding();
     }
 
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public void spawnCheckBefore(LivingSpawnEvent.CheckSpawn event) {
+    private static Event.Result inControlBefore = Event.Result.DEFAULT;
+    private static LivingSpawnEvent.CheckSpawn lastCheck;
+    private static Event.Result lastCheckResult;
+    private static EntityJoinWorldEvent lastJoin;
+    private static boolean lastJoinCancelled;
+
+    /** The result In Control left on this spawn check, or null when it did not run on it. */
+    static Event.Result inControlResult(LivingSpawnEvent.CheckSpawn event) {
+        return lastCheck == event ? lastCheckResult : null;
+    }
+
+    /** Whether In Control's join handler left this join cancelled, or null when it did not run on it. */
+    static Boolean inControlCancelled(EntityJoinWorldEvent event) {
+        return lastJoin == event ? Boolean.valueOf(lastJoinCancelled) : null;
+    }
+
+    static Event.Result resultBeforeInControl() {
+        return inControlBefore;
+    }
+
+    /** Called from the mixin on In Control's spawn-check handler, just before it runs. */
+    public static void beforeInControlCheck(LivingSpawnEvent.CheckSpawn event) {
         if (active()) {
-            before = event.getResult();
+            inControlBefore = event.getResult();
         }
     }
 
-    @SubscribeEvent(priority = EventPriority.LOWEST)
-    public void spawnCheckAfter(LivingSpawnEvent.CheckSpawn event) {
+    /** Called just after In Control's spawn-check handler: the table decides the same spawn and the two are compared. */
+    public static void afterInControlCheck(LivingSpawnEvent.CheckSpawn event) {
         if (!active() || event.getWorld() == null || event.getWorld().isRemote) {
             return;
         }
+        lastCheck = event;
+        lastCheckResult = event.getResult();
         try {
             ConditionTable current = table;
             Decision decision = current.decide(ConditionTable.Phase.SPAWN, new LiveQuery.Check(event));
@@ -138,7 +158,7 @@ public final class ConditionShadow {
                 skippedRandom++;
                 return;
             }
-            Event.Result expected = decision.result == null ? before : toEvent(decision.result);
+            Event.Result expected = decision.result == null ? inControlBefore : toEvent(decision.result);
             record("spawn", event.getEntity(), event.getWorld().provider.getDimension(), (int) event.getY(),
                     event.getResult().name(), expected.name(), decision, event.getWorld().getWorldTime());
         } catch (RuntimeException failure) {
@@ -146,22 +166,13 @@ public final class ConditionShadow {
         }
     }
 
-    @SubscribeEvent(priority = EventPriority.HIGHEST, receiveCanceled = true)
-    public void joinBefore(EntityJoinWorldEvent event) {
-        if (active()) {
-            cancelledBefore = event.isCanceled();
-        }
-    }
-
-    @SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = true)
-    public void joinAfter(EntityJoinWorldEvent event) {
+    /** Called just after In Control's join handler (which does not run on a join another mod already cancelled). */
+    public static void afterInControlJoin(EntityJoinWorldEvent event) {
         if (!active() || !(event.getEntity() instanceof EntityLiving) || event.getWorld().isRemote) {
             return;
         }
-        if (cancelledBefore) {
-            skippedOther++;
-            return;
-        }
+        lastJoin = event;
+        lastJoinCancelled = event.isCanceled();
         try {
             Decision decision = table.decide(ConditionTable.Phase.JOIN, new LiveQuery.Join(event));
             if (decision.usedRandom) {

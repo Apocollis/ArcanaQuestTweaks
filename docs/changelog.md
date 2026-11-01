@@ -2,6 +2,10 @@
 
 Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-11-01 — Shadow comparison attributes results to In Control exactly
+
+- `MixinInControlSpawnRules` now also marks the moments just before and just after In Control's `onEntitySpawnEvent` and `onEntityJoinWorld`. The conditions, modifiers and gear comparisons (and the trace's "In Control left ..." lines) use those, so a mob or event result changed by another mod (Animania replacing vanilla pigs, sheep, chickens and cows; Metallurgy and Gaia equipping and buffing mobs at join) is no longer counted as In Control's. The one remaining expected difference is the Crimson cultists (In Control buffs them at the spawn check).
+
 ## 2026-11-01 — Spawn trace
 
 - **`SpawnTrace` / `SpawnTraceHandler`**: opt-in log (`config/arcanaquesttweaks/spawn_trace.log`) of what happened to watched mobs: spawn checks and joins with In Control's result, the conditions table's decision and the live counts; potential-spawn table offers and withholds with count, limit and needs; pack-filler group sizes and refused spots; party leader checks. Config `Spawn Trace`, `Spawn Trace Mobs`, `Spawn Trace Summary Seconds`; `/aqspawntable trace on|off|all|mobs <ids>|now|file`. With `Spawn Trace All Mobs` (default on) every mob is tallied per summary, and a mob that is not named is watched in full from the first shadow mismatch for it on. While on, every 60 s (configurable) it also writes the shadow comparison (counts each time, differences when changed) and the live counts against In Control's.

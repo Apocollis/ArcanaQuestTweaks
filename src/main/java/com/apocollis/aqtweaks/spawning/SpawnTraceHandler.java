@@ -18,6 +18,7 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.fml.common.registry.ForgeRegistries;
 import net.minecraftforge.event.entity.EntityJoinWorldEvent;
 import net.minecraftforge.event.entity.living.LivingSpawnEvent;
+import net.minecraftforge.fml.common.eventhandler.Event;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
@@ -114,12 +115,15 @@ public final class SpawnTraceHandler {
             return;
         }
         try {
-            String result = event.getResult().name();
+            Event.Result atInControl = ConditionShadow.inControlResult(event);
+            String result = (atInControl != null ? atInControl : event.getResult()).name();
+            String final_ = atInControl != null && atInControl != event.getResult()
+                    ? " (final " + event.getResult().name() + ", changed after In Control)" : "";
             String context = context();
             Decision decision = tableDecision(ConditionTable.Phase.SPAWN, new LiveQuery.Check(event));
             String table = describe(decision);
             boolean differs = decision != null && !decision.usedRandom
-                    && !(decision.result == null ? event.getResult() : ConditionShadow.toEvent(decision.result)).name().equals(result);
+                    && !(decision.result == null ? (atInControlBefore(event, atInControl)) : ConditionShadow.toEvent(decision.result)).name().equals(result);
             SpawnTrace.count(id, "check:" + result + (differs ? "(table differs)" : ""));
             SpawnTrace.count(id, "via:" + context);
             if (differs) {
@@ -128,7 +132,7 @@ public final class SpawnTraceHandler {
             if (watched || differs) {
                 BlockPos pos = new BlockPos(event.getX(), event.getY(), event.getZ());
                 SpawnTrace.line("check  " + id + " " + where(event.getWorld(), pos) + " spawner=" + event.isSpawner()
-                        + " context=" + context + " -> result " + result + (differs ? "  ** TABLE DIFFERS **" : "")
+                        + " context=" + context + " -> In Control left " + result + final_ + (differs ? "  ** TABLE DIFFERS **" : "")
                         + " | " + counts(event.getWorld(), event.getEntity()) + " | table " + table);
             }
         } catch (RuntimeException failure) {
@@ -148,13 +152,15 @@ public final class SpawnTraceHandler {
             String context = context();
             Decision decision = tableDecision(ConditionTable.Phase.JOIN, new LiveQuery.Join(event));
             boolean tableCancels = decision != null && decision.result == Decision.Result.DENY;
-            boolean differs = decision != null && !decision.usedRandom && tableCancels != event.isCanceled();
+            Boolean inControlCancelled = ConditionShadow.inControlCancelled(event);
+            boolean cancelledByInControl = inControlCancelled != null ? inControlCancelled.booleanValue() : event.isCanceled();
+            boolean differs = decision != null && !decision.usedRandom && tableCancels != cancelledByInControl;
             SpawnTrace.count(id, event.isCanceled() ? "join:cancelled" : "join:ok");
             if (differs) {
                 SpawnTrace.count(id, "join:table differs");
             }
             if (differs) {
-                SpawnTrace.escalate(id, "at join In Control " + (event.isCanceled() ? "cancelled" : "let it in")
+                SpawnTrace.escalate(id, "at join In Control " + (cancelledByInControl ? "cancelled" : "let it in")
                         + " but the conditions table says " + describe(decision));
             }
             if (watched || differs) {
@@ -166,6 +172,11 @@ public final class SpawnTraceHandler {
         } catch (RuntimeException failure) {
             SpawnTrace.line("join   " + id + " trace failed: " + failure);
         }
+    }
+
+    /** What the result was before In Control acted, which only the shadow knows; the event's own result when it is not known. */
+    private static Event.Result atInControlBefore(LivingSpawnEvent.CheckSpawn event, Event.Result atInControl) {
+        return atInControl != null ? ConditionShadow.resultBeforeInControl() : event.getResult();
     }
 
     private static String where(World world, BlockPos pos) {

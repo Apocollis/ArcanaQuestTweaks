@@ -54,8 +54,8 @@ public final class RuleShadow {
                 && SpawnRuleTables.ready() && !SpawnRuleDecider.deciding();
     }
 
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public void joinBefore(EntityJoinWorldEvent event) {
+    /** Called from the mixin on In Control's join handler, just before it runs, so nothing another mod does counts as In Control's. */
+    public static void beforeInControlJoin(EntityJoinWorldEvent event) {
         if (active() && event.getEntity() instanceof EntityLiving && !event.getWorld().isRemote
                 && !event.getEntity().getEntityData().getBoolean(IN_CONTROL_TAG)) {
             remember((EntityLiving) event.getEntity());
@@ -63,17 +63,18 @@ public final class RuleShadow {
     }
 
     /**
-     * Taken at join, before In Control's join handler, not at the spawn check: the game and other mods equip and buff a
-     * mob between the two (onInitialSpawn: a skeleton's bow, a zombie's armour, a Gaia mob's weapon), and none of that
-     * is In Control's doing. The one rule In Control applies at the spawn check (the Crimson cultists' health and
-     * damage) therefore shows up as a difference for those mobs.
+     * Taken immediately before In Control's join handler (see the mixin), not at the spawn check or at the start of the
+     * join: the game and other mods equip and buff a mob in between (onInitialSpawn, and other mods' join handlers: a
+     * skeleton's bow, a zombie's armour, a Gaia mob's weapon and stats), and none of that is In Control's doing. The one
+     * rule In Control applies at the spawn check (the Crimson cultists' health and damage) therefore shows up as a
+     * difference for those mobs.
      */
     private static synchronized void remember(EntityLiving mob) {
         BEFORE.put(mob, SpawnRuleApplier.snapshot(mob));
     }
 
-    @SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = true)
-    public void joinAfter(EntityJoinWorldEvent event) {
+    /** Called just after In Control's join handler. */
+    public static void afterInControlJoin(EntityJoinWorldEvent event) {
         if (!active() || !(event.getEntity() instanceof EntityLiving) || event.getWorld().isRemote) {
             return;
         }
