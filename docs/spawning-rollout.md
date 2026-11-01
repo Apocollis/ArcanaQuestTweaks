@@ -79,6 +79,7 @@ Differences from In Control that are on purpose (the modifier and gear compariso
 - In Control ends its walk at the first matching rule, even a rule with no stats or no gear. A gear-only rule that matches first (Cursed Armor, Vindicator, Deep Dwarf) means In Control gives that mob no stats at all; the tables still give it the depth and dimension modifier rows below. The same the other way round for gear. In the test run this is about a quarter of generated joins.
 - The Crimson cultist and archer buffs are applied at join, not at the spawn check.
 - `angry` is not compared.
+- Vanilla animals that Animania denies stay denied underground. In Control's late tier rules reset that denial by accident; the comparison lists these as "In Control DEFAULT, Tweaks DENY (no row)" on pigs, sheep, chickens, cows and horses.
 
 What the tests establish: wherever In Control's first match gives modifiers or gear, the converted tables give exactly the same (stats, potions, gear), about 167,000 cases per run with random rows forced to pass and forced to fail. What no test covers: the code that reads and sets attributes, potions and equipment in the game, and the mixin into In Control. That is what the first session shows.
 
