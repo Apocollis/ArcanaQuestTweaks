@@ -1813,6 +1813,12 @@ public class ArcanaQuestTweaksConfig {
         public String[] spawnTraceMobs = {"minecraft:squid", "minecraft:vindication_illager", "grimoireofgaia:goblin_feral",
                 "thaumcraft:cultistknight", "thaumcraft:cultistcleric", "crimsonrevelations:cultist_archer"};
 
+        @Config.Name("Spawn Trace Summary Seconds")
+        @Config.Comment({"While the spawn trace is on, every this many seconds it also writes the comparison with In Control (the /aqspawntable shadow counts,",
+                "and the list of differences when it has changed) and, for each watched mob, how many are really alive against In Control's count. 0 turns this off."})
+        @Config.RangeInt(min = 0, max = 3600)
+        public int spawnTraceSummarySeconds = 60;
+
         @Config.Name("Spawn Rules Decide")
         @Config.Comment({"Tweaks decides every spawn from spawn_conditions.json, spawn_modifiers.json and spawn_gear.json, and In Control's own spawn.json rules do nothing:",
                 "conditions at the spawn check and join, then each mob that joins gets its modifiers and gear once.",

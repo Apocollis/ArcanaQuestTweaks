@@ -103,6 +103,7 @@ public final class CommandAqSpawnTable extends CommandBase {
             case "on":
                 SpawnTrace.setRuntime(true);
                 say(sender, "Spawn trace on, watching " + SpawnTrace.describeWatched() + ". Log: " + SpawnTrace.file());
+                SpawnTraceHandler.writeSummary(server);
                 break;
             case "off":
                 SpawnTrace.setRuntime(false);
@@ -136,35 +137,14 @@ public final class CommandAqSpawnTable extends CommandBase {
         }
     }
 
-    /** Writes, for each watched mob and each world, the mobs really alive and what In Control's cache counts. */
+    /** Writes the summary now: the comparison with In Control and, per watched mob, the mobs alive against In Control's count. */
     private static void traceNow(MinecraftServer server, ICommandSender sender) {
         if (!SpawnTrace.enabled()) {
             say(sender, "Switch the trace on first: /aqspawntable trace on");
             return;
         }
-        int written = 0;
-        for (net.minecraft.world.WorldServer world : server.worlds) {
-            for (String id : SpawnTrace.describeWatched().split(", ")) {
-                net.minecraftforge.fml.common.registry.EntityEntry entry =
-                        ForgeRegistries.ENTITIES.getValue(new ResourceLocation(id));
-                if (entry == null) {
-                    continue;
-                }
-                Class<? extends net.minecraft.entity.Entity> type = entry.getEntityClass();
-                int alive = 0;
-                for (net.minecraft.entity.Entity each : world.loadedEntityList) {
-                    if (each.getClass() == type && !each.isDead) {
-                        alive++;
-                    }
-                }
-                mcjty.incontrol.rules.RuleCache cache = mcjty.incontrol.InControl.setup.cache;
-                SpawnTrace.line("now    " + id + " dim " + world.provider.getDimension() + ": " + alive
-                        + " alive in loaded chunks, In Control's count " + cache.getCount(world, type) + ", players "
-                        + cache.getValidPlayers(world));
-                written++;
-            }
-        }
-        say(sender, "Wrote " + written + " counts to " + SpawnTrace.file());
+        SpawnTraceHandler.writeSummary(server);
+        say(sender, "Wrote the summary (comparison and live counts) to " + SpawnTrace.file());
     }
 
     private static void verify(ICommandSender sender) {

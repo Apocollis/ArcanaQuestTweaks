@@ -88,7 +88,7 @@ For a report like "seven Vindicators", "a squid outside the ocean" or "no huntin
 
 1. `/aqspawntable trace on` (or the config option `Spawn Trace`). By default it watches the squid, Vindicator, feral goblin and the three Crimson cultists; change them with `/aqspawntable trace mobs minecraft:squid,...` or the config option `Spawn Trace Mobs`. `/aqspawntable trace all` watches every mob (a lot of output).
 2. Optional: `/ctrldebug` as well, so In Control's own log lines are in `latest.log` for the same moments.
-3. Play until it happens. `/aqspawntable trace now` writes, for each watched mob and world, how many are really alive and what In Control's count says.
+3. Play until it happens. While the trace is on it also writes a summary every 60 seconds (config `Spawn Trace Summary Seconds`, 0 turns it off): the `/aqspawntable shadow` counts for conditions, modifiers and gear, the list of differences whenever it has changed, the table state, and for each watched mob and world how many are really alive against what In Control's count says. `/aqspawntable trace now` writes that summary immediately.
 4. Send `config/arcanaquesttweaks/spawn_trace.log` (and `latest.log`, and `/aqspawntable shadow`). The file rolls over to `spawn_trace.old.log` at 8 MB.
 
 What the file holds, one line each: every spawn check and join of a watched mob (position, biome, sky, time, spawner or not, how it came about, In Control's result, the live counts, what the conditions table says); each time the potential spawn table offered or withheld it (live count, limit times players, structure and height needs; at most one line per 2 s per result); the pack filler's group size and how many candidate spots each check refused; and each party's leader, chance and companions.
