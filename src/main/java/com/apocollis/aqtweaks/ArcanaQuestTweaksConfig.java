@@ -1808,8 +1808,14 @@ public class ArcanaQuestTweaksConfig {
                 "and what the pack filler and spawn parties did. For finding out why a mob appeared or did not. /aqspawntable trace on does the same until restart."})
         public boolean spawnTrace = false;
 
+        @Config.Name("Spawn Trace All Mobs")
+        @Config.Comment({"With the spawn trace on, every other mob is also covered: each spawn check and join is counted per mob and written as a tally with each summary,",
+                "and a line is written for any event that is notable (a join cancelled, a result other than default, a mob that arrived other than by the natural spawn loop,",
+                "or the conditions table disagreeing with In Control). Mobs in Spawn Trace Mobs get a line for every event."})
+        public boolean spawnTraceAllMobs = true;
+
         @Config.Name("Spawn Trace Mobs")
-        @Config.Comment("Mob ids the spawn trace watches. Use * to watch every mob (a lot of output).")
+        @Config.Comment("Mob ids that get a line for every spawn check, join and potential-spawn offer. Use * for every mob (a lot of output).")
         public String[] spawnTraceMobs = {"minecraft:squid", "minecraft:vindication_illager", "grimoireofgaia:goblin_feral",
                 "thaumcraft:cultistknight", "thaumcraft:cultistcleric", "crimsonrevelations:cultist_archer"};
 

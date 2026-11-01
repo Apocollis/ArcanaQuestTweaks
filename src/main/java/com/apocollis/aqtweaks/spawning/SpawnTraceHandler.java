@@ -67,6 +67,7 @@ public final class SpawnTraceHandler {
             } else if (detail.length() > 0) {
                 SpawnTrace.line("shadow   (the list of differences is unchanged since the last summary)");
             }
+            SpawnTrace.writeTally();
             countsNow(server);
         } catch (RuntimeException failure) {
             SpawnTrace.line("-- summary failed: " + failure);
@@ -108,14 +109,25 @@ public final class SpawnTraceHandler {
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void spawnCheck(LivingSpawnEvent.CheckSpawn event) {
         String id = idOf(event.getEntity());
-        if (!SpawnTrace.watching(id) || event.getWorld() == null || event.getWorld().isRemote) {
+        boolean watched = SpawnTrace.watching(id);
+        if (id == null || !(watched || SpawnTrace.others()) || event.getWorld() == null || event.getWorld().isRemote) {
             return;
         }
         try {
-            BlockPos pos = new BlockPos(event.getX(), event.getY(), event.getZ());
-            SpawnTrace.line("check  " + id + " " + where(event.getWorld(), pos) + " spawner=" + event.isSpawner()
-                    + " context=" + context() + " -> result " + event.getResult() + " | " + counts(event.getWorld(), event.getEntity())
-                    + " | table " + tableSays(ConditionTable.Phase.SPAWN, new LiveQuery.Check(event)));
+            String result = event.getResult().name();
+            String context = context();
+            Decision decision = tableDecision(ConditionTable.Phase.SPAWN, new LiveQuery.Check(event));
+            String table = describe(decision);
+            boolean differs = decision != null && !decision.usedRandom
+                    && !(decision.result == null ? event.getResult() : ConditionShadow.toEvent(decision.result)).name().equals(result);
+            SpawnTrace.count(id, "check:" + result + (differs ? "(table differs)" : ""));
+            SpawnTrace.count(id, "via:" + context);
+            if (watched || differs || !"DEFAULT".equals(result) || !context.startsWith("natural")) {
+                BlockPos pos = new BlockPos(event.getX(), event.getY(), event.getZ());
+                SpawnTrace.line("check  " + id + " " + where(event.getWorld(), pos) + " spawner=" + event.isSpawner()
+                        + " context=" + context + " -> result " + result + (differs ? "  ** TABLE DIFFERS **" : "")
+                        + " | " + counts(event.getWorld(), event.getEntity()) + " | table " + table);
+            }
         } catch (RuntimeException failure) {
             SpawnTrace.line("check  " + id + " trace failed: " + failure);
         }
@@ -124,14 +136,26 @@ public final class SpawnTraceHandler {
     @SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = true)
     public void join(EntityJoinWorldEvent event) {
         String id = idOf(event.getEntity());
-        if (!(event.getEntity() instanceof EntityLiving) || !SpawnTrace.watching(id) || event.getWorld().isRemote) {
+        boolean watched = SpawnTrace.watching(id);
+        if (!(event.getEntity() instanceof EntityLiving) || id == null || !(watched || SpawnTrace.others())
+                || event.getWorld().isRemote) {
             return;
         }
         try {
-            BlockPos pos = event.getEntity().getPosition();
-            SpawnTrace.line("join   " + id + " " + where(event.getWorld(), pos) + " context=" + context()
-                    + " -> " + (event.isCanceled() ? "CANCELLED" : "joined") + " | " + counts(event.getWorld(), event.getEntity())
-                    + " | table " + tableSays(ConditionTable.Phase.JOIN, new LiveQuery.Join(event)));
+            String context = context();
+            Decision decision = tableDecision(ConditionTable.Phase.JOIN, new LiveQuery.Join(event));
+            boolean tableCancels = decision != null && decision.result == Decision.Result.DENY;
+            boolean differs = decision != null && !decision.usedRandom && tableCancels != event.isCanceled();
+            SpawnTrace.count(id, event.isCanceled() ? "join:cancelled" : "join:ok");
+            if (differs) {
+                SpawnTrace.count(id, "join:table differs");
+            }
+            if (watched || differs || event.isCanceled()) {
+                BlockPos pos = event.getEntity().getPosition();
+                SpawnTrace.line("join   " + id + " " + where(event.getWorld(), pos) + " context=" + context
+                        + " -> " + (event.isCanceled() ? "CANCELLED" : "joined") + (differs ? "  ** TABLE DIFFERS **" : "")
+                        + " | " + counts(event.getWorld(), event.getEntity()) + " | table " + describe(decision));
+            }
         } catch (RuntimeException failure) {
             SpawnTrace.line("join   " + id + " trace failed: " + failure);
         }
@@ -158,12 +182,15 @@ public final class SpawnTraceHandler {
                 + cache.getCountHostile(world) + ", players " + cache.getValidPlayers(world);
     }
 
-    private static String tableSays(ConditionTable.Phase phase, LiveQuery query) {
+    private static Decision tableDecision(ConditionTable.Phase phase, LiveQuery query) {
         ConditionTable table = ConditionShadow.conditions();
-        if (table == null) {
+        return table == null ? null : table.decide(phase, query);
+    }
+
+    private static String describe(Decision decision) {
+        if (decision == null) {
             return "not loaded";
         }
-        Decision decision = table.decide(phase, query);
         return decision + (decision.usedRandom ? " (random row in play)" : "");
     }
 }

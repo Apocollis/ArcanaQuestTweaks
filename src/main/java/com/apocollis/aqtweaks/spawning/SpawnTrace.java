@@ -102,6 +102,56 @@ public final class SpawnTrace {
         return true;
     }
 
+    /** True when mobs that are not on the watch list are tallied and, when something notable happens, logged. */
+    public static boolean others() {
+        return enabled() && SpawningModuleConfig.general.spawnTraceAllMobs;
+    }
+
+    private static final Map<String, Map<String, Long>> TALLY = new java.util.TreeMap<String, Map<String, Long>>();
+
+    /** Counts one event for a mob under a label; written out and cleared by the next summary. */
+    public static synchronized void count(String key, String label) {
+        Map<String, Long> labels = TALLY.get(key);
+        if (labels == null) {
+            labels = new java.util.TreeMap<String, Long>();
+            TALLY.put(key, labels);
+        }
+        Long was = labels.get(label);
+        labels.put(label, was == null ? 1L : was + 1L);
+    }
+
+    /** Writes the tallies since the last call, busiest mobs first, and clears them. */
+    public static synchronized void writeTally() {
+        if (TALLY.isEmpty()) {
+            line("tally  (no spawn events since the last summary)");
+            return;
+        }
+        java.util.List<Map.Entry<String, Map<String, Long>>> entries =
+                new java.util.ArrayList<Map.Entry<String, Map<String, Long>>>(TALLY.entrySet());
+        entries.sort((a, b) -> Long.compare(total(b.getValue()), total(a.getValue())));
+        int shown = 0;
+        for (Map.Entry<String, Map<String, Long>> entry : entries) {
+            if (shown++ >= 60) {
+                line("tally  ... and " + (entries.size() - 60) + " more mobs");
+                break;
+            }
+            StringBuilder text = new StringBuilder("tally  " + entry.getKey() + ":");
+            for (Map.Entry<String, Long> label : entry.getValue().entrySet()) {
+                text.append(' ').append(label.getKey()).append('=').append(label.getValue());
+            }
+            line(text.toString());
+        }
+        TALLY.clear();
+    }
+
+    private static long total(Map<String, Long> labels) {
+        long sum = 0;
+        for (long each : labels.values()) {
+            sum += each;
+        }
+        return sum;
+    }
+
     public static File file() {
         return file != null ? file : target();
     }

@@ -204,6 +204,9 @@ public final class PotentialSpawnTable {
                 if (offered) {
                     passed[count++] = row;
                 }
+                if (row.spec.mob != null && SpawnTrace.others()) {
+                    SpawnTrace.count(row.spec.mob, "potential:" + (offered ? "offered" : "withheld"));
+                }
                 if (row.spec.mob != null && SpawnTrace.watching(row.spec.mob)
                         && SpawnTrace.every("potential " + row.spec.mob + offered, 2000)) {
                     RuleCache traceCache = InControl.setup.cache;

@@ -91,6 +91,8 @@ For a report like "seven Vindicators", "a squid outside the ocean" or "no huntin
 3. Play until it happens. While the trace is on it also writes a summary every 60 seconds (config `Spawn Trace Summary Seconds`, 0 turns it off): the `/aqspawntable shadow` counts for conditions, modifiers and gear, the list of differences whenever it has changed, the table state, and for each watched mob and world how many are really alive against what In Control's count says. `/aqspawntable trace now` writes that summary immediately.
 4. Send `config/arcanaquesttweaks/spawn_trace.log` (and `latest.log`, and `/aqspawntable shadow`). The file rolls over to `spawn_trace.old.log` at 8 MB.
 
+Every other mob is covered too (config `Spawn Trace All Mobs`, on by default): its spawn checks, joins and potential-spawn offers are counted per mob in a `tally` block with each summary, and it gets a line of its own whenever something is notable (a join cancelled, a result other than default, a mob that did not arrive by the natural spawn loop, or the conditions table disagreeing with In Control; those lines are marked `** TABLE DIFFERS **`).
+
 What the file holds, one line each: every spawn check and join of a watched mob (position, biome, sky, time, spawner or not, how it came about, In Control's result, the live counts, what the conditions table says); each time the potential spawn table offered or withheld it (live count, limit times players, structure and height needs; at most one line per 2 s per result); the pack filler's group size and how many candidate spots each check refused; and each party's leader, chance and companions.
 
 ## If something goes wrong
