@@ -2,6 +2,7 @@ package com.apocollis.aqtweaks;
 
 import com.apocollis.aqtweaks.client.BaublesMenuClient;
 import com.apocollis.aqtweaks.client.ClientModule;
+import com.apocollis.aqtweaks.client.GuiMouseGrab;
 import com.apocollis.aqtweaks.depths.DepthsFogHandler;
 import com.apocollis.aqtweaks.portal.EntityArcaneRift;
 import com.apocollis.aqtweaks.portal.client.RenderArcaneRift;
@@ -40,6 +41,7 @@ public class ClientProxy extends CommonProxy {
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.client.atum.AtumOutdoorDustEmitter());
         }
         MinecraftForge.EVENT_BUS.register(new ClientModule());
+        MinecraftForge.EVENT_BUS.register(new GuiMouseGrab());
         MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.reskillable.client.ProspectorOutline());
     }
 }

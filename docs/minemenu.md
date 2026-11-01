@@ -20,11 +20,11 @@ Baubles `ClientEventHandler.onKeyInput` returns if a screen is open, then sends 
 
 `Fix GUI Mouse Grab` default true.
 
-- `MixinEntityRendererMouse` (`mixins.aqtweaks.json` client, with `MixinRenderGlobal`): `@Redirect` both `EntityPlayerSP.turn(FF)V` invokes in `updateCameraAndRender`. Screen open → return. `GuiMouseGrab.consumeLook()` → return for two camera frames after close (drops the warp). Otherwise `player.turn`.
+- `GuiMouseGrab` (`com.apocollis.aqtweaks.client.GuiMouseGrab`): client-side `@SubscribeEvent` on Cleanroom 0.7+ `com.cleanroommc.client.input.mouse.MouseTurnEvent` registered on `MinecraftForge.EVENT_BUS` in `ClientProxy.init()`. When `Fix GUI Mouse Grab` is enabled and `Minecraft.getMinecraft().currentScreen != null || consumeLook()`, cancels the event (`event.setCanceled(true)`), suppressing player camera look while any GUI is open and for two camera frames after closing. (Replaces legacy `MixinEntityRendererMouse` which injected into `EntityRenderer.updateCameraAndRender` where Cleanroom 0.7 no longer calls `player.turn` directly).
 - `MixinMinecraftMouseGrab` (`mixins.aqtweaks.early.json` **client** array): `@Inject` `displayGuiScreen` at HEAD and RETURN. `Minecraft` is already loaded when late mixins prepare; a late inject fails boot. Dedicated server does not load the `client` array. A depth count skips the nested `setIngameFocus` re-entry. Only the outermost return, when `currentScreen` is null, world and player exist, and `Display.isActive()` (`org.lwjglx`): `Mouse.setGrabbed(false)`, `setCursorPosition` to the window center, drain DX/DY, `mouseHelper.grabMouseCursor()`, drain again, `inGameHasFocus = true`, `GuiMouseGrab.armSuppress()`. Do not call `setIngameFocus`.
 - `BaublesMenuClient` from `ClientProxy` init. `@Mod` `after:baubles`. Client tick END: `KEY_BAUBLES.isPressed()` and Baubles did not already send → `PacketHandler.INSTANCE.sendToServer(new PacketOpen(Option.EXPANSION))`. `MixinClientEventHandler` (`mixins.aqtweaks.baubles.json` client, `required: false`) sets that flag at `onKeyInput`'s `sendToServer`. Do not call `Keyboard.isKeyDown`.
 
-Flag false: both mouse mixins no-op (stock focus). The Baubles tick still runs.
+Flag false: both mouse handlers no-op (stock focus). The Baubles tick still runs.
 
 Overlays that never set `currentScreen` and never call `displayGuiScreen` are unchanged. Smooth-camera accumulators are not cleared.
 
@@ -37,8 +37,7 @@ Somnia's wake packet (`ClientProxy.handleWakePacket`) calls `Minecraft.displayGu
 | Piece | Role |
 | --- | --- |
 | `ArcanaQuestTweaksConfig.MineMenuModuleConfig` | `aqtweaks_minemenu.cfg` |
-| `client/GuiMouseGrab.java` | Two-frame look suppress after close |
-| `mixin/MixinEntityRendererMouse.java` | Skip `turn` while a screen is open, and during the suppress window. Late client json |
+| `client/GuiMouseGrab.java` | Client event subscriber on `MouseTurnEvent` (cancels look while screen != null or consumeLook()); two-frame look suppress after close |
 | `mixin/MixinMinecraftMouseGrab.java` | Ungrab, center, re-grab on the outermost return to play. Early client json |
 | `client/BaublesMenuClient.java` | `isPressed()` → `PacketOpen(EXPANSION)` when Baubles did not already send. Registered from `ClientProxy` |
 | `mixin/baubles/MixinClientEventHandler.java` | Marks `onKeyInput` when it sends `PacketOpen`. Optional client json |

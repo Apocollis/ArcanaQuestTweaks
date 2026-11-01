@@ -7,7 +7,6 @@
   "compatibilityLevel": "JAVA_21",
   "client": [
     "MixinRenderGlobal",
-    "MixinEntityRendererMouse",
     "MixinEntityRendererLight",
     "MixinGuiCreateWorld"
   ],
