@@ -119,6 +119,29 @@ class ConditionTableTest {
     }
 
     @Test
+    void aRandomRowThatCouldNotApplyAnywayDoesNotMakeTheSpawnRandomDependent() {
+        ConditionTable table = table("[\n"
+                + "{ \"dimension\": 17, \"hostile\": true, \"random\": 0.4, \"result\": \"deny\" },\n"
+                + "{ \"mob\": \"minecraft:zombie\", \"result\": \"deny\" }\n]");
+        FakeQuery q = new FakeQuery();
+        q.dimension = 0;
+        for (float roll : new float[] {0.0f, 0.9f}) {
+            q.roll = roll;
+            Decision overworld = table.decide(ConditionTable.Phase.SPAWN, q);
+            assertEquals(Decision.Result.DENY, overworld.result);
+            assertEquals(1, overworld.row);
+            assertFalse(overworld.usedRandom, "dimension 0 never reaches the Atum row's roll (roll " + roll + ")");
+        }
+        q.mob = "minecraft:creeper";
+        assertFalse(table.decide(ConditionTable.Phase.SPAWN, q).usedRandom, "no row decides, still not random");
+        q.dimension = 17;
+        q.roll = 0.9f;
+        Decision atum = table.decide(ConditionTable.Phase.SPAWN, q);
+        assertFalse(atum.matched());
+        assertTrue(atum.usedRandom, "in Atum the failed roll is what let the spawn through");
+    }
+
+    @Test
     void generateRowsAreSkippedWithANote() {
         ConditionTable table = table("[{ \"generate\": \"stage_gating\" }, { \"mob\": \"a:b\", \"result\": \"deny\" }]");
         assertEquals(1, table.size());

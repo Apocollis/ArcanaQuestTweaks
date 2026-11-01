@@ -63,7 +63,7 @@ public final class ConditionTable {
             if (phase == Phase.JOIN && !row.bothPhases) {
                 continue;
             }
-            usedRandom |= row.random;
+            usedRandom |= row.rollDecides(query);
             if (row.matches(query)) {
                 return new Decision(row.result, row.index, usedRandom);
             }

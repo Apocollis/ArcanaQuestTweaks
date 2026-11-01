@@ -91,6 +91,18 @@ final class ConditionRow {
     }
 
     boolean matches(SpawnQuery q) {
+        return matches(q, true);
+    }
+
+    /**
+     * True when this row has a 'random' chance and every other test passes, so the roll alone decided whether the row
+     * applied. A row whose other tests fail never depended on the roll.
+     */
+    boolean rollDecides(SpawnQuery q) {
+        return random && matches(q, false);
+    }
+
+    private boolean matches(SpawnQuery q, boolean checkRoll) {
         if (hostile != null && q.hostile() != hostile) {
             return false;
         }
@@ -103,7 +115,7 @@ final class ConditionRow {
         if (mobs != null && !mobs.contains(q.mobId())) {
             return false;
         }
-        if (chance != null && !(q.roll() < chance)) {
+        if (checkRoll && chance != null && !(q.roll() < chance)) {
             return false;
         }
         if (dimensions != null && !dimensions.contains(q.dimension())) {
