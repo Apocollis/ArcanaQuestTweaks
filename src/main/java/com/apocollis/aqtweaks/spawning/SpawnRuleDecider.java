@@ -71,6 +71,18 @@ public final class SpawnRuleDecider {
             if (!plan.isEmpty() || !loadout.slots().isEmpty()) {
                 SpawnRuleApplier.apply((EntityLiving) event.getEntity(), plan, loadout);
             }
+            String mobId = SpawnTraceHandler.idOf(event.getEntity());
+            if (SpawnTrace.others() || SpawnTrace.watching(mobId)) {
+                SpawnTrace.count(mobId, "applied:" + (plan.isEmpty() ? "no modifiers" : "modifiers") + "/"
+                        + (loadout.slots().isEmpty() ? "no gear" : "gear"));
+            }
+            if (SpawnTrace.watching(mobId)) {
+                SpawnRuleApplier.Snapshot after = SpawnRuleApplier.snapshot((EntityLiving) event.getEntity());
+                SpawnTrace.line("apply  " + mobId + " dim " + event.getWorld().provider.getDimension() + " y "
+                        + event.getEntity().getPosition().getY() + ": modifiers " + plan + ", gear row " + loadout.row()
+                        + " " + loadout.slots() + " | now stats " + after.stats + ", potions " + after.potions.keySet()
+                        + ", holds " + after.items);
+            }
         } catch (RuntimeException failure) {
             failed(failure);
         }

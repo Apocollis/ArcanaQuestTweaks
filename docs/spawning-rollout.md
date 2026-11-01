@@ -68,6 +68,7 @@ What it does when on:
 - In Control's own `spawn.json` handlers (spawn check and join) do nothing, through a mixin. Its potential-spawn, loot, experience and summon-aid rules are untouched.
 - If any of the three files did not load cleanly, nothing changes: In Control keeps deciding. `/aqspawntable reload` says why.
 - The comparison is not available while it is on (there is nothing of In Control's to compare with). Switch it off to compare again.
+- The spawn trace keeps working while it is on, and is the way to see what happened: check lines read "Tweaks decided ..." instead of "In Control left ...", and a watched mob gets an `apply` line with the modifiers and gear it was given and the resulting stats, potions and held items (other mobs are counted in the tally as `applied:`). Nothing is escalated, since there is no comparison.
 
 Order:
 1. Stage 4, then Stage 5 with `Shadow Spawn Conditions` on: conditions 0 different, and the modifier and gear differences understood (next list).
