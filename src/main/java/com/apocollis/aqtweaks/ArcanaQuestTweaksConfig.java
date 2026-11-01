@@ -1809,9 +1809,9 @@ public class ArcanaQuestTweaksConfig {
         public boolean spawnTrace = false;
 
         @Config.Name("Spawn Trace All Mobs")
-        @Config.Comment({"With the spawn trace on, every other mob is also covered: each spawn check and join is counted per mob and written as a tally with each summary,",
-                "and a line is written for any event that is notable (a join cancelled, a result other than default, a mob that arrived other than by the natural spawn loop,",
-                "or the conditions table disagreeing with In Control). Mobs in Spawn Trace Mobs get a line for every event."})
+        @Config.Comment({"With the spawn trace on, every other mob is also covered: each spawn check and join is counted per mob and written as a tally with each summary.",
+                "A mob that is not in Spawn Trace Mobs is only logged line by line after the shadow comparison finds a mismatch for it (up to 50 mobs per session);",
+                "from then on it is watched in full. Mobs in Spawn Trace Mobs get a line for every event."})
         public boolean spawnTraceAllMobs = true;
 
         @Config.Name("Spawn Trace Mobs")

@@ -122,7 +122,10 @@ public final class SpawnTraceHandler {
                     && !(decision.result == null ? event.getResult() : ConditionShadow.toEvent(decision.result)).name().equals(result);
             SpawnTrace.count(id, "check:" + result + (differs ? "(table differs)" : ""));
             SpawnTrace.count(id, "via:" + context);
-            if (watched || differs || !"DEFAULT".equals(result) || !context.startsWith("natural")) {
+            if (differs) {
+                SpawnTrace.escalate(id, "at the spawn check In Control left " + result + " but the conditions table says " + table);
+            }
+            if (watched || differs) {
                 BlockPos pos = new BlockPos(event.getX(), event.getY(), event.getZ());
                 SpawnTrace.line("check  " + id + " " + where(event.getWorld(), pos) + " spawner=" + event.isSpawner()
                         + " context=" + context + " -> result " + result + (differs ? "  ** TABLE DIFFERS **" : "")
@@ -150,7 +153,11 @@ public final class SpawnTraceHandler {
             if (differs) {
                 SpawnTrace.count(id, "join:table differs");
             }
-            if (watched || differs || event.isCanceled()) {
+            if (differs) {
+                SpawnTrace.escalate(id, "at join In Control " + (event.isCanceled() ? "cancelled" : "let it in")
+                        + " but the conditions table says " + describe(decision));
+            }
+            if (watched || differs) {
                 BlockPos pos = event.getEntity().getPosition();
                 SpawnTrace.line("join   " + id + " " + where(event.getWorld(), pos) + " context=" + context
                         + " -> " + (event.isCanceled() ? "CANCELLED" : "joined") + (differs ? "  ** TABLE DIFFERS **" : "")

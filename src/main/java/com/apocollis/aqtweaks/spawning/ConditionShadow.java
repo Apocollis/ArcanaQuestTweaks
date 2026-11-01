@@ -196,6 +196,8 @@ public final class ConditionShadow {
         }
         different++;
         String id = net.minecraft.entity.EntityList.getKey(entity.getClass()) + "";
+        SpawnTrace.escalate(id, "conditions: In Control " + inControl + ", Tweaks " + tweaks + " at dimension " + dimension
+                + ", y " + y + ", time " + (int) (time % 24000) + (decision.row >= 0 ? " (conditions row " + decision.row + ")" : " (no row)"));
         String key = phase + " " + id + " In Control " + inControl + ", Tweaks " + tweaks
                 + (decision.row >= 0 ? " (conditions row " + decision.row + ")" : " (no row)");
         Mismatch known = MISMATCHES.get(key);

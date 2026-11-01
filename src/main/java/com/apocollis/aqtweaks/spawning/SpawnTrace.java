@@ -58,7 +58,8 @@ public final class SpawnTrace {
 
     public static String describeWatched() {
         Set<String> mobs = watchedSet();
-        return mobs.contains("*") ? "every mob" : String.join(", ", mobs);
+        String auto = AUTO.isEmpty() ? "" : " (plus, after a shadow mismatch: " + String.join(", ", AUTO) + ")";
+        return (mobs.contains("*") ? "every mob" : String.join(", ", mobs)) + auto;
     }
 
     private static Set<String> watchedSet() {
@@ -81,7 +82,27 @@ public final class SpawnTrace {
             return false;
         }
         Set<String> watched = watchedSet();
-        return watched.contains("*") || watched.contains(mobId);
+        return watched.contains("*") || watched.contains(mobId) || AUTO.contains(mobId);
+    }
+
+    /** Mobs that were not named but showed a mismatch in the shadow comparison, and are now watched in full. */
+    private static final Set<String> AUTO = java.util.Collections.synchronizedSet(new java.util.LinkedHashSet<String>());
+    private static final int MAX_AUTO = 50;
+
+    /**
+     * Called when the shadow comparison finds a mismatch for a mob. A mob that is not already watched starts being
+     * watched in full from now on (every spawn check, join, offer, pack and party line), so the next events show why.
+     */
+    public static void escalate(String mobId, String reason) {
+        if (mobId == null || !enabled() || !SpawningModuleConfig.general.spawnTraceAllMobs) {
+            return;
+        }
+        if (watchedSet().contains("*") || watchedSet().contains(mobId) || AUTO.size() >= MAX_AUTO) {
+            return;
+        }
+        if (AUTO.add(mobId)) {
+            line("-- shadow mismatch for " + mobId + "; now watching it in full: " + reason);
+        }
     }
 
     /** Writes a line if this mob is watched. */

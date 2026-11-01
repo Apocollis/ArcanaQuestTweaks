@@ -108,7 +108,7 @@ public final class RuleShadow {
             } else {
                 count(0, 1, 0);
                 for (String difference : differences) {
-                    record(id + " " + difference, example);
+                    record(id, id + " " + difference, example);
                 }
             }
         } catch (RuntimeException failure) {
@@ -198,7 +198,8 @@ public final class RuleShadow {
         skippedRandom += randomDelta;
     }
 
-    private static synchronized void record(String key, String example) {
+    private static synchronized void record(String id, String key, String example) {
+        SpawnTrace.escalate(id, key + " at " + example);
         Mismatch known = MISMATCHES.get(key);
         if (known != null) {
             known.count++;
