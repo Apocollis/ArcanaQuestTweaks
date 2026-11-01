@@ -65,6 +65,8 @@ public class CommonProxy {
 
         if (net.minecraftforge.fml.common.Loader.isModLoaded("thaumcraft")) {
             MinecraftForge.EVENT_BUS.register(new ThaumcraftModule());
+            MinecraftForge.EVENT_BUS.register(com.apocollis.aqtweaks.thaumcraft.ThaumcraftFocusHooks.class);
+            com.apocollis.aqtweaks.thaumcraft.ThaumcraftFocusHooks.warnNerfedHealFocus();
             DeepCrystalGenerator.register();
         }
 

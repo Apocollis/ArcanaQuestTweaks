@@ -53,6 +53,8 @@ repositories {
 }
 
 dependencies {
+    compileOnly 'org.lwjgl.lwjgl:lwjgl:2.9.4-nightly-20150209'
+
     fileTree(dir: 'libs', include: ['*.jar']).each { jar ->
         modCompileOnly files(jar)
     }

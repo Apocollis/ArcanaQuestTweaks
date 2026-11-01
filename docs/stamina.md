@@ -45,7 +45,7 @@ Portable Ember via `EmberInventoryUtil.getEmberTotal` / `removeEmber` (jar in ha
 
 `SkillActive.trigger(World, EntityPlayer, boolean)` returns whether the skill started. Stock skills also call `addExhaustion`. Tweaks gates HEAD, spends RETURN if true, optionally no-ops exhaustion.
 
-Skills GUI key (`keys[KEY_SKILLS_GUI]`, default P) is handled in `DSSKeyHandler.onKeyPressed` via `Keyboard.getEventKey()`, not `KeyBinding.isPressed()`. Key code 0 is unbound. lwjglx character events also use key 0, so an unbound bind matches space. `MixinDSSKeyHandler` cancels `onKeyPressed` for key 0. A non-zero skills key sets a flag and DSS sends `OpenGuiPacket(0)`. Tweaks polls `isPressed()` on the client tick and sends the same packet only when that flag is clear (MineMenu sets `pressTime` without a matching event key). Do not call `Keyboard.isKeyDown`. Client command `/dssgui` sends the same packet.
+Skills GUI key (`keys[KEY_SKILLS_GUI]`, default P) is handled in `DSSKeyHandler.onKeyPressed` via `Keyboard.getEventKey()`, not `KeyBinding.isPressed()`. Key code 0 is unbound. LWJGL character events also use key 0, so an unbound bind matches space. `MixinDSSKeyHandler` cancels `onKeyPressed` for key 0. A non-zero skills key sets a flag and DSS sends `OpenGuiPacket(0)`. Tweaks polls `isPressed()` on the client tick and sends the same packet only when that flag is clear (MineMenu sets `pressTime` without a matching event key). Do not call `Keyboard.isKeyDown`. Client command `/dssgui` sends the same packet.
 
 ### Open Glider
 

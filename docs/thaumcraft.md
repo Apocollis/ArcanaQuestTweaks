@@ -10,7 +10,7 @@ Comfort homestead drain is a **different** NBT key and module ([comfort.md](comf
 
 Add pack-side warp **sources and sinks** Thaumcraft does not have: first visit to a dimension, lingering in configured dimensions / underground Y bands / Roguelike dungeons, and reducing **sticky** warp after a successful night sleep. Temporary warp during sleep is TC decay + Comfort Homestead (Somnia ticks those). Do **not** mixin `handleWarp`. Quiet Mind may mixin `checkWarpEvent` after visor, before `PacketMiscEvent` — do **not** cancel HEAD (that would skip −1 temp). Parent still **−1 TEMPORARY / 2000 ticks** while online, not Warp Ward, not wussMode.
 
-Stamp `setMagicDamage()` on stock caster **focus HP** so Reskillable Magic drip classifies them without a `thrown` prefix (snowballs stay physical). Scale Heal-focus `heal(float)` by `ReskillableBonuses.scaleOutgoingMagic` (drip, Blood Pact, Full Font stamp). Full Font multiplies `ItemCaster.consumeVis` amount ×1.5 when chunk vis ≥ aura base ×0.9, then Vis Thrift; success stamps. Quiet Mind mixins `checkWarpEvent` after visor (not HEAD). Vis Thrift mixins `CasterManager.getTotalVisDiscount`. See [reskillable.md](reskillable.md).
+Stamp `setMagicDamage()` on stock caster **focus HP** so Reskillable Magic drip classifies them without a `thrown` prefix (snowballs stay physical). Scale the Heal focus on `LivingHealEvent` during that cast, by `ReskillableBonuses.scaleOutgoingHeal` (drip, Blood Pact, Full Font stamp). The `heal` instruction itself is left alone so Thaumic Tweaker's redirect can stay. Full Font multiplies `ItemCaster.consumeVis` amount ×1.5 when chunk vis ≥ aura base ×0.9, then Vis Thrift; success stamps. Quiet Mind mixins `checkWarpEvent` after visor (not HEAD). Vis Thrift mixins `CasterManager.getTotalVisDiscount`. See [reskillable.md](reskillable.md).
 
 ## How the parent mod works
 
@@ -39,7 +39,7 @@ Sounds such as `thaumcraft:whispers` are TC registry names played through vanill
 | Fire | `fireball` + `setFireDamage` + `attackEntityFrom` | — |
 | Frost / Air / Earth | `causeThrownDamage` + `attackEntityFrom` | — |
 | Flux / Curse | `causeIndirectMagicDamage` + `attackEntityFrom` | already magic |
-| Heal | `heal(power × potency)` | magic `attackEntityFrom` (`× 1.5`) |
+| Heal | `heal(power × potency)`, then Tweaks scales that amount on `LivingHealEvent` for the marked target | magic `attackEntityFrom` (`× 1.5`) |
 
 Break / rift / exchange do not hit HP. Addon `FocusEffect` subclasses are not covered.
 
@@ -92,10 +92,10 @@ Java G defaults: Nether 7, End 9, Aether 6, TF 5, Betweenlands 8, Atum 6, Beneat
 
 ### Focus & crucible mixins
 
-Optional `mixins.aqtweaks.thaumcraft.json`. Vanilla INVOKEs MCP + `remap = true` (Gaia rule). Helpers in `ThaumcraftFocusHooks` (no TC imports).
+Optional `mixins.aqtweaks.thaumcraft.json`. Vanilla INVOKEs MCP + `remap = true` (Gaia rule). Helpers in `ThaumcraftFocusHooks`.
 
 - `MixinFocusEffectExecute` — Fire / Frost / Air / Earth / Flux / Curse / Heal `execute` → `attackEntityFrom`: `setMagicDamage()`. Does **not** change the hurt float (Reskillable `LivingHurtEvent` does). Fire keeps `isFireDamage`.
-- `MixinFocusEffectHeal` — Heal only, `heal(F)`: amount `×` caster Magic outgoing if the caster is a player. Not a global `LivingHealEvent`.
+- `MixinFocusEffectHeal` — Heal only. HEAD/RETURN mark the caster and the non-undead living hit. `ThaumcraftFocusHooks` scales that target's `LivingHealEvent` (Magic outgoing, Benevolent, Blood Pact, Full Font). Other heals are unchanged. Does not redirect `heal`, so Thaumic Tweaker's heal-focus redirect can apply first. With `Nerfed Heal Focus Effect` on, Tweaker applies Regeneration and this scale does not run.
 - `MixinCasterManager` — `getTotalVisDiscount` RETURN: Vis Thrift +0.30. `changeFocus` / `fetchFocusFromPouch` / `addFocusToPouch`: bauble pouch offset **4 → 100** so BaublesEX slots ≥ 4 stay negative (not `mainInventory`). Does **not** rewrite the armor `4` in `getTotalVisDiscount`. Those two pouch methods **skip** `IBaublesItemHandler.setChanged`: stock BaublesEX is a no-op, and the transformed method reads missing field `player` (`NoSuchFieldError`) after the focus was already taken out of the pouch. `markDirty` still runs.
 - `MixinWarpEvents` — `checkWarpEvent`: Quiet Mind severity after visor, before `PacketMiscEvent`.
 - `MixinTileCrucible` — `update` (`func_73660_a`) heat check: redirects `IBlockState.getMaterial()` to return `Material.LAVA` if the block beneath is burning `simpledifficulty:campfire` (`burning == true`), enabling Simple Difficulty campfires as crucible heat sources without hard compile coupling. Heat runs only while the crucible tank has fluid (`getFluidAmount() > 0`). Returning `LAVA` uses the stock `+1` per tick branch, cap 200. An unlit campfire is left as `Material.CIRCUITS` and cools the crucible.
@@ -188,7 +188,7 @@ Client mixins in `mixins.aqtweaks.baubles.json` (`required: false`). The `getMod
 
 - `thaumcraft/ThaumcraftModule.java`
 - `thaumcraft/ThaumcraftHelper.java` — compile-hard warp wrapper, type index 0/1/2 (NORMAL / TEMPORARY / PERMANENT), `sync` only if `EntityPlayerMP`. A failing call logs once and returns 0; it no longer disables warp for the session. No generics on class literals (see below).
-- `thaumcraft/ThaumcraftFocusHooks.java` — `markMagic`, Heal scale (direct `ReskillableBonuses.scaleOutgoingHeal` behind `isModLoaded("reskillable")`)
+- `thaumcraft/ThaumcraftFocusHooks.java` — `markMagic`, heal-focus window (`beginHeal` / `endHeal`), `LivingHealEvent` scale (direct `ReskillableBonuses.scaleOutgoingHeal` behind `isModLoaded("reskillable")`)
 - `thaumcraft/ThaumcraftPerkHooks.java` — Vis Thrift / Quiet Mind / Full Font stamp (`PerkAccess.has`, guarded direct `ReskillableBonuses.stampFullFont`)
 - `thaumcraft/InfernalFurnaceHelper.java` — gated-metal ingot, experience fallback, and nugget / Rare Earth rolls for `MixinTileInfernalFurnace`
 - `thaumcraft/DeepCrystalGenerator.java` — below-Y-0 vis crystal clusters on new Overworld chunks. Compile-hard Thaumcraft. Constructed only from the `thaumcraft`-loaded gate in `CommonProxy.init`
@@ -209,7 +209,7 @@ Client mixins in `mixins.aqtweaks.baubles.json` (`required: false`). The `getMod
 - Old cfg `dimId=seconds` / interval keys are dead; grants are amounts.
 - Comfort `WarpCleansingProgress` is a different counter.
 - History: `ThaumcraftHelper` used raw `Class` locals because `Class<?>` there crashed Forge's SideTransformer on Java 21 class files. It no longer uses reflection or class literals; keep it free of `Class<?>`.
-- Focus mixin: stamp magic only on `attackEntityFrom`; do not double-scale hurt. Heal scale is Heal-only (other foci have no `heal` invoke).
+- Focus mixin: stamp magic only on `attackEntityFrom`; do not double-scale hurt. Heal scale is the marked heal-focus target only. Do not redirect `heal` on `FocusEffectHeal`.
 - Snowballs stay non-magic (`thrown` is not an allow prefix).
 - Vis Thrift still injects `getTotalVisDiscount` RETURN. Focus-pouch bauble offset is only the three pouch methods.
 - Runic HUD does not change recharge, vis cost, or the overhaul attribute. The health redirect stays in the early json. A late mixin on `GuiIngameForge` does not apply. Overhaul off keeps absorption for damage. The client cap is worn `TC.RUNIC` plus Astral's calculate event, not `runicInfo`. First 10 runes sit on the red hearts. Past 10 uses empty sockets above the health stack. Gold hearts are only the surplus above that cap.

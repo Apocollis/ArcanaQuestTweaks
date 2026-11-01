@@ -60,6 +60,10 @@ Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 - **Atum plate order** (`AtumPyramidSmoothing.adoptNearby`, `AtumPyramidPlate.reachChunks`): the adopt scan now covers the plate's full reach, `(32 + apron + falloff + corridor + 15) >> 4` chunks (5 with the defaults), instead of a fixed 4. A saved start 5 chunks away is registered before the chunk is smoothed, whatever order chunks are visited in. A late adopt (more than 4 chunks) logs once at debug level as `[AQ-VERIFY] atum late plate adopt`.
 - **Village well worker memo** (`VillageWellCache`): `startRejectReason` and `findDryWell` called off the server thread (Chunk Steward pipeline legs) used to skip the memo and rescan up to 4,224 columns each time. Workers now use their own memo maps (`workerRejectMemo`, `workerDryWellMemo`, same TTL, cap and config reset); the server-thread memo is unchanged and never shared with workers, so verdicts do not leak between threads and the pipeline verify stays an independent comparison. `[AQ-PERF]` detail strings carry ` worker` on those calls. `chunkExists` is unchanged.
 
+## 2026-11-01 — Heal focus no longer fights Thaumic Tweaker
+
+- **Heal focus** (`MixinFocusEffectHeal`, `ThaumcraftFocusHooks`): the `heal` redirect is gone, so Thaumic Tweaker can replace that call without a launch failure. During the heal-focus cast, the living target's heal amount is scaled on `LivingHealEvent`. Undead damage is unchanged. `Nerfed Heal Focus Effect` on the DEVBOX is `false`, so the focus still heals instantly.
+
 ## 2026-10-27 — Village start loads again
 
 - **Launch crash** (`MixinMapGenVillageWell`): the `@Shadow` on `hasMoreThanTwoComponents` missed the runtime field and `MapGenVillage.Start` failed to load. The sizeable flag is now the start class's own boolean. After expansion it is set when non-road pieces, including the well, are more than two.
