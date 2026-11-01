@@ -58,11 +58,15 @@ Pass: all three valid.
 
 Pass: several sessions with no differences, or only differences we have agreed to accept.
 
-## Stage 6: what comes next (not built yet)
+## Stage 6: Tweaks takes over everything in one step (not built yet)
 
-1. The same comparison for modifiers and gear.
-2. Letting Tweaks decide conditions, then modifiers, then gear, one file at a time, each behind its own switch.
-3. Only after that, deleting the rules from `spawn.json` that Tweaks has taken over. `loot.json` and In Control itself stay.
+Decided: conditions, modifiers and gear are built together and switched over together, not one file per session.
+
+1. Build: the modifiers and gear evaluators, the same shadow comparison for both, and the switch that lets Tweaks decide.
+2. One switch, `Spawn Rules Decide` (off by default, applies without a restart). When on, Tweaks decides conditions at the spawn check and join, then applies modifiers and gear once per mob. In Control's `spawn.json` rules are skipped; `loot.json` and In Control itself stay.
+3. Shadow keeps working while the switch is on: it records In Control's outcome before Tweaks overwrites it, so differences are still counted (otherwise it would compare Tweaks with itself).
+4. Before the switch is turned on, stage 5 must pass for conditions, and the new shadow must pass for modifiers and gear, in the same sessions.
+5. One play session with the switch on, then delete the taken-over rules from `spawn.json`. Turning the switch off is the way back until then.
 
 ## If something goes wrong
 
