@@ -85,6 +85,19 @@ final class ConditionRow {
         maxCount = json.has("maxcount") ? CountSpec.parse(json.get("maxcount")) : null;
     }
 
+    /**
+     * Builds a row that only tests the match keys, for the modifiers and gear files, whose rows have no 'result'.
+     */
+    static ConditionRow matcher(JsonObject json, int index, Map<String, List<String>> categories) {
+        JsonObject copy = new JsonObject();
+        for (Map.Entry<String, JsonElement> entry : json.entrySet()) {
+            copy.add(entry.getKey(), entry.getValue());
+        }
+        copy.addProperty("result", "default");
+        copy.remove("phase");
+        return new ConditionRow(copy, index, categories);
+    }
+
     /** Builds a row from a validated rule; keys this class does not test (stats, gear, onjoin) are ignored. */
     static ConditionRow of(JsonObject json, int index, Map<String, List<String>> categories) {
         return new ConditionRow(json, index, categories);

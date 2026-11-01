@@ -113,4 +113,11 @@ final class FakeQuery implements SpawnQuery {
     public float roll() {
         return roll;
     }
+
+    @Override
+    public String toString() {
+        return mob + " dim " + dimension + " y " + y + " time " + time + " sky " + sky + " biome " + biome
+                + " raining " + raining + " thundering " + thundering + " structures " + structures
+                + " stages " + stages + " roll " + roll;
+    }
 }

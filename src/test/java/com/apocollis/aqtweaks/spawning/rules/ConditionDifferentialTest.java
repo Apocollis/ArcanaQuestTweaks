@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
  * situations, and requires the same outcome.
  */
 class ConditionDifferentialTest {
-    private static String resource(String name) throws IOException {
+    static String resource(String name) throws IOException {
         try (InputStream in = ConditionDifferentialTest.class.getResourceAsStream("/spawntable/" + name)) {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             byte[] buffer = new byte[8192];
@@ -85,7 +85,7 @@ class ConditionDifferentialTest {
             {"elite", "dragon", "deadly", "crimsoncult"}};
     private static final int[] COUNTS = {0, 3, 12, 30, 60, 300};
 
-    private static FakeQuery scenario(Random rnd, List<String> mobs, boolean spawnCheck, float roll) {
+    static FakeQuery scenario(Random rnd, List<String> mobs, boolean spawnCheck, float roll) {
         FakeQuery q = new FakeQuery();
         q.mob = mobs.get(rnd.nextInt(mobs.size()));
         q.hostile = rnd.nextInt(4) != 0;
@@ -110,7 +110,7 @@ class ConditionDifferentialTest {
 
 
     /** A situation built to satisfy the keys of one original rule, then nudged, so rare rules are exercised. */
-    private static FakeQuery directed(Random rnd, JsonObject rule, boolean spawnCheck, float roll) {
+    static FakeQuery directed(Random rnd, JsonObject rule, boolean spawnCheck, float roll) {
         FakeQuery q = scenario(rnd, List.of("minecraft:zombie"), spawnCheck, roll);
         if (rule.has("mob")) {
             List<String> names = new ArrayList<String>();

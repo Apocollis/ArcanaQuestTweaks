@@ -1797,9 +1797,17 @@ public class ArcanaQuestTweaksConfig {
         public boolean usePotentialSpawnTable = false;
 
         @Config.Name("Shadow Spawn Conditions")
-        @Config.Comment({"Runs spawn_conditions.json (pack folder) beside In Control at every spawn check and join, without deciding anything,",
-                "and counts every case where it would decide differently. See /aqspawntable shadow. Costs a little per spawn; for testing the rule files."})
+        @Config.Comment({"Runs spawn_conditions.json, spawn_modifiers.json and spawn_gear.json (pack folder) beside In Control at every spawn check and join,",
+                "without deciding anything, and counts every case where they would decide or give differently. See /aqspawntable shadow.",
+                "Costs a little per spawn; for testing the rule files. Does nothing while Spawn Rules Decide is on."})
         public boolean shadowSpawnConditions = false;
+
+        @Config.Name("Spawn Rules Decide")
+        @Config.Comment({"Tweaks decides every spawn from spawn_conditions.json, spawn_modifiers.json and spawn_gear.json, and In Control's own spawn.json rules do nothing:",
+                "conditions at the spawn check and join, then each mob that joins gets its modifiers and gear once.",
+                "Needs all three files to load cleanly (see /aqspawntable check); if any does not, In Control keeps deciding.",
+                "Takes effect at once. Run with Shadow Spawn Conditions first: the comparison is not available while this is on."})
+        public boolean spawnRulesDecide = false;
 
         @Config.Name("Potential Spawn Table Directory")
         @Config.Comment("Pack folder under the Forge config directory that holds the files the table is built from.")

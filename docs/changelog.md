@@ -2,6 +2,14 @@
 
 Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-11-01 — Spawn rules: modifiers and gear evaluators, comparison, and the `Spawn Rules Decide` switch
+
+- **Shadow comparison fix** (`ConditionTable`, `ConditionRow.rollDecides`): a spawn is flagged "random" only when a random row's other tests passed, so its roll could decide the row. Before, any spawn that walked past the Atum throttle row was skipped (53% of spawns in a live run); now only Atum hostile spawns are.
+- **`ModifierTable` / `ModifierPlan` / `GearTable`** (`spawning/rules/`, plain Java): modifiers combine as documented (each stat from the first matching row that sets it, potions from every matching row, `stop`), gear is the first matching row's whole loadout.
+- **`RuleShadow`**: under `Shadow Spawn Conditions`, snapshots a mob before In Control acts and compares what In Control gave it (eight stats, potions, six slots) with the tables applied on paper. `/aqspawntable shadow` and `spawn_shadow.txt` list both comparisons.
+- **`Spawn Rules Decide`** (`aqtweaks_spawning.cfg`, off by default): `SpawnRuleDecider` sets the spawn-check result, cancels denied joins and applies modifiers and gear once per mob (`SpawnRuleApplier`); `MixinInControlSpawnRules` makes In Control's `onEntityJoinWorld` and `onEntitySpawnEvent` do nothing while it is on. Falls back to In Control if any file is not loaded.
+- **Tests**: `ModifierGearTableTest`, and `ActionDifferentialTest` runs the pack's `spawn.json` as In Control gives stats, potions and gear beside the converted tables over 300,000 joins per run (about 167,000 comparisons, none different). The game-facing code (attributes, potions, equipment, the mixin) compiled but has not been run in a game.
+
 ## 2026-10-29 — Potential spawn table (replaces In Control's `potentialspawn.json` loop, off by default)
 
 - **`PotentialSpawnTable`** (`spawning/`, plain-Java builder in `spawning/table/`): builds the rows `regenerate_potentialspawn.py` writes from the pack's classification files at load and on reload, and answers a spawn-list query with one lookup on (dimension, biome, creature type) plus the height, water, structure and per-player count tests. Hooked at the same `ForgeEventHandlers.onPotentialSpawns` HEAD as the rule index; In Control's rules run when the table is off, cannot be built, or throws. Keys: `Use Potential Spawn Table` (default false), `Potential Spawn Table Directory`, `Potential Spawn Table Keeps In Control Rules`. No new mixin.

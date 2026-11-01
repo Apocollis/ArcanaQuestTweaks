@@ -2,7 +2,7 @@
 
 In Control stays installed and keeps making every spawn decision throughout. Each stage has its own switch, off by default, and each can be turned off again without a restart (config screen) to fall back to In Control. Do the stages in order, one per play session, so a problem points at one stage.
 
-Switches (`config/arcanaquesttweaks/aqtweaks_spawning.cfg`, section General): `Use Potential Spawn Table`, `Shadow Spawn Conditions`, `Potential Spawn Table Keeps In Control Rules`, `Potential Spawn Table Directory` (default `arcanaquest`, where the pack files and the rule files are read from).
+Switches (`config/arcanaquesttweaks/aqtweaks_spawning.cfg`, section General): `Use Potential Spawn Table`, `Shadow Spawn Conditions`, `Spawn Rules Decide`, `Potential Spawn Table Keeps In Control Rules`, `Potential Spawn Table Directory` (default `arcanaquest`, where the pack files and the rule files are read from).
 
 ## Stage 0: prepare
 
@@ -46,27 +46,41 @@ Pass: normal spawns, no errors, the profile shows the rule loop gone.
 
 Pass: all three valid.
 
-## Stage 5: compare the conditions with In Control (shadow)
+## Stage 5: compare the rule files with In Control (shadow)
 
-1. `/aqspawntable reload`. Expected: `Spawn conditions: loaded 48 rules`.
+1. `/aqspawntable reload`. Expected: `Spawn conditions: loaded 48 rules` and `Spawn modifiers and gear: modifiers: 34 rows; gear: 9 rows`.
 2. Set `Shadow Spawn Conditions` to true. (Independent of stage 3: the table can be on or off.)
 3. Play 30 to 60 minutes covering: surface by day and night, caves at several depths (including below Y -15), a village, a Mineshaft, spawner cages, Atum, the Nether, the End and the Beneath. Do part of it with a character that has the stages elite, deadly, dragon and crimsoncult, and part without.
-4. `/aqspawntable shadow`. Target: `0 different`. The file `config/arcanaquesttweaks/spawn_shadow.txt` has the full list; each kind of difference is also in the log the first time it happens.
+4. `/aqspawntable shadow`. It reports the conditions, then the modifiers and gear. Target for conditions: `0 different`. Modifiers and gear will list some differences by design (below); everything else should be 0. The file `config/arcanaquesttweaks/spawn_shadow.txt` has the full list; each kind of difference is also in the log the first time it happens.
 5. Use `/aqspawntable shadow reset` between scenarios to see which one a difference came from.
 6. Send me `spawn_shadow.txt` and `latest.log`. We decide together for each difference whether the converter or evaluator is wrong, or whether the rule itself is the surprise.
 7. Keep this off while profiling: it runs the rules a second time.
 
 Pass: several sessions with no differences, or only differences we have agreed to accept.
 
-## Stage 6: Tweaks takes over everything in one step (not built yet)
+## Stage 6: Tweaks takes over everything in one step (built, not yet tried in game)
 
-Decided: conditions, modifiers and gear are built together and switched over together, not one file per session.
+Conditions, modifiers and gear switch over together with one switch, `Spawn Rules Decide` (off by default, applies at once, no restart).
 
-1. Build: the modifiers and gear evaluators, the same shadow comparison for both, and the switch that lets Tweaks decide.
-2. One switch, `Spawn Rules Decide` (off by default, applies without a restart). When on, Tweaks decides conditions at the spawn check and join, then applies modifiers and gear once per mob. In Control's `spawn.json` rules are skipped; `loot.json` and In Control itself stay.
-3. Shadow keeps working while the switch is on: it records In Control's outcome before Tweaks overwrites it, so differences are still counted (otherwise it would compare Tweaks with itself).
-4. Before the switch is turned on, stage 5 must pass for conditions, and the new shadow must pass for modifiers and gear, in the same sessions.
-5. One play session with the switch on, then delete the taken-over rules from `spawn.json`. Turning the switch off is the way back until then.
+What it does when on:
+- At the spawn check the conditions table sets the result, as In Control did.
+- At join it cancels a denied mob; a mob that stays gets its modifiers (stats, potions, angry) and its gear, once. A tag (`aqtweaks:spawnrules`) stops a chunk reload applying them again, and a mob In Control already actioned (`incontrol:onjoinaction`) is left alone.
+- In Control's own `spawn.json` handlers (spawn check and join) do nothing, through a mixin. Its potential-spawn, loot, experience and summon-aid rules are untouched.
+- If any of the three files did not load cleanly, nothing changes: In Control keeps deciding. `/aqspawntable reload` says why.
+- The comparison is not available while it is on (there is nothing of In Control's to compare with). Switch it off to compare again.
+
+Order:
+1. Stage 4, then Stage 5 with `Shadow Spawn Conditions` on: conditions 0 different, and the modifier and gear differences understood (next list).
+2. Turn `Shadow Spawn Conditions` off, `Spawn Rules Decide` on. Play the same scenarios as stage 5 (surface by day and night, caves incl. below Y -15, a village, a Mineshaft, spawner cages, Atum, the Nether, the End, the Beneath; with and without the stages elite, deadly, dragon, crimsoncult). Look at mob health, damage, potions and gear (a cursed armor in a cave, a Crimson cultist, a Vindicator, a Stray).
+3. If anything looks wrong, switch it off: In Control takes over again for new spawns. Mobs already spawned keep what they were given.
+4. Only after a clean session, delete the rules that Tweaks has taken over from `spawn.json`. `loot.json` and In Control itself stay.
+
+Differences from In Control that are on purpose (the modifier and gear comparison will list these):
+- In Control ends its walk at the first matching rule, even a rule with no stats or no gear. A gear-only rule that matches first (Cursed Armor, Vindicator, Deep Dwarf) means In Control gives that mob no stats at all; the tables still give it the depth and dimension modifier rows below. The same the other way round for gear. In the test run this is about a quarter of generated joins.
+- The Crimson cultist and archer buffs are applied at join, not at the spawn check.
+- `angry` is not compared.
+
+What the tests establish: wherever In Control's first match gives modifiers or gear, the converted tables give exactly the same (stats, potions, gear), about 167,000 cases per run with random rows forced to pass and forced to fail. What no test covers: the code that reads and sets attributes, potions and equipment in the game, and the mixin into In Control. That is what the first session shows.
 
 ## If something goes wrong
 
@@ -75,5 +89,6 @@ Decided: conditions, modifiers and gear are built together and switched over tog
 | Crash at start | Restore the previous jar, send `latest.log` and the crash report |
 | Odd spawns after stage 3 | `Use Potential Spawn Table` off (applies at once), note where and what |
 | Lag during stage 5 | `Shadow Spawn Conditions` off; it is a test tool |
+| Odd health, damage, potions or gear after stage 6 | `Spawn Rules Decide` off (applies at once), note the mob, where and what |
 | `verify` or `check` reports problems | Send the report file; nothing is used while a file has problems |
 | Nothing seems to change after editing a pack file | `/aqspawntable reload` |

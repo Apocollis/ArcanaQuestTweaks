@@ -66,6 +66,7 @@ public final class CommandAqSpawnTable extends CommandBase {
             case "reload":
                 say(sender, "Potential spawn table: " + PotentialSpawnTable.reload());
                 say(sender, "Spawn conditions: " + ConditionShadow.reload());
+                say(sender, "Spawn modifiers and gear: " + SpawnRuleTables.status());
                 break;
             case "verify":
                 verify(sender);

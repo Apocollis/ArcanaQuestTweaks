@@ -1,4 +1,4 @@
-# Spawn tables: file format (loader, converter and conditions comparison built)
+# Spawn tables: file format (loader, converter, evaluators, comparison and takeover switch built)
 
 Replaces `spawn.json` (In Control's spawn rules) with three files that Tweaks reads. In Control stays installed and keeps making the real decisions until a comparison log shows Tweaks would decide the same. Loot stays in In Control. Everything here was checked against the pack's `spawn.json`, In Control 3.10.5 and McJty Tools 1.12-0.0.21.
 
@@ -29,7 +29,9 @@ Commands (`/aqspawntable`):
 
 **What the tests establish.** The pack's original `spawn.json`, run the way In Control runs it (every rule at the spawn check, the `onjoin` rules at join, first match decides), and the converted conditions give the same outcome in 300,000 generated situations per run, once with every `random` row passing and once with every one failing; deliberately breaking a converted row (removing the Ghoul bypass, removing a `phase`) makes the test fail. Every one of the 48 converted rows decides at least once, except two that can never decide because an earlier row already covers every case: the second "Deny Deadly tier mobs" rule (`spawner: false`, which the earlier unconditional deny shadows) and the second "Restrict surface-only and structure mobs" rule (`spawner: false`, shadowed by the first); and the random Atum throttle when its roll never passes. Those two are candidates for deletion from `spawn.json`.
 
-The modifiers and gear are not evaluated yet.
+`ModifierTable` and `GearTable` (same package) decide the modifiers and gear the same way. With `Shadow Spawn Conditions` on, mobs are snapshotted before In Control acts and the tables are applied to the snapshot on paper after it has acted; stats (all eight), potions and the six gear slots are compared, and `angry` and spawns with a `random` row in play are not. `/aqspawntable shadow` lists the modifier and gear differences under the conditions.
+
+**Letting Tweaks decide:** `Spawn Rules Decide` (`aqtweaks_spawning.cfg`, off by default) makes the three tables decide and skips In Control's spawn.json rules; see `docs/spawning-rollout.md` stage 6. A rule without `onjoin` that carries stats (the Crimson cultists) is applied at join instead of at the spawn check.
 
 ## When things run
 

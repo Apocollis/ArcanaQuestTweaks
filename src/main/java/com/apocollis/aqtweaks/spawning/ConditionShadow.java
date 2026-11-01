@@ -59,6 +59,7 @@ public final class ConditionShadow {
 
     /** Reads spawn_conditions.json from the pack folder; the shadow stays off when it is missing or has problems. */
     public static String reload() {
+        SpawnRuleTables.reload();
         File dir = PotentialSpawnTable.packDirectory();
         if (dir == null) {
             ready = false;
@@ -108,8 +109,14 @@ public final class ConditionShadow {
         }
     }
 
+    /** The conditions table, or null when it is not loaded. */
+    static ConditionTable conditions() {
+        return ready ? table : null;
+    }
+
     private static boolean active() {
-        return ready && SpawningModuleConfig.general.enable && SpawningModuleConfig.general.shadowSpawnConditions;
+        return ready && SpawningModuleConfig.general.enable && SpawningModuleConfig.general.shadowSpawnConditions
+                && !SpawnRuleDecider.deciding();
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
@@ -170,7 +177,7 @@ public final class ConditionShadow {
         }
     }
 
-    private static Event.Result toEvent(Decision.Result result) {
+    static Event.Result toEvent(Decision.Result result) {
         switch (result) {
             case ALLOW:
                 return Event.Result.ALLOW;
@@ -213,6 +220,7 @@ public final class ConditionShadow {
     }
 
     public static synchronized void reset() {
+        RuleShadow.reset();
         MISMATCHES.clear();
         same = 0;
         different = 0;
@@ -233,6 +241,10 @@ public final class ConditionShadow {
         }
         if (unlogged > 0) {
             lines.add("  " + unlogged + " more differences of kinds not listed (" + MAX_KEPT + " kinds kept)");
+        }
+        lines.addAll(RuleShadow.summary());
+        if (SpawnRuleDecider.deciding()) {
+            lines.add("Spawn Rules Decide is on: In Control's spawn rules are skipped, so nothing is being compared.");
         }
         return lines;
     }
