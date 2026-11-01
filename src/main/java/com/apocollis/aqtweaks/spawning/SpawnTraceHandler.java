@@ -115,14 +115,15 @@ public final class SpawnTraceHandler {
             return;
         }
         try {
-            Event.Result atInControl = ConditionShadow.inControlResult(event);
+            boolean deciding = SpawnRuleDecider.deciding();
+            Event.Result atInControl = deciding ? null : ConditionShadow.inControlResult(event);
             String result = (atInControl != null ? atInControl : event.getResult()).name();
             String final_ = atInControl != null && atInControl != event.getResult()
                     ? " (final " + event.getResult().name() + ", changed after In Control)" : "";
             String context = context();
             Decision decision = tableDecision(ConditionTable.Phase.SPAWN, new LiveQuery.Check(event));
             String table = describe(decision);
-            boolean differs = decision != null && !decision.usedRandom
+            boolean differs = !deciding && decision != null && !decision.usedRandom
                     && !(decision.result == null ? (atInControlBefore(event, atInControl)) : ConditionShadow.toEvent(decision.result)).name().equals(result);
             SpawnTrace.count(id, "check:" + result + (differs ? "(table differs)" : ""));
             SpawnTrace.count(id, "via:" + context);
@@ -132,7 +133,7 @@ public final class SpawnTraceHandler {
             if (watched || differs) {
                 BlockPos pos = new BlockPos(event.getX(), event.getY(), event.getZ());
                 SpawnTrace.line("check  " + id + " " + where(event.getWorld(), pos) + " spawner=" + event.isSpawner()
-                        + " context=" + context + " -> In Control left " + result + final_ + (differs ? "  ** TABLE DIFFERS **" : "")
+                        + " context=" + context + " -> " + (deciding ? "Tweaks decided " : "In Control left ") + result + final_ + (differs ? "  ** TABLE DIFFERS **" : "")
                         + " | " + counts(event.getWorld(), event.getEntity()) + " | table " + table);
             }
         } catch (RuntimeException failure) {
@@ -154,7 +155,8 @@ public final class SpawnTraceHandler {
             boolean tableCancels = decision != null && decision.result == Decision.Result.DENY;
             Boolean inControlCancelled = ConditionShadow.inControlCancelled(event);
             boolean cancelledByInControl = inControlCancelled != null ? inControlCancelled.booleanValue() : event.isCanceled();
-            boolean differs = decision != null && !decision.usedRandom && tableCancels != cancelledByInControl;
+            boolean differs = !SpawnRuleDecider.deciding() && decision != null && !decision.usedRandom
+                    && tableCancels != cancelledByInControl;
             SpawnTrace.count(id, event.isCanceled() ? "join:cancelled" : "join:ok");
             if (differs) {
                 SpawnTrace.count(id, "join:table differs");
