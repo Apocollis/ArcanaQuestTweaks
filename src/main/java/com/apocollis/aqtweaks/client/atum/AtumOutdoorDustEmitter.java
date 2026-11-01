@@ -127,9 +127,9 @@ public class AtumOutdoorDustEmitter {
                 : (int) Math.max(35, config.maxOutdoorDustParticles * breezeFactor);
         if (ParticleAtumDustSheet.ACTIVE_COUNT.get() >= particleLimit) return;
 
-        // Spawn density: a handful of attempts in clear weather; 600 to 1500 during sandstorms
+        // Spawn density: a handful of attempts in clear weather; 720 to 1800 during sandstorms
         int attempts = isStorming
-                ? (int) (600 + stormStrength * 900)
+                ? (int) (720 + stormStrength * 1080)
                 : (int) Math.max(6, 32.0D * breezeFactor);
 
         Vec3d eyeVec = player.getPositionEyes(1.0F);
@@ -139,7 +139,7 @@ public class AtumOutdoorDustEmitter {
 
         // Wind speed: high-speed howling gale during storms, gentle fluctuating breeze in clear weather
         double windSpeed = isStorming
-                ? (1.40D + stormStrength * 0.70D) // 1.40 - 2.10 blocks/tick in sandstorms
+                ? (1.68D + stormStrength * 0.84D) // 1.68 - 2.52 blocks/tick in sandstorms
                 : (0.16D + 0.16D * breezeFactor); // 0.18 - 0.43 blocks/tick in clear weather
 
         int lifetime = isStorming ? 38 : 55;

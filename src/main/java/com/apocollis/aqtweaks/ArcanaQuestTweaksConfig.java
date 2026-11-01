@@ -709,7 +709,7 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Max Sandstorm Dust Particles")
         @Config.Comment("Maximum simultaneous active outdoor dust particles during Atum sandstorms. Provides dense, vision-obscuring haboob sandstorms.")
         @Config.RangeInt(min = 100, max = 25000)
-        public int maxSandstormDustParticles = 10000;
+        public int maxSandstormDustParticles = 14400;
 
         @Config.Name("Enable Dynamic Wind Direction")
         @Config.Comment("If true, desert wind direction dynamically veers over time and all active particles follow the shifting wind in unison.")

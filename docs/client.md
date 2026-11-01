@@ -75,7 +75,7 @@ Light reaches the client only inside chunk data, or when the client runs its own
 | Disable Underground Fog | true | Category "Atum Fog". Completely cancels Atum's yellow EXP fog and 2D screen sandstorm in favor of linear fog and 3D particles |
 | Enable Outdoor Dust Particles | true | Category "Atum Fog". Spawns volumetric 3D drifting sand particles in open outdoor air |
 | Max Outdoor Dust Particles | 200 | Category "Atum Fog". Baseline cap on active simultaneous outdoor dust particles in clear weather |
-| Max Sandstorm Dust Particles | 10000 | Category "Atum Fog". Cap during a sandstorm. Range 100..25000. A saved cfg value overrides this default |
+| Max Sandstorm Dust Particles | 14400 | Category "Atum Fog". Cap during a sandstorm. Range 100..25000. A saved cfg value overrides this default |
 
 ## Atum visual overhaul & weather particles
 
@@ -94,7 +94,7 @@ Atum 2's default visuals have two major issues:
   - **Wind-aligned band:** Outdoor spawns sit on a rectangle around the player. In a storm the along-wind offset is −50 to +16 blocks (50 blocks of sand upwind) and the crosswind offset is ±35. In clear weather both axes are ±25. Indoor candidates stay in the look cone.
   - **Openings:** A spawn still requires open sky, so sand does not appear inside a room. Once spawned, a particle keeps moving under a roof and through a doorway until it hits a solid block or its life ends. Storm life starts at 38 ticks.
   - Clear weather keeps the breeze (`max(6, 32 * breezeFactor)` attempts, speed `0.16 + 0.16 * breezeFactor`) and the clear-weather cap.
-  - During sandstorms (`/atumweather sandstorm`), wind speed is `1.40 + stormStrength * 0.70` blocks/tick. Spawn attempts are `600 + stormStrength * 900`. The cap is `Max Sandstorm Dust Particles` (default 10000).
+  - During sandstorms (`/atumweather sandstorm`), wind speed is `1.68 + stormStrength * 0.84` blocks/tick. Spawn attempts are `720 + stormStrength * 1080`. The cap is `Max Sandstorm Dust Particles` (default 14400).
   - **Exposure** (`AtumStormGameplayHandler`, `aqtweaks_atum.cfg`): an unsheltered player with no protective headgear loses breath (about 4 air per tick, choking damage once the bar is empty). Missing chest, legs, or boots, or armor under 10, takes half a heart of abrasion every 4 seconds. A wanderer or mummy set on those three slots stops the abrasion. A strong storm occasionally plays a low howl. Shelter and the existing wind push, headwind drain, and grit blindness are unchanged.
 
 ## Atum pyramid plateau
