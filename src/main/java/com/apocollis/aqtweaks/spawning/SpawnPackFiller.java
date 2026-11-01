@@ -55,6 +55,8 @@ public final class SpawnPackFiller {
         }
         SpawnGroupSizes.Range range = SpawnGroupSizes.resolve(entry, living);
         int target = SpawnGroupSizes.rollTarget(world, range);
+        SpawnTrace.log(SpawnTraceHandler.idOf(living), "pack   " + SpawnTraceHandler.idOf(living) + " group range "
+                + range.min() + ".." + range.max() + ", rolled group size " + target);
         if (target <= 1) {
             return;
         }
@@ -68,6 +70,22 @@ public final class SpawnPackFiller {
     public static int placeNearby(World world, EntityLiving first, int need,
                                   Class<? extends net.minecraft.entity.Entity> spawnClass, ExtraFactory factory,
                                   boolean skipIfLayerStrips) {
+        int[] stats = new int[4];
+        int placed = placeNearby(world, first, need, spawnClass, factory, skipIfLayerStrips, stats);
+        net.minecraft.util.ResourceLocation wanted = spawnClass == null ? null
+                : net.minecraft.entity.EntityList.getKey(spawnClass);
+        String leader = first == null ? null : SpawnTraceHandler.idOf(first);
+        if (SpawnTrace.watching(leader) || wanted != null && SpawnTrace.watching(wanted.toString())) {
+            SpawnTrace.line("place  " + wanted + " beside " + leader + ": wanted " + need + ", placed " + placed
+                    + "; candidate spots refused: by the layer filter " + stats[0] + ", by the spawn check (In Control or"
+                    + " another mod, or vanilla placement) " + stats[1] + ", not colliding-free or join refused " + stats[2]);
+        }
+        return placed;
+    }
+
+    private static int placeNearby(World world, EntityLiving first, int need,
+                                   Class<? extends net.minecraft.entity.Entity> spawnClass, ExtraFactory factory,
+                                   boolean skipIfLayerStrips, int[] stats) {
         if (world == null || first == null || factory == null || spawnClass == null || need <= 0) {
             return 0;
         }
@@ -111,6 +129,7 @@ public final class SpawnPackFiller {
                 }
                 if (skipIfLayerStrips && SpawnLayerFilter.wouldStrip(world, pos, extra)) {
                     extra.setDead();
+                    stats[0]++;
                     continue;
                 }
                 extra.setLocationAndAngles(px, y, pz, world.rand.nextFloat() * 360.0F, 0.0F);
@@ -119,6 +138,7 @@ public final class SpawnPackFiller {
                         || (canSpawn == Event.Result.DEFAULT && extra.getCanSpawnHere() && extra.isNotColliding());
                 if (!allowed) {
                     extra.setDead();
+                    stats[1]++;
                     continue;
                 }
                 if (!ForgeEventFactory.doSpecialSpawn(extra, world, (float) px, y, (float) pz)) {
@@ -129,9 +149,11 @@ public final class SpawnPackFiller {
                         spawned++;
                     } else {
                         extra.setDead();
+                        stats[2]++;
                     }
                 } else {
                     extra.setDead();
+                    stats[2]++;
                 }
             }
         }

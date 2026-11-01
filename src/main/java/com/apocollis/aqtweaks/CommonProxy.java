@@ -152,6 +152,7 @@ public class CommonProxy {
             com.apocollis.aqtweaks.spawning.SpawnLayerFilter.enableStructureExemption();
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.spawning.ConditionShadow());
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.spawning.RuleShadow());
+            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.spawning.SpawnTraceHandler());
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.spawning.SpawnRuleDecider());
         }
         MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.spawning.SpawnLayerFilter());

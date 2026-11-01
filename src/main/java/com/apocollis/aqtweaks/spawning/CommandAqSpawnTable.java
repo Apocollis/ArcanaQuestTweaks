@@ -47,7 +47,7 @@ public final class CommandAqSpawnTable extends CommandBase {
 
     @Override
     public String getUsage(ICommandSender sender) {
-        return "/aqspawntable | reload | verify | dump | check | convert | shadow [reset]";
+        return "/aqspawntable | reload | verify | dump | check | convert | shadow [reset] | trace on|off|all|mobs <ids>|now|file";
     }
 
     @Override
@@ -88,9 +88,83 @@ public final class CommandAqSpawnTable extends CommandBase {
                     shadow(sender);
                 }
                 break;
+            case "trace":
+                trace(server, sender, args);
+                break;
             default:
                 throw new CommandException(getUsage(sender));
         }
+    }
+
+    /** Controls the spawn trace (config/arcanaquesttweaks/spawn_trace.log). */
+    private static void trace(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
+        String action = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "";
+        switch (action) {
+            case "on":
+                SpawnTrace.setRuntime(true);
+                say(sender, "Spawn trace on, watching " + SpawnTrace.describeWatched() + ". Log: " + SpawnTrace.file());
+                break;
+            case "off":
+                SpawnTrace.setRuntime(false);
+                say(sender, "Spawn trace off (the config option Spawn Trace, if set, still applies).");
+                break;
+            case "all":
+                SpawnTrace.setRuntimeMobs(new java.util.HashSet<String>(java.util.Collections.singletonList("*")));
+                SpawnTrace.setRuntime(true);
+                say(sender, "Spawn trace on for every mob. Log: " + SpawnTrace.file());
+                break;
+            case "mobs":
+                if (args.length < 3) {
+                    throw new CommandException("/aqspawntable trace mobs minecraft:squid,minecraft:vindication_illager");
+                }
+                java.util.Set<String> mobs = new java.util.LinkedHashSet<String>();
+                for (String id : args[2].split(",")) {
+                    mobs.add(id.trim().toLowerCase(Locale.ROOT));
+                }
+                SpawnTrace.setRuntimeMobs(mobs);
+                SpawnTrace.setRuntime(true);
+                say(sender, "Spawn trace on, watching " + SpawnTrace.describeWatched() + ". Log: " + SpawnTrace.file());
+                break;
+            case "now":
+                traceNow(server, sender);
+                break;
+            case "file":
+                say(sender, "Spawn trace log: " + SpawnTrace.file());
+                break;
+            default:
+                throw new CommandException("/aqspawntable trace on|off|all|mobs <ids>|now|file");
+        }
+    }
+
+    /** Writes, for each watched mob and each world, the mobs really alive and what In Control's cache counts. */
+    private static void traceNow(MinecraftServer server, ICommandSender sender) {
+        if (!SpawnTrace.enabled()) {
+            say(sender, "Switch the trace on first: /aqspawntable trace on");
+            return;
+        }
+        int written = 0;
+        for (net.minecraft.world.WorldServer world : server.worlds) {
+            for (String id : SpawnTrace.describeWatched().split(", ")) {
+                net.minecraftforge.fml.common.registry.EntityEntry entry =
+                        ForgeRegistries.ENTITIES.getValue(new ResourceLocation(id));
+                if (entry == null) {
+                    continue;
+                }
+                Class<? extends net.minecraft.entity.Entity> type = entry.getEntityClass();
+                int alive = 0;
+                for (net.minecraft.entity.Entity each : world.loadedEntityList) {
+                    if (each.getClass() == type && !each.isDead) {
+                        alive++;
+                    }
+                }
+                mcjty.incontrol.rules.RuleCache cache = mcjty.incontrol.InControl.setup.cache;
+                SpawnTrace.line("now    " + id + " dim " + world.provider.getDimension() + ": " + alive
+                        + " alive in loaded chunks, In Control's count " + cache.getCount(world, type) + ", players "
+                        + cache.getValidPlayers(world));
+                written++;
+            }
+        }
+        say(sender, "Wrote " + written + " counts to " + SpawnTrace.file());
     }
 
     private static void verify(ICommandSender sender) {

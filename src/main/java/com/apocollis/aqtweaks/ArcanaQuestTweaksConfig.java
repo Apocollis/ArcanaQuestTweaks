@@ -1802,6 +1802,17 @@ public class ArcanaQuestTweaksConfig {
                 "Costs a little per spawn; for testing the rule files. Does nothing while Spawn Rules Decide is on."})
         public boolean shadowSpawnConditions = false;
 
+        @Config.Name("Spawn Trace")
+        @Config.Comment({"Writes what happened to the mobs listed in Spawn Trace Mobs to config/arcanaquesttweaks/spawn_trace.log: every spawn check and join",
+                "(In Control's result, the conditions table's result, the live counts), each time the potential spawn table offered or withheld the mob,",
+                "and what the pack filler and spawn parties did. For finding out why a mob appeared or did not. /aqspawntable trace on does the same until restart."})
+        public boolean spawnTrace = false;
+
+        @Config.Name("Spawn Trace Mobs")
+        @Config.Comment("Mob ids the spawn trace watches. Use * to watch every mob (a lot of output).")
+        public String[] spawnTraceMobs = {"minecraft:squid", "minecraft:vindication_illager", "grimoireofgaia:goblin_feral",
+                "thaumcraft:cultistknight", "thaumcraft:cultistcleric", "crimsonrevelations:cultist_archer"};
+
         @Config.Name("Spawn Rules Decide")
         @Config.Comment({"Tweaks decides every spawn from spawn_conditions.json, spawn_modifiers.json and spawn_gear.json, and In Control's own spawn.json rules do nothing:",
                 "conditions at the spawn check and join, then each mob that joins gets its modifiers and gear once.",

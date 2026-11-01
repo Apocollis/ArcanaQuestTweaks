@@ -109,11 +109,14 @@ public final class SpawnParties {
                 continue;
             }
             if (!whenMatches(party.when, world, pos)) {
+                SpawnTrace.log(id, "party  " + id + " is a leader of '" + party.id + "' but its conditions do not match here (dimension, layer, time, biome or height)");
                 continue;
             }
             if (party.chance < 1.0 && world.rand.nextDouble() >= party.chance) {
+                SpawnTrace.log(id, "party  " + id + " leader of '" + party.id + "': the chance roll (" + party.chance + ") failed");
                 return;
             }
+            SpawnTrace.log(id, "party  " + id + " leader of '" + party.id + "': spawning companions");
             spawnCompanions(world, leader, party);
             return;
         }

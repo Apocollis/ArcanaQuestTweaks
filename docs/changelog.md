@@ -2,6 +2,11 @@
 
 Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-11-01 — Spawn trace
+
+- **`SpawnTrace` / `SpawnTraceHandler`**: opt-in log (`config/arcanaquesttweaks/spawn_trace.log`) of what happened to watched mobs: spawn checks and joins with In Control's result, the conditions table's decision and the live counts; potential-spawn table offers and withholds with count, limit and needs; pack-filler group sizes and refused spots; party leader checks. Config `Spawn Trace`, `Spawn Trace Mobs`; `/aqspawntable trace on|off|all|mobs <ids>|now|file`.
+- **Modifier and gear comparison**: the snapshot is taken at join, not at the spawn check, which had blamed In Control for gear and stats the game and other mods give at initial spawn.
+
 ## 2026-11-01 — Spawn rules: modifiers and gear evaluators, comparison, and the `Spawn Rules Decide` switch
 
 - **Shadow comparison fix** (`ConditionTable`, `ConditionRow.rollDecides`): a spawn is flagged "random" only when a random row's other tests passed, so its roll could decide the row. Before, any spawn that walked past the Atum throttle row was skipped (53% of spawns in a live run); now only Atum hostile spawns are.

@@ -200,8 +200,21 @@ public final class PotentialSpawnTable {
             passed = rows.length == 0 ? NONE : new Row[rows.length];
             int count = 0;
             for (Row row : rows) {
-                if (passes(row, world, pos)) {
+                boolean offered = passes(row, world, pos);
+                if (offered) {
                     passed[count++] = row;
+                }
+                if (row.spec.mob != null && SpawnTrace.watching(row.spec.mob)
+                        && SpawnTrace.every("potential " + row.spec.mob + offered, 2000)) {
+                    RuleCache traceCache = InControl.setup.cache;
+                    SpawnTrace.line("potential " + row.spec.mob + " " + (offered ? "OFFERED" : "WITHHELD") + " at dim "
+                            + world.provider.getDimension() + " (" + pos.getX() + "," + pos.getY() + "," + pos.getZ()
+                            + ") type " + event.getType() + ": live count " + traceCache.getCount(world, row.countClass)
+                            + ", limit " + row.spec.limit + " x players " + traceCache.getValidPlayers(world) + " = "
+                            + (row.spec.limit * traceCache.getValidPlayers(world))
+                            + (row.spec.structure != null ? ", needs structure " + row.spec.structure : "")
+                            + (row.spec.maxHeight != null ? ", max height " + row.spec.maxHeight : "")
+                            + " (note: only logged every 2 s per mob and result)");
                 }
             }
             if (count < passed.length) {
