@@ -13,7 +13,6 @@ import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.potion.PotionEffect;
 import net.minecraftforge.event.entity.EntityJoinWorldEvent;
-import net.minecraftforge.event.entity.living.LivingSpawnEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import org.apache.logging.log4j.LogManager;
@@ -56,13 +55,6 @@ public final class RuleShadow {
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public void checkBefore(LivingSpawnEvent.CheckSpawn event) {
-        if (active() && event.getEntity() instanceof EntityLiving && !event.getWorld().isRemote) {
-            remember((EntityLiving) event.getEntity());
-        }
-    }
-
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void joinBefore(EntityJoinWorldEvent event) {
         if (active() && event.getEntity() instanceof EntityLiving && !event.getWorld().isRemote
                 && !event.getEntity().getEntityData().getBoolean(IN_CONTROL_TAG)) {
@@ -70,10 +62,14 @@ public final class RuleShadow {
         }
     }
 
+    /**
+     * Taken at join, before In Control's join handler, not at the spawn check: the game and other mods equip and buff a
+     * mob between the two (onInitialSpawn: a skeleton's bow, a zombie's armour, a Gaia mob's weapon), and none of that
+     * is In Control's doing. The one rule In Control applies at the spawn check (the Crimson cultists' health and
+     * damage) therefore shows up as a difference for those mobs.
+     */
     private static synchronized void remember(EntityLiving mob) {
-        if (!BEFORE.containsKey(mob)) {
-            BEFORE.put(mob, SpawnRuleApplier.snapshot(mob));
-        }
+        BEFORE.put(mob, SpawnRuleApplier.snapshot(mob));
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = true)
