@@ -2,19 +2,27 @@ package com.apocollis.aqtweaks.comfort;
 
 import com.apocollis.aqtweaks.simpledifficulty.SimpleDifficultyHelper;
 import com.apocollis.aqtweaks.thaumcraft.ThaumcraftHelper;
-
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import net.minecraft.block.Block;
+import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityList;
+import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.item.EntityBoat;
+import net.minecraft.entity.item.EntityMinecart;
 import net.minecraft.entity.passive.EntityTameable;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.potion.Potion;
 import net.minecraft.potion.PotionEffect;
@@ -23,64 +31,52 @@ import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraftforge.common.util.FakePlayer;
+import net.minecraftforge.event.entity.living.LivingEntityUseItemEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.player.AttackEntityEvent;
+import net.minecraftforge.event.entity.player.PlayerWakeUpEvent;
+import net.minecraftforge.event.world.BlockEvent;
 import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
 /**
- * Core comfort system event handler.
+ * Comfort rest loop. Furnishings are scanned every 30s. Bonuses and penalties refresh every 2s
+ * while the player is in a home context. Rested lingers after the player leaves; Clarity does not.
  *
- * Activation Flow:
- * 1. Every 30 seconds, check if the player is resting (sleeping, sitting, sneaking, or stationary).
- * 2. If resting, scan a 25x5x25 area for cozy blocks and nearby pets.
- * 3. Calculate a category-limited comfort score using the top-X highest values per category,
- *    then add bonuses and subtract player-state penalties.
- * 4. Entry also needs a hearth, bedding, or seating block in that scan, and must be outside
- *    the hurt (30s) and attack (15s) cooldowns.
- * 5. If effective score >= Homestead I, set the "Resting" tag and apply silent benefits.
- * 6. Granted band starts at I and promotes after promote_ticks while score still supports the next band.
- * 7. While the tag is active, continue scanning even if the player moves; furniture must stay in range.
- * 8. Cancel the tag immediately on taking damage, attacking, dropping below Homestead I, or losing furniture.
- *
- * <p>Everything here is server-side: every entry point returns early on {@code world.isRemote}.
- * The caches below rely on that for thread confinement.
+ * <p>Server only. Hot springs stay on their own tick.
  */
 public class ComfortSystemHandler {
 
-    private static final int CHECK_INTERVAL_TICKS = 600; // 30 seconds
-    private static final int HOMESTEAD_DURATION_TICKS = 900; // 45 seconds; overlaps scans by 15s
-    private static final int EIGHT_MINUTES_TICKS = 9600;
-    private static final int FOUR_MINUTES_TICKS = 4800;
-    private static final double DETECT_RADIUS = 12.0;
+    private static final int CHECK_INTERVAL_TICKS = 600;
+    private static final int STATE_INTERVAL_TICKS = 40;
+    private static final int SCAN_STALE_TICKS = 1200;
     private static final double PET_RADIUS = 16.0;
     private static final String RESTING_TAG = "AQTComfortResting";
     private static final String GRANTED_BAND_TAG = "AQTComfortGrantedBand";
     private static final String BAND_SINCE_TAG = "AQTComfortBandSince";
     private static final String HURT_AT_TAG = "AQTComfortHurtAt";
     private static final String ATTACK_AT_TAG = "AQTComfortAttackAt";
-    private static final String LEARNING_POTION = "extraalchemy:effect.learning";
-    private static final String XP_BOOST_POTION = "soot:experience_boost";
+    private static final String REST_POSE_AT = "AQTComfortRestPoseAt";
+    private static final String REST_POSE_BONUS = "AQTComfortRestPoseBonus";
     private static final String WARP_CLEANSE_TAG = "WarpCleansingProgress";
     private static final int WARP_CLEANSE_THRESHOLD = 12;
 
     static final Map<String, CozyConfig> COZY_BLOCKS = new HashMap<>();
-
-    /**
-     * Block to its cozy entry, or {@link #NO_COZY} for blocks without one. The scan visits up to
-     * 3,125 blocks per evaluation, so this avoids a registry-name string per block. Cleared by
-     * {@link #clearCozyCache} whenever {@link #COZY_BLOCKS} is rebuilt.
-     */
-    private static final Map<net.minecraft.block.Block, CozyConfig> COZY_BY_BLOCK =
-            new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<Block, CozyConfig> COZY_BY_BLOCK = new java.util.concurrent.ConcurrentHashMap<>();
     private static final CozyConfig NO_COZY = new CozyConfig(0.0f, "");
+    private static final Map<UUID, CachedScan> SCANS = new HashMap<>();
 
     static void clearCozyCache() {
         COZY_BY_BLOCK.clear();
     }
 
-    private static CozyConfig cozyFor(net.minecraft.block.Block block) {
+    static void clearScanCache() {
+        SCANS.clear();
+    }
+
+    private static CozyConfig cozyFor(Block block) {
         CozyConfig cached = COZY_BY_BLOCK.get(block);
         if (cached != null) return cached == NO_COZY ? null : cached;
         ResourceLocation name = block.getRegistryName();
@@ -88,15 +84,34 @@ public class ComfortSystemHandler {
         COZY_BY_BLOCK.put(block, found == null ? NO_COZY : found);
         return found;
     }
+
     static final Map<String, Integer> CATEGORY_LIMITS = new HashMap<>();
     static final Set<String> ENTRY_REQUIRE_CATEGORIES = new HashSet<>();
+    static final Map<String, String> FAMILIES = new HashMap<>();
+    static final Set<String> NATURAL_BLOCKS = new HashSet<>();
     static long DAMAGE_COOLDOWN_TICKS = 600L;
     static long ATTACK_COOLDOWN_TICKS = 300L;
     static float PET_COMFORT_VALUE = 3.0f;
-    public static float THRESHOLD_HOMESTEAD_1 = 15.0f;
-    public static float THRESHOLD_HOMESTEAD_2 = 40.0f;
-    public static float THRESHOLD_HOMESTEAD_3 = 60.0f;
+    public static float THRESHOLD_HOMESTEAD_1 = 24.0f;
+    public static float THRESHOLD_HOMESTEAD_2 = 48.0f;
+    public static float THRESHOLD_HOMESTEAD_3 = 66.0f;
     static long PROMOTE_TICKS = 1200L;
+    static long PROMOTE_TICKS_2 = 1200L;
+    static long PROMOTE_TICKS_3 = 1200L;
+    static int SCAN_RADIUS = 12;
+    static int SCAN_DY = 2;
+    static float REPEAT_DECAY = 0.6f;
+    static final Map<String, Float> DECAY_OVERRIDES = new HashMap<>();
+    static int BAND_MIN_CATEGORIES = 0;
+    static final List<String> BAND_REQUIRE_2 = new ArrayList<>();
+    static final List<String> BAND_REQUIRE_3 = new ArrayList<>();
+    static String STRUCTURE_DECAY_KEY = "role_family";
+    static float NON_SHELL_WEIGHT = 1.0f;
+    static float UNLISTED_STRUCTURE_WEIGHT = 0.25f;
+    static int VIGOR_BASE_INTERVAL = 30;
+    static ComfortSettings.RestBonus REST_BONUS = new ComfortSettings.RestBonus();
+    static ComfortSettings.ClarityConfig CLARITY = new ComfortSettings.ClarityConfig();
+    static ComfortSettings.RestedConfig RESTED = new ComfortSettings.RestedConfig();
     static boolean PENALTIES_ENABLED = true;
     static boolean BONUSES_ENABLED = true;
     static ComfortSettings.TemperaturePenalty TEMP_PENALTY = ComfortSettings.TemperaturePenalty.defaults();
@@ -106,13 +121,7 @@ public class ComfortSystemHandler {
     static List<ComfortSettings.PotionModifier> POTION_PENALTIES = ComfortSettings.defaultPenaltyEffects();
     static List<ComfortSettings.PotionModifier> POTION_BONUSES = ComfortSettings.defaultBonusEffects();
 
-    /**
-     * Resolved potion ids, including negative results. The registry is fixed after load, and the
-     * penalty and bonus lists are walked on every comfort check, so an unregistered id would
-     * otherwise cost a registry miss every time.
-     */
     private static final Map<String, Potion> POTION_CACHE = new HashMap<>();
-
     private static Boolean thaumcraftLoaded;
 
     @SubscribeEvent
@@ -122,22 +131,82 @@ public class ComfortSystemHandler {
         if (player == null || player instanceof FakePlayer) return;
         World world = player.world;
         if (world == null || world.isRemote) return;
+        RestedBonuses.flush(player);
 
-        // Offset by entity id so a server full of players that logged in together does not run
-        // every scan on the same tick. Homestead lasts 45s against a 30s interval, so shifting
-        // the phase cannot open a gap.
-        if ((player.ticksExisted + player.getEntityId()) % CHECK_INTERVAL_TICKS != 0) return;
+        int phase = player.ticksExisted + player.getEntityId();
+        boolean scanTick = phase % CHECK_INTERVAL_TICKS == 0;
+        boolean stateTick = phase % STATE_INTERVAL_TICKS == 0;
+        if (!scanTick && !stateTick) return;
 
-        boolean currentlyResting = isComfortResting(player);
-        if (!currentlyResting) {
-            if (!isPlayerResting(player) || isEntryOnCooldown(player, world)) return;
+        CachedScan cache = SCANS.get(player.getUniqueID());
+        boolean stale = isStale(player, cache);
+        boolean home = isHome(player, cache);
+        if (scanTick || (stateTick && home && stale)) {
+            cache = scanFurnishings(player);
+            home = isHome(player, cache);
         }
+        if (!scanTick && !(stateTick && home)) return;
 
-        applyEvaluation(player, evaluate(player));
+        ComfortEval eval = finishEval(player, cache.scan);
+        int comfortEvent = ComfortFeedback.EVENT_NONE;
+        if (scanTick || isComfortResting(player)) {
+            comfortEvent = applyEvaluation(player, eval, scanTick);
+            eval = finishEval(player, cache.scan);
+        }
+        ComfortFeedback.send(player, eval, comfortEvent, false);
+    }
+
+    @SubscribeEvent
+    public void onFinishUsing(LivingEntityUseItemEvent.Finish event) {
+        if (!(event.getEntityLiving() instanceof EntityPlayer player)) return;
+        if (player.world == null || player.world.isRemote || player instanceof FakePlayer) return;
+        forceState(player, true);
+    }
+
+    @SubscribeEvent
+    public void onWake(PlayerWakeUpEvent event) {
+        EntityPlayer player = event.getEntityPlayer();
+        if (player == null || player.world == null || player.world.isRemote || player instanceof FakePlayer) return;
+        forceState(player, true);
+    }
+
+    @SubscribeEvent
+    public void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (event.player == null) return;
+        UUID id = event.player.getUniqueID();
+        SCANS.remove(id);
+        ComfortFeedback.clearPlayer(id);
+    }
+
+    @SubscribeEvent
+    public void onDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
+        if (event.player == null) return;
+        SCANS.remove(event.player.getUniqueID());
+    }
+
+    @SubscribeEvent
+    public void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
+        if (!(event.player instanceof EntityPlayerMP player)) return;
+        if (player.world == null || player.world.isRemote) return;
+        ComfortFeedback.sendLogin(player);
+    }
+
+    @SubscribeEvent
+    public void onPlace(BlockEvent.PlaceEvent event) {
+        if (event.getWorld() == null || event.getWorld().isRemote) return;
+        EntityPlayer player = event.getPlayer();
+        if (!(player instanceof EntityPlayerMP mp) || player instanceof FakePlayer) return;
+        CachedScan cache = SCANS.get(player.getUniqueID());
+        if (!isHome(player, cache)) return;
+        IBlockState state = event.getPlacedBlock();
+        ResourceLocation name = state.getBlock().getRegistryName();
+        if (name == null) return;
+        boolean adds = cache != null && wouldAddScore(cache.scan, name.toString());
+        ComfortFeedback.sendPlaced(mp, event.getPos(), adds);
     }
 
     /**
-     * Apply Cold Resistance potion effect while standing or submerged in Biomes O' Plenty Hot Springs Water.
+     * Apply Cold Resistance while standing or submerged in Biomes O' Plenty hot spring water.
      */
     @SubscribeEvent
     public void onHotSpringsWaterTick(TickEvent.PlayerTickEvent event) {
@@ -163,9 +232,14 @@ public class ComfortSystemHandler {
     public void onPlayerHurt(LivingHurtEvent event) {
         if (!(event.getEntityLiving() instanceof EntityPlayer player)) return;
         if (player.world == null || player.world.isRemote) return;
-        setComfortResting(player, false);
-        if (event.getAmount() > 0.0f) {
-            player.getEntityData().setLong(HURT_AT_TAG, player.world.getTotalWorldTime());
+        if (event.getAmount() <= 0.0f) return;
+        boolean wasResting = isComfortResting(player);
+        if (wasResting) {
+            endResting(player);
+        }
+        player.getEntityData().setLong(HURT_AT_TAG, player.world.getTotalWorldTime());
+        if (wasResting) {
+            ComfortFeedback.send(player, evalNow(player), ComfortFeedback.EVENT_HURT, true);
         }
     }
 
@@ -173,8 +247,48 @@ public class ComfortSystemHandler {
     public void onPlayerAttack(AttackEntityEvent event) {
         EntityPlayer player = event.getEntityPlayer();
         if (player == null || player.world == null || player.world.isRemote) return;
-        setComfortResting(player, false);
+        boolean wasResting = isComfortResting(player);
+        if (wasResting) {
+            endResting(player);
+        }
         player.getEntityData().setLong(ATTACK_AT_TAG, player.world.getTotalWorldTime());
+        if (wasResting) {
+            ComfortFeedback.send(player, evalNow(player), ComfortFeedback.EVENT_ATTACK, true);
+        }
+    }
+
+    private void forceState(EntityPlayer player, boolean allowEntry) {
+        CachedScan cache = SCANS.get(player.getUniqueID());
+        if (isStale(player, cache)) {
+            cache = scanFurnishings(player);
+        }
+        ComfortEval eval = finishEval(player, cache.scan);
+        int comfortEvent = ComfortFeedback.EVENT_NONE;
+        if (allowEntry || isComfortResting(player)) {
+            comfortEvent = applyEvaluation(player, eval, false);
+            eval = finishEval(player, cache.scan);
+        }
+        ComfortFeedback.send(player, eval, comfortEvent, true);
+    }
+
+    private static boolean isStale(EntityPlayer player, CachedScan cache) {
+        if (cache == null || player.world == null) return true;
+        if (cache.dimension != player.world.provider.getDimension()) return true;
+        return player.world.getTotalWorldTime() - cache.time > SCAN_STALE_TICKS;
+    }
+
+    private static boolean isHome(EntityPlayer player, CachedScan cache) {
+        if (isComfortResting(player)) return true;
+        if (player.isPotionActive(PotionHomestead.INSTANCE)) return true;
+        return cache != null && cache.scan.hasEntryFurniture;
+    }
+
+    private static ComfortEval evalNow(EntityPlayer player) {
+        CachedScan cache = SCANS.get(player.getUniqueID());
+        if (cache != null && !isStale(player, cache)) {
+            return finishEval(player, cache.scan);
+        }
+        return evaluate(player);
     }
 
     private static boolean isEntryOnCooldown(EntityPlayer player, World world) {
@@ -197,95 +311,51 @@ public class ComfortSystemHandler {
         return left > 0L ? left : 0L;
     }
 
-    /**
-     * Full 25×5×25 scan plus bonuses/penalties. Used by the 30s tick and {@code /aqcomfort}.
-     */
+    /** Fresh scan, then bonuses and penalties. Used by {@code /aqcomfort} and the sleep credit. */
     static ComfortEval evaluate(EntityPlayer player) {
-        World world = player.world;
-        CozyScan cozy = calculateCozyScan(player);
-        if (world == null) {
-            return new ComfortEval(
-                    false, false, cozy.meetsEntryFurniture(), 0L, 0L,
-                    cozy.score, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-                    Math.max(0.0f, cozy.score), scoreBand(Math.max(0.0f, cozy.score)), 0, -1L,
-                    cozy.cappedByCategory, Collections.emptyList(), Collections.emptyList());
-        }
-        List<ComfortSettings.PotionModifier> activeBonuses = activeModifiers(player, POTION_BONUSES, BONUSES_ENABLED);
-        List<ComfortSettings.PotionModifier> activePenaltyEffects = activeModifiers(player, POTION_PENALTIES, PENALTIES_ENABLED);
-        float bonusTotal = 0.0f;
-        for (ComfortSettings.PotionModifier m : activeBonuses) {
-            bonusTotal += m.amount;
-        }
-        float temp = PENALTIES_ENABLED ? temperaturePenalty(player) : 0.0f;
-        float thirst = PENALTIES_ENABLED ? thirstPenalty(player) : 0.0f;
-        float hunger = PENALTIES_ENABLED ? hungerPenalty(player) : 0.0f;
-        float health = PENALTIES_ENABLED ? healthPenalty(player) : 0.0f;
-        float potionPenalties = 0.0f;
-        for (ComfortSettings.PotionModifier m : activePenaltyEffects) {
-            potionPenalties += m.amount;
-        }
-        float penaltyTotal = temp + thirst + hunger + health + potionPenalties;
-        float effective = Math.max(0.0f, cozy.score + bonusTotal - penaltyTotal);
-        boolean resting = isComfortResting(player);
-        int granted = resting ? getGrantedBand(player) : 0;
-        long promoteIn = -1L;
-        int scoreBand = scoreBand(effective);
-        if (resting && world != null && scoreBand > granted && granted >= 1 && granted < 3) {
-            promoteIn = Math.max(0L, PROMOTE_TICKS - (world.getTotalWorldTime() - getBandSince(player)));
-        }
-        return new ComfortEval(
-                resting,
-                isPlayerResting(player),
-                cozy.meetsEntryFurniture(),
-                remainingHurtTicks(player, world),
-                remainingAttackTicks(player, world),
-                cozy.score,
-                bonusTotal,
-                penaltyTotal,
-                temp,
-                thirst,
-                hunger,
-                health,
-                potionPenalties,
-                effective,
-                scoreBand,
-                granted,
-                promoteIn,
-                cozy.cappedByCategory,
-                activeBonuses,
-                activePenaltyEffects);
+        return finishEval(player, scanFurnishings(player).scan);
     }
 
     /**
-     * Same ladder rules as the interval tick. Does nothing if the player cannot enter and is not already resting.
+     * Same ladder as the tick. {@code advanceWarp} is true only on the 30s furnishing scan.
+     * @return a {@link ComfortFeedback} event code
      */
-    static void applyEvaluation(EntityPlayer player, ComfortEval eval) {
+    static int applyEvaluation(EntityPlayer player, ComfortEval eval, boolean advanceWarp) {
         World world = player.world;
-        if (world == null) return;
+        if (world == null) return ComfortFeedback.EVENT_NONE;
 
         if (!eval.currentlyResting) {
-            if (!eval.restPose || eval.hurtRemain > 0L || eval.attackRemain > 0L) return;
-            if (!eval.furniture || eval.scoreBand <= 0) return;
+            if (!eval.restPose || eval.hurtRemain > 0L || eval.attackRemain > 0L) return ComfortFeedback.EVENT_NONE;
+            if (!eval.furniture || eval.scoreBand <= 0) return ComfortFeedback.EVENT_NONE;
             startLadder(player, world, 1);
             setComfortResting(player, true);
-            applyComfortBenefits(player, 1);
-            return;
+            applyComfortBenefits(player, 1, advanceWarp);
+            return ComfortFeedback.EVENT_ENTERED;
         }
 
         if (!eval.furniture || eval.scoreBand <= 0) {
-            setComfortResting(player, false);
-            return;
+            endResting(player);
+            return eval.furniture ? ComfortFeedback.EVENT_DEMOTED : ComfortFeedback.EVENT_LOST_FURNITURE;
         }
 
         int granted = eval.grantedBand < 1 ? 1 : eval.grantedBand;
+        int comfortEvent = ComfortFeedback.EVENT_NONE;
         if (eval.scoreBand < granted) {
             granted = eval.scoreBand;
             stampLadder(player, world, granted);
-        } else if (eval.scoreBand > granted && world.getTotalWorldTime() - getBandSince(player) >= PROMOTE_TICKS) {
+            comfortEvent = ComfortFeedback.EVENT_DEMOTED;
+        } else if (eval.scoreBand > granted && world.getTotalWorldTime() - getBandSince(player) >= promoteTicksFor(granted)) {
             granted = Math.min(granted + 1, eval.scoreBand);
             stampLadder(player, world, granted);
+            comfortEvent = ComfortFeedback.EVENT_PROMOTED;
         }
-        applyComfortBenefits(player, granted);
+        applyComfortBenefits(player, granted, advanceWarp);
+        return comfortEvent;
+    }
+
+    private static long promoteTicksFor(int grantedBand) {
+        if (grantedBand >= 2) return PROMOTE_TICKS_3 > 0L ? PROMOTE_TICKS_3 : PROMOTE_TICKS;
+        return PROMOTE_TICKS_2 > 0L ? PROMOTE_TICKS_2 : PROMOTE_TICKS;
     }
 
     private static List<ComfortSettings.PotionModifier> activeModifiers(
@@ -305,7 +375,6 @@ public class ComfortSystemHandler {
         if (player.isPlayerSleeping()) return true;
         if (player.isRiding()) return true;
         if (player.isSneaking()) return true;
-
         double hSpeedSq = player.motionX * player.motionX + player.motionZ * player.motionZ;
         return hSpeedSq < 0.001D;
     }
@@ -315,13 +384,16 @@ public class ComfortSystemHandler {
     }
 
     private static void setComfortResting(EntityPlayer player, boolean resting) {
+        player.getEntityData().setBoolean(RESTING_TAG, resting);
+    }
+
+    /** Ends the at-home state. Rested keeps counting down. Clarity is removed. */
+    private static void endResting(EntityPlayer player) {
         NBTTagCompound data = player.getEntityData();
-        data.setBoolean(RESTING_TAG, resting);
-        if (!resting) {
-            player.removePotionEffect(PotionHomestead.INSTANCE);
-            data.removeTag(GRANTED_BAND_TAG);
-            data.removeTag(BAND_SINCE_TAG);
-        }
+        data.setBoolean(RESTING_TAG, false);
+        data.removeTag(GRANTED_BAND_TAG);
+        data.removeTag(BAND_SINCE_TAG);
+        player.removePotionEffect(PotionClarity.INSTANCE);
     }
 
     private static void startLadder(EntityPlayer player, World world, int band) {
@@ -352,69 +424,180 @@ public class ComfortSystemHandler {
         return 3;
     }
 
-    /**
-     * Cozy blocks + pets. Furniture gate is whether any required category appeared in the scan.
-     */
+    private static int capBand(int band, CozyScan cozy) {
+        if (BAND_MIN_CATEGORIES > 0 && cozy.positiveCategories < BAND_MIN_CATEGORIES) {
+            band = 0;
+        }
+        if (band >= 3 && !hasCategories(cozy, BAND_REQUIRE_3)) band = 2;
+        if (band >= 2 && !hasCategories(cozy, BAND_REQUIRE_2)) band = 1;
+        return band;
+    }
+
+    private static boolean hasCategories(CozyScan cozy, List<String> required) {
+        if (required == null || required.isEmpty()) return true;
+        for (String category : required) {
+            if (category == null || category.isEmpty()) continue;
+            if (cozy.seen.getOrDefault(category, 0) <= 0) return false;
+        }
+        return true;
+    }
+
+    private static CachedScan scanFurnishings(EntityPlayer player) {
+        CozyScan scan = calculateCozyScan(player);
+        World world = player.world;
+        CachedScan cached = new CachedScan(
+                scan,
+                world == null ? 0L : world.getTotalWorldTime(),
+                world == null ? 0 : world.provider.getDimension());
+        SCANS.put(player.getUniqueID(), cached);
+        return cached;
+    }
+
     private static CozyScan calculateCozyScan(EntityPlayer player) {
         World world = player.world;
         if (world == null) return CozyScan.EMPTY;
 
         BlockPos center = player.getPosition();
-        Map<String, List<Float>> categoryScores = new HashMap<>();
+        Map<String, List<Piece>> pieces = new HashMap<>();
         boolean hasEntryFurniture = ENTRY_REQUIRE_CATEGORIES.isEmpty();
-
-        int rX = (int) DETECT_RADIUS;
-        int rY = 2;
-        int rZ = (int) DETECT_RADIUS;
-
-        // One cursor for the whole 25x5x25 scan instead of 3,125 throwaway positions.
+        Map<Long, Byte> shell = ShellSampler.sample(player);
+        int radius = Math.max(1, Math.min(16, SCAN_RADIUS));
+        int dy = Math.max(0, Math.min(4, SCAN_DY));
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
 
-        for (int dx = -rX; dx <= rX; dx++) {
-            for (int dz = -rZ; dz <= rZ; dz++) {
-                for (int dy = -rY; dy <= rY; dy++) {
-                    cursor.setPos(center.getX() + dx, center.getY() + dy, center.getZ() + dz);
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                for (int y = -dy; y <= dy; y++) {
+                    cursor.setPos(center.getX() + dx, center.getY() + y, center.getZ() + dz);
                     if (!world.isBlockLoaded(cursor)) continue;
-
                     IBlockState state = world.getBlockState(cursor);
-                    CozyConfig config = cozyFor(state.getBlock());
+                    Material material = state.getMaterial();
+                    if (material == Material.AIR || material.isLiquid()) continue;
+                    Block block = state.getBlock();
+                    ResourceLocation registryName = block.getRegistryName();
+                    if (registryName == null) continue;
+                    String id = registryName.toString();
+                    CozyConfig config = cozyFor(block);
+                    float weight;
+                    String category;
                     if (config != null) {
-                        categoryScores.computeIfAbsent(config.category, k -> new ArrayList<>()).add(config.weight);
-                        if (!hasEntryFurniture && ENTRY_REQUIRE_CATEGORIES.contains(config.category)) {
-                            hasEntryFurniture = true;
+                        weight = config.weight;
+                        category = config.category;
+                    } else if (isNatural(id) || UNLISTED_STRUCTURE_WEIGHT <= 0.0f) {
+                        continue;
+                    } else {
+                        weight = UNLISTED_STRUCTURE_WEIGHT;
+                        category = "structure";
+                    }
+                    byte role = 0;
+                    if ("structure".equals(category)) {
+                        Byte tagged = shell.get(cursor.toLong());
+                        role = tagged == null ? 0 : tagged.byteValue();
+                        if (role == 0) {
+                            weight *= NON_SHELL_WEIGHT;
                         }
+                    }
+                    if (weight == 0.0f) continue;
+                    pieces.computeIfAbsent(category, k -> new ArrayList<>())
+                            .add(new Piece(id, ComfortFamilies.family(id), weight, role));
+                    if (!hasEntryFurniture && ENTRY_REQUIRE_CATEGORIES.contains(category)) {
+                        hasEntryFurniture = true;
                     }
                 }
             }
         }
 
         AxisAlignedBB searchBox = petSearchBox(center);
-        List<EntityTameable> nearbyPets = world.getEntitiesWithinAABB(EntityTameable.class, searchBox);
-        for (EntityTameable pet : nearbyPets) {
+        for (EntityTameable pet : world.getEntitiesWithinAABB(EntityTameable.class, searchBox)) {
             if (pet.isTamed() && pet.getOwnerId() != null && pet.getOwnerId().equals(player.getUniqueID())) {
-                categoryScores.computeIfAbsent("pets", k -> new ArrayList<>()).add(PET_COMFORT_VALUE);
+                pieces.computeIfAbsent("pets", k -> new ArrayList<>())
+                        .add(new Piece("pet", "pet", PET_COMFORT_VALUE, (byte) 0));
             }
         }
 
-        float totalScore = 0.0f;
+        float total = 0.0f;
         Map<String, Float> capped = new LinkedHashMap<>();
-        for (Map.Entry<String, List<Float>> entry : categoryScores.entrySet()) {
+        Map<String, Integer> seen = new LinkedHashMap<>();
+        Map<String, Integer> counted = new LinkedHashMap<>();
+        Map<String, Integer> familyCounts = new HashMap<>();
+        Map<String, Integer> roles = new LinkedHashMap<>();
+        List<String> samples = new ArrayList<>();
+        int positive = 0;
+        boolean roleFamily = "role_family".equalsIgnoreCase(STRUCTURE_DECAY_KEY);
+
+        for (Map.Entry<String, List<Piece>> entry : pieces.entrySet()) {
             String category = entry.getKey();
-            List<Float> weights = entry.getValue();
-            weights.sort(Collections.reverseOrder());
-            int limit = CATEGORY_LIMITS.getOrDefault(category, 1);
-            int toTake = Math.min(weights.size(), limit);
-            float categoryTotal = 0.0f;
-            for (int i = 0; i < toTake; i++) {
-                categoryTotal += weights.get(i);
+            List<Piece> list = entry.getValue();
+            seen.put(category, list.size());
+            float decay = DECAY_OVERRIDES.getOrDefault(category, REPEAT_DECAY);
+            if (decay < 0.0f) decay = 0.0f;
+            if (decay > 1.0f) decay = 1.0f;
+            Map<String, List<Piece>> groups = new HashMap<>();
+            for (Piece piece : list) {
+                String key = ("structure".equals(category) && roleFamily)
+                        ? ShellSampler.roleName(piece.role) + "|" + piece.family
+                        : piece.family;
+                groups.computeIfAbsent(key, k -> new ArrayList<>()).add(piece);
+                familyCounts.merge(category + "|" + piece.family, 1, Integer::sum);
             }
+            List<Scored> scored = new ArrayList<>();
+            for (List<Piece> group : groups.values()) {
+                group.sort(Comparator.comparingDouble((Piece piece) -> piece.weight).reversed());
+                for (int i = 0; i < group.size(); i++) {
+                    Piece piece = group.get(i);
+                    float value = piece.weight * (float) Math.pow(decay, i);
+                    scored.add(new Scored(piece, value));
+                }
+            }
+            scored.sort(Comparator.comparingDouble((Scored item) -> item.value).reversed());
+            int limit = CATEGORY_LIMITS.getOrDefault(category, 1);
+            int take = Math.min(scored.size(), Math.max(0, limit));
+            float categoryTotal = 0.0f;
+            for (int i = 0; i < take; i++) {
+                Scored item = scored.get(i);
+                categoryTotal += item.value;
+                if ("structure".equals(category)) {
+                    String roleName = ShellSampler.roleName(item.piece.role);
+                    roles.merge(roleName, 1, Integer::sum);
+                    if (samples.size() < 6) {
+                        samples.add(item.piece.id + " " + roleName);
+                    }
+                }
+            }
+            counted.put(category, take);
             capped.put(category, categoryTotal);
-            totalScore += categoryTotal;
+            total += categoryTotal;
+            if (categoryTotal > 0.0f) positive++;
         }
-        return new CozyScan(totalScore, hasEntryFurniture, capped);
+        return new CozyScan(total, hasEntryFurniture, capped, seen, counted, familyCounts, roles, samples, positive);
     }
 
-    /** The block-centred box the old {@code Reflect.grow(BlockPos, double)} built: one block plus radius. */
+    private static boolean isNatural(String id) {
+        if (NATURAL_BLOCKS.contains(id)) return true;
+        String path = id;
+        int colon = id.indexOf(':');
+        if (colon >= 0) path = id.substring(colon + 1);
+        return path.contains("_ore") || path.startsWith("ore_");
+    }
+
+    private static boolean wouldAddScore(CozyScan scan, String id) {
+        CozyConfig config = COZY_BLOCKS.get(id);
+        String category;
+        if (config != null) {
+            category = config.category;
+        } else if (isNatural(id) || UNLISTED_STRUCTURE_WEIGHT <= 0.0f) {
+            return false;
+        } else {
+            category = "structure";
+        }
+        int limit = CATEGORY_LIMITS.getOrDefault(category, 1);
+        int have = scan.counted.getOrDefault(category, 0);
+        if (have >= limit) return false;
+        float decay = DECAY_OVERRIDES.getOrDefault(category, REPEAT_DECAY);
+        int seenFamily = scan.familyCounts.getOrDefault(category + "|" + ComfortFamilies.family(id), 0);
+        return Math.pow(Math.max(0.0f, decay), seenFamily) >= 0.2;
+    }
+
     private static AxisAlignedBB petSearchBox(BlockPos center) {
         int x = center.getX();
         int y = center.getY();
@@ -424,44 +607,123 @@ public class ComfortSystemHandler {
                 x + 1 + PET_RADIUS, y + 1 + PET_RADIUS, z + 1 + PET_RADIUS);
     }
 
-    private static float calculateBonuses(EntityPlayer player) {
-        if (!BONUSES_ENABLED) return 0.0f;
-        return sumPotionModifiers(player, POTION_BONUSES);
+    private static ComfortEval finishEval(EntityPlayer player, CozyScan cozy) {
+        World world = player.world;
+        float restBonus = world == null ? 0.0f : restBonus(player, world);
+        if (world == null) {
+            return new ComfortEval(
+                    false, false, cozy.hasEntryFurniture, 0L, 0L,
+                    cozy.score, restBonus, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                    Math.max(0.0f, cozy.score + restBonus), scoreBand(Math.max(0.0f, cozy.score + restBonus)),
+                    0, -1L, false, cozy, Collections.emptyList(), Collections.emptyList(), 0, 0.0f, 0, 0, 0);
+        }
+        List<ComfortSettings.PotionModifier> activeBonuses = activeModifiers(player, POTION_BONUSES, BONUSES_ENABLED);
+        List<ComfortSettings.PotionModifier> activePenaltyEffects = activeModifiers(player, POTION_PENALTIES, PENALTIES_ENABLED);
+        float bonusTotal = restBonus;
+        for (ComfortSettings.PotionModifier modifier : activeBonuses) {
+            bonusTotal += modifier.amount;
+        }
+        boolean heat = false;
+        float temp = 0.0f;
+        if (PENALTIES_ENABLED) {
+            float[] temperature = temperaturePenalty(player);
+            temp = temperature[0];
+            heat = temperature[1] > 0.0f;
+        }
+        float thirst = PENALTIES_ENABLED ? thirstPenalty(player) : 0.0f;
+        float hunger = PENALTIES_ENABLED ? hungerPenalty(player) : 0.0f;
+        float health = PENALTIES_ENABLED ? healthPenalty(player) : 0.0f;
+        float potionPenalties = 0.0f;
+        for (ComfortSettings.PotionModifier modifier : activePenaltyEffects) {
+            potionPenalties += modifier.amount;
+        }
+        float penaltyTotal = temp + thirst + hunger + health + potionPenalties;
+        float effective = Math.max(0.0f, cozy.score + bonusTotal - penaltyTotal);
+        boolean resting = isComfortResting(player);
+        int granted = resting ? getGrantedBand(player) : 0;
+        int band = capBand(scoreBand(effective), cozy);
+        long promoteIn = -1L;
+        if (resting && band > granted && granted >= 1 && granted < 3) {
+            promoteIn = Math.max(0L, promoteTicksFor(granted) - (world.getTotalWorldTime() - getBandSince(player)));
+        }
+        int tier = RestedBonuses.restedTier(player);
+        float insight = tier == 1 ? RESTED.insight_1 : tier == 2 ? RESTED.insight_2 : tier >= 3 ? RESTED.insight_3 : 0.0f;
+        int vigor = tier == 1 ? RESTED.vigor_1 : tier == 2 ? RESTED.vigor_2 : tier >= 3 ? RESTED.vigor_3 : VIGOR_BASE_INTERVAL;
+        int hearts = tier <= 0 ? 0 : 2 * tier;
+        int feathers = tier == 1 ? RESTED.stamina_1 : tier == 2 ? RESTED.stamina_2 : tier >= 3 ? RESTED.stamina_3 : 0;
+        return new ComfortEval(
+                resting,
+                isPlayerResting(player),
+                cozy.hasEntryFurniture,
+                remainingHurtTicks(player, world),
+                remainingAttackTicks(player, world),
+                cozy.score,
+                restBonus,
+                bonusTotal,
+                penaltyTotal,
+                temp,
+                thirst,
+                hunger,
+                health,
+                potionPenalties,
+                effective,
+                band,
+                granted,
+                promoteIn,
+                heat,
+                cozy,
+                activeBonuses,
+                activePenaltyEffects,
+                ComfortFeedback.restedTicks(player),
+                insight,
+                vigor,
+                hearts,
+                feathers);
     }
 
-    private static float calculatePenalties(EntityPlayer player) {
-        if (!PENALTIES_ENABLED) return 0.0f;
-        return temperaturePenalty(player)
-            + thirstPenalty(player)
-            + hungerPenalty(player)
-            + healthPenalty(player)
-            + sumPotionModifiers(player, POTION_PENALTIES);
+    private static float restBonus(EntityPlayer player, World world) {
+        if (REST_BONUS == null || !REST_BONUS.enabled) return 0.0f;
+        boolean lying = player.isPlayerSleeping();
+        boolean sitting = isSeat(player);
+        NBTTagCompound data = player.getEntityData();
+        if (lying || sitting) {
+            data.setLong(REST_POSE_AT, world.getTotalWorldTime());
+            data.setFloat(REST_POSE_BONUS, lying ? REST_BONUS.lying : REST_BONUS.sitting);
+        }
+        long at = data.getLong(REST_POSE_AT);
+        if (at == 0L) return 0.0f;
+        int grace = Math.max(0, REST_BONUS.grace_ticks);
+        if (world.getTotalWorldTime() - at > grace) return 0.0f;
+        return data.getFloat(REST_POSE_BONUS);
     }
 
-    private static float sumPotionModifiers(EntityPlayer player, List<ComfortSettings.PotionModifier> modifiers) {
-        if (modifiers == null) return 0.0f;
-        float total = 0.0f;
-        for (ComfortSettings.PotionModifier modifier : modifiers) {
-            if (modifier == null || !modifier.enabled) continue;
-            if (hasPotion(player, modifier.potion)) {
-                total += modifier.amount;
+    private static boolean isSeat(EntityPlayer player) {
+        Entity ridden = player.getRidingEntity();
+        if (ridden == null) return false;
+        if (ridden instanceof EntityLivingBase || ridden instanceof EntityBoat || ridden instanceof EntityMinecart) {
+            return false;
+        }
+        ResourceLocation key = EntityList.getKey(ridden);
+        if (key != null && REST_BONUS.ignore_vehicles != null) {
+            String id = key.toString();
+            for (String ignored : REST_BONUS.ignore_vehicles) {
+                if (id.equals(ignored)) return false;
             }
         }
-        return total;
+        return true;
     }
 
-    private static float temperaturePenalty(EntityPlayer player) {
-        if (TEMP_PENALTY == null || !TEMP_PENALTY.enabled) return 0.0f;
+    private static float[] temperaturePenalty(EntityPlayer player) {
+        if (TEMP_PENALTY == null || !TEMP_PENALTY.enabled) return new float[] {0.0f, 0.0f};
         Integer temp = SimpleDifficultyHelper.temperatureOrNull(player);
-        if (temp == null) return 0.0f;
+        if (temp == null) return new float[] {0.0f, 0.0f};
         int t = temp;
-        if (t >= TEMP_PENALTY.comfort_min && t <= TEMP_PENALTY.comfort_max) return 0.0f;
-        if (t > TEMP_PENALTY.comfort_max && hasAnyPotion(player, TEMP_PENALTY.heat_ignore_potions)) return 0.0f;
-        if (t < TEMP_PENALTY.comfort_min && hasAnyPotion(player, TEMP_PENALTY.cold_ignore_potions)) return 0.0f;
-        int outside = t < TEMP_PENALTY.comfort_min
-            ? TEMP_PENALTY.comfort_min - t
-            : t - TEMP_PENALTY.comfort_max;
-        return outside * TEMP_PENALTY.per_point_outside;
+        if (t >= TEMP_PENALTY.comfort_min && t <= TEMP_PENALTY.comfort_max) return new float[] {0.0f, 0.0f};
+        boolean heat = t > TEMP_PENALTY.comfort_max;
+        if (heat && hasAnyPotion(player, TEMP_PENALTY.heat_ignore_potions)) return new float[] {0.0f, 0.0f};
+        if (!heat && hasAnyPotion(player, TEMP_PENALTY.cold_ignore_potions)) return new float[] {0.0f, 0.0f};
+        int outside = heat ? t - TEMP_PENALTY.comfort_max : TEMP_PENALTY.comfort_min - t;
+        return new float[] {outside * TEMP_PENALTY.per_point_outside, heat ? 1.0f : 0.0f};
     }
 
     private static float thirstPenalty(EntityPlayer player) {
@@ -480,9 +742,15 @@ public class ComfortSystemHandler {
 
     private static float healthPenalty(EntityPlayer player) {
         if (HEALTH_PENALTY == null || !HEALTH_PENALTY.enabled) return 0.0f;
-        float max = player.getMaxHealth();
-        if (max <= 0.0f) return 0.0f;
-        float missingFraction = 1.0f - (player.getHealth() / max);
+        float base = player.getMaxHealth();
+        PotionEffect rested = player.getActivePotionEffect(PotionHomestead.INSTANCE);
+        if (rested != null) {
+            base -= 2.0f * (rested.getAmplifier() + 1);
+        }
+        if (base < 1.0f) base = 1.0f;
+        float ratio = player.getHealth() / base;
+        if (ratio > 1.0f) ratio = 1.0f;
+        float missingFraction = 1.0f - ratio;
         if (missingFraction <= 0.0f) return 0.0f;
         return missingFraction * HEALTH_PENALTY.per_missing_fraction;
     }
@@ -500,7 +768,6 @@ public class ComfortSystemHandler {
         return potion != null && player.isPotionActive(potion);
     }
 
-    /** Server-thread only; see the class javadoc. */
     private static Potion potionById(String id) {
         if (id == null || id.isEmpty()) return null;
         Potion cached = POTION_CACHE.get(id);
@@ -531,77 +798,94 @@ public class ComfortSystemHandler {
         player.removePotionEffect(potion);
     }
 
-    /**
-     * Applies benefits for the granted Homestead band (1–3), not the raw score band.
-     */
-    private static void applyComfortBenefits(EntityPlayer player, int grantedBand) {
-        int progressToAdd;
-        int homesteadAmplifier;
-
-        if (grantedBand == 1) {
-            progressToAdd = 2;
-            homesteadAmplifier = 0;
-        } else if (grantedBand == 2) {
-            progressToAdd = 3;
-            homesteadAmplifier = 1;
-        } else if (grantedBand >= 3) {
-            progressToAdd = 6;
-            homesteadAmplifier = 2;
-        } else {
-            return;
-        }
-
-        player.addPotionEffect(new PotionEffect(PotionHomestead.INSTANCE, HOMESTEAD_DURATION_TICKS, homesteadAmplifier, true, false));
-
-        if (grantedBand == 1) {
-            applyNamedPotion(player, LEARNING_POTION, FOUR_MINUTES_TICKS, 0);
-        } else {
-            removeNamedPotion(player, LEARNING_POTION);
-            int xpAmp = grantedBand >= 3 ? 1 : 0;
-            applyNamedPotion(player, XP_BOOST_POTION, EIGHT_MINUTES_TICKS, xpAmp);
-        }
-
-        if (grantedBand == 2) {
-            applyNamedPotion(player, "elenaidodge2:endurance", EIGHT_MINUTES_TICKS, 0);
-            applyNamedPotion(player, "elenaidodge2:replenishment", FOUR_MINUTES_TICKS, 0);
-        } else if (grantedBand >= 3) {
-            applyNamedPotion(player, "elenaidodge2:endurance", EIGHT_MINUTES_TICKS, 1);
-            applyNamedPotion(player, "elenaidodge2:replenishment", EIGHT_MINUTES_TICKS, 0);
-        }
-
-        if (progressToAdd > 0 && thaumcraftLoaded()) {
-            NBTTagCompound data = player.getEntityData();
-            NBTTagCompound persisted;
-            if (!data.hasKey(EntityPlayer.PERSISTED_NBT_TAG)) {
-                persisted = new NBTTagCompound();
-                data.setTag(EntityPlayer.PERSISTED_NBT_TAG, persisted);
-            } else {
-                persisted = data.getCompoundTag(EntityPlayer.PERSISTED_NBT_TAG);
+    private static void applyComfortBenefits(EntityPlayer player, int grantedBand, boolean advanceWarp) {
+        if (grantedBand < 1) return;
+        int amplifier = Math.min(2, grantedBand - 1);
+        int duration = grantedBand >= 3 ? RESTED.duration_3 : grantedBand == 2 ? RESTED.duration_2 : RESTED.duration_1;
+        if (duration < 1) duration = 1;
+        PotionEffect current = player.getActivePotionEffect(PotionHomestead.INSTANCE);
+        boolean replace = current != null && current.getAmplifier() != amplifier;
+        RestedBonuses.beginReplace();
+        try {
+            if (replace) {
+                player.removePotionEffect(PotionHomestead.INSTANCE);
             }
-            int stored = persisted.getInteger(WARP_CLEANSE_TAG);
-            // Pre-1.8 0–100 bars would fire every scan at threshold 12.
-            if (stored > WARP_CLEANSE_THRESHOLD) {
-                stored = 0;
-            }
-            int currentProgress = stored + progressToAdd;
-            if (currentProgress >= WARP_CLEANSE_THRESHOLD) {
-                int currentWarp = ThaumcraftHelper.getWarp(player, 1);
-                if (currentWarp > 0) {
-                    ThaumcraftHelper.reduceWarp(player, 1, 1);
-                    ThaumcraftHelper.syncWarp(player);
-                }
-                currentProgress = 0;
-            }
-            persisted.setInteger(WARP_CLEANSE_TAG, currentProgress);
+            player.addPotionEffect(new PotionEffect(PotionHomestead.INSTANCE, duration, amplifier, true, false));
+        } finally {
+            RestedBonuses.endReplace();
+        }
+        RestedBonuses.reconcile(player);
+        applyTierPotions(player, grantedBand);
+        boolean clarity = applyClarity(player, amplifier);
+        if (advanceWarp && clarity) {
+            advanceWarp(player, grantedBand);
         }
     }
 
+    private static void applyTierPotions(EntityPlayer player, int grantedBand) {
+        List<ComfortSettings.TierPotion> active = potionsFor(grantedBand);
+        for (ComfortSettings.TierPotion potion : allTierPotions()) {
+            if (potion != null && potion.learning && grantedBand >= 2) {
+                removeNamedPotion(player, potion.potion);
+            }
+        }
+        for (ComfortSettings.TierPotion potion : active) {
+            if (potion == null || potion.potion == null || potion.potion.isEmpty()) continue;
+            if (potion.learning && grantedBand >= 2) continue;
+            applyNamedPotion(player, potion.potion, Math.max(1, potion.duration), Math.max(0, potion.amplifier));
+        }
+    }
+
+    private static List<ComfortSettings.TierPotion> potionsFor(int band) {
+        if (band >= 3) return RESTED.potions_3 == null ? Collections.emptyList() : RESTED.potions_3;
+        if (band == 2) return RESTED.potions_2 == null ? Collections.emptyList() : RESTED.potions_2;
+        return RESTED.potions_1 == null ? Collections.emptyList() : RESTED.potions_1;
+    }
+
+    private static List<ComfortSettings.TierPotion> allTierPotions() {
+        List<ComfortSettings.TierPotion> all = new ArrayList<>();
+        if (RESTED.potions_1 != null) all.addAll(RESTED.potions_1);
+        if (RESTED.potions_2 != null) all.addAll(RESTED.potions_2);
+        if (RESTED.potions_3 != null) all.addAll(RESTED.potions_3);
+        return all;
+    }
+
+    private static boolean applyClarity(EntityPlayer player, int amplifier) {
+        if (!isComfortResting(player) || !thaumcraftLoaded()) {
+            player.removePotionEffect(PotionClarity.INSTANCE);
+            return false;
+        }
+        if (CLARITY.require_temp_warp && ThaumcraftHelper.getWarp(player, 1) <= 0) {
+            player.removePotionEffect(PotionClarity.INSTANCE);
+            return false;
+        }
+        int duration = CLARITY.duration_ticks > 0 ? CLARITY.duration_ticks : 900;
+        player.addPotionEffect(new PotionEffect(PotionClarity.INSTANCE, duration, amplifier, true, false));
+        return true;
+    }
+
+    private static void advanceWarp(EntityPlayer player, int grantedBand) {
+        int progressToAdd = grantedBand >= 3 ? 6 : grantedBand == 2 ? 3 : 2;
+        NBTTagCompound persisted = persisted(player);
+        int stored = persisted.getInteger(WARP_CLEANSE_TAG);
+        if (stored > WARP_CLEANSE_THRESHOLD) {
+            stored = 0;
+        }
+        int currentProgress = stored + progressToAdd;
+        if (currentProgress >= WARP_CLEANSE_THRESHOLD) {
+            int currentWarp = ThaumcraftHelper.getWarp(player, 1);
+            if (currentWarp > 0) {
+                ThaumcraftHelper.reduceWarp(player, 1, 1);
+                ThaumcraftHelper.syncWarp(player);
+            }
+            currentProgress = 0;
+        }
+        persisted.setInteger(WARP_CLEANSE_TAG, currentProgress);
+    }
+
     /**
-     * Credit Homestead temporary-warp cleansing for game time the player ticks did not cover, for
-     * example Somnia's time-only fast-forward while asleep. One 30s scan ({@code CHECK_INTERVAL_TICKS})
-     * is worth 2 / 3 / 6 progress at granted band I / II / III and 12 progress clears 1 temporary warp,
-     * the same counter and rates as {@link #applyComfortBenefits}. The band is the granted band when the
-     * player is resting, else a fresh evaluation (furniture required).
+     * Credit temporary-warp cleansing for game time the player ticks did not cover.
+     * One 30s scan is worth 2 / 3 / 6 progress at granted band I / II / III.
      *
      * @return temporary warp points cleared
      */
@@ -619,11 +903,7 @@ public class ComfortSystemHandler {
         int perScan = band == 1 ? 2 : (band == 2 ? 3 : (band >= 3 ? 6 : 0));
         if (perScan == 0) return 0;
 
-        NBTTagCompound data = player.getEntityData();
-        if (!data.hasKey(EntityPlayer.PERSISTED_NBT_TAG)) {
-            data.setTag(EntityPlayer.PERSISTED_NBT_TAG, new NBTTagCompound());
-        }
-        NBTTagCompound persisted = data.getCompoundTag(EntityPlayer.PERSISTED_NBT_TAG);
+        NBTTagCompound persisted = persisted(player);
         int stored = persisted.getInteger(WARP_CLEANSE_TAG);
         if (stored > WARP_CLEANSE_THRESHOLD) {
             stored = 0;
@@ -640,11 +920,19 @@ public class ComfortSystemHandler {
                 ThaumcraftHelper.syncWarp(player);
             }
             if (cleared < due) {
-                remainder = 0; // no warp left to clear: do not bank progress
+                remainder = 0;
             }
         }
         persisted.setInteger(WARP_CLEANSE_TAG, remainder);
         return cleared;
+    }
+
+    private static NBTTagCompound persisted(EntityPlayer player) {
+        NBTTagCompound data = player.getEntityData();
+        if (!data.hasKey(EntityPlayer.PERSISTED_NBT_TAG)) {
+            data.setTag(EntityPlayer.PERSISTED_NBT_TAG, new NBTTagCompound());
+        }
+        return data.getCompoundTag(EntityPlayer.PERSISTED_NBT_TAG);
     }
 
     static final class ComfortEval {
@@ -654,6 +942,7 @@ public class ComfortSystemHandler {
         final long hurtRemain;
         final long attackRemain;
         final float cozy;
+        final float restBonus;
         final float bonuses;
         final float penalties;
         final float tempPenalty;
@@ -665,9 +954,19 @@ public class ComfortSystemHandler {
         final int scoreBand;
         final int grantedBand;
         final long promoteInTicks;
+        final boolean heatPenalty;
         final Map<String, Float> cappedByCategory;
+        final Map<String, Integer> categorySeen;
+        final Map<String, Integer> categoryCounted;
+        final Map<String, Integer> roleCounts;
+        final List<String> structureSamples;
         final List<ComfortSettings.PotionModifier> activeBonuses;
         final List<ComfortSettings.PotionModifier> activePenaltyEffects;
+        final int restedTicks;
+        final float insight;
+        final int vigorInterval;
+        final int halfHearts;
+        final int halfFeathers;
 
         ComfortEval(
                 boolean currentlyResting,
@@ -676,6 +975,7 @@ public class ComfortSystemHandler {
                 long hurtRemain,
                 long attackRemain,
                 float cozy,
+                float restBonus,
                 float bonuses,
                 float penalties,
                 float tempPenalty,
@@ -687,15 +987,22 @@ public class ComfortSystemHandler {
                 int scoreBand,
                 int grantedBand,
                 long promoteInTicks,
-                Map<String, Float> cappedByCategory,
+                boolean heatPenalty,
+                CozyScan cozyScan,
                 List<ComfortSettings.PotionModifier> activeBonuses,
-                List<ComfortSettings.PotionModifier> activePenaltyEffects) {
+                List<ComfortSettings.PotionModifier> activePenaltyEffects,
+                int restedTicks,
+                float insight,
+                int vigorInterval,
+                int halfHearts,
+                int halfFeathers) {
             this.currentlyResting = currentlyResting;
             this.restPose = restPose;
             this.furniture = furniture;
             this.hurtRemain = hurtRemain;
             this.attackRemain = attackRemain;
             this.cozy = cozy;
+            this.restBonus = restBonus;
             this.bonuses = bonuses;
             this.penalties = penalties;
             this.tempPenalty = tempPenalty;
@@ -707,27 +1014,84 @@ public class ComfortSystemHandler {
             this.scoreBand = scoreBand;
             this.grantedBand = grantedBand;
             this.promoteInTicks = promoteInTicks;
-            this.cappedByCategory = cappedByCategory;
+            this.heatPenalty = heatPenalty;
+            this.cappedByCategory = cozyScan.cappedByCategory;
+            this.categorySeen = cozyScan.seen;
+            this.categoryCounted = cozyScan.counted;
+            this.roleCounts = cozyScan.roles;
+            this.structureSamples = cozyScan.samples;
             this.activeBonuses = activeBonuses;
             this.activePenaltyEffects = activePenaltyEffects;
+            this.restedTicks = restedTicks;
+            this.insight = insight;
+            this.vigorInterval = vigorInterval;
+            this.halfHearts = halfHearts;
+            this.halfFeathers = halfFeathers;
         }
     }
 
     static final class CozyScan {
-        static final CozyScan EMPTY = new CozyScan(0.0f, false, Map.of());
+        static final CozyScan EMPTY = new CozyScan(
+                0.0f, false, Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), List.of(), 0);
 
         final float score;
         final boolean hasEntryFurniture;
         final Map<String, Float> cappedByCategory;
+        final Map<String, Integer> seen;
+        final Map<String, Integer> counted;
+        final Map<String, Integer> familyCounts;
+        final Map<String, Integer> roles;
+        final List<String> samples;
+        final int positiveCategories;
 
-        CozyScan(float score, boolean hasEntryFurniture, Map<String, Float> cappedByCategory) {
+        CozyScan(float score, boolean hasEntryFurniture, Map<String, Float> cappedByCategory,
+                Map<String, Integer> seen, Map<String, Integer> counted, Map<String, Integer> familyCounts,
+                Map<String, Integer> roles, List<String> samples, int positiveCategories) {
             this.score = score;
             this.hasEntryFurniture = hasEntryFurniture;
             this.cappedByCategory = cappedByCategory;
+            this.seen = seen;
+            this.counted = counted;
+            this.familyCounts = familyCounts;
+            this.roles = roles;
+            this.samples = samples;
+            this.positiveCategories = positiveCategories;
         }
+    }
 
-        boolean meetsEntryFurniture() {
-            return hasEntryFurniture;
+    private static final class CachedScan {
+        final CozyScan scan;
+        final long time;
+        final int dimension;
+
+        CachedScan(CozyScan scan, long time, int dimension) {
+            this.scan = scan;
+            this.time = time;
+            this.dimension = dimension;
+        }
+    }
+
+    private static final class Piece {
+        final String id;
+        final String family;
+        final float weight;
+        final byte role;
+
+        Piece(String id, String family, float weight, byte role) {
+            this.id = id;
+            this.family = family;
+            this.weight = weight;
+            this.role = role;
+        }
+    }
+
+    private static final class Scored {
+        final Piece piece;
+        final float value;
+
+        Scored(Piece piece, float value) {
+            this.piece = piece;
+            this.value = value;
         }
     }
 

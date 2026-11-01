@@ -1,6 +1,6 @@
-# Comfort module (1.9)
+# Comfort module (1.10)
 
-Last updated: 2026-09-19.
+Last updated: 2026-11-01.
 
 JSON (two files under `config/arcanaquesttweaks/`):
 
@@ -15,35 +15,36 @@ There is no Forge `@Config` for comfort and no mixin into those mods. Missing mo
 
 ## Locked intent
 
-A homestead rest loop: scan nearby “cozy” blocks and tamed pets, add potion bonuses, subtract player-state penalties, then apply a custom **Homestead** potion plus Extra Alchemy Learning (I) or Soot XP boost (II/III), (II/III) Elenai stamina potions, and (if loaded) Thaumcraft temp-warp drain. Also grants Simple Difficulty **cold resist** while standing in Biomes O' Plenty hot spring water.
+A homestead rest loop: scan nearby cozy blocks and tamed pets, add potion bonuses and a small sitting or lying bonus, subtract player-state penalties, then grant **Rested** (registry `aqtweaks:homestead`). Rested lingers after the player leaves. While they are resting at home it is held at full duration, and **Clarity** (`aqtweaks:clarity`) shows the at-home temporary-warp cleanse when Thaumcraft is loaded. Clarity ends with the resting state. Also grants Simple Difficulty **cold resist** while standing in Biomes O' Plenty hot spring water.
 
-Category caps are the design. Uncapped sums turn a chandelier farm into Homestead III. Penalties **do not** have a global cap: eat, drink, heal, warm/cool, and rest to recover.
+Category caps stay. Repeats of one family decay. Penalties **do not** have a global cap. A cave and a garden both count. There is no roof gate. The shell tag only changes structure decay, and `non_shell_weight` can discount blocks the rays did not hit. A new settings file uses thresholds **24 / 48 / 66**. A file that already has the three threshold keys keeps those numbers.
 
 ## How parent/vanilla pieces work
 
 | Source | What it provides | Tweaks use |
 | --- | --- | --- |
 | Vanilla | Sleep, sneak, ride, potions, food, health, `EntityTameable` | Rest detection, pet scan, hunger/health penalties |
-| Tweaks | `PotionHomestead` | HUD icon `assets/aqtweaks/textures/gui/homestead_icon.png`, registered on `RegistryEvent.Register<Potion>` as `aqtweaks:homestead` |
-| Lang | `en_us.lang` | `effect.aqtweaks.homestead=Homestead` (`getName()` returns that key; no `setTranslationKey`) |
+| Tweaks | `PotionHomestead` | Shown as Rested. Registry `aqtweaks:homestead`. Icon `homestead_icon.png`. Max health +2 half-hearts per tier. Milk does not clear it |
+| Tweaks | `PotionClarity` | At-home warp indicator. Registry `aqtweaks:clarity`. Not applied without Thaumcraft |
+| Lang | `en_us.lang` | `effect.aqtweaks.homestead=Rested`, `effect.aqtweaks.clarity=Clarity` |
 | Thaumcraft | Temp warp capability | Same `ThaumcraftHelper.reduceWarp` as the TC module; progress NBT `WarpCleansingProgress` (not `WarpExposureProgress`) |
 | Simple Difficulty | thirst, body temp, `cold_resist` / `heat_protection` / `cold_protection` / `heat_resist` | `SimpleDifficultyHelper` (guarded compile-hard) for thirst/temp; potions by resource name — null-safe |
 | Somnia | `somnia:sleepy` / `exhausted` / `fading` | default rows in `penalties.effects` |
 | Farmer's Delight | `farmersdelight:comfort` | default row in `bonuses.effects` |
-| Extra Alchemy | `extraalchemy:effect.learning` | Homestead I only; stripped on II/III |
-| Soot | `soot:experience_boost` | Homestead II amp 0 / III amp 1, refresh 8:00 |
-| Elenai Dodge 2 | `elenaidodge2:endurance`, `elenaidodge2:replenishment` | II/III only |
+| Extra Alchemy | `extraalchemy:effect.learning` | Not granted unless a `rested.potions_*` row names it. A row with `learning: true` is removed on granted II/III |
+| Soot | `soot:experience_boost` | Not granted unless a `rested.potions_*` row names it |
+| Elenai Dodge 2 | `FeathersHelper`, `MaxFeathersEvent` | Vigor interval and Fortitude max feathers. Compile-hard. A `rested.potions_*` entry can still apply `endurance` / `replenishment` by name |
 | Biomes O' Plenty | `biomesoplenty:hot_spring_water` | Block at feet or head |
 
 ## Design plan (rest loop)
 
-Server only. `TickEvent.PlayerTickEvent` **END**, every **600 ticks** (30s) on `(ticksExisted + entityId) % 600 == 0` so a full login wave does not scan on the same tick. Homestead potion lasts **900 ticks** (45s), so the phase shift cannot open a gap. Hurt, attack, lost furniture, or score below I still strip Homestead immediately.
+Server only. Furnishings scan on `TickEvent.PlayerTickEvent` **END**, every **600 ticks** (30s), staggered by `(ticksExisted + entityId) % 600`. Bonuses, penalties, the rest pose and the ladder refresh every **40 ticks** in a home context (cached scan has entry furniture, or Rested is active). A cached scan older than **1200 ticks** is refreshed first. Eating and waking refresh immediately. Entry happens on the 30s scan, on eating, and on waking. Hurt, attack, lost furniture, or score below I end the **resting** state at once and do **not** remove Rested. Clarity is removed at once.
 
-1. If NBT `AQTComfortResting` is false: player must pass `isPlayerResting`; not be inside the hurt or attack cooldown; the scan must include a block in `entry_require_categories` (default hearth / bedding / seating); **effective** score ≥ Homestead I → set tag, granted band **I**, stamp `AQTComfortBandSince`, apply I benefits.
-2. If already resting: **do not** require sneak/sleep/still. Rescan. Below I, or no required furniture in range → clear tag, ladder NBT, and Homestead (XP/Elenai potions are **not** stripped).
-3. Granted band promotes **one step** after `promote_ticks` (default 1200 / 60s) while score still supports the next band. Demote **immediately** if score cannot support the granted band.
-4. `LivingHurtEvent` on a player (amount **> 0**) clears the tag and stamps `AQTComfortHurtAt`. Re-entry is blocked for `damage_cooldown_ticks` (default **600** / 30s). Amount 0 does not stamp. Missing tag is eligible (do not treat `0` as a stamp).
-5. `AttackEntityEvent` clears the tag and stamps `AQTComfortAttackAt`. Re-entry is blocked for `attack_cooldown_ticks` (default **300** / 15s). Melee attack event only, not projectiles. Entry waits until **both** cooldowns expire.
+1. If NBT `AQTComfortResting` is false: player must pass `isPlayerResting`; not be inside the hurt or attack cooldown; the scan must include a block in `entry_require_categories` (default hearth / bedding / seating); **effective** score ≥ Rested I → set tag, granted band **I**, stamp `AQTComfortBandSince`, apply I.
+2. If already resting: **do not** require sneak/sleep/still. Below I, or no required furniture in range → clear the tag and the ladder NBT. Do **not** remove Rested. Remove Clarity. A configured potion entry counts down; a `learning` entry is removed only when the granted band becomes II or III.
+3. Granted band promotes **one step** after `promote_ticks_2` or `promote_ticks_3` (default 1200 / 60s) while the score still supports the next band. Demote **immediately** while resting if the score cannot support the granted band.
+4. `LivingHurtEvent` on a player (amount **> 0**) ends the resting state and stamps `AQTComfortHurtAt`. Re-entry is blocked for `damage_cooldown_ticks` (default **600** / 30s). Amount 0 does nothing. Missing tag is eligible (do not treat `0` as a stamp).
+5. `AttackEntityEvent` ends the resting state and stamps `AQTComfortAttackAt`. Re-entry is blocked for `attack_cooldown_ticks` (default **300** / 15s). Melee attack event only, not projectiles. Entry waits until **both** cooldowns expire. Rested is not removed.
 
 `isPlayerResting` (entry only):
 
@@ -58,35 +59,37 @@ Scan **25×5×25** (3,125 cells) from the player position: horizontal radius **�
 
 Pets: `EntityTameable` in a ±16 box around the player **block** (`getPosition()`, inclusive +1 on the far edge). Count if `isTamed()` and `ownerId` equals the player. Each pet adds `pet_comfort_value` under category `pets`.
 
-Per category: sort weights descending, sum only the top **N** (`category_limits`, default 1 if missing). Same block id in two categories cannot happen; last apply wins if the JSON repeats an id.
+Per category: group by family, sort weight descending, then sum `weight × decay^index` for the top **N** (`category_limits`, default 1 if missing). Default decay is 0.6. `decay_overrides` can set a category (structure 0.5, pets 1.0). Same block id in two categories cannot happen; last apply wins if the JSON repeats an id. The shell tag (roof, wall, window, floor) is taken on this scan. It changes which structure blocks share a decay group. It does not reject a room.
 
-Then add **all** active `bonuses.effects` amounts. Then subtract formula penalties plus **all** active `penalties.effects` (no global cap):
+Then add **all** active `bonuses.effects` amounts and the sitting or lying bonus. Then subtract formula penalties plus **all** active `penalties.effects` (no global cap):
 
 | Source | Formula |
 | --- | --- |
 | Temperature (SD) | 1.5 per body-temp point outside 11–14; **0** if heat potions while hot or cold potions/resist while cold |
 | Thirst (SD) | `(20 − thirst) × 0.75` |
 | Hunger | `(20 − food) × 0.5` |
-| Health | `(1 − hp/maxHp) × 15` |
+| Health | `(1 − hp/baseMax) × 15`. Fortitude's own max-health bonus is taken out of `baseMax` first, and the ratio is clamped at 1 |
 | Potion effects | sum of `penalties.effects` whose potion is active (defaults: Somnia sleepy 10, exhausted 25, fading 40) |
 
 `bonuses.effects` default is `farmersdelight:comfort` **+10**. Duplicate potion rows stack. Somnia only leaves one fatigue effect on the player, so those three rows do not stack in play.
 
 `effective_score = max(0, cozy + bonuses − penalties)`.
 
-Thresholds are floats in JSON (defaults 15 / 40 / 60). They set the **maximum** band the score allows. Warp and extra potions use the **granted** band:
+Thresholds are floats in JSON. A **new** file uses 24 / 48 / 66. A file that already stores the three keys keeps those numbers (the DEVBOX file is still 15 / 40 / 60). They set the **maximum** band the score allows. Warp and the native bonuses use the **granted** band:
 
-| Granted | After | HUD | Other |
+| Granted | After | Rested | At home |
 | --- | --- | --- | --- |
-| I | immediately when score ≥ I | Homestead I (amp 0) | +2 warp cleanse / 30s; `extraalchemy:effect.learning` amp 0, 4:00 |
-| II | 60s at I while score ≥ II | Homestead II (amp 1) | +3 warp cleanse; strip Learning; `soot:experience_boost` amp 0, 8:00; `elenaidodge2:endurance` amp 0, 8:00; `elenaidodge2:replenishment` 4:00 |
-| III | 60s at II while score ≥ III | Homestead III (amp 2) | +6 warp cleanse; strip Learning; XP boost amp 1, 8:00; endurance amp 1, 8:00; replenishment 8:00 |
+| I | immediately when score ≥ I | 5 min, Insight +10%, Vigor 25 ticks, Fortitude +1 heart / +1 feather | Clarity, +2 warp / 30s |
+| II | 60s at I while score ≥ II | 10 min, +20%, 20 ticks, +2 / +2 | Clarity, +3 warp |
+| III | 60s at II while score ≥ III | 15 min, +30%, 15 ticks, +3 / +3 | Clarity, +6 warp |
 
-Homestead potion duration is **900** ticks (45s). XP / endurance / replenishment are **re-applied** each scan while that band is held; when Homestead ends they **count down** (not stripped). Learning is **removed** when promoting to II or III; it is **not** stripped if Homestead I ends from hurt/attack/furniture. All `PotionEffect`s use ambient **true**, particles **false**. No regen, saturation, or SD thermals from Homestead.
+Rested duration is held full while resting and then counts down. Vigor uses `FeathersHelper.decreaseRegenModifier` by 5 / 10 / 15 against base 30, tracked in entity NBT `AQTVigorDelta` (not the persisted tag). Fortitude health is the potion attribute (`+2` half-hearts times amplifier + 1). Fortitude stamina is `MaxFeathersEvent.addMaximum` and does not refill. Insight multiplies XP orbs and keeps the fraction in `AQTInsightXpCarry`. Native potion lists ship empty. A `rested.potions_*` row is refreshed while that band is held and then counts down.
+
+All `PotionEffect`s use ambient **true**, particles **false**. No regen, saturation, or SD thermals from Rested. Milk does not clear Rested. Death does. The placement burst is a world particle, not a potion particle.
 
 ### `/aqcomfort` (OP)
 
-`ArcanaQuestTweaks.serverStarting` registers `CommandAqComfort` (perm **2**, player only, no args) next to `/aqvillage`.
+`ArcanaQuestTweaks.serverStarting` registers `CommandAqComfort` (perm **2**, player only) next to `/aqvillage`. No args scans. `reload` and `families` are the other forms.
 
 Runs the same 25×5×25 scan as the 30s tick, **applies** the ladder immediately (entry still needs rest pose, furniture, score, and no combat cooldown), then prints:
 
@@ -100,7 +103,7 @@ Non-OP denied. Console without a player errors.
 
 ### Warp cleanse math
 
-Only if `thaumcraft` is loaded. Progress is persisted NBT `WarpCleansingProgress`. Each successful Homestead scan adds **2 / 3 / 6** (granted I / II / III). If the counter is **≥ 12**, reduce 1 temporary warp (`ThaumcraftHelper` type **1**) if any, `syncWarp`, and set the counter to **0** (remainder discarded; a firing with 0 temp warp still spends the bar). Sleep credit: `applyAcceleratedWarpCleanse` (called from the Thaumcraft wake handler) adds the same progress for sleep time the player ticks did not cover, so Somnia time-only fast-forward clears temporary warp at the current band's rate. See [thaumcraft.md](thaumcraft.md). Losing Homestead does **not** clear the counter; the next true scan resumes. Stored values **> 12** (old 0–100 bars) are treated as 0 once.
+Only if `thaumcraft` is loaded **and** the player is resting (Clarity would be showing). Progress is persisted NBT `WarpCleansingProgress`. Each **600-tick** scan adds **2 / 3 / 6** (granted I / II / III). The 40-tick pass does not add progress. If the counter is **≥ 12**, reduce 1 temporary warp (`ThaumcraftHelper` type **1**) if any, `syncWarp`, and set the counter to **0** (remainder discarded; a firing with 0 temp warp still spends the bar). Sleep credit: `applyAcceleratedWarpCleanse` is unchanged. Losing the resting state does **not** clear the counter and does remove Clarity. Stored values **> 12** are treated as 0 once.
 
 Time to 1 temp warp at the 30s interval:
 
@@ -108,26 +111,26 @@ Time to 1 temp warp at the 30s interval:
 - II: +3 → 4 scans → **120s**
 - III: +6 → 2 scans → **60s**
 
-Comfort drain is **temporary warp only**. Sleep in the Thaumcraft module is **sticky only** by default; temp during a Somnia night is this Homestead bar plus TC decay. See [thaumcraft.md](thaumcraft.md).
+Comfort drain is **temporary warp only**. Sleep in the Thaumcraft module is **sticky only** by default; temp during a Somnia night is this Rested bar plus TC decay. See [thaumcraft.md](thaumcraft.md).
 
 ### Hot springs (separate tick)
 
-`PlayerTickEvent` **START**, every **20 ticks**. Feet block (bounding-box min Y) or the block above: registry `biomesoplenty:hot_spring_water`. Apply `simpledifficulty:cold_resist` for **200 ticks**, amp 0, ambient, no particles. Independent of Homestead score.
+`PlayerTickEvent` **START**, every **20 ticks**. Feet or the block above: `biomesoplenty:hot_spring_water`. Apply `simpledifficulty:cold_resist` for **200 ticks**, amp 0, ambient, no particles. Independent of Rested.
 
 ## JSON schema
 
 Gson. Unknown fields ignored. Failure of **one** file uses in-memory defaults for that file only.
 
-Both files load **once**, in `ComfortConfigLoader.load` from preInit. `ConfigEventHandler` does not reload them (it only reloads the spawn JSON), so an edit needs a **restart** — a cfg save in the in-game GUI will not pick it up.
+Both files load in `ComfortConfigLoader.load` from preInit. `/aqcomfort reload` reads them again. A cfg save in the in-game GUI does not.
 
 **Settings** (`aqtweaks_comfort_settings.json`):
 
 ```json
 {
   "pet_comfort_value": 3.0,
-  "threshold_homestead_1": 15.0,
-  "threshold_homestead_2": 40.0,
-  "threshold_homestead_3": 60.0,
+  "threshold_homestead_1": 24.0,
+  "threshold_homestead_2": 48.0,
+  "threshold_homestead_3": 66.0,
   "promote_ticks": 1200,
   "damage_cooldown_ticks": 600,
   "attack_cooldown_ticks": 300,
@@ -170,8 +173,8 @@ The four formula penalties are their own objects under `penalties`. A missing ob
 
 | Object | Key | Default | Meaning |
 | --- | --- | --- | --- |
-| (root) | `damage_cooldown_ticks` | 600 | After amount > 0 hurt, skip Homestead **entry** this many ticks |
-| (root) | `attack_cooldown_ticks` | 300 | After `AttackEntityEvent`, skip Homestead **entry** this many ticks |
+| (root) | `damage_cooldown_ticks` | 600 | After amount > 0 hurt, skip resting **entry** this many ticks |
+| (root) | `attack_cooldown_ticks` | 300 | After `AttackEntityEvent`, skip resting **entry** this many ticks |
 | (root) | `entry_require_categories` | `hearth`, `bedding`, `seating` | Scan must include a cozy block in one of these; empty list = no furniture gate |
 | `penalties.temperature` | `enabled` | true | Off = body temp never costs |
 | `penalties.temperature` | `comfort_min` / `comfort_max` | 11 / 14 | Free band |
@@ -252,32 +255,36 @@ Missing pack blocks simply never match; they do not crash.
 
 ## Files
 
-- `comfort/ComfortSystemHandler.java` — tick (30s), evaluate/apply shared with `/aqcomfort`, furniture gate, band ladder, benefits (45s Homestead), hot springs, cancel + cooldowns on hurt/attack
-- `comfort/CommandAqComfort.java` — OP `/aqcomfort`
-- `comfort/ComfortSettings.java` — settings JSON DTO
-- `comfort/ComfortBlocks.java` — blocks JSON DTO
-- `comfort/ComfortConfigLoader.java` — generate/load two files; merge missing `crafting` on blocks only
-- `simpledifficulty/SimpleDifficultyHelper.java` — SD thirst/temperature getters (`thirstOrNull`, `temperatureOrNull`)
-- `comfort/PotionHomestead.java` — potion + `RegistrationHandler`
+- `comfort/ComfortSystemHandler.java` — 30s furnishing scan, 2s state pass, decay, shell tag, lingering Rested, Clarity, hot springs
+- `comfort/ComfortFamilies.java` — family id and `/aqcomfort families`
+- `comfort/ShellSampler.java` — roof / wall / window / floor tag
+- `comfort/RestedBonuses.java` — Insight, Vigor, Fortitude
+- `comfort/PotionHomestead.java`, `comfort/PotionClarity.java`
+- `comfort/ComfortFeedback.java` and `PacketComfortStatus`, `PacketComfortCatalog`, `PacketComfortPlaced`
+- `comfort/ComfortHud.java`, `ComfortTooltips.java`, `ComfortToast.java`, `ComfortToggleButton.java`, `ComfortClientState.java` — client only
+- `comfort/CommandAqComfort.java` — `/aqcomfort`, `reload`, `families`
+- `comfort/ComfortSettings.java`, `ComfortBlocks.java`, `ComfortConfigLoader.java`
+- `mixin/comfort/` — client mixin json `mixins.aqtweaks.comfort.json`
 - `assets/aqtweaks/lang/en_us.lang`
-- `assets/aqtweaks/textures/gui/homestead_icon.png`
+- `assets/aqtweaks/textures/gui/homestead_icon.png`, `clarity_icon.png` (placeholder copy)
 
 ## Do not regress
 
-- Benefits are **ambient, no particles** (`true, false` on `PotionEffect`).
-- Homestead does **not** apply regen, saturation, or SD heat/cold protection. Hot-spring `cold_resist` is independent.
-- XP boost / endurance / replenishment are not stripped when Homestead ends. Learning **is** stripped on granted II/III.
-- Homestead I grants Extra Alchemy Learning, not Soot XP boost.
+- Potion effects stay ambient, particles off (`true, false`). The placement burst is a separate world particle.
+- Rested does **not** apply regen, saturation, or SD heat/cold protection. Hot-spring `cold_resist` stays on its own tick.
+- A `rested.potions_*` entry counts down when rest ends. A `learning` entry is removed on granted II/III.
 - Keep category caps. Blocks JSON without `crafting` gets limit 1 and `minecraft:crafting_table`; a player-defined `crafting` key is not overwritten. Combined `aqtweaks_comfort.json` is ignored.
-- Comfort warp NBT is `WarpCleansingProgress`, not Thaumcraft exposure `WarpExposureProgress`. Do not wipe it when Homestead ends. Adds are 2/3/6; fire at ≥ 12.
-- Homestead cleanse calls the compile-hard `ThaumcraftHelper`, only behind `thaumcraftLoaded()`. History: a generic `Class<?>` in the old reflective helper made Forge `SideTransformer` drop the class and crash the server tick.
+- Comfort warp NBT is `WarpCleansingProgress`. Do not wipe it when rest ends. Adds are 2/3/6 on the 600-tick scan only, and only while Clarity would be active. Fire at ≥ 12.
+- The cleanse calls compile-hard `ThaumcraftHelper`, only behind `thaumcraftLoaded()`.
 - Thermals and cold resist look up potions by name so Simple Difficulty absence never classloads SD.
-- Entry requires rest pose/stillness **and** a hearth, bed/hammock/sleeping-bag, or seat (or whatever ids sit in `entry_require_categories`). **Continuing** rest allows walking inside the scored area **only while that furniture stays in the scan**.
-- Homestead HUD lasts 45s against a 30s scan so the icon does not drop between scans. Hurt, attack, lost furniture, and score below I still strip it immediately.
-- `isRiding()` is the sit check. Do not switch to a missing “isSitting” API and drop chair/boat rest.
+- Entry requires the loose rest pose **and** entry furniture. Continuing rest allows walking while that furniture stays in the scan.
+- Hurt amount > 0, attack, lost furniture, and score below I end the resting state and do **not** remove Rested. Amount 0 does nothing.
+- `isRiding()` is the entry sit check. The score bonus rejects living mounts, boats and minecarts.
+- `AQTVigorDelta` stays on `getEntityData()`, not the persisted tag. One reconcile writes the difference. Do not call `FeathersHelper.getRegenModifier` on the server.
+- Shell rays run on the furnishing scan, not the 40-tick pass.
+- The inventory mixin stays in the comfort json `"client"` array.
 
 ## Out of scope unless asked
 
-- Client-only particles
-- Forge cfg mirror of the JSON
-- Draining normal/permanent warp from Homestead
+- Draining normal/permanent warp from the rest loop
+- Turning the shell tag into a roof gate

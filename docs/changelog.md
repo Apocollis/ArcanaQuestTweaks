@@ -2,6 +2,10 @@
 
 Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-11-01 — Rested homestead
+
+- Comfort's effect is **Rested** (`aqtweaks:homestead`). It lingers after the player leaves. Hurt, attack, lost furniture and a score below I end the at-home state only. Clarity (`aqtweaks:clarity`) is the at-home warp indicator and is removed at once. Insight, Vigor and Fortitude replace the borrowed Learning, Soot and Elenai potions unless a `rested.potions_*` row names one. Family decay, a shell tag, and a sitting/lying bonus are in the 30s scan. The 2s pass refreshes penalties and the ladder. Client panel, tooltips, toast, particles and the inventory toggle are in. Not built or deployed in this pass. Version stays 1.10.
+
 ## 2026-11-01 — Shadow comparison attributes results to In Control exactly
 
 - `MixinInControlSpawnRules` now also marks the moments just before and just after In Control's `onEntitySpawnEvent` and `onEntityJoinWorld`. The conditions, modifiers and gear comparisons (and the trace's "In Control left ..." lines) use those, so a mob or event result changed by another mod (Animania replacing vanilla pigs, sheep, chickens and cows; Metallurgy and Gaia equipping and buffing mobs at join) is no longer counted as In Control's. The one remaining expected difference is the Crimson cultists (In Control buffs them at the spawn check).

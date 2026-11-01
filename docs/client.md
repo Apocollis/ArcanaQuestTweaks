@@ -8,6 +8,8 @@ Config: `config/arcanaquesttweaks/aqtweaks_client.cfg`. Client-only. No `@Mod` p
 
 HUD and tooltip presentation that is not stamina spend. Do **not** change Elenai feather or thirst icons. Do **not** mixin Metallurgy. Skip `metallurgy:` items so Reforged’s own shift stats are not doubled.
 
+Comfort messages (the Rested panel, action bar, toast and placement particles) are `Comfort Messages` in this cfg, with the panel anchor and the inventory-button offsets beside it. Tooltips stay on when messages are off.
+
 ## How the parents work
 
 ### Toughness Bar 2.4 (`toughnessbar`)

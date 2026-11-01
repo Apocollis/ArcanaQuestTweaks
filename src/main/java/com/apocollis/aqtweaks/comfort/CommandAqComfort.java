@@ -3,6 +3,7 @@ package com.apocollis.aqtweaks.comfort;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommandSender;
@@ -24,7 +25,7 @@ public final class CommandAqComfort extends CommandBase {
 
     @Override
     public String getUsage(ICommandSender sender) {
-        return "/aqcomfort";
+        return "/aqcomfort [reload|families]";
     }
 
     @Override
@@ -34,11 +35,24 @@ public final class CommandAqComfort extends CommandBase {
 
     @Override
     public void execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
-        if (args.length != 0) {
+        if (args.length > 1) {
             throw new CommandException(getUsage(sender));
         }
         if (!(sender instanceof EntityPlayerMP player)) {
             throw new CommandException("Only a player can run /aqcomfort");
+        }
+        if (args.length == 1) {
+            if ("reload".equalsIgnoreCase(args[0])) {
+                ComfortConfigLoader.reload();
+                ComfortFeedback.sendCatalog(player);
+                send(player, TextFormatting.GOLD, "Reloaded comfort settings and blocks");
+                return;
+            }
+            if ("families".equalsIgnoreCase(args[0])) {
+                printFamilies(player);
+                return;
+            }
+            throw new CommandException(getUsage(sender));
         }
         World world = player.world;
         if (world == null || world.isRemote) {
@@ -46,7 +60,7 @@ public final class CommandAqComfort extends CommandBase {
         }
 
         ComfortSystemHandler.ComfortEval eval = ComfortSystemHandler.evaluate(player);
-        ComfortSystemHandler.applyEvaluation(player, eval);
+        ComfortSystemHandler.applyEvaluation(player, eval, true);
         ComfortSystemHandler.ComfortEval after = ComfortSystemHandler.evaluate(player);
 
         send(player, TextFormatting.GOLD, "Comfort scan");
@@ -74,12 +88,35 @@ public final class CommandAqComfort extends CommandBase {
             StringBuilder byCategory = new StringBuilder("cozy by category:");
             for (String category : categories) {
                 Float amount = after.cappedByCategory.get(category);
+                Integer counted = after.categoryCounted.get(category);
+                Integer seen = after.categorySeen.get(category);
                 byCategory.append(' ').append(category).append('=').append(fmt(amount != null ? amount : 0.0f));
+                if (counted != null && seen != null) {
+                    byCategory.append('(').append(counted).append('/').append(seen).append(')');
+                }
             }
             send(player, TextFormatting.GRAY, byCategory.toString());
         }
+        if (!after.roleCounts.isEmpty()) {
+            StringBuilder roles = new StringBuilder("structure roles:");
+            for (Map.Entry<String, Integer> role : after.roleCounts.entrySet()) {
+                roles.append(' ').append(role.getKey()).append('=').append(role.getValue());
+            }
+            send(player, TextFormatting.GRAY, roles.toString());
+        }
+        if (!after.structureSamples.isEmpty()) {
+            send(player, TextFormatting.DARK_GRAY, "structure sample: " + String.join(", ", after.structureSamples));
+        }
 
-        send(player, TextFormatting.GRAY, "bonuses: " + formatModifiers(after.activeBonuses));
+        send(player, TextFormatting.GRAY, "bonuses: " + formatModifiers(after.activeBonuses)
+                + (after.restBonus > 0.0f ? " rest=" + fmt(after.restBonus) : ""));
+        send(player, TextFormatting.GRAY, String.format(
+                "restedTicks=%d insight=%.0f%% vigor=%d hearts=+%d feathers=+%d",
+                after.restedTicks,
+                after.insight * 100.0f,
+                after.vigorInterval,
+                after.halfHearts / 2,
+                after.halfFeathers / 2));
         send(player, TextFormatting.GRAY, String.format(
                 "penalties: temp=%.1f thirst=%.1f hunger=%.1f health=%.1f effects=%s",
                 after.tempPenalty,
@@ -87,6 +124,19 @@ public final class CommandAqComfort extends CommandBase {
                 after.hungerPenalty,
                 after.healthPenalty,
                 formatModifiers(after.activePenaltyEffects)));
+    }
+
+    private static void printFamilies(EntityPlayerMP player) {
+        Map<String, List<String>> merges = ComfortFamilies.merges();
+        send(player, TextFormatting.GOLD, "Comfort families merged: " + merges.size());
+        int shown = 0;
+        for (Map.Entry<String, List<String>> entry : merges.entrySet()) {
+            if (shown++ >= 40) {
+                send(player, TextFormatting.DARK_GRAY, "... " + (merges.size() - 40) + " more");
+                return;
+            }
+            send(player, TextFormatting.GRAY, entry.getKey() + " <- " + String.join(", ", entry.getValue()));
+        }
     }
 
     private static String formatModifiers(List<ComfortSettings.PotionModifier> modifiers) {

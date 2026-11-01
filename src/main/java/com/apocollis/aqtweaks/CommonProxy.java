@@ -19,6 +19,7 @@ import com.apocollis.aqtweaks.gaia.GaiaDamageConfig;
 import com.apocollis.aqtweaks.gaia.GaiaDamageHandler;
 
 import com.apocollis.aqtweaks.comfort.ComfortSystemHandler;
+import com.apocollis.aqtweaks.comfort.RestedBonuses;
 
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
@@ -39,6 +40,15 @@ public class CommonProxy {
         ArcanaQuestTweaks.NETWORK.registerMessage(
                 com.apocollis.aqtweaks.simpledifficulty.PacketTemperatureMax.Handler.class,
                 com.apocollis.aqtweaks.simpledifficulty.PacketTemperatureMax.class, 4, Side.CLIENT);
+        ArcanaQuestTweaks.NETWORK.registerMessage(
+                com.apocollis.aqtweaks.comfort.PacketComfortStatus.Handler.class,
+                com.apocollis.aqtweaks.comfort.PacketComfortStatus.class, 5, Side.CLIENT);
+        ArcanaQuestTweaks.NETWORK.registerMessage(
+                com.apocollis.aqtweaks.comfort.PacketComfortCatalog.Handler.class,
+                com.apocollis.aqtweaks.comfort.PacketComfortCatalog.class, 6, Side.CLIENT);
+        ArcanaQuestTweaks.NETWORK.registerMessage(
+                com.apocollis.aqtweaks.comfort.PacketComfortPlaced.Handler.class,
+                com.apocollis.aqtweaks.comfort.PacketComfortPlaced.class, 7, Side.CLIENT);
         ComfortConfigLoader.load(event.getModConfigurationDirectory());
         GaiaDamageConfig.load(event.getModConfigurationDirectory());
         com.apocollis.aqtweaks.spawning.SpawnTypeLists.load(event.getModConfigurationDirectory());
@@ -75,6 +85,7 @@ public class CommonProxy {
         }
 
         MinecraftForge.EVENT_BUS.register(new ComfortSystemHandler());
+        MinecraftForge.EVENT_BUS.register(RestedBonuses.class);
         MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.rtg.VillageLandHelper.Events());
 
         if (net.minecraftforge.fml.common.Loader.isModLoaded("astralsorcery")) {

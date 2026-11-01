@@ -19,7 +19,10 @@ public class ComfortConfigLoader {
     private static final String SETTINGS_NAME = "aqtweaks_comfort_settings.json";
     private static final String BLOCKS_NAME = "aqtweaks_comfort_blocks.json";
 
+    private static File configDirectory;
+
     public static void load(File configDir) {
+        configDirectory = configDir;
         File subDir = new File(configDir, "arcanaquesttweaks");
         if (!subDir.exists()) {
             subDir.mkdirs();
@@ -207,6 +210,35 @@ public class ComfortConfigLoader {
             ? settings.bonuses : ComfortSettings.BonusesConfig.defaults();
         ComfortSystemHandler.BONUSES_ENABLED = bonuses.enabled;
         ComfortSystemHandler.POTION_BONUSES = resolveBonusEffects(bonuses);
+
+        ComfortSystemHandler.PROMOTE_TICKS_2 = settings.promote_ticks_2 > 0 ? settings.promote_ticks_2 : ComfortSystemHandler.PROMOTE_TICKS;
+        ComfortSystemHandler.PROMOTE_TICKS_3 = settings.promote_ticks_3 > 0 ? settings.promote_ticks_3 : ComfortSystemHandler.PROMOTE_TICKS;
+        ComfortSystemHandler.SCAN_RADIUS = settings.scan_radius > 0 ? settings.scan_radius : 12;
+        ComfortSystemHandler.SCAN_DY = Math.max(0, settings.scan_dy);
+        ComfortSystemHandler.REPEAT_DECAY = settings.repeat_decay > 0.0f ? settings.repeat_decay : 0.6f;
+        ComfortSystemHandler.DECAY_OVERRIDES.clear();
+        if (settings.repeat_decay_overrides != null) {
+            ComfortSystemHandler.DECAY_OVERRIDES.putAll(settings.repeat_decay_overrides);
+        }
+        ComfortSystemHandler.BAND_MIN_CATEGORIES = settings.band_min_categories == null
+                ? 0 : Math.max(0, settings.band_min_categories);
+        ComfortSystemHandler.BAND_REQUIRE_2.clear();
+        if (settings.band_require_2 != null) ComfortSystemHandler.BAND_REQUIRE_2.addAll(settings.band_require_2);
+        ComfortSystemHandler.BAND_REQUIRE_3.clear();
+        if (settings.band_require_3 != null) ComfortSystemHandler.BAND_REQUIRE_3.addAll(settings.band_require_3);
+        ComfortSystemHandler.STRUCTURE_DECAY_KEY = settings.structure_decay_key == null || settings.structure_decay_key.isEmpty()
+                ? "role_family" : settings.structure_decay_key;
+        ComfortSystemHandler.NON_SHELL_WEIGHT = settings.non_shell_weight;
+        ComfortSystemHandler.UNLISTED_STRUCTURE_WEIGHT = settings.unlisted_structure_weight;
+        ComfortSystemHandler.VIGOR_BASE_INTERVAL = settings.vigor_base_interval > 0 ? settings.vigor_base_interval : 30;
+        ComfortSystemHandler.REST_BONUS = settings.rest_bonus != null ? settings.rest_bonus : new ComfortSettings.RestBonus();
+        ComfortSystemHandler.CLARITY = settings.clarity != null ? settings.clarity : new ComfortSettings.ClarityConfig();
+        ComfortSystemHandler.RESTED = settings.rested != null ? settings.rested : new ComfortSettings.RestedConfig();
+        ComfortSystemHandler.FAMILIES.clear();
+        if (settings.families != null) ComfortSystemHandler.FAMILIES.putAll(settings.families);
+        ComfortSystemHandler.NATURAL_BLOCKS.clear();
+        List<String> natural = settings.natural_blocks != null ? settings.natural_blocks : ComfortSettings.defaultNaturalBlocks();
+        ComfortSystemHandler.NATURAL_BLOCKS.addAll(natural);
     }
 
     private static List<ComfortSettings.PotionModifier> resolveBonusEffects(ComfortSettings.BonusesConfig bonuses) {
@@ -262,5 +294,13 @@ public class ComfortConfigLoader {
             }
         }
         ComfortSystemHandler.clearCozyCache();
+    }
+
+    /** Re-read both JSON files. The caller sends a fresh catalog when a player is waiting. */
+    public static void reload() {
+        if (configDirectory != null) {
+            load(configDirectory);
+        }
+        ComfortSystemHandler.clearScanCache();
     }
 }

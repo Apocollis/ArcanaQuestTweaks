@@ -3,9 +3,12 @@ package com.apocollis.aqtweaks.comfort;
 import com.apocollis.aqtweaks.ArcanaQuestTweaks;
 
 
+import java.util.UUID;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.entity.SharedMonsterAttributes;
+import net.minecraft.item.ItemStack;
 import net.minecraft.potion.Potion;
 import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.ResourceLocation;
@@ -30,8 +33,19 @@ public class PotionHomestead extends Potion {
     }
 
     public PotionHomestead() {
-        super(false, 0xE69D00); // Beneficial, warm hearth amber color
+        super(false, 0xE69D00);
         setRegistryName("homestead");
+        // Amplifier 0 / 1 / 2 becomes +2 / +4 / +6 half-hearts. Milk is not a cure.
+        registerPotionAttributeModifier(
+                SharedMonsterAttributes.MAX_HEALTH,
+                UUID.fromString("a17c0ff0-0e51-4d00-a000-000000000001").toString(),
+                2.0D,
+                0);
+    }
+
+    @Override
+    public boolean isCurativeItem(ItemStack stack) {
+        return false;
     }
 
     @Override

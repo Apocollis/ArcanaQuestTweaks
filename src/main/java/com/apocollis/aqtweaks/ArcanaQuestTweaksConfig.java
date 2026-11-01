@@ -659,9 +659,35 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Client-side fog adjustments in the Atum dimension.")
         public static final AtumFog atumFog = new AtumFog();
 
+        @Config.Name("Comfort")
+        @Config.Comment("Rested panel and messages. Tooltips stay available when messages are off.")
+        public static final Comfort comfort = new Comfort();
+
         public static String getDefaultWorldType() {
             return worldCreation.defaultWorldType;
         }
+    }
+
+    public static class Comfort {
+        @Config.Name("Comfort Messages")
+        @Config.Comment("Panel, action-bar lines, toast and placement particles. Rested and item tooltips stay either way.")
+        public boolean comfortMessages = true;
+
+        @Config.Name("Panel Anchor")
+        @Config.Comment("top, center or bottom. The panel sits on the right.")
+        public String panelAnchor = "center";
+
+        @Config.Name("Panel Offset X")
+        public int panelOffsetX = 0;
+
+        @Config.Name("Panel Offset Y")
+        public int panelOffsetY = 0;
+
+        @Config.Name("Toggle Offset X")
+        public int toggleOffsetX = 0;
+
+        @Config.Name("Toggle Offset Y")
+        public int toggleOffsetY = 0;
     }
 
     public static class WorldCreation {

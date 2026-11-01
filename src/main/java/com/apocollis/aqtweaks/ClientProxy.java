@@ -43,5 +43,8 @@ public class ClientProxy extends CommonProxy {
         MinecraftForge.EVENT_BUS.register(new ClientModule());
         MinecraftForge.EVENT_BUS.register(new GuiMouseGrab());
         MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.reskillable.client.ProspectorOutline());
+        MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.comfort.ComfortHud());
+        MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.comfort.ComfortTooltips());
+        MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.comfort.ComfortToggleButton());
     }
 }

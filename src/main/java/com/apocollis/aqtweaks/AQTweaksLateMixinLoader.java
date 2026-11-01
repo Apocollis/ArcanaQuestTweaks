@@ -46,7 +46,8 @@ public class AQTweaksLateMixinLoader implements ILateMixinLoader {
                 "mixins.aqtweaks.libraryex.json",
                 "mixins.aqtweaks.geographicraft.json",
                 "mixins.aqtweaks.atum.json",
-                "mixins.aqtweaks.dsurround.json");
+                "mixins.aqtweaks.dsurround.json",
+                "mixins.aqtweaks.comfort.json");
     }
 
     @Override
