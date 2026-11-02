@@ -59,7 +59,7 @@ public final class ComfortClientState {
     public static void acceptStatus(PacketComfortStatus message) {
         boolean wasPresent = present;
         int previousGranted = granted;
-        present = message.state != 0 || message.granted > 0 || message.scoreTier > 0;
+        present = message.state != 0;
         state = message.state;
         granted = message.granted;
         scoreTier = message.scoreTier;
@@ -85,15 +85,15 @@ public final class ComfortClientState {
             categories.put(category.name, new int[] {category.seen, category.counted, category.limit});
         }
         EntityPlayerSP player = Minecraft.getMinecraft().player;
-        changedAt = player == null ? 0L : player.ticksExisted;
-        if (!wasPresent && present) changedAt = player == null ? 0L : player.ticksExisted;
+        if (wasPresent != present || (present && previousGranted != granted)) {
+            changedAt = player == null ? 0L : player.ticksExisted;
+        }
         if (message.toastTier > 0 && messagesOn()) {
             Minecraft.getMinecraft().getToastGui().add(new ComfortToast(message.toastTier));
         }
         if (message.eventCode != 0) {
             actionBar(message.eventCode, player);
         }
-        if (previousGranted != granted) changedAt = player == null ? 0L : player.ticksExisted;
     }
 
     public static void acceptPlaced(PacketComfortPlaced message) {
@@ -118,7 +118,7 @@ public final class ComfortClientState {
         if (mc.player == null || mc.gameSettings.hideGUI || mc.player.isSpectator()) return false;
         if (!messagesOn()) return false;
         if (present) return true;
-        return mc.player.ticksExisted - changedAt < 160;
+        return changedAt > 0L && mc.player.ticksExisted - changedAt < 160;
     }
 
     private static void actionBar(int eventCode, EntityPlayerSP player) {

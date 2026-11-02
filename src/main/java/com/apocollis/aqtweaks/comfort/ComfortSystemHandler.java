@@ -279,7 +279,6 @@ public class ComfortSystemHandler {
 
     private static boolean isHome(EntityPlayer player, CachedScan cache) {
         if (isComfortResting(player)) return true;
-        if (player.isPotionActive(PotionHomestead.INSTANCE)) return true;
         return cache != null && cache.scan.hasEntryFurniture;
     }
 

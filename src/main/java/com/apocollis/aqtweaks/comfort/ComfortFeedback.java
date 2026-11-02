@@ -66,7 +66,7 @@ public final class ComfortFeedback {
         if (!(player instanceof EntityPlayerMP mp) || eval == null) return;
         if (player.world == null || player.world.isRemote) return;
         UUID id = player.getUniqueID();
-        boolean home = eval.furniture || eval.currentlyResting || eval.restedTicks > 0;
+        boolean home = eval.furniture || eval.currentlyResting;
         if (!home) {
             if (Boolean.TRUE.equals(WAS_HOME.remove(id)) || eventCode != EVENT_NONE) {
                 ArcanaQuestTweaks.NETWORK.sendTo(cleared(eventCode), mp);

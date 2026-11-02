@@ -2,7 +2,6 @@ package com.apocollis.aqtweaks.comfort;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaks;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
-import com.apocollis.aqtweaks.mixin.comfort.AccessorGuiContainer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.inventory.GuiInventory;
@@ -26,7 +25,7 @@ public final class ComfortToggleButton {
     @SubscribeEvent
     public void onInit(GuiScreenEvent.InitGuiEvent.Post event) {
         if (!(event.getGui() instanceof GuiInventory gui)) return;
-        int left = ((AccessorGuiContainer) gui).aqtweaks$getGuiLeft();
+        int left = gui.getGuiLeft();
         int x = left + 104 + ArcanaQuestTweaksConfig.ClientModuleConfig.comfort.toggleOffsetX;
         int y = gui.height / 2 - 22 + ArcanaQuestTweaksConfig.ClientModuleConfig.comfort.toggleOffsetY;
         event.getButtonList().add(new Button(BUTTON_ID, x, y));

@@ -1,7 +1,5 @@
 package com.apocollis.aqtweaks.comfort;
 
-import com.apocollis.aqtweaks.mixin.comfort.AccessorGuiContainer;
-import com.apocollis.aqtweaks.mixin.comfort.InvokerGuiScreen;
 import java.util.List;
 import net.minecraft.block.Block;
 import net.minecraft.client.Minecraft;
@@ -43,11 +41,11 @@ public final class ComfortTooltips {
 
     @SubscribeEvent
     public void onDraw(net.minecraftforge.client.event.GuiScreenEvent.DrawScreenEvent.Post event) {
-        if (!(event.getGui() instanceof GuiInventory)) return;
+        if (!(event.getGui() instanceof GuiInventory gui)) return;
+        if (!ComfortClientState.present) return;
         if (ComfortClientState.restedTicks <= 0 && ComfortClientState.granted <= 0) return;
-        GuiInventory gui = (GuiInventory) event.getGui();
-        int left = ((AccessorGuiContainer) gui).aqtweaks$getGuiLeft();
-        int top = ((AccessorGuiContainer) gui).aqtweaks$getGuiTop();
+        int left = gui.getGuiLeft();
+        int top = gui.getGuiTop();
         int x = left - 124;
         int y = top;
         int mouseX = event.getMouseX();
@@ -77,10 +75,10 @@ public final class ComfortTooltips {
         }
         if (ComfortClientState.halfHearts > 0) {
             text.add("Fortitude +" + (ComfortClientState.halfHearts / 2) + " hearts, +"
-                    + (ComfortClientState.halfFeathers / 2) + " feathers");
+                + (ComfortClientState.halfFeathers / 2) + " feathers");
         }
         text.add(TextFormatting.AQUA + "At home: Clarity");
-        ((InvokerGuiScreen) gui).aqtweaks$drawHoveringText(text, mouseX, mouseY);
+        gui.drawHoveringText(text, mouseX, mouseY);
     }
 
     private static String capitalize(String category) {

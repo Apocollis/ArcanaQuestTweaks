@@ -2,6 +2,11 @@
 
 Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-11-01 — Fix inventory open crash and limit comfort info to resting areas
+
+- **Inventory Crash**: Removed invalid mixin accessor/invoker interfaces (`AccessorGuiContainer`, `InvokerGuiScreen`) from `mixins.aqtweaks.comfort.json` that triggered `IllegalClassLoadError` on pressing the inventory key; `ComfortToggleButton` and `ComfortTooltips` now call Forge/Minecraft's public `getGuiLeft()`, `getGuiTop()`, and `drawHoveringText(...)` methods directly.
+- **Resting Area Comfort Info**: `isHome` in `ComfortSystemHandler` and `ComfortFeedback.send` no longer treat lingering `PotionHomestead` (Rested) outside as an active home/resting context. `ComfortClientState.present` and `panelVisible()` now strictly require `message.state != 0` (resting or in an area with comfort furniture), ensuring the comfort HUD panel only shows in areas identified as resting and fades out when roaming the wilderness or other dimensions. Version stays 1.10.
+
 ## 2026-11-01 — Fix MDECore `/mde tpx` cross-dimension teleport crash
 
 - `MixinTeleportHelper`: replaces MDECore's broken legacy manual packet and respawn sequence in `TeleportHelper.transferPlayerToDimension` with standard Forge `Entity.changeDimension(dimension)`, eliminating client handshake terminations caused by desynced custom mod network packets (e.g. OpenGlider, veining). Cancels `sendPlayerToSpawnInCurrentWorld` when teleporting into the Nether (`dimension == -1`) to keep the player safely at the destination Nether portal rather than displacing into bedrock at `(0, 0, 0)`. Gated on `mdecore` in `AQTweaksLateMixinLoader`. Version stays 1.10.
