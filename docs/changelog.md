@@ -2,6 +2,10 @@
 
 Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-11-02 — Comfort panel: compact, bottom-left, hidden in chat
+
+- The panel is now 37 px tall and defaults to bottom-left, below the lowest chat line and left of the hearts. "Held back by" is the last line. It is hidden while the chat input is open. The toggle tab icon is centered (`x + 10`). The jar ships a neutral tab sprite; the Stoneborn tab is a Resource Loader file in the pack.
+
 ## 2026-11-01 — Fix inventory open crash and limit comfort info to resting areas
 
 - **Inventory Crash**: Removed invalid mixin accessor/invoker interfaces (`AccessorGuiContainer`, `InvokerGuiScreen`) from `mixins.aqtweaks.comfort.json` that triggered `IllegalClassLoadError` on pressing the inventory key; `ComfortToggleButton` and `ComfortTooltips` now call Forge/Minecraft's public `getGuiLeft()`, `getGuiTop()`, and `drawHoveringText(...)` methods directly.

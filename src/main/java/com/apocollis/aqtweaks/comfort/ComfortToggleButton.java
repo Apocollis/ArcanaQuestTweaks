@@ -105,7 +105,8 @@ public final class ComfortToggleButton {
             GlStateManager.enableBlend();
             GlStateManager.color(1.0F, 1.0F, 1.0F, on ? 1.0F : 0.35F);
             mc.getTextureManager().bindTexture(ICON);
-            drawModalRectWithCustomSizedTexture(x + 7, y + 5, 0, 0, 18, 18, 18, 18);
+            // The tab body is x 6 to 31, so x + 10 leaves 4 px each side; (28 - 18) / 2 = 5 vertically.
+            drawModalRectWithCustomSizedTexture(x + 10, y + 5, 0, 0, 18, 18, 18, 18);
             GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         }
     }

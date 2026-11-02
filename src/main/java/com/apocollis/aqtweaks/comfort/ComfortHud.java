@@ -10,7 +10,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-/** Compact Rested panel, top center beneath Hwyla by default. Stays while a home status is present, then fades for 8s. */
+/** Compact Rested panel (37 px), bottom left beside the health bar by default. Stays while a home status is present, then fades for 8s. */
 @SideOnly(Side.CLIENT)
 public final class ComfortHud extends Gui {
 
@@ -22,7 +22,8 @@ public final class ComfortHud extends Gui {
         FontRenderer font = mc.fontRenderer;
         ScaledResolution scaled = new ScaledResolution(mc);
         int panelWidth = 168;
-        int panelHeight = 48;
+        // 37 px so the bottom-left panel (top at H - 39) sits below the lowest chat line, which ends at H - 40.
+        int panelHeight = 37;
         int sw = scaled.getScaledWidth();
         int sh = scaled.getScaledHeight();
         int x;
@@ -43,7 +44,7 @@ public final class ComfortHud extends Gui {
             case "bottom-left":
                 panelWidth = Math.min(panelWidth, Math.max(100, (sw / 2 - 91) - 12));
                 x = 6;
-                y = sh - panelHeight - 6;
+                y = sh - panelHeight - 2;
                 break;
             case "bottom-right":
                 x = sw - panelWidth - 6;
@@ -72,18 +73,18 @@ public final class ComfortHud extends Gui {
                 : ComfortClientState.scoreTier == 1 ? ComfortClientState.threshold2
                 : ComfortClientState.threshold3;
         String score = String.format("%.0f / %.0f", ComfortClientState.effective, next);
-        font.drawStringWithShadow(title, x + 4, y + 4, 0xFFE0A040);
-        font.drawStringWithShadow(score, x + panelWidth - 4 - font.getStringWidth(score), y + 4, 0xFFE8E0C8);
+        font.drawStringWithShadow(title, x + 4, y + 2, 0xFFE0A040);
+        font.drawStringWithShadow(score, x + panelWidth - 4 - font.getStringWidth(score), y + 2, 0xFFE8E0C8);
 
         float span = Math.max(1.0f, ComfortClientState.threshold3);
         int barWidth = panelWidth - 8;
         int filled = (int) (barWidth * Math.min(1.0f, ComfortClientState.effective / span));
-        drawRect(x + 4, y + 16, x + 4 + barWidth, y + 20, 0xFF3A3228);
-        drawRect(x + 4, y + 16, x + 4 + filled, y + 20, 0xFFD09040);
+        drawRect(x + 4, y + 12, x + 4 + barWidth, y + 15, 0xFF3A3228);
+        drawRect(x + 4, y + 12, x + 4 + filled, y + 15, 0xFFD09040);
 
         int textWidth = panelWidth - 8;
-        font.drawStringWithShadow(font.trimStringToWidth(heldBack(), textWidth), x + 4, y + 24, 0xFFE8D0C0);
-        font.drawStringWithShadow(font.trimStringToWidth(nextLine(), textWidth), x + 4, y + 36, 0xFFC8C0B0);
+        font.drawStringWithShadow(font.trimStringToWidth(nextLine(), textWidth), x + 4, y + 17, 0xFFC8C0B0);
+        font.drawStringWithShadow(font.trimStringToWidth(heldBack(), textWidth), x + 4, y + 27, 0xFFE8D0C0);
     }
 
     /** Maps the saved value to an anchor; the old top, center and bottom values still work. */

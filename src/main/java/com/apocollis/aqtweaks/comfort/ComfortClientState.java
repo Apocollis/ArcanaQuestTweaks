@@ -116,6 +116,7 @@ public final class ComfortClientState {
     public static boolean panelVisible() {
         Minecraft mc = Minecraft.getMinecraft();
         if (mc.player == null || mc.gameSettings.hideGUI || mc.player.isSpectator()) return false;
+        if (mc.currentScreen instanceof net.minecraft.client.gui.GuiChat) return false;
         if (!messagesOn()) return false;
         if (present) return true;
         return changedAt > 0L && mc.player.ticksExisted - changedAt < 160;

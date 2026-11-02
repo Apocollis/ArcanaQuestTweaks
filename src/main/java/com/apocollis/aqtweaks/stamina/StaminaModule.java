@@ -6,6 +6,7 @@ import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 
 
 import com.elenai.elenaidodge2.api.FeathersHelper;
+import com.elenai.elenaidodge2.api.MaxFeathersEvent;
 import net.minecraft.block.Block;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
@@ -890,5 +891,17 @@ public class StaminaModule {
             EntityPlayerMP playerMP = (EntityPlayerMP) event.player;
             FeathersHelper.increaseFeathers(playerMP, FeathersHelper.getMaxFeatherLevel(playerMP));
         }
+    }
+
+    @SubscribeEvent
+    public void onMaxFeathers(MaxFeathersEvent event) {
+        EntityPlayer player = event.getPlayer();
+        if (player == null) return;
+        int milestones = SolCarrotHelper.milestonesAchieved(player);
+        if (milestones <= 0) return;
+        int bonus = Math.min(milestones * 2, 20);
+        int room = event.getAbsoluteMaximum() - event.getMaximum();
+        if (room <= 0) return;
+        event.addMaximum(Math.min(bonus, room));
     }
 }

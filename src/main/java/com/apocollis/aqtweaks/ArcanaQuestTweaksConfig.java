@@ -674,8 +674,8 @@ public class ArcanaQuestTweaksConfig {
         public boolean comfortMessages = true;
 
         @Config.Name("Panel Anchor")
-        @Config.Comment("top-center (beneath the Hwyla tooltip), top-left, top-right, center-right, bottom-left or bottom-right. The old values top and center mean top-center; bottom means bottom-right.")
-        public String panelAnchor = "top-center";
+        @Config.Comment("bottom-left (fits beside health/hotbar), top-center (beneath Hwyla), top-left, top-right, center-right, or bottom-right.")
+        public String panelAnchor = "bottom-left";
 
         @Config.Name("Panel Offset X")
         public int panelOffsetX = 0;
