@@ -148,11 +148,9 @@ public class ComfortSystemHandler {
         if (!scanTick && !(stateTick && home)) return;
 
         ComfortEval eval = finishEval(player, cache.scan);
-        int comfortEvent = ComfortFeedback.EVENT_NONE;
-        if (scanTick || isComfortResting(player)) {
-            comfortEvent = applyEvaluation(player, eval, scanTick);
-            eval = finishEval(player, cache.scan);
-        }
+        // Entry, promote and demote all run on the 2s pass; only the warp progress waits for the 30s scan.
+        int comfortEvent = applyEvaluation(player, eval, scanTick);
+        eval = finishEval(player, cache.scan);
         ComfortFeedback.send(player, eval, comfortEvent, false);
     }
 
@@ -326,9 +324,11 @@ public class ComfortSystemHandler {
         if (!eval.currentlyResting) {
             if (!eval.restPose || eval.hurtRemain > 0L || eval.attackRemain > 0L) return ComfortFeedback.EVENT_NONE;
             if (!eval.furniture || eval.scoreBand <= 0) return ComfortFeedback.EVENT_NONE;
-            startLadder(player, world, 1);
+            // A lingering Rested keeps its strength on re-entry, capped by what the score supports now.
+            int start = Math.max(1, Math.min(RestedBonuses.restedTier(player), eval.scoreBand));
+            startLadder(player, world, start);
             setComfortResting(player, true);
-            applyComfortBenefits(player, 1, advanceWarp);
+            applyComfortBenefits(player, start, advanceWarp);
             return ComfortFeedback.EVENT_ENTERED;
         }
 

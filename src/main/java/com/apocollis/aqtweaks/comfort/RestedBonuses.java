@@ -42,8 +42,16 @@ public final class RestedBonuses {
 
     public static void flush(EntityPlayer player) {
         if (player == null || player.world == null || player.world.isRemote) return;
-        if (!PENDING.remove(player.getUniqueID())) return;
-        reconcile(player);
+        if (PENDING.remove(player.getUniqueID())) {
+            reconcile(player);
+            return;
+        }
+        // Catch-all for any path that ends Rested without a remove or expiry event reaching us.
+        if (player.ticksExisted % 20 != 0 || restedTier(player) > 0) return;
+        NBTTagCompound data = player.getEntityData();
+        if (data.getInteger(VIGOR_DELTA) != 0 || data.getInteger(FORTITUDE_TIER) != 0) {
+            reconcile(player);
+        }
     }
 
     public static void reconcile(EntityPlayer player) {
@@ -113,6 +121,16 @@ public final class RestedBonuses {
     public static void onPotionEnd(PotionEvent.PotionRemoveEvent event) {
         if (REPLACING.get()) return;
         if (event.getPotion() != PotionHomestead.INSTANCE) return;
+        EntityLivingBase living = event.getEntityLiving();
+        if (!(living instanceof EntityPlayer player)) return;
+        if (player.world == null || player.world.isRemote) return;
+        PENDING.add(player.getUniqueID());
+    }
+
+    /** Rested running out on its own is the normal lingering end; it fires this event, not the remove event. */
+    @SubscribeEvent
+    public static void onPotionExpiry(PotionEvent.PotionExpiryEvent event) {
+        if (event.getPotionEffect() == null || event.getPotionEffect().getPotion() != PotionHomestead.INSTANCE) return;
         EntityLivingBase living = event.getEntityLiving();
         if (!(living instanceof EntityPlayer player)) return;
         if (player.world == null || player.world.isRemote) return;
