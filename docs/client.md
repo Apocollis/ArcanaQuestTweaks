@@ -8,7 +8,7 @@ Config: `config/arcanaquesttweaks/aqtweaks_client.cfg`. Client-only. No `@Mod` p
 
 HUD and tooltip presentation that is not stamina spend. Do **not** change Elenai feather or thirst icons. Do **not** mixin Metallurgy. Skip `metallurgy:` items so Reforged’s own shift stats are not doubled.
 
-Comfort messages (the Rested panel, action bar, toast and placement particles) are `Comfort Messages` in this cfg, with the panel anchor and the inventory-button offsets beside it. Tooltips stay on when messages are off.
+Comfort messages (the Rested panel, action bar, toast and placement particles) are `Comfort Messages` in this cfg, with the panel anchor and the inventory-tab offsets beside it. The panel defaults to **top-center, beneath the Hwyla tooltip** (anchors: `top-center`, `top-left`, `top-right`, `center-right`, `bottom-left`, `bottom-right`; the old `top` and `center` mean top-center and `bottom` means bottom-right). The toggle is a 32x28 tab on the left inventory frame, directly below the last Reskillable tab. Hovering the Rested row shows Insight, Vigor and Fortitude and the time left; hovering the Hearthside row shows the warp rate and the room breakdown. Both rows are pinned to the top of the effect column. Tooltips stay on when messages are off.
 
 ## How the parents work
 

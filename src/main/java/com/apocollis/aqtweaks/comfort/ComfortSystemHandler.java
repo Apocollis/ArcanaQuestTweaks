@@ -800,18 +800,25 @@ public class ComfortSystemHandler {
     private static void applyComfortBenefits(EntityPlayer player, int grantedBand, boolean advanceWarp) {
         if (grantedBand < 1) return;
         int amplifier = Math.min(2, grantedBand - 1);
-        int duration = grantedBand >= 3 ? RESTED.duration_3 : grantedBand == 2 ? RESTED.duration_2 : RESTED.duration_1;
-        if (duration < 1) duration = 1;
         PotionEffect current = player.getActivePotionEffect(PotionHomestead.INSTANCE);
-        boolean replace = current != null && current.getAmplifier() != amplifier;
+        int held = current == null ? -1 : current.getAmplifier();
+        // An earned tier is never lowered by the ladder; it keeps topping up at its own strength while resting.
+        int effectAmp = Math.max(amplifier, held);
+        int duration = effectAmp >= 2 ? RESTED.duration_3 : effectAmp == 1 ? RESTED.duration_2 : RESTED.duration_1;
+        if (duration < 1) duration = 1;
+        boolean upgrade = current != null && held < amplifier;
         RestedBonuses.beginReplace();
         try {
-            if (replace) {
+            if (upgrade) {
                 player.removePotionEffect(PotionHomestead.INSTANCE);
             }
-            player.addPotionEffect(new PotionEffect(PotionHomestead.INSTANCE, duration, amplifier, true, false));
+            player.addPotionEffect(new PotionEffect(PotionHomestead.INSTANCE, duration, effectAmp, true, false));
         } finally {
             RestedBonuses.endReplace();
+        }
+        if (upgrade) {
+            // The added max-health modifier leaves the new hearts empty; fill them.
+            player.heal(2.0F * (amplifier - held));
         }
         RestedBonuses.reconcile(player);
         applyTierPotions(player, grantedBand);

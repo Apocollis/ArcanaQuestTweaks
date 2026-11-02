@@ -11,6 +11,14 @@ Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
 - `MixinTeleportHelper`: replaces MDECore's broken legacy manual packet and respawn sequence in `TeleportHelper.transferPlayerToDimension` with standard Forge `Entity.changeDimension(dimension)`, eliminating client handshake terminations caused by desynced custom mod network packets (e.g. OpenGlider, veining). Cancels `sendPlayerToSpawnInCurrentWorld` when teleporting into the Nether (`dimension == -1`) to keep the player safely at the destination Nether portal rather than displacing into bedrock at `(0, 0, 0)`. Gated on `mdecore` in `AQTweaksLateMixinLoader`. Version stays 1.10.
 
+## 2026-11-01 — Comfort HUD, names and tooltips
+
+- The panel defaults to top-center beneath Hwyla (chat is lower left); `Panel Anchor` takes `top-center`, `top-left`, `top-right`, `center-right`, `bottom-left`, `bottom-right`, and the old `top`/`center`/`bottom` still read. Panel lines are clipped to the panel width.
+- The effect shows as **Rested** (key `effect.aqtweaks.rested`; a ContentTweaker lang had kept the old "Homestead" text). The at-home effect (`aqtweaks:clarity`) shows as **Hearthside**.
+- Hovering the Rested or Hearthside row in the inventory now works away from home (the server sends the Rested values with the cleared packet) and shows the buffs, time left, warp rate and room breakdown. The pin mixin now redirects `Ordering.sortedCopy`, because vanilla re-sorted the effects after the old redirect.
+- The comfort toggle is a tab on the left inventory frame under the last Reskillable tab.
+- An earned Rested tier is no longer lowered by the ladder while resting; it keeps topping up at its own strength. Moving up a tier heals the new hearts.
+
 ## 2026-11-01 — Rested review fixes
 
 - Vigor and Fortitude are cleaned up when Rested expires on its own (`PotionExpiryEvent` plus a once-per-second catch-all). Re-entering home keeps a lingering Rested tier, capped by the score. Entry is checked on the 2s pass, not only the 30s scan.

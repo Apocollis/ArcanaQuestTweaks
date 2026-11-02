@@ -28,6 +28,7 @@ public final class ComfortFeedback {
     private static final Map<UUID, Integer> LAST_HASH = new HashMap<>();
     private static final Map<UUID, Long> LAST_TICK = new HashMap<>();
     private static final Map<UUID, Boolean> WAS_HOME = new HashMap<>();
+    private static final Map<UUID, Integer> LAST_RESTED = new HashMap<>();
 
     private ComfortFeedback() {}
 
@@ -35,6 +36,7 @@ public final class ComfortFeedback {
         LAST_HASH.remove(id);
         LAST_TICK.remove(id);
         WAS_HOME.remove(id);
+        LAST_RESTED.remove(id);
     }
 
     public static void sendLogin(EntityPlayerMP player) {
@@ -68,13 +70,26 @@ public final class ComfortFeedback {
         UUID id = player.getUniqueID();
         boolean home = eval.furniture || eval.currentlyResting;
         if (!home) {
-            if (Boolean.TRUE.equals(WAS_HOME.remove(id)) || eventCode != EVENT_NONE) {
-                ArcanaQuestTweaks.NETWORK.sendTo(cleared(eventCode), mp);
+            // Away from home the client still needs the Rested values for the effect tooltip.
+            int restedHash = restedHash(eval);
+            Integer lastRested = LAST_RESTED.get(id);
+            boolean transition = Boolean.TRUE.equals(WAS_HOME.remove(id));
+            if (transition || eventCode != EVENT_NONE || force
+                    || lastRested == null || lastRested.intValue() != restedHash) {
+                PacketComfortStatus packet = cleared(eventCode);
+                packet.insight = eval.insight;
+                packet.vigorInterval = eval.vigorInterval;
+                packet.halfHearts = eval.halfHearts;
+                packet.halfFeathers = eval.halfFeathers;
+                packet.restedTicks = eval.restedTicks;
+                ArcanaQuestTweaks.NETWORK.sendTo(packet, mp);
+                LAST_RESTED.put(id, restedHash);
                 LAST_HASH.put(id, 0);
                 LAST_TICK.put(id, player.world.getTotalWorldTime());
             }
             return;
         }
+        LAST_RESTED.remove(id);
         int toast = toastTier(player, eventCode, eval.grantedBand);
         int almost = eventCode;
         if (almost == EVENT_NONE && isAlmost(eval)) {
@@ -92,6 +107,15 @@ public final class ComfortFeedback {
         LAST_TICK.put(id, now);
         WAS_HOME.put(id, Boolean.TRUE);
         ArcanaQuestTweaks.NETWORK.sendTo(packet, mp);
+    }
+
+    private static int restedHash(ComfortSystemHandler.ComfortEval eval) {
+        int hash = 17;
+        hash = 31 * hash + Float.floatToIntBits(eval.insight);
+        hash = 31 * hash + eval.vigorInterval;
+        hash = 31 * hash + eval.halfHearts;
+        hash = 31 * hash + eval.halfFeathers;
+        return hash;
     }
 
     private static int toastTier(EntityPlayer player, int eventCode, int granted) {

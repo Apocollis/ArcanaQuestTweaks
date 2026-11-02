@@ -1,38 +1,28 @@
 package com.apocollis.aqtweaks.mixin.comfort;
 
-import com.apocollis.aqtweaks.comfort.PotionHomestead;
-import java.util.ArrayList;
-import java.util.Collection;
+import com.apocollis.aqtweaks.comfort.ComfortTooltips;
+import com.google.common.collect.Ordering;
 import java.util.List;
 import net.minecraft.client.renderer.InventoryEffectRenderer;
-import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.potion.PotionEffect;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
-/** Puts Rested at the top of the inventory effect column so its hover box has a fixed corner. */
+/**
+ * Puts Rested, then Hearthside, at the top of the inventory effect column so their hover boxes have a
+ * fixed corner. Vanilla sorts the effects after reading them, so the order is fixed on the sorted list.
+ */
 @Mixin(InventoryEffectRenderer.class)
 public abstract class MixinInventoryEffectRenderer {
 
+    @SuppressWarnings({"rawtypes", "unchecked"})
     @Redirect(
             method = "drawActivePotionEffects",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/entity/player/EntityPlayer;getActivePotionEffects()Ljava/util/Collection;"))
-    private Collection<PotionEffect> aqtweaks$restedFirst(EntityPlayer player) {
-        List<PotionEffect> ordered = new ArrayList<>();
-        PotionEffect rested = null;
-        for (PotionEffect effect : player.getActivePotionEffects()) {
-            if (effect.getPotion() == PotionHomestead.INSTANCE) {
-                rested = effect;
-            } else {
-                ordered.add(effect);
-            }
-        }
-        if (rested != null) {
-            ordered.add(0, rested);
-        }
-        return ordered;
+                    target = "Lcom/google/common/collect/Ordering;sortedCopy(Ljava/lang/Iterable;)Ljava/util/List;"))
+    private List aqtweaks$pinRested(Ordering ordering, Iterable effects) {
+        return ComfortTooltips.pinned(ordering.sortedCopy(effects));
     }
 }

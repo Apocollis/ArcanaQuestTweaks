@@ -10,7 +10,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-/** Compact Rested panel on the right. Stays while a home status is present, then fades for 8s. */
+/** Compact Rested panel, top center beneath Hwyla by default. Stays while a home status is present, then fades for 8s. */
 @SideOnly(Side.CLIENT)
 public final class ComfortHud extends Gui {
 
@@ -23,16 +23,38 @@ public final class ComfortHud extends Gui {
         ScaledResolution scaled = new ScaledResolution(mc);
         int panelWidth = 168;
         int panelHeight = 48;
-        String anchor = ArcanaQuestTweaksConfig.ClientModuleConfig.comfort.panelAnchor;
-        int x = scaled.getScaledWidth() - panelWidth - 6 + ArcanaQuestTweaksConfig.ClientModuleConfig.comfort.panelOffsetX;
+        int sw = scaled.getScaledWidth();
+        int sh = scaled.getScaledHeight();
+        int x;
         int y;
-        if ("top".equalsIgnoreCase(anchor)) {
-            y = 8;
-        } else if ("bottom".equalsIgnoreCase(anchor)) {
-            y = scaled.getScaledHeight() - panelHeight - 8;
-        } else {
-            y = scaled.getScaledHeight() / 2 - panelHeight / 2;
+        switch (anchorName(ArcanaQuestTweaksConfig.ClientModuleConfig.comfort.panelAnchor)) {
+            case "top-left":
+                x = 6;
+                y = 8;
+                break;
+            case "top-right":
+                x = sw - panelWidth - 6;
+                y = 34;
+                break;
+            case "center-right":
+                x = sw - panelWidth - 6;
+                y = sh / 2 - panelHeight / 2;
+                break;
+            case "bottom-left":
+                panelWidth = Math.min(panelWidth, Math.max(100, (sw / 2 - 91) - 12));
+                x = 6;
+                y = sh - panelHeight - 6;
+                break;
+            case "bottom-right":
+                x = sw - panelWidth - 6;
+                y = sh - panelHeight - 8;
+                break;
+            default: // top-center, beneath the Hwyla tooltip
+                x = (sw - panelWidth) / 2;
+                y = 44;
+                break;
         }
+        x += ArcanaQuestTweaksConfig.ClientModuleConfig.comfort.panelOffsetX;
         y += ArcanaQuestTweaksConfig.ClientModuleConfig.comfort.panelOffsetY;
 
         int alpha = 0xC0;
@@ -59,10 +81,26 @@ public final class ComfortHud extends Gui {
         drawRect(x + 4, y + 16, x + 4 + barWidth, y + 20, 0xFF3A3228);
         drawRect(x + 4, y + 16, x + 4 + filled, y + 20, 0xFFD09040);
 
-        String held = heldBack();
-        font.drawStringWithShadow(held, x + 4, y + 24, 0xFFE8D0C0);
-        String nextLine = nextLine();
-        font.drawStringWithShadow(nextLine, x + 4, y + 36, 0xFFC8C0B0);
+        int textWidth = panelWidth - 8;
+        font.drawStringWithShadow(font.trimStringToWidth(heldBack(), textWidth), x + 4, y + 24, 0xFFE8D0C0);
+        font.drawStringWithShadow(font.trimStringToWidth(nextLine(), textWidth), x + 4, y + 36, 0xFFC8C0B0);
+    }
+
+    /** Maps the saved value to an anchor; the old top, center and bottom values still work. */
+    private static String anchorName(String configured) {
+        String name = configured == null ? "" : configured.trim().toLowerCase(java.util.Locale.ROOT);
+        switch (name) {
+            case "top-left":
+            case "top-right":
+            case "center-right":
+            case "bottom-left":
+            case "bottom-right":
+                return name;
+            case "bottom":
+                return "bottom-right";
+            default:
+                return "top-center";
+        }
     }
 
     private static String heldBack() {

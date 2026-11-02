@@ -52,7 +52,7 @@ public class PotionHomestead extends Potion {
 
     @Override
     public String getName() {
-        return "effect.aqtweaks.homestead";
+        return "effect.aqtweaks.rested";
     }
 
     @Override

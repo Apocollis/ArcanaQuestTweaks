@@ -44,7 +44,9 @@ public final class PortalLang {
         put(WILD_SHIFT_HINT, "\u00a78Hold Shift for details.");
         put("item.aqtweaks.spatial_rift_wild.no_land", "\u00a75[Arcana]\u00a7r No safe land was found.");
         put("entity.arcane_rift.name", "Arcane Rift");
-        put("effect.aqtweaks.homestead", "Homestead");
+        put("effect.aqtweaks.homestead", "Rested");
+        put("effect.aqtweaks.rested", "Rested");
+        put("effect.aqtweaks.hearthside", "Hearthside");
     }
 
     public static String format(String key, Object... args) {

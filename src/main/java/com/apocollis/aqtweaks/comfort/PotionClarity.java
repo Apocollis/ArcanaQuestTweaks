@@ -35,7 +35,7 @@ public class PotionClarity extends Potion {
 
     @Override
     public String getName() {
-        return "effect.aqtweaks.clarity";
+        return "effect.aqtweaks.hearthside";
     }
 
     /** Seconds between temporary-warp clears at this amplifier (tier I / II / III). */

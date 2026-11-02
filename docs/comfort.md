@@ -15,7 +15,7 @@ There is no Forge `@Config` for comfort and no mixin into those mods. Missing mo
 
 ## Locked intent
 
-A homestead rest loop: scan nearby cozy blocks and tamed pets, add potion bonuses and a small sitting or lying bonus, subtract player-state penalties, then grant **Rested** (registry `aqtweaks:homestead`). Rested lingers after the player leaves. While they are resting at home it is held at full duration, and **Clarity** (`aqtweaks:clarity`) shows the at-home temporary-warp cleanse when Thaumcraft is loaded. Clarity ends with the resting state. Also grants Simple Difficulty **cold resist** while standing in Biomes O' Plenty hot spring water.
+A homestead rest loop: scan nearby cozy blocks and tamed pets, add potion bonuses and a small sitting or lying bonus, subtract player-state penalties, then grant **Rested** (registry `aqtweaks:homestead`). Rested lingers after the player leaves. While they are resting at home it is held at full duration, and **Hearthside** (registry `aqtweaks:clarity`, class `PotionClarity`) shows the at-home temporary-warp cleanse when Thaumcraft is loaded. Hearthside ends with the resting state. Also grants Simple Difficulty **cold resist** while standing in Biomes O' Plenty hot spring water.
 
 Category caps stay. Repeats of one family decay. Penalties **do not** have a global cap. A cave and a garden both count. There is no roof gate. The shell tag only changes structure decay, and `non_shell_weight` can discount blocks the rays did not hit. A new settings file uses thresholds **24 / 48 / 66**. A file that already has the three threshold keys keeps those numbers.
 
@@ -25,8 +25,8 @@ Category caps stay. Repeats of one family decay. Penalties **do not** have a glo
 | --- | --- | --- |
 | Vanilla | Sleep, sneak, ride, potions, food, health, `EntityTameable` | Rest detection, pet scan, hunger/health penalties |
 | Tweaks | `PotionHomestead` | Shown as Rested. Registry `aqtweaks:homestead`. Icon `homestead_icon.png`. Max health +2 half-hearts per tier. Milk does not clear it |
-| Tweaks | `PotionClarity` | At-home warp indicator. Registry `aqtweaks:clarity`. Not applied without Thaumcraft |
-| Lang | `en_us.lang` | `effect.aqtweaks.homestead=Rested`, `effect.aqtweaks.clarity=Clarity` |
+| Tweaks | `PotionClarity` | Shown as Hearthside. At-home warp indicator. Registry `aqtweaks:clarity`. Not applied without Thaumcraft |
+| Lang | `en_us.lang` | `effect.aqtweaks.rested=Rested` (`PotionHomestead.getName`), `effect.aqtweaks.hearthside=Hearthside` (`PotionClarity.getName`); the old `homestead` and `clarity` keys are kept. A resource pack lang (ContentTweaker) can override a key, which is why the display keys were renamed |
 | Thaumcraft | Temp warp capability | Same `ThaumcraftHelper.reduceWarp` as the TC module; progress NBT `WarpCleansingProgress` (not `WarpExposureProgress`) |
 | Simple Difficulty | thirst, body temp, `cold_resist` / `heat_protection` / `cold_protection` / `heat_resist` | `SimpleDifficultyHelper` (guarded compile-hard) for thirst/temp; potions by resource name — null-safe |
 | Somnia | `somnia:sleepy` / `exhausted` / `fading` | default rows in `penalties.effects` |
@@ -38,7 +38,7 @@ Category caps stay. Repeats of one family decay. Penalties **do not** have a glo
 
 ## Design plan (rest loop)
 
-Server only. Furnishings scan on `TickEvent.PlayerTickEvent` **END**, every **600 ticks** (30s), staggered by `(ticksExisted + entityId) % 600`. Bonuses, penalties, the rest pose and the ladder refresh every **40 ticks** in a home context (cached scan has entry furniture, or Rested is active). A cached scan older than **1200 ticks** is refreshed first. Eating and waking refresh immediately. Entry happens on the 30s scan, on eating, and on waking. Hurt, attack, lost furniture, or score below I end the **resting** state at once and do **not** remove Rested. Clarity is removed at once.
+Server only. Furnishings scan on `TickEvent.PlayerTickEvent` **END**, every **600 ticks** (30s), staggered by `(ticksExisted + entityId) % 600`. Bonuses, penalties, the rest pose and the ladder refresh every **40 ticks** in a home context (cached scan has entry furniture, or Rested is active). A cached scan older than **1200 ticks** is refreshed first. Eating and waking refresh immediately. Entry is checked on the 2s pass (the cached scan can be up to 30s old), and also on eating and waking. Hurt, attack, lost furniture, or score below I end the **resting** state at once and do **not** remove Rested. Clarity is removed at once.
 
 1. If NBT `AQTComfortResting` is false: player must pass `isPlayerResting`; not be inside the hurt or attack cooldown; the scan must include a block in `entry_require_categories` (default hearth / bedding / seating); **effective** score ≥ Rested I → set tag, granted band **I**, stamp `AQTComfortBandSince`, apply I.
 2. If already resting: **do not** require sneak/sleep/still. Below I, or no required furniture in range → clear the tag and the ladder NBT. Do **not** remove Rested. Remove Clarity. A configured potion entry counts down; a `learning` entry is removed only when the granted band becomes II or III.
