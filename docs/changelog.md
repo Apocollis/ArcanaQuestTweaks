@@ -2,6 +2,10 @@
 
 Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-11-01 — Fix MDECore `/mde tpx` cross-dimension teleport crash
+
+- `MixinTeleportHelper`: replaces MDECore's broken legacy manual packet and respawn sequence in `TeleportHelper.transferPlayerToDimension` with standard Forge `Entity.changeDimension(dimension)`, eliminating client handshake terminations caused by desynced custom mod network packets (e.g. OpenGlider, veining). Cancels `sendPlayerToSpawnInCurrentWorld` when teleporting into the Nether (`dimension == -1`) to keep the player safely at the destination Nether portal rather than displacing into bedrock at `(0, 0, 0)`. Gated on `mdecore` in `AQTweaksLateMixinLoader`. Version stays 1.10.
+
 ## 2026-11-01 — Village preparer sits out worlds with no RTG generator
 
 - `VillagePlateJobPreparer.prepare` returns null (sits the job out) when the world has no RTG generator, so worker chunks in the Nether, End, Twilight Forest and Atum install instead of being discarded as "result no longer valid". Dimension 0 also looks for the live RTG generator, and the village generator falls back to `findVillageGenerator` when the stash is still empty. `unavailable` stays the discard for a failed snapshot on an RTG world.

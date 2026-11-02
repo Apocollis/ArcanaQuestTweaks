@@ -126,7 +126,7 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `
 
 ### MixinBooter late loader
 
-`AQTweaksLateMixinLoader` always returns these configs (MixinBooter / Fugue). Charm paste is **not** here — it is on jar `MixinConfigs` with the early json. Its `shouldMixinConfigQueue(String)` override queues every config except `mixins.aqtweaks.geographicraft.json`, which is queued only when `Loader.isModLoaded("geographicraft")`. That is the only config gated this way; the others rely on `required: false` alone.
+`AQTweaksLateMixinLoader` always returns these configs (MixinBooter / Fugue). Charm paste is **not** here — it is on jar `MixinConfigs` with the early json. Its `shouldMixinConfigQueue(String)` override gates configs conditionally when their target parent mod is loaded (`geographicraft`, `atum`, `dsurround`, and `mdecore`); other late configs rely on `required: false` alone.
 
 | File | `required` | Module | If parent jar missing |
 | --- | --- | --- | --- |
@@ -166,6 +166,9 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `
 | `mixins.aqtweaks.simpletomb.json` | false | Simple Tomb: origin slot mapping + Baubles + non-destructive restore | Skip |
 | `mixins.aqtweaks.libraryex.json` | false | `MixinEntityHelper`: synchronize `ENTITY_RESOURCE_LOCATION_CACHE.computeIfAbsent` in `EntityHelper.getEntityLocation` so client/server entity ticks do not throw CME | Skip |
 | `mixins.aqtweaks.geographicraft.json` | false | Server: `MixinDimensionManager` redirects client-only `Biome.getBiomeName` in `salvageSpawn` to the registry name ([server.md](server.md)). Queued only if `geographicraft` is loaded | Not queued |
+| `mixins.aqtweaks.dsurround.json` | false | Dynamic Surroundings fog & weather hooks. Queued only if `dsurround` is loaded | Not queued |
+| `mixins.aqtweaks.comfort.json` | false | Comfort: inventory effect order, bed shelter evaluation | Skip |
+| `mixins.aqtweaks.mdecore.json` | false | Server: `MixinTeleportHelper` fixes `/mde tpx` cross-dimension teleport crash and Nether bedrock displacement ([server.md](server.md)). Queued only if `mdecore` is loaded | Not queued |
 
 `mixins.aqtweaks.json` contents (package `com.apocollis.aqtweaks.mixin`):
 
