@@ -3,6 +3,8 @@ package com.apocollis.aqtweaks.comfort;
 import com.apocollis.aqtweaks.ArcanaQuestTweaks;
 
 
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
@@ -44,8 +46,8 @@ public class PotionHomestead extends Potion {
     }
 
     @Override
-    public boolean isCurativeItem(ItemStack stack) {
-        return false;
+    public List<ItemStack> getCurativeItems() {
+        return Collections.emptyList();
     }
 
     @Override

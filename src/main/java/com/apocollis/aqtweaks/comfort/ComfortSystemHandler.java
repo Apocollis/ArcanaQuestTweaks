@@ -613,7 +613,7 @@ public class ComfortSystemHandler {
         if (world == null) {
             return new ComfortEval(
                     false, false, cozy.hasEntryFurniture, 0L, 0L,
-                    cozy.score, restBonus, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                    cozy.score, restBonus, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                     Math.max(0.0f, cozy.score + restBonus), scoreBand(Math.max(0.0f, cozy.score + restBonus)),
                     0, -1L, false, cozy, Collections.emptyList(), Collections.emptyList(), 0, 0.0f, 0, 0, 0);
         }

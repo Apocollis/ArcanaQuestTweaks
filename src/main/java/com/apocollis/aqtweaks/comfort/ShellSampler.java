@@ -88,13 +88,13 @@ public final class ShellSampler {
     private static boolean isCarpet(World world, BlockPos pos) {
         if (!world.isBlockLoaded(pos)) return false;
         ResourceLocation name = world.getBlockState(pos).getBlock().getRegistryName();
-        return name != null && name.getResourcePath().contains("carpet");
+        return name != null && name.getPath().contains("carpet");
     }
 
     private static boolean isGlass(IBlockState state) {
         ResourceLocation name = state.getBlock().getRegistryName();
         if (name == null) return false;
-        String path = name.getResourcePath();
+        String path = name.getPath();
         return path.contains("glass") || path.contains("pane");
     }
 

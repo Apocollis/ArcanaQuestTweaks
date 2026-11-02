@@ -2,6 +2,7 @@ package com.apocollis.aqtweaks.comfort;
 
 import com.apocollis.aqtweaks.mixin.comfort.AccessorGuiContainer;
 import com.apocollis.aqtweaks.mixin.comfort.InvokerGuiScreen;
+import java.util.List;
 import net.minecraft.block.Block;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.inventory.GuiInventory;

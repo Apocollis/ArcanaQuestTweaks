@@ -4,7 +4,7 @@ import com.apocollis.aqtweaks.comfort.PotionHomestead;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import net.minecraft.client.gui.inventory.InventoryEffectRenderer;
+import net.minecraft.client.renderer.InventoryEffectRenderer;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.potion.PotionEffect;
 import org.spongepowered.asm.mixin.Mixin;
