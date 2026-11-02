@@ -38,19 +38,30 @@ public final class VillagePlateJobPreparer implements JobPreparer {
 
     @Override
     public Object prepare(World world, int chunkX, int chunkZ) {
-        if (world == null) return null;
+        if (world == null || world.provider == null) return null;
         long seed = world.getSeed();
         if (!ArcanaQuestTweaksConfig.RtgModuleConfig.surface.enableVillageSmoothing) {
             return VillagePlateSnapshot.empty(seed, new long[0], VillagePlateSnapshot.NOT_TRACKED);
         }
+        // A world with no RTG generator (Nether, End, Twilight Forest, Atum, ...) sits this preparer out: a null
+        // slot is skipped by Chunk Steward, so the worker chunk installs instead of being discarded as unavailable.
+        // Outside dimension 0 only the cheap stash lookup is used; dimension 0 also walks the live generator.
+        ChunkGeneratorRTG rtg = VillageLandHelper.stashedRtg(world);
+        if (rtg == null && world.provider.getDimension() == 0) {
+            rtg = StructureVillageOverlap.findRtgGenerator(world);
+        }
+        if (rtg == null) return null;
         PipelineContext.beginPrepare();
         try {
             if (!StructureAccess.isMapFeaturesEnabled(world, true)) {
                 return VillagePlateSnapshot.empty(seed, new long[0], VillagePlateSnapshot.NOT_TRACKED);
             }
             MapGenVillage village = VillageLandHelper.stashedVillage(world);
-            ChunkGeneratorRTG rtg = VillageLandHelper.stashedRtg(world);
-            if (village == null || rtg == null) {
+            if (village == null) {
+                Object found = StructureVillageOverlap.findVillageGenerator(world);
+                if (found instanceof MapGenVillage) village = (MapGenVillage) found;
+            }
+            if (village == null) {
                 return VillagePlateSnapshot.unavailable(seed);
             }
             VillageLandHelper.pushGenerator(rtg);

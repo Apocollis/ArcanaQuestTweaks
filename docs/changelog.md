@@ -2,6 +2,10 @@
 
 Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-11-01 — Village preparer sits out worlds with no RTG generator
+
+- `VillagePlateJobPreparer.prepare` returns null (sits the job out) when the world has no RTG generator, so worker chunks in the Nether, End, Twilight Forest and Atum install instead of being discarded as "result no longer valid". Dimension 0 also looks for the live RTG generator, and the village generator falls back to `findVillageGenerator` when the stash is still empty. `unavailable` stays the discard for a failed snapshot on an RTG world.
+
 ## 2026-11-01 — Rested homestead
 
 - Comfort's effect is **Rested** (`aqtweaks:homestead`). It lingers after the player leaves. Hurt, attack, lost furniture and a score below I end the at-home state only. Clarity (`aqtweaks:clarity`) is the at-home warp indicator and is removed at once. Insight, Vigor and Fortitude replace the borrowed Learning, Soot and Elenai potions unless a `rested.potions_*` row names one. Family decay, a shell tag, and a sitting/lying bonus are in the 30s scan. The 2s pass refreshes penalties and the ladder. Client panel, tooltips, toast, particles and the inventory toggle are in. Not built or deployed in this pass. Version stays 1.10.
