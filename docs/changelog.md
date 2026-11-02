@@ -2,6 +2,13 @@
 
 Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-11-02 — Rested stamina sync without the full config packet, SolCarrot milestones, armor-weight HUD
+
+- **Disconnect on Rested tier change.** `RestedBonuses.reconcile` no longer calls `FeathersHelper.syncMaxFeathers` (it ends with Elenai's full `CUpdateConfigMessage` including the armor weight list, blank at join but full mid-game). It uses the new `stamina/StaminaMaxSync`, which lowers current feathers if above the maximum and sends `PacketTemperatureMax`. The temperature module's non-lethal paths use the same helper. Not yet confirmed in game.
+- **Logging.** `network/ChannelErrorLogger` is now installed on every registered network channel (both sides) from `FMLLoadCompleteEvent`, and names the channel. `RestedBonuses` writes temporary `[AQ-STAMINA]` lines on a Vigor or Fortitude change.
+- **SolCarrot milestones** now raise the stamina maximum when reached (`StaminaModule.onFoodFinished`, entity data `AQTSolCarrotMilestones`), and login and respawn record the current count so earlier milestones have a stored value. An unreadable SolCarrot read no longer counts as 0; the stored count is used and the first failure is logged.
+- **Stamina HUD with armor weight.** Bonus stamina above 20 draws as green over the weight bar from the left, and a green/iron split feather where it meets iron. See `stamina.md`.
+
 ## 2026-11-02 — Comfort panel: compact, bottom-left, hidden in chat
 
 - The panel is now 37 px tall and defaults to bottom-left, below the lowest chat line and left of the hearts. "Held back by" is the last line. It is hidden while the chat input is open. The toggle tab icon is centered (`x + 10`). The jar ships a neutral tab sprite; the Stoneborn tab is a Resource Loader file in the pack.

@@ -890,7 +890,56 @@ public class StaminaModule {
         if (event.player instanceof EntityPlayerMP) {
             EntityPlayerMP playerMP = (EntityPlayerMP) event.player;
             FeathersHelper.increaseFeathers(playerMP, FeathersHelper.getMaxFeatherLevel(playerMP));
+            recordSolCarrotMilestones(playerMP);
         }
+    }
+
+    @SubscribeEvent
+    public void onSolCarrotLogin(net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.player instanceof EntityPlayerMP) {
+            recordSolCarrotMilestones((EntityPlayerMP) event.player);
+        }
+    }
+
+    /**
+     * Stores the current SolCarrot milestone count in {@link #SOLCARROT_MILESTONES_TAG} when it is readable, so a
+     * milestone gained before this feature, or in an earlier session, has a stored value for the unreadable
+     * fallback without waiting for the next meal. Elenai's own join recompute already put the bonus into the
+     * maximum the client received, so no sync is sent unless the stored count differs from the live one.
+     */
+    private static void recordSolCarrotMilestones(EntityPlayerMP player) {
+        if (!SolCarrotHelper.isLoaded() || player instanceof net.minecraftforge.common.util.FakePlayer) return;
+        int now = SolCarrotHelper.milestonesAchieved(player);
+        if (now == SolCarrotHelper.UNREADABLE) return;
+        NBTTagCompound data = player.getEntityData();
+        boolean stored = data.hasKey(SOLCARROT_MILESTONES_TAG);
+        int before = data.getInteger(SOLCARROT_MILESTONES_TAG);
+        data.setInteger(SOLCARROT_MILESTONES_TAG, now);
+        if (stored && before != now) {
+            StaminaMaxSync.sync(player);
+        }
+    }
+
+    /** Last SolCarrot milestone count applied to the stamina maximum (entity data, not the persisted tag). */
+    static final String SOLCARROT_MILESTONES_TAG = "AQTSolCarrotMilestones";
+
+    /**
+     * SolCarrot updates its food list on AppleCore's {@code FoodEvent.FoodEaten}, which fires inside
+     * {@code ItemFood.onItemUseFinish}, before Forge posts this event, so the count is current here. A milestone
+     * changes the maximum, which Elenai only recomputes on a sync; push it now.
+     */
+    @SubscribeEvent(priority = EventPriority.LOW)
+    public void onFoodFinished(LivingEntityUseItemEvent.Finish event) {
+        if (!SolCarrotHelper.isLoaded()) return;
+        if (!(event.getEntityLiving() instanceof EntityPlayerMP)) return;
+        EntityPlayerMP player = (EntityPlayerMP) event.getEntityLiving();
+        if (player instanceof net.minecraftforge.common.util.FakePlayer) return;
+        int now = SolCarrotHelper.milestonesAchieved(player);
+        if (now == SolCarrotHelper.UNREADABLE) return;
+        NBTTagCompound data = player.getEntityData();
+        if (data.hasKey(SOLCARROT_MILESTONES_TAG) && data.getInteger(SOLCARROT_MILESTONES_TAG) == now) return;
+        data.setInteger(SOLCARROT_MILESTONES_TAG, now);
+        StaminaMaxSync.sync(player);
     }
 
     @SubscribeEvent
@@ -898,6 +947,10 @@ public class StaminaModule {
         EntityPlayer player = event.getPlayer();
         if (player == null) return;
         int milestones = SolCarrotHelper.milestonesAchieved(player);
+        if (milestones == SolCarrotHelper.UNREADABLE) {
+            // SolCarrot data not readable right now: use the last count we applied, never a silent 0.
+            milestones = player.getEntityData().getInteger(SOLCARROT_MILESTONES_TAG);
+        }
         if (milestones <= 0) return;
         int bonus = Math.min(milestones * 2, 20);
         int room = event.getAbsoluteMaximum() - event.getMaximum();

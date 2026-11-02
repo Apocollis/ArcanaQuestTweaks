@@ -3,6 +3,7 @@ package com.apocollis.aqtweaks.simpledifficulty;
 import com.apocollis.aqtweaks.reskillable.PerkAccess;
 import com.apocollis.aqtweaks.ArcanaQuestTweaks;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
+import com.apocollis.aqtweaks.stamina.StaminaMaxSync;
 import com.charles445.simpledifficulty.api.SDCapabilities;
 import com.charles445.simpledifficulty.api.SDDamageSources;
 import com.charles445.simpledifficulty.api.SDItems;
@@ -330,16 +331,10 @@ public class SimpleDifficultyModule {
             }
             return;
         }
-        int max = Utils.getMaxDodges(player);
-        int level = FeathersHelper.getFeatherLevel(player);
-        int drop = level - max;
-        if (drop > 0) {
-            FeathersHelper.decreaseFeathers(player, drop);
-        }
-        ArcanaQuestTweaks.NETWORK.sendTo(new PacketTemperatureMax(max), player);
+        StaminaMaxSync.sync(player);
     }
 
     private static void syncMaxToClient(EntityPlayerMP player) {
-        ArcanaQuestTweaks.NETWORK.sendTo(new PacketTemperatureMax(Utils.getMaxDodges(player)), player);
+        StaminaMaxSync.sync(player);
     }
 }

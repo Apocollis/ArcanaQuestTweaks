@@ -90,6 +90,16 @@ Armor tooltips: `MixinTooltipEventListener` replaces `TooltipEventListener.getWe
 
 Respawn: `PlayerRespawnEvent` → `FeathersHelper.increaseFeathers(player, getMaxFeatherLevel(player))` (caps at max, `CUpdateDodgeMessage` only). Do **not** call `fillFeathers` (that also runs `updateClientConfig` and can overflow `CUpdateConfigMessage` on this pack’s weight list). Do not set the pool by hand.
 
+### Maximum feathers sync (`StaminaMaxSync`)
+
+Elenai stores no maximum: `Utils.getMaxDodges(player)` posts a `MaxFeathersEvent` every call and returns the result. Contributors are recomputed from live state: SolCarrot milestones (`StaminaModule.onMaxFeathers`, `min(milestones * 2, 20)`), Rested Fortitude (`RestedBonuses.onMaxFeathers`) and the Simple Difficulty temperature penalty (`SimpleDifficultyModule.onMaxFeathers`, subtracts, floor 1). Nothing stores the maximum in NBT.
+
+`StaminaMaxSync.sync(EntityPlayerMP)` is the one mid-game way to push a changed maximum: `getMaxDodges`, lower current feathers with `FeathersHelper.decreaseFeathers` if above it (a spend: paid from absorption first, can be cancelled by a `SpendFeatherEvent` listener, does nothing in creative or spectator), then message 4 `PacketTemperatureMax`. It never raises current feathers. Do **not** call `FeathersHelper.syncMaxFeathers` mid-game: it ends with `Utils.updateClientConfig`, the full `CUpdateConfigMessage` with the armor weight list (blank at join because of the join window above, full mid-game), which overflows on this pack and disconnects the player with "A fatal error has occurred, this connection is terminated". Callers: Rested tier change (`RestedBonuses.reconcile`, Fortitude), the temperature module (non-lethal paths; the `penalty >= getBaseDodges()` branches keep their own `PacketTemperatureMax(0)`), and the SolCarrot milestone listener.
+
+SolCarrot: the bonus is only read when Elenai asks for the maximum, so `StaminaModule.onFoodFinished` (`LivingEntityUseItemEvent.Finish`, `LOW`) compares `SolCarrotHelper.milestonesAchieved` with entity data `AQTSolCarrotMilestones` and calls `StaminaMaxSync.sync` when it changed. SolCarrot updates its list on AppleCore `FoodEvent.FoodEaten`, inside `ItemFood.onItemUseFinish`, before Forge posts `Finish`. On login and respawn `StaminaModule` also records the readable count in `AQTSolCarrotMilestones` (syncing only if a stored count differs), so a milestone gained earlier has a stored value without waiting for the next meal; Elenai's join recompute already sent the bonus in the maximum. An unreadable SolCarrot read returns `SolCarrotHelper.UNREADABLE` (-1, logged once), not 0: `onMaxFeathers` then uses the stored `AQTSolCarrotMilestones` count instead of dropping the bonus, and the listener does nothing. A real 0 lowers the maximum.
+
+`network/ChannelErrorLogger` (installed from `FMLLoadCompleteEvent` on every registered channel, both sides) logs any exception raised while decoding or handling a mod packet, with the channel name, and passes it on unchanged. Forge reports such a failure as the "fatal error" disconnect and the pack never wrote the matching line. Search the log for `Exception on network channel`. `RestedBonuses.reconcile` also writes `[AQ-STAMINA]` lines for a Vigor delta change or a Fortitude tier change (tier, max, feathers after the clamp, world time); remove them once the cause of the disconnect is confirmed fixed.
+
 ## Files
 
 | Piece | Role |
@@ -180,7 +190,7 @@ DSS default list is every stock skill `=0`. Change `Skill Costs` in cfg; no rebu
 
 If `Utils.dodgeTraitUnlocked`, Elenai’s `DodgeGui` draws. If not, Tweaks calls the **same** Extended `DodgeGui.renderFeathers` / `renderAbsorptionFeathers` on `FOOD` (or `ALL` when `compatHud`). Do not fork old 1.1.0 icons. Respect `ModConfig.client.hud.hud` and creative/spectator.
 
-`MixinDodgeGui` cancels the two private draws and `ElenaiFeatherHudColors` paints them. Placement, patron V shift, healing, flash, and `right_height` stay in Extended’s public methods. Default sheet is Extended `textures/gui/icons.png` (`featherHudTextureStyle = extended`).
+`MixinDodgeGui` cancels the two private draws and `ElenaiFeatherHudColors` paints them. When armor weight blocks part of the base row (`getBlockedBaseLayerAmount > 0`, Elenai's weight bar replaces the layered bar), bonus stamina above 20 (`ClientStorage.dodges - 20`, first layer, up to 20 half-feathers) is still drawn: green tint sprites from the left slot to the right over the blue feathers, and where it reaches an iron slot that slot is split, the left 4 px green and the rest iron, so neither the bonus nor the blocked part is hidden. Green means bonus stamina that armor weight is currently offsetting; it does not add usable feathers. The weight bar fills from the right with iron at the right end, as Extended draws it. Placement, patron V shift, healing, flash, and `right_height` stay in Extended’s public methods. Default sheet is Extended `textures/gui/icons.png` (`featherHudTextureStyle = extended`).
 
 | Layer | Half-feathers | Draw |
 | --- | --- | --- |
@@ -387,6 +397,8 @@ The seven `indoorInsulation*` / `greenhouseGlass*` keys also live in this file (
 | Ledge Climb Land Pause Ticks | 8 | After successful snap; 0 off |
 
 ## Entity NBT keys (`StaminaTweaks*`)
+
+Also `AQTSolCarrotMilestones` (last SolCarrot milestone count applied to the maximum, entity data) and, for Rested, `AQTVigorDelta` / `AQTFortitudeTier` (see [comfort.md](comfort.md)).
 
 | Key | Side | Use |
 | --- | --- | --- |

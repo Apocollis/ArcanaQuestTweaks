@@ -65,7 +65,7 @@ public class MixinDodgeGui {
             boolean failed,
             CallbackInfo ci) {
         ElenaiFeatherHudColors.renderBaseWeightBar(
-                gui, width, y, usable, cap, blocked, vPatron, uOutline, healing, failed);
+                gui, width, y, usable, cap, blocked, vPatron, uOutline, uTintHalf, uTintFull, healing, failed);
         ci.cancel();
     }
 }

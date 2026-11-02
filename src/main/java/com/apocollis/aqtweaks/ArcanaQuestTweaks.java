@@ -41,6 +41,12 @@ public class ArcanaQuestTweaks {
     }
 
     @Mod.EventHandler
+    public void loadComplete(net.minecraftforge.fml.common.event.FMLLoadCompleteEvent event) {
+        // After every mod has registered its channels, so the logger covers elenaidodge2 and the rest.
+        com.apocollis.aqtweaks.network.ChannelErrorLogger.installAll();
+    }
+
+    @Mod.EventHandler
     public void serverStopping(FMLServerStoppingEvent event) {
         com.apocollis.aqtweaks.world.PasteRelightQueue.flushAll();
         com.apocollis.aqtweaks.world.PopulateRelightQueue.flushAll();

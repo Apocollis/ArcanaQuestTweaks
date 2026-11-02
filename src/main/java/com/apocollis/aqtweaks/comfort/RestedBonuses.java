@@ -1,5 +1,6 @@
 package com.apocollis.aqtweaks.comfort;
 
+import com.apocollis.aqtweaks.stamina.StaminaMaxSync;
 import com.elenai.elenaidodge2.api.FeathersHelper;
 import com.elenai.elenaidodge2.api.MaxFeathersEvent;
 import java.util.HashSet;
@@ -22,6 +23,9 @@ import net.minecraftforge.fml.common.gameevent.PlayerEvent;
  * One reconcile writes the difference, so a tier change does not stack on Elenai's integer.
  */
 public final class RestedBonuses {
+
+    private static final org.apache.logging.log4j.Logger LOGGER =
+            org.apache.logging.log4j.LogManager.getLogger("AQTweaks");
 
     static final String VIGOR_DELTA = "AQTVigorDelta";
     static final String INSIGHT_CARRY = "AQTInsightXpCarry";
@@ -69,11 +73,18 @@ public final class RestedBonuses {
         }
         if (diff != 0) {
             data.setInteger(VIGOR_DELTA, target);
+            LOGGER.info("[AQ-STAMINA] Vigor delta {} -> {} for {} at world time {}",
+                    applied, target, player.getName(), player.world.getTotalWorldTime());
         }
         int tier = restedTier(player);
         if (data.getInteger(FORTITUDE_TIER) != tier) {
+            int previous = data.getInteger(FORTITUDE_TIER);
             data.setInteger(FORTITUDE_TIER, tier);
-            FeathersHelper.syncMaxFeathers(mp);
+            // Not FeathersHelper.syncMaxFeathers: it ends with Utils.updateClientConfig, the full config packet.
+            int max = StaminaMaxSync.sync(mp);
+            LOGGER.info("[AQ-STAMINA] Fortitude tier {} -> {} for {}: max {}, feathers after clamp {}, world time {}",
+                    previous, tier, player.getName(), max, FeathersHelper.getFeatherLevel(mp),
+                    player.world.getTotalWorldTime());
         }
     }
 

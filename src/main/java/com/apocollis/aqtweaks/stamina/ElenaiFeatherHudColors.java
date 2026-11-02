@@ -2,6 +2,7 @@ package com.apocollis.aqtweaks.stamina;
 
 import com.elenai.elenaidodge2.ModConfig;
 import com.elenai.elenaidodge2.gui.DodgeGui;
+import com.elenai.elenaidodge2.util.ClientStorage;
 import net.minecraft.client.gui.GuiIngame;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.util.math.MathHelper;
@@ -17,6 +18,8 @@ public final class ElenaiFeatherHudColors {
     private static final int ICON = 9;
     private static final int SLOTS = 10;
     private static final int UNITS = 20;
+    /** Width in pixels of the green half of a slot where bonus stamina covers an iron feather. */
+    private static final int SPLIT = 4;
     /** Painted blue full / half on the Extended sheet (256-space). */
     private static final int BLUE_FULL = 34;
     private static final int BLUE_HALF = 25;
@@ -105,6 +108,10 @@ public final class ElenaiFeatherHudColors {
 
     /**
      * Armor-weight bar. Usable feathers use the blue pair. Blocked slots stay the gray iron row.
+     *
+     * <p>Bonus stamina above 20 (the green layer of the unarmored bar) is drawn over this row from the left slot
+     * to the right, in the sheet's green tint. Where it reaches an iron slot, that slot is split: the left
+     * {@link #SPLIT} pixels green, the rest iron, so neither the bonus nor the blocked part is hidden.
      */
     public static void renderBaseWeightBar(
             GuiIngame gui,
@@ -115,6 +122,8 @@ public final class ElenaiFeatherHudColors {
             int blocked,
             int vPatron,
             int uOutline,
+            int uTintHalf,
+            int uTintFull,
             boolean healing,
             boolean failed) {
         int xBase = width / 2 + 82 + ModConfig.client.hud.xOffset;
@@ -126,10 +135,13 @@ public final class ElenaiFeatherHudColors {
         int vIron = vPatron + 9;
         int shown = Math.max(0, cap - blocked);
         boolean flash = failed && ModConfig.client.hud.flash;
+        // Units of bonus stamina above the base row (the unarmored bar's first green layer), from current stamina.
+        int bonus = MathHelper.clamp(ClientStorage.dodges - UNITS, 0, UNITS);
         for (int slot = 0; slot < SLOTS; slot++) {
             int x = xBase - (9 - slot) * 8;
             int odd = slot * 2 + 1;
             int remainder = shown - odd;
+            boolean iron = false;
             if (odd <= shown && remainder < usable) {
                 white();
                 gui.drawTexturedModalRect(x, y, BLUE_FULL, vPatron, ICON, ICON);
@@ -139,11 +151,20 @@ public final class ElenaiFeatherHudColors {
             } else if (odd < shown) {
                 continue;
             } else if (odd == shown) {
+                iron = true;
                 gui.drawTexturedModalRect(x, y, BLUE_FULL, vIron, ICON, ICON);
             } else if (odd < cap) {
+                iron = true;
                 gui.drawTexturedModalRect(x, y, BLUE_HALF, vIron, ICON, ICON);
             } else if (odd == cap) {
+                iron = true;
                 gui.drawTexturedModalRect(x, y, BLUE_FULL, vIron, ICON, ICON);
+            }
+            if (odd <= bonus) {
+                int u = odd < bonus ? uTintFull : uTintHalf;
+                green();
+                gui.drawTexturedModalRect(x, y, u, vPatron, iron ? SPLIT : ICON, ICON);
+                white();
             }
             if (healing) {
                 gui.drawTexturedModalRect(x, y, 16, 9, ICON, ICON);
