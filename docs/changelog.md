@@ -11,6 +11,11 @@ Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
 - `MixinTeleportHelper`: replaces MDECore's broken legacy manual packet and respawn sequence in `TeleportHelper.transferPlayerToDimension` with standard Forge `Entity.changeDimension(dimension)`, eliminating client handshake terminations caused by desynced custom mod network packets (e.g. OpenGlider, veining). Cancels `sendPlayerToSpawnInCurrentWorld` when teleporting into the Nether (`dimension == -1`) to keep the player safely at the destination Nether portal rather than displacing into bedrock at `(0, 0, 0)`. Gated on `mdecore` in `AQTweaksLateMixinLoader`. Version stays 1.10.
 
+## 2026-11-02 — Network error logging and a deploy guard
+
+- `network/ChannelErrorLogger` is added to the end of the `aqtweaks` channel pipeline on both sides. It logs any exception raised while decoding or handling one of our packets to the `AQTweaks` logger and passes it on unchanged. Forge reports such a failure to the player as "A fatal error has occurred, this connection is terminated" but the pack never wrote the matching error line.
+- `build_gradle.ps1` no longer removes old jars from, or copies to, the DEVBOX `mods` folder while a game started from that instance is running (found by command line). It still builds and writes the workspace copy, and prints how to retry; `AQ_FORCE_DEPLOY=1` copies anyway.
+
 ## 2026-11-01 — Comfort HUD, names and tooltips
 
 - The panel defaults to top-center beneath Hwyla (chat is lower left); `Panel Anchor` takes `top-center`, `top-left`, `top-right`, `center-right`, `bottom-left`, `bottom-right`, and the old `top`/`center`/`bottom` still read. Panel lines are clipped to the panel width.

@@ -166,14 +166,36 @@ if ($buildJars.Count -gt 0) {
     $latestJar = $buildJars[0]
     Write-Output "Latest compiled jar: $($latestJar.FullName)"
     
-    # Remove stale old versions in mods directories to prevent game from loading outdated jars
+    # A game started from the instance that owns $localModsDir reads this jar lazily. Deleting or overwriting it
+    # while it runs gives "ZipFile invalid LOC header" and NoClassDefFoundError mid-session (crash 20:01 on
+    # 2026-11-01), and Windows does not stop the copy. Detect it by command line, not by process name: the
+    # Cleanroom relauncher starts its own JVM. Set AQ_FORCE_DEPLOY=1 to copy anyway.
+    $instanceDir = Split-Path -Parent $localModsDir
+    $instanceName = Split-Path -Leaf $instanceDir
+    $gameRunning = $false
+    if ($env:AQ_FORCE_DEPLOY -ne "1") {
+        $gameRunning = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+            Where-Object {
+                $_.Name -match '^javaw?\.exe$' -and $_.CommandLine -and
+                $_.CommandLine -like "*$instanceName*" -and $_.CommandLine -notmatch 'gradle'
+            }).Count -gt 0
+    }
+
+    # Remove stale old versions in the workspace mods directory to prevent loading outdated jars
     Get-ChildItem -Path "$workspaceDir/mods" -Filter "ArcanaQuestTweaks-*.jar" -ErrorAction SilentlyContinue |
         Where-Object { $_.Name -ne $latestJar.Name } | Remove-Item -Force -ErrorAction SilentlyContinue
-    Get-ChildItem -Path $localModsDir -Filter "ArcanaQuestTweaks-*.jar" -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -ne $latestJar.Name } | Remove-Item -Force -ErrorAction SilentlyContinue
-
     Write-Output "Copying remapped mod jar to workspace mods folder..."
     Copy-Item -Path $latestJar.FullName -Destination "$workspaceDir/mods/$($latestJar.Name)" -Force
+
+    if ($gameRunning) {
+        Write-Warning "A game started from '$instanceName' is running. Skipped removing old jars from, and copying to, $localModsDir."
+        Write-Warning "The newly compiled jar is ready at: $workspaceDir/mods/$($latestJar.Name)"
+        Write-Warning "Close Minecraft and re-run .\build_gradle.ps1, or set AQ_FORCE_DEPLOY=1 to copy anyway."
+        Write-Output "=== Build Succeeded (DEVBOX copy skipped: game running) ==="
+        return
+    }
+    Get-ChildItem -Path $localModsDir -Filter "ArcanaQuestTweaks-*.jar" -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -ne $latestJar.Name } | Remove-Item -Force -ErrorAction SilentlyContinue
     Write-Output "Copying remapped mod jar to local game mods folder..."
     try {
         Copy-Item -Path $latestJar.FullName -Destination "$localModsDir/$($latestJar.Name)" -Force -ErrorAction Stop

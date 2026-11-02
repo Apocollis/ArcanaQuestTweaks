@@ -49,6 +49,7 @@ public class CommonProxy {
         ArcanaQuestTweaks.NETWORK.registerMessage(
                 com.apocollis.aqtweaks.comfort.PacketComfortPlaced.Handler.class,
                 com.apocollis.aqtweaks.comfort.PacketComfortPlaced.class, 7, Side.CLIENT);
+        com.apocollis.aqtweaks.network.ChannelErrorLogger.install();
         ComfortConfigLoader.load(event.getModConfigurationDirectory());
         GaiaDamageConfig.load(event.getModConfigurationDirectory());
         com.apocollis.aqtweaks.spawning.SpawnTypeLists.load(event.getModConfigurationDirectory());
