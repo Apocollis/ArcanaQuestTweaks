@@ -163,8 +163,9 @@ public class CommonProxy {
             com.apocollis.aqtweaks.spawning.SpawnLayerFilter.enableStructureExemption();
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.spawning.ConditionShadow());
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.spawning.RuleShadow());
-            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.spawning.SpawnTraceHandler());
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.spawning.SpawnRuleDecider());
+            // After the decider (same priority, so registration order), so the trace shows what the decider left.
+            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.spawning.SpawnTraceHandler());
         }
         MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.spawning.SpawnLayerFilter());
     }
