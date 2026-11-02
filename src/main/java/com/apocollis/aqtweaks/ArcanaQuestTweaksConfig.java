@@ -735,11 +735,32 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Max Sandstorm Dust Particles")
         @Config.Comment("Maximum simultaneous active outdoor dust particles during Atum sandstorms. Provides dense, vision-obscuring haboob sandstorms.")
         @Config.RangeInt(min = 100, max = 25000)
-        public int maxSandstormDustParticles = 14400;
+        public int maxSandstormDustParticles = 20000;
 
         @Config.Name("Enable Dynamic Wind Direction")
         @Config.Comment("If true, desert wind direction dynamically veers over time and all active particles follow the shifting wind in unison.")
         public boolean enableDynamicWindDirection = true;
+
+        @Config.Name("Enable Sandstorm Wind Sound")
+        @Config.Comment("If true, a continuous howling wind sound plays during Atum sandstorms, modulating with storm strength and shelter.")
+        public boolean enableSandstormWindSound = true;
+
+        @Config.Name("Sandstorm Wind Sound Event")
+        @Config.Comment("Sound event registry name to play for howling sandstorm wind. Defaults to 'aqtweaks:sandstorm.wind'.")
+        public String sandstormWindSound = "aqtweaks:sandstorm.wind";
+
+        @Config.Name("Sandstorm Wind Sound Volume")
+        @Config.Comment("Volume multiplier for the sandstorm howling wind sound effect.")
+        @Config.RangeDouble(min = 0.0, max = 2.0)
+        public double sandstormWindVolume = 1.0;
+
+        @Config.Name("Suppress Animal Sounds in Atum")
+        @Config.Comment("Suppresses Dynamic Surroundings and AmbientSounds animal/bird sounds (chirping songbirds, owls, crickets, frogs) in Atum.")
+        public boolean suppressAnimalSoundsInAtum = true;
+
+        @Config.Name("Suppress External Storm Wind in Atum")
+        @Config.Comment("Suppresses external Dynamic Surroundings and AmbientSounds wind loops during Atum sandstorms so AQTweaks howling wind plays cleanly.")
+        public boolean suppressExternalStormWindInAtum = true;
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_atum")
@@ -775,6 +796,30 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Enable Sandstorm Gameplay Effects")
         @Config.Comment("If true, players exposed to the wind path of an Atum sandstorm experience physical and survival gameplay mechanics.")
         public static boolean enableSandstormGameplayEffects = true;
+
+        @Config.Name("Enable Looming Sandstorms")
+        @Config.Comment("Overrides Atum's sparse hardcoded storm timers with configurable, frequent intervals to make sandstorms a looming environmental threat.")
+        public static boolean enableLoomingSandstorms = true;
+
+        @Config.Name("Storm Interval Min Seconds")
+        @Config.Comment("Minimum clear weather time between sandstorms in seconds.")
+        @Config.RangeInt(min = 60, max = 72000)
+        public static int stormIntervalMinSeconds = 360;
+
+        @Config.Name("Storm Interval Max Seconds")
+        @Config.Comment("Maximum clear weather time between sandstorms in seconds.")
+        @Config.RangeInt(min = 60, max = 72000)
+        public static int stormIntervalMaxSeconds = 1200;
+
+        @Config.Name("Storm Duration Min Seconds")
+        @Config.Comment("Minimum active sandstorm duration in seconds.")
+        @Config.RangeInt(min = 30, max = 3600)
+        public static int stormDurationMinSeconds = 240;
+
+        @Config.Name("Storm Duration Max Seconds")
+        @Config.Comment("Maximum active sandstorm duration in seconds.")
+        @Config.RangeInt(min = 30, max = 3600)
+        public static int stormDurationMaxSeconds = 420;
 
         @Config.Name("Enable Wind Push")
         @Config.Comment("If true, unsheltered players in a sandstorm are physically pushed by the gale (tailwind boost, headwind resistance).")

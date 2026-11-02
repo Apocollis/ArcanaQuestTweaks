@@ -77,7 +77,12 @@ Light reaches the client only inside chunk data, or when the client runs its own
 | Disable Underground Fog | true | Category "Atum Fog". Completely cancels Atum's yellow EXP fog and 2D screen sandstorm in favor of linear fog and 3D particles |
 | Enable Outdoor Dust Particles | true | Category "Atum Fog". Spawns volumetric 3D drifting sand particles in open outdoor air |
 | Max Outdoor Dust Particles | 200 | Category "Atum Fog". Baseline cap on active simultaneous outdoor dust particles in clear weather |
-| Max Sandstorm Dust Particles | 14400 | Category "Atum Fog". Cap during a sandstorm. Range 100..25000. A saved cfg value overrides this default |
+| Max Sandstorm Dust Particles | 20000 | Category "Atum Fog". Cap during a sandstorm. Range 100..25000. A saved cfg value overrides this default |
+| Enable Sandstorm Wind Sound | true | Category "Atum Fog". Continuous looping howling wind audio during Atum sandstorms |
+| Sandstorm Wind Sound Event | "aqtweaks:sandstorm.wind" | Category "Atum Fog". Registry name of sound event for sandstorm gale audio |
+| Sandstorm Wind Sound Volume | 1.0 | Category "Atum Fog". Volume multiplier (0.0 to 2.0) |
+| Suppress Animal Sounds in Atum | true | Category "Atum Fog". Suppresses Dynamic Surroundings and AmbientSounds animal/bird sounds (birds, crickets, frogs, etc.) in Atum |
+| Suppress External Storm Wind in Atum | true | Category "Atum Fog". Suppresses external Dynamic Surroundings and AmbientSounds wind loops during Atum sandstorms |
 
 ## Atum visual overhaul & weather particles
 
@@ -94,10 +99,19 @@ Atum 2's default visuals have two major issues:
   - **Dynamic Surroundings & Weather Suppression:** Late mixin `MixinDustJetEffect` suppresses DSurround's block dust motes in Atum, while `AtumOutdoorDustEmitter` installs an `IRenderHandler` weather suppressor to block DSurround's diagonal rain/dust precipitation, ensuring only one unified wind particle effect exists.
   - **Atmospheric Particle Mixture:** In a storm, 85% small flecks (0.6–1.1 blocks) and 15% moderate sheets (3.6–5.2 blocks). In clear weather, 65% flecks and 35% sheets. Sizes do not grow in a storm. Storm flecks fade up to about 0.95 alpha and sheets up to about 0.85, scaled by storm strength.
   - **Wind-aligned band:** Outdoor spawns sit on a rectangle around the player. In a storm the along-wind offset is −50 to +16 blocks (50 blocks of sand upwind) and the crosswind offset is ±35. In clear weather both axes are ±25. Indoor candidates stay in the look cone.
-  - **Openings:** A spawn still requires open sky, so sand does not appear inside a room. Once spawned, a particle keeps moving under a roof and through a doorway until it hits a solid block or its life ends. Storm life starts at 38 ticks.
-  - Clear weather keeps the breeze (`max(6, 32 * breezeFactor)` attempts, speed `0.16 + 0.16 * breezeFactor`) and the clear-weather cap.
-  - During sandstorms (`/atumweather sandstorm`), wind speed is `1.68 + stormStrength * 0.84` blocks/tick. Spawn attempts are `720 + stormStrength * 1080`. The cap is `Max Sandstorm Dust Particles` (default 14400).
-  - **Exposure** (`AtumStormGameplayHandler`, `aqtweaks_atum.cfg`): an unsheltered player with no protective headgear loses breath (about 4 air per tick, choking damage once the bar is empty). Missing chest, legs, or boots, or armor under 10, takes half a heart of abrasion every 4 seconds. A wanderer or mummy set on those three slots stops the abrasion. A strong storm occasionally plays a low howl. Shelter and the existing wind push, headwind drain, and grit blindness are unchanged.
+  - **Openings:** A spawn still requires open sky, so sand does not appear inside a room. Once spawned, a particle keeps moving under a roof and through a doorway until it hits a solid block or its life ends. Storm life starts at 33 ticks.
+  - Clear weather keeps the base breeze untouched (`max(6, 32 * breezeFactor)` attempts, speed `0.16 + 0.16 * breezeFactor`) and the clear-weather cap.
+  - During sandstorms (`/atumweather sandstorm`), wind speed is `2.05 + stormStrength * 1.05` blocks/tick (small flecks reach up to 3.56 blocks/tick). Spawn attempts are `1050 + stormStrength * 1550`. The cap is `Max Sandstorm Dust Particles` (default 20000).
+- **Howling Wind Audio & Sound Filter (`AtumStormSound`, `AtumSounds`, `AtumSoundFilter`):**
+  - Continuous streaming howling wind sound loop (`aqtweaks:sandstorm.wind` on `SoundCategory.WEATHER`).
+  - Volume dynamically scales with `stormStrength` and smoothly fades in/out as storms build and subside.
+  - Acoustic muffling: when indoors or deep underground (`canSeeSky` false), the volume is muffled to 25% with lowered pitch (0.85). Behind an upwind wall/barrier shelter, volume is reduced to 50% (pitch 0.92). Outdoors in the open desert, the full howling wind roars at 100% volume.
+  - **Ambient Sound Filtering:** Client event handler `AtumSoundFilter` (`PlaySoundEvent`) suppresses Dynamic Surroundings and AmbientSounds animal/bird/insect audio (birds, owls, crickets, cicadas, frogs, etc.) in Atum at all times. During active sandstorms, it suppresses external wind and rain loops from DSurround and AmbientSounds so only AQTweaks' howling gale plays cleanly. In clear weather, external ambient wind loops continue playing normally.
+  - **Exposure & Shelter** (`AtumStormGameplayHandler`, `aqtweaks_atum.cfg`): upwind barriers must block both feet and chest of the model to provide wind shadow shelter; 1-high blocks leaving the upper body exposed do not block the wind. An unsheltered player with no protective headgear loses breath (about 4 air per tick, choking damage once the bar is empty). Missing chest, legs, or boots, or armor under 10, takes half a heart of abrasion every 4 seconds. A wanderer or mummy set on those three slots stops the abrasion. A strong storm occasionally plays a low howl. Shelter and the existing wind push, headwind drain, and grit blindness are unchanged.
+- **Looming Sandstorm Frequency (`MixinWorldProviderAtum`, `aqtweaks_atum.cfg`):**
+  - Overrides Atum 2's sparse hardcoded countdown ($12,000 + \text{rand}(168,000)$ ticks, up to 2.5 hours) with configurable, frequent storm intervals.
+  - Injects into `WorldProviderAtum.updateWeather()` right before weather packet dispatch.
+  - Configurable: `Enable Looming Sandstorms` (default `true`), `Storm Interval Min/Max Seconds` (default `360`–`1200`s, roughly once every 0.5 to 1.0 Minecraft days), and `Storm Duration Min/Max Seconds` (default `240`–`420`s).
 
 ## Atum pyramid plateau
 

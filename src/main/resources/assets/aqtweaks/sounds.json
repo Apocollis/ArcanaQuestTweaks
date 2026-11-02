@@ -1,0 +1,11 @@
+{
+  "sandstorm.wind": {
+    "category": "weather",
+    "sounds": [
+      {
+        "name": "aqtweaks:ambient/sandstorm_wind",
+        "stream": true
+      }
+    ]
+  }
+}

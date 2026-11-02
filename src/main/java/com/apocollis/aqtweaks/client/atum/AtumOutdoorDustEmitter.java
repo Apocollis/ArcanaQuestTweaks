@@ -1,11 +1,14 @@
 package com.apocollis.aqtweaks.client.atum;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
+import com.apocollis.aqtweaks.atum.AtumSounds;
 import com.apocollis.aqtweaks.atum.AtumWindHelper;
 import com.teammetallurgy.atum.world.WorldProviderAtum;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.client.multiplayer.WorldClient;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.SoundEvent;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.util.math.Vec3d;
@@ -67,6 +70,17 @@ public class AtumOutdoorDustEmitter {
     private final Random rand = new Random();
     private final BlockPos.MutableBlockPos checkPos = new BlockPos.MutableBlockPos();
 
+    private static AtumStormSound activeStormSound = null;
+
+    private static SoundEvent resolveSandstormSound() {
+        String configured = ArcanaQuestTweaksConfig.ClientModuleConfig.atumFog.sandstormWindSound;
+        if (configured != null && !configured.trim().isEmpty()) {
+            SoundEvent sound = SoundEvent.REGISTRY.getObject(new ResourceLocation(configured.trim()));
+            if (sound != null) return sound;
+        }
+        return AtumSounds.SANDSTORM_WIND;
+    }
+
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onWorldLoad(WorldEvent.Load event) {
         World world = event.getWorld();
@@ -81,6 +95,10 @@ public class AtumOutdoorDustEmitter {
     @SubscribeEvent
     public void onWorldUnload(WorldEvent.Unload event) {
         ParticleAtumDustSheet.ACTIVE_COUNT.set(0);
+        if (activeStormSound != null) {
+            Minecraft.getMinecraft().getSoundHandler().stopSound(activeStormSound);
+            activeStormSound = null;
+        }
     }
 
     @SubscribeEvent
@@ -90,13 +108,16 @@ public class AtumOutdoorDustEmitter {
         Minecraft mc = Minecraft.getMinecraft();
         if (mc.isGamePaused() || mc.world == null || mc.player == null) return;
 
-        ArcanaQuestTweaksConfig.AtumFog config = ArcanaQuestTweaksConfig.ClientModuleConfig.atumFog;
-        if (!config.enableOutdoorDustParticles) return;
-
         World world = mc.world;
         WorldProvider provider = world.provider;
         if (provider == null) return;
-        if (!(provider instanceof WorldProviderAtum) && provider.getDimension() != 17) return;
+        if (!(provider instanceof WorldProviderAtum) && provider.getDimension() != 17) {
+            if (activeStormSound != null) {
+                mc.getSoundHandler().stopSound(activeStormSound);
+                activeStormSound = null;
+            }
+            return;
+        }
 
         // Ensure Dynamic Surroundings or vanilla weather renderer cannot override the weather handler in Atum
         if (provider.getWeatherRenderer() != ATUM_WEATHER_SUPPRESSOR) {
@@ -108,6 +129,29 @@ public class AtumOutdoorDustEmitter {
         boolean isStorming = (provider instanceof WorldProviderAtum) &&
                 (((WorldProviderAtum) provider).isStorming || ((WorldProviderAtum) provider).stormStrength > 0.05F);
         float stormStrength = (provider instanceof WorldProviderAtum) ? ((WorldProviderAtum) provider).stormStrength : 0.0F;
+
+        ArcanaQuestTweaksConfig.AtumFog config = ArcanaQuestTweaksConfig.ClientModuleConfig.atumFog;
+
+        // Sandstorm howling wind audio management
+        if (isStorming && config.enableSandstormWindSound) {
+            if (activeStormSound == null || activeStormSound.isDonePlaying() || !mc.getSoundHandler().isSoundPlaying(activeStormSound)) {
+                if (config.suppressExternalStormWindInAtum) {
+                    mc.getSoundHandler().stop("dsurround:desert.wind", null);
+                    mc.getSoundHandler().stop("dsurround:wind", null);
+                    mc.getSoundHandler().stop("ambientsounds:desert-wind.wind", null);
+                    mc.getSoundHandler().stop("ambientsounds:desert.light-wind", null);
+                    mc.getSoundHandler().stop("ambientsounds:wind.howling-wind", null);
+                    mc.getSoundHandler().stop("ambientsounds:wind.wind", null);
+                }
+                SoundEvent sound = resolveSandstormSound();
+                if (sound != null) {
+                    activeStormSound = new AtumStormSound(player, sound);
+                    mc.getSoundHandler().playSound(activeStormSound);
+                }
+            }
+        }
+
+        if (!config.enableOutdoorDustParticles) return;
 
         // Synchronized deterministic wind direction update
         Vec3d windVec = AtumWindHelper.getWindVector(world, isStorming);
@@ -127,9 +171,9 @@ public class AtumOutdoorDustEmitter {
                 : (int) Math.max(35, config.maxOutdoorDustParticles * breezeFactor);
         if (ParticleAtumDustSheet.ACTIVE_COUNT.get() >= particleLimit) return;
 
-        // Spawn density: a handful of attempts in clear weather; 720 to 1800 during sandstorms
+        // Spawn density: a handful of attempts in clear weather; 1050 to 2600 during sandstorms
         int attempts = isStorming
-                ? (int) (720 + stormStrength * 1080)
+                ? (int) (1050 + stormStrength * 1550)
                 : (int) Math.max(6, 32.0D * breezeFactor);
 
         Vec3d eyeVec = player.getPositionEyes(1.0F);
@@ -139,10 +183,10 @@ public class AtumOutdoorDustEmitter {
 
         // Wind speed: high-speed howling gale during storms, gentle fluctuating breeze in clear weather
         double windSpeed = isStorming
-                ? (1.68D + stormStrength * 0.84D) // 1.68 - 2.52 blocks/tick in sandstorms
+                ? (2.05D + stormStrength * 1.05D) // 2.05 - 3.10 blocks/tick in sandstorms
                 : (0.16D + 0.16D * breezeFactor); // 0.18 - 0.43 blocks/tick in clear weather
 
-        int lifetime = isStorming ? 38 : 55;
+        int lifetime = isStorming ? 33 : 55;
 
         for (int i = 0; i < attempts; i++) {
             if (ParticleAtumDustSheet.ACTIVE_COUNT.get() >= particleLimit) break;

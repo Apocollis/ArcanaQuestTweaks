@@ -39,6 +39,7 @@ public class ClientProxy extends CommonProxy {
         if (net.minecraftforge.fml.common.Loader.isModLoaded("atum")) {
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.client.atum.AtumFogHandler());
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.client.atum.AtumOutdoorDustEmitter());
+            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.client.atum.AtumSoundFilter());
         }
         MinecraftForge.EVENT_BUS.register(new ClientModule());
         MinecraftForge.EVENT_BUS.register(new GuiMouseGrab());

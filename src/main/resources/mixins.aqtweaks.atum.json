@@ -12,6 +12,7 @@
     "MixinMapGenPyramidStart",
     "MixinChunkGeneratorAtum",
     "AccessorPyramidTemplate",
-    "MixinMapGenRuin"
+    "MixinMapGenRuin",
+    "MixinWorldProviderAtum"
   ]
 }

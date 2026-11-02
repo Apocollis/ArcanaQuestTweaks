@@ -167,14 +167,22 @@ if ($buildJars.Count -gt 0) {
     Write-Output "Latest compiled jar: $($latestJar.FullName)"
     
     # Remove stale old versions in mods directories to prevent game from loading outdated jars
-    Get-ChildItem -Path "$workspaceDir/mods" -Filter "ArcanaQuestTweaks-*.jar" -ErrorAction SilentlyContinue | Remove-Item -Force
-    Get-ChildItem -Path $localModsDir -Filter "ArcanaQuestTweaks-*.jar" -ErrorAction SilentlyContinue | Remove-Item -Force
+    Get-ChildItem -Path "$workspaceDir/mods" -Filter "ArcanaQuestTweaks-*.jar" -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -ne $latestJar.Name } | Remove-Item -Force -ErrorAction SilentlyContinue
+    Get-ChildItem -Path $localModsDir -Filter "ArcanaQuestTweaks-*.jar" -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -ne $latestJar.Name } | Remove-Item -Force -ErrorAction SilentlyContinue
 
     Write-Output "Copying remapped mod jar to workspace mods folder..."
     Copy-Item -Path $latestJar.FullName -Destination "$workspaceDir/mods/$($latestJar.Name)" -Force
     Write-Output "Copying remapped mod jar to local game mods folder..."
-    Copy-Item -Path $latestJar.FullName -Destination "$localModsDir/$($latestJar.Name)" -Force
-    Write-Output "=== Build and Deployment Succeeded! ==="
+    try {
+        Copy-Item -Path $latestJar.FullName -Destination "$localModsDir/$($latestJar.Name)" -Force -ErrorAction Stop
+        Write-Output "=== Build and Deployment Succeeded! ==="
+    } catch {
+        Write-Warning "Could not update DEVBOX mods folder ($($_.Exception.Message))."
+        Write-Warning "The newly compiled jar is ready at: $workspaceDir/mods/$($latestJar.Name)"
+        Write-Warning "If Minecraft is running, close it and re-run .\build_gradle.ps1."
+    }
 } else {
     Write-Error "Output jar not found! Build might have failed. Checked: $buildLibs"
 }

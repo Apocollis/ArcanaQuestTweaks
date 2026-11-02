@@ -361,19 +361,19 @@ public class AtumStormGameplayHandler {
 
         double shelterDist = ArcanaQuestTweaksConfig.AtumModuleConfig.shelterWindShadowDistance;
 
-        // Check eye height upwind
-        Vec3d eyeVec = entity.getPositionEyes(1.0F);
-        Vec3d upEye = new Vec3d(eyeVec.x - windVec.x * shelterDist, eyeVec.y, eyeVec.z - windVec.z * shelterDist);
-        RayTraceResult rayEye = world.rayTraceBlocks(upEye, eyeVec, false, true, false);
-        if (rayEye != null && rayEye.typeOfHit == RayTraceResult.Type.BLOCK) {
-            return true;
+        // Check feet height upwind (bottom of model)
+        Vec3d feetVec = new Vec3d(entity.posX, entity.posY + Math.min(0.25D, entity.height * 0.2D), entity.posZ);
+        Vec3d upFeet = new Vec3d(feetVec.x - windVec.x * shelterDist, feetVec.y, feetVec.z - windVec.z * shelterDist);
+        RayTraceResult rayFeet = world.rayTraceBlocks(upFeet, feetVec, false, true, false);
+        if (rayFeet == null || rayFeet.typeOfHit != RayTraceResult.Type.BLOCK) {
+            return false; // Feet exposed to wind (e.g. gap or floating overhang)
         }
 
-        // Check torso height upwind (allows crouching/standing behind 1-block low dune crests or walls)
-        Vec3d torsoVec = new Vec3d(entity.posX, entity.posY + 0.8D, entity.posZ);
-        Vec3d upTorso = new Vec3d(torsoVec.x - windVec.x * shelterDist, torsoVec.y, torsoVec.z - windVec.z * shelterDist);
-        RayTraceResult rayTorso = world.rayTraceBlocks(upTorso, torsoVec, false, true, false);
-        return rayTorso != null && rayTorso.typeOfHit == RayTraceResult.Type.BLOCK;
+        // Check chest height upwind (top barrier in front must also block chest / upper body)
+        Vec3d chestVec = new Vec3d(entity.posX, entity.posY + entity.height * 0.70D, entity.posZ);
+        Vec3d upChest = new Vec3d(chestVec.x - windVec.x * shelterDist, chestVec.y, chestVec.z - windVec.z * shelterDist);
+        RayTraceResult rayChest = world.rayTraceBlocks(upChest, chestVec, false, true, false);
+        return rayChest != null && rayChest.typeOfHit == RayTraceResult.Type.BLOCK;
     }
 
     /**
