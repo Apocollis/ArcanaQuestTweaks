@@ -45,6 +45,7 @@ Each file covers: what Tweaks changes, how the **parent mod** implements the fea
 | Better Mineshafts | YUNG’s Better Mineshafts + RTG locate | [bettermineshafts.md](bettermineshafts.md) |
 | Simple Tomb | Simple Tomb death drop slot restore, displacement, Baubles, and admin backups | [simpletomb.md](simpletomb.md) |
 | Server | Dedicated-server fixes for client-only calls in parents: GeographiCraft spawn salvage | [server.md](server.md) |
+| Dimension hazards | Overview: Atum sandstorm, planned Aurorian / Nether / Aether / Twilight Forest hazards, Betweenlands decay, Beneath darkness hunt (Lycanites config) | [dimension-hazards.md](dimension-hazards.md) |
 | Compatibility / jars | Compile vs mixin vs runtime vs copy script | [compatibility-matrix.md](compatibility-matrix.md) |
 | Build / deploy | `gradlew build` vs `build_gradle.ps1` | [build-and-release.md](build-and-release.md) |
 | Release smoke | Boot, optional absences, worldgen, stamina | [verification.md](verification.md) |

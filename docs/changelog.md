@@ -16,6 +16,10 @@ Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 - **Hearthside tooltip rate.** Updated the Hearthside line on the hover box to `* Hearthside: At Home (Cleansing warp - <rate>)` (1 warp per 3 min for Tier I, 1 warp per 2 min for Tier II, 1 warp per min for Tier III).
 - Serialized category capped scores in `PacketComfortStatus` and mapped active potion bonuses (kind 7) to sync full room telemetry to the client.
 
+## 2026-11-03 — Dimension hazards overview doc
+
+- New `docs/dimension-hazards.md`: roster of environmental hazards per dimension and their owners, Betweenlands decay and corrosion (parent mod), and the Beneath darkness hunt (`config/lycanitesmobs/spawners/darkness.json`, a Lycanites config, not Tweaks).
+
 ## 2026-11-03 — No stamina drain standing on the ground in a ladder cell
 
 - `StaminaModule.handleServerClimbing`: clinging and ascending need `!onGround`, so idling, sneaking or jumping while standing in a ladder, vine or rope cell no longer spends stamina. The depleted pull (server `motionY = -0.15`, client slide and jump/sneak clearing) is skipped when grounded and not pushing into the climbable.
