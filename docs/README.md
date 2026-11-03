@@ -167,7 +167,6 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `
 | `mixins.aqtweaks.libraryex.json` | false | `MixinEntityHelper`: synchronize `ENTITY_RESOURCE_LOCATION_CACHE.computeIfAbsent` in `EntityHelper.getEntityLocation` so client/server entity ticks do not throw CME | Skip |
 | `mixins.aqtweaks.geographicraft.json` | false | Server: `MixinDimensionManager` redirects client-only `Biome.getBiomeName` in `salvageSpawn` to the registry name ([server.md](server.md)). Queued only if `geographicraft` is loaded | Not queued |
 | `mixins.aqtweaks.dsurround.json` | false | Dynamic Surroundings fog & weather hooks. Queued only if `dsurround` is loaded | Not queued |
-| `mixins.aqtweaks.comfort.json` | false | Comfort: inventory effect order, bed shelter evaluation | Skip |
 | `mixins.aqtweaks.mdecore.json` | false | Server: `MixinTeleportHelper` fixes `/mde tpx` cross-dimension teleport crash and Nether bedrock displacement ([server.md](server.md)). Queued only if `mdecore` is loaded | Not queued |
 
 `mixins.aqtweaks.json` contents (package `com.apocollis.aqtweaks.mixin`):

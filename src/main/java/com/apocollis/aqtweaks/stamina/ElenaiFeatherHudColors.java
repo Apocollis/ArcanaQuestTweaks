@@ -142,10 +142,10 @@ public final class ElenaiFeatherHudColors {
             int odd = slot * 2 + 1;
             int remainder = shown - odd;
             boolean iron = false;
-            if (odd <= shown && remainder < usable) {
+            if (odd < shown && remainder < usable) {
                 white();
                 gui.drawTexturedModalRect(x, y, BLUE_FULL, vPatron, ICON, ICON);
-            } else if (odd <= shown && remainder == usable) {
+            } else if (odd < shown && remainder == usable) {
                 white();
                 gui.drawTexturedModalRect(x, y, BLUE_HALF, vPatron, ICON, ICON);
             } else if (odd < shown) {

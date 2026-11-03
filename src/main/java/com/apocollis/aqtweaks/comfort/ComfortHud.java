@@ -104,7 +104,7 @@ public final class ComfortHud extends Gui {
         }
     }
 
-    private static String heldBack() {
+    static String heldBack() {
         if (ComfortClientState.missingFurniture) return "Held back by: furniture";
         if (ComfortClientState.hurtTicks > 0) return "Held back by: hurt";
         if (ComfortClientState.attackTicks > 0) return "Held back by: attack";
@@ -126,7 +126,7 @@ public final class ComfortHud extends Gui {
         return text.toString();
     }
 
-    private static String nextLine() {
+    static String nextLine() {
         int nextTier = ComfortClientState.scoreTier + 1;
         if (nextTier > 3) return "Rested III";
         float threshold = nextTier == 1 ? ComfortClientState.threshold1

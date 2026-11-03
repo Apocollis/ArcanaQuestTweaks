@@ -7,6 +7,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * Extended paints layer 0 pure red on the gray tint sprites, and absorption brown on those same sprites.
@@ -67,5 +68,16 @@ public class MixinDodgeGui {
         ElenaiFeatherHudColors.renderBaseWeightBar(
                 gui, width, y, usable, cap, blocked, vPatron, uOutline, uTintHalf, uTintFull, healing, failed);
         ci.cancel();
+    }
+
+    /**
+     * Extended blocks {@code clamp(weight - max(0, dodges - 20), 0, cap)} of the base row: bonus stamina absorbs
+     * weight, so a full bar with a little armor reports nothing blocked, takes the plain layered path, and loses
+     * both the iron and the green. Weight is a fixed cost, so the blocked part is the weight itself and the
+     * armored bar stays on screen at every stamina level.
+     */
+    @Inject(method = "getBlockedBaseLayerAmount", at = @At("HEAD"), cancellable = true)
+    private static void aqtweaks$fixedBlocked(int dodges, int weight, int cap, CallbackInfoReturnable<Integer> cir) {
+        cir.setReturnValue(Math.max(0, Math.min(Math.max(0, weight), cap)));
     }
 }

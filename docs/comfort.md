@@ -264,7 +264,6 @@ Missing pack blocks simply never match; they do not crash.
 - `comfort/ComfortHud.java`, `ComfortTooltips.java`, `ComfortToast.java`, `ComfortToggleButton.java`, `ComfortClientState.java` — client only
 - `comfort/CommandAqComfort.java` — `/aqcomfort`, `reload`, `families`
 - `comfort/ComfortSettings.java`, `ComfortBlocks.java`, `ComfortConfigLoader.java`
-- `mixin/comfort/` — client mixin json `mixins.aqtweaks.comfort.json`
 - `assets/aqtweaks/lang/en_us.lang`
 - `assets/aqtweaks/textures/gui/homestead_icon.png`, `clarity_icon.png` (placeholder copy)
 
@@ -282,7 +281,7 @@ Missing pack blocks simply never match; they do not crash.
 - `isRiding()` is the entry sit check. The score bonus rejects living mounts, boats and minecarts.
 - `AQTVigorDelta` stays on `getEntityData()`, not the persisted tag. One reconcile writes the difference. Do not call `FeathersHelper.getRegenModifier` on the server.
 - Shell rays run on the furnishing scan, not the 40-tick pass.
-- The inventory mixin stays in the comfort json `"client"` array.
+- Rested, Insight, Vigor and Fortitude show on the Comfort tab hover box (`ComfortTooltips.tabLines`), read from the player's Rested effect and the last comfort packet. With no Rested effect it shows the same `Next:` / `Held back by:` lines as `ComfortHud`. The Hearthside warp line shows only while the player is also resting at home (packet `state == 2`). Do not hover-box the vanilla effect column: its row order is not under our control (other mods load `InventoryEffectRenderer` first, so a mixin there cannot apply).
 
 ## Out of scope unless asked
 

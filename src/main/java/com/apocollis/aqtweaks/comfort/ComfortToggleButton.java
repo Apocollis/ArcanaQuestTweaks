@@ -82,6 +82,7 @@ public final class ComfortToggleButton {
         List<String> tip = new ArrayList<>();
         tip.add("Comfort HUD: " + (on ? "Enabled" : "Disabled"));
         tip.add("§7Click to toggle the panel, messages, toast and particles");
+        tip.addAll(ComfortTooltips.tabLines());
         gui.drawHoveringText(tip, event.getMouseX(), event.getMouseY());
     }
 
