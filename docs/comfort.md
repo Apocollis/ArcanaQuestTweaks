@@ -267,6 +267,17 @@ Missing pack blocks simply never match; they do not crash.
 - `assets/aqtweaks/lang/en_us.lang`
 - `assets/aqtweaks/textures/gui/homestead_icon.png`, `clarity_icon.png` (placeholder copy)
 
+## Config key reference (keys not named elsewhere in this file)
+
+Exact `@Config.Name` strings and code defaults, so the doc and the cfg cannot drift apart. The meaning of each group is in the sections above; the note is the first sentence of the in-game comment.
+
+| Key | Default | Section | Note |
+| --- | --- | --- | --- |
+| Panel Offset X | `0` | Comfort | Pixels added to the panel position after `Panel Anchor` (client cfg). |
+| Panel Offset Y | `0` | Comfort | Pixels added to the panel position after `Panel Anchor` (client cfg). |
+| Toggle Offset X | `0` | Comfort | Pixels added to the Comfort inventory tab position (client cfg). |
+| Toggle Offset Y | `0` | Comfort | Pixels added to the Comfort inventory tab position (client cfg). |
+
 ## Do not regress
 
 - Potion effects stay ambient, particles off (`true, false`). The placement burst is a separate world particle.

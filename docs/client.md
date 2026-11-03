@@ -63,6 +63,12 @@ Light reaches the client only inside chunk data, or when the client runs its own
 | `client/atum/AtumFogHandler.java` | Overrides Atum fog with uniform linear fog and smooth cave transition |
 | `client/atum/AtumOutdoorDustEmitter.java` | Spawns volumetric 3D drifting sand particles outdoors, dynamically scaling during sandstorms |
 | `client/atum/ParticleAtumDustSheet.java` | Custom 3D billboard dust particle with soft depth blending |
+| `atum/AtumPyramidPlate.java` | One pyramid plateau: apron Y, template origin lift, the 32×32 rotated footprint, entrance facing |
+| `atum/AtumPyramidSmoothing.java` | Blends the chunk primer around a registered plate and clears the entrance walk (after the start exists, before the chunk is built) |
+| `atum/BaublesGogglesHelper.java` | Baubles API access for the goggles protection toggle, isolated so Atum code loads without Baubles |
+| `mixin/atum/MixinMapGenPyramidStart.java` | Moves the pyramid template origin so template Y=8 sits on the averaged footprint height; Atum still rejects a start whose own 5×5 sample is below Y 53 |
+| `mixin/atum/MixinChunkGeneratorAtum.java`, `AccessorPyramidTemplate.java` | Smooth the primer once the start exists; read the entrance facing off Atum's template component |
+| `mixin/atum/MixinMapGenRuin.java` | Makes the ruin-vs-pyramid overlap test independent of which pyramid starts are already stored (it looks up to 4 chunks away but only 8 are generated) |
 | `mixin/atum/MixinAtumClientEvents.java` | Late mixin canceling Atum's yellow EXP fog and 2D screen-space `renderSand` storm overlay |
 | `mixin/MixinGuiCreateWorld.java` | Sets default world type on Create New World |
 | `mixin/toughnessbar/MixinEventHandlerClient.java` | Optional Toughness Bar overlay |
@@ -76,7 +82,7 @@ Light reaches the client only inside chunk data, or when the client runs its own
 | Default World Type | "RTG" | Category "world creation". Registry name (e.g. RTG), not button label. Empty keeps Default |
 | Disable Underground Fog | true | Category "Atum Fog". Completely cancels Atum's yellow EXP fog and 2D screen sandstorm in favor of linear fog and 3D particles |
 | Enable Outdoor Dust Particles | true | Category "Atum Fog". Spawns volumetric 3D drifting sand particles in open outdoor air |
-| Max Outdoor Dust Particles | 200 | Category "Atum Fog". Baseline cap on active simultaneous outdoor dust particles in clear weather |
+| Max Outdoor Dust Particles | 250 | Category "Atum Fog". Baseline cap on active simultaneous outdoor dust particles in clear weather |
 | Max Sandstorm Dust Particles | 20000 | Category "Atum Fog". Cap during a sandstorm. Range 100..25000. A saved cfg value overrides this default |
 | Enable Sandstorm Wind Sound | true | Category "Atum Fog". Continuous looping howling wind audio during Atum sandstorms |
 | Sandstorm Wind Sound Event | "aqtweaks:sandstorm.wind" | Category "Atum Fog". Registry name of sound event for sandstorm gale audio |
@@ -129,6 +135,37 @@ Because injection occurs at constructor `RETURN`:
 - Subsequent `initGui()` / `updateDisplayState()` calls and screen resize events naturally construct `btnMapType` and `btnCustomizeType` with the correct labels and visibility.
 - Recreate World (`recreateFromExistingWorld`) executes after the constructor and writes the source world's `WorldType.getId()`, properly preserving the copied world's type without being overwritten.
 - Empty string `""` or an unknown name leaves `selectedIndex = 0` (vanilla Default).
+
+## Config key reference (keys not named elsewhere in this file)
+
+Exact `@Config.Name` strings and code defaults, so the doc and the cfg cannot drift apart. The meaning of each group is in the sections above; the note is the first sentence of the in-game comment.
+
+| Key | Default | Section | Note |
+| --- | --- | --- | --- |
+| Enable Dynamic Wind Direction | `true` | AtumFog | If true, desert wind direction dynamically veers over time and all active particles follow the shifting wind in unison. |
+| Enable Sandstorm Gameplay Effects | `true` | AtumModuleConfig | If true, players exposed to the wind path of an Atum sandstorm experience physical and survival gameplay mechanics. |
+| Storm Interval Min Seconds | `360` | AtumModuleConfig | Minimum clear weather time between sandstorms in seconds. |
+| Storm Interval Max Seconds | `1200` | AtumModuleConfig | Maximum clear weather time between sandstorms in seconds. |
+| Storm Duration Min Seconds | `240` | AtumModuleConfig | Minimum active sandstorm duration in seconds. |
+| Storm Duration Max Seconds | `420` | AtumModuleConfig | Maximum active sandstorm duration in seconds. |
+| Enable Wind Push | `true` | AtumModuleConfig | If true, unsheltered players in a sandstorm are physically pushed by the gale (tailwind boost, headwind resistance). |
+| Wind Push Force | `0.020` | AtumModuleConfig | Base physical velocity force applied to unsheltered players in a sandstorm. |
+| Enable Headwind Stamina Drain | `true` | AtumModuleConfig | If true, sprinting or fighting movement directly against the howling wind drains stamina (feathers) and increases exhaustion. |
+| Enable Stinging Grit Blindness | `true` | AtumModuleConfig | If true, looking directly into the blowing sandstorm without protective headgear causes stinging sand blindness and slowness. |
+| Grit Exposure Seconds Before Blindness | `3.0` | AtumModuleConfig | Seconds of continuous headwind eye exposure before stinging sand blindness triggers. |
+| Shelter Wind Shadow Distance | `6.5` | AtumModuleConfig | Distance in blocks upwind to raytrace for solid obstacles (dune crests, walls, cliffs) that block the wind and grant shelter. |
+| Enable Sand Inhalation Choking | `true` | AtumModuleConfig | If true, an unsheltered player in a sandstorm without protective headgear loses breath and takes choking damage when the air bar is empty. |
+| Enable Abrasive Sand Scour | `true` | AtumModuleConfig | If true, unsheltered entities in a sandstorm take periodic sand scour damage every 4 seconds. |
+| Enable Desert Storm Ambience | `true` | AtumModuleConfig | If true, an unsheltered player in a strong sandstorm occasionally hears a low cave-wind howl. |
+| Enable Baubles Goggles Protection | `true` | AtumModuleConfig | If true, goggles equipped in the Baubles head slot protect against sandstorm blindness and choking. |
+| Scour Damage Exposed | `6.0` | AtumModuleConfig | Damage dealt every 4 seconds when unsheltered and missing any of the 4 armor slots (HEAD, CHEST, LEGS, FEET). |
+| Scour Damage Full Armor | `4.0` | AtumModuleConfig | Damage dealt every 4 seconds when unsheltered and wearing full standard armor across all 4 slots. |
+| Scour Damage Atum Armor | `2.0` | AtumModuleConfig | Damage dealt every 4 seconds when unsheltered and wearing full Atum or whitelisted resistant armor across all 4 slots. |
+| Enable Sandstorm Mob Effects | `true` | AtumModuleConfig | If true, unsheltered mobs in an Atum sandstorm experience physical wind push, slowness, and scour damage. |
+| Enable Armor Abrasion Wear | `true` | AtumModuleConfig | If true, sandstorms slowly degrade durability on unsheltered non-Atum, non-whitelisted armor. |
+| Abrasion Wear Interval Seconds | `10` | AtumModuleConfig | Seconds between durability wear ticks on unsheltered non-Atum armor. |
+| Protective Headgear Whitelist | `{atum:desert_helmet_iron, atum:desert_helmet_gold, atum:desert_helmet_diamond, atum:wanderer_helmet, atum:m...}` | AtumModuleConfig | Item registry names (wildcards supported) for helmets, veils, turbans, or goggles that protect from stinging sand grit blindness. |
+| Sandstorm Resistant Armor Whitelist | `{thaumcraft:goggles, thaumcraft:thaumium_robes_*, thaumcraft:fortress_*, bewitchment:besmirched_* }` | AtumModuleConfig | Item registry names (wildcards supported) for non-Atum armor that grants Tier 2 scour reduction (2.0 dmg) and resists durability abrasion wear. |
 
 ## Do not regress
 

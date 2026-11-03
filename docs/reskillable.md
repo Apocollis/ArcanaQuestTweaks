@@ -270,10 +270,64 @@ Lang: `reskillable.unlock.aqtweaks.<path>` / `.desc`. Icons: `aqtweaks:textures/
 - `reskillable/ProspectAccuracy.java`, `ProspectorSample.java` — Prospectus pick chances and the ore boxes from one click
 - `mixin/prospectus/MixinItemProspector.java`, `InvokerProspectus.java` — `mixins.aqtweaks.prospectus.json`. Right-click is `func_180614_a`; `getBlockState` invoke is MCP with `remap = true`
 - `mixin/dss/MixinEntitySightData.java` — Dark Vision counts as `hasNightvision`
+- `reskillable/PerkOpportunistic.java`, `mixin/dss/MixinDynamicStealthAttack.java` — records recent living-source hits; the mixin redirects `Sight.canSee` inside `DynamicStealth.entityAttackedPre` to false when a different attacker hit the victim in the last 60 ticks
+- `reskillable/PerkThreat.java` — Taunt ×2 and Low Profile ×0.75 on the six threat-generation stats (decay stays 1)
+- `reskillable/OrchardFruit.java` — ripe tree fruit for Orchard (right-click harvest does not fire `HarvestDropsEvent`)
+- `reskillable/client/PacketProspectorMarks.java` — ore positions sent to the mining player; the client draws the boxes
+- `potion/PerkCooldownEffects.java` — applies the Adrenaline / Evasion / Respite cooldown potions server-side
+- `mixin/playerrevive/MixinRevival.java` — Fast Revive: each perk holder counts as a second helper in `Revival.tick` (`mixins.aqtweaks.playerrevive.json`)
+- `mixin/thaumcraft/MixinToolEvents.java` — cancels Thaumcraft's Rare Earth roll in `ToolEvents.harvestBlockEvent` when Lithomancy owns it (`PerkDrops.ownsLithomancy`)
 - `reskillable/client/DarkVisionLight.java` — lightmap mix
 - `reskillable/PerkDurability.java`, `PerkDrops.java` — Stone Cleaver / Wood Splitter, crop/seed drops. The durability mark expires after one world tick and clears on logout.
 - `AqtweaksTrait` builds each trait without its `trait|` requirement rows (Reskillable resolves them at construction and logged "Unlockable not found" for forward references); `ReskillablePerkRegistry.stampParentPerkCosts` (LOWEST) restamps every trait whose layout has `trait|` rows once all are registered.
 - `mixin/MixinItemStackDurability.java` (`ItemStack.damageItem` HEAD), `mixin/MixinBlockCropsSeed.java` (`BlockCrops.getSeed` invoker) — **`mixins.aqtweaks.early.json`**; FQCN into `reskillable/` helpers
+
+## Config key reference (keys not named elsewhere in this file)
+
+Exact `@Config.Name` strings and code defaults, so the doc and the cfg cannot drift apart. The meaning of each group is in the sections above; the note is the first sentence of the in-game comment.
+
+| Key | Default | Section | Note |
+| --- | --- | --- | --- |
+| Effect Duration Ticks | `100` | ReskillableRespite | Regen II and Tea Story defence duration. |
+| Regen Amplifier | `1` | ReskillableRespite | 0 = Regeneration I, 1 = Regeneration II. |
+| Defence Potion ID | `teastory:defence` | ReskillableRespite |  |
+| Defence Amplifier | `0` | ReskillableRespite |  |
+| Damage Per Level | `0.125` | ReskillableAttack | Added to generic.attackDamage (operation 0). |
+| Armor Per Level | `0.25` | ReskillableDefense | Added to generic.armor (operation 0). |
+| Speed Per Level | `0.0003125` | ReskillableAgility | Added to generic.movementSpeed. |
+| EB Place Reach Per Level | `0.125` | ReskillableBuilding | Added to Effortless Building getPlacementReach (its non-Normal build modes). |
+| EB Max Blocks Per Level | `1.0` | ReskillableBuilding | Added to Effortless Building getMaxBlocksPlacedAtOnce in survival. |
+| Break Speed Per Level | `0.01` | ReskillableMining | BreakSpeed multiply: speed × (1 + level × k). |
+| Mining Expert Harvest Floor | `3` | ReskillableMining | Pickaxes with Mining Expert treat harvest as at least this level. |
+| Extra Drop Chance Per Level | `0.00625` | ReskillableGathering | Chance of +1 forage / extra wool / extra fish. |
+| Herbalist Namespaces | `{bewitchment, thaumcraft, botania, rustic, teastory, astralsorcery, mysticalworld }` | ReskillableGathering | Block registry namespaces that always +1 with Herbalist. |
+| Extra Drop Chance Per Level | `0.00625` | ReskillableFarming | Chance of +1 on a mature crop harvest. |
+| Rancher Range | `16.0` | ReskillableFarming | Blocks from a Rancher player to extra-tick tended Animania animals. |
+| Hurt Multiply Per Level | `0.0125` | ReskillableMagic | Spell-like LivingHurtEvent multiply, capped at 40%. |
+| Log Damage Classify | `true` | ReskillableMagic | INFO-log unique damageType / isMagicDamage / source classes for player-involved hits (cap 48). |
+| Allow Type Prefixes | `{fireball}` | ReskillableMagic | If isMagicDamage is false, still treat damageType (lowercase prefix) as spell-like. |
+| Deny Types | `{wither, onFire, lava, hotFloor}` | ReskillableMagic | Exact damageType strings that never count as spell-like. |
+| Vis Thrift Add | `0.30` | ReskillableMagic | Added to CasterManager.getTotalVisDiscount when Vis Thrift is unlocked. |
+| Quiet Mind Bound Fraction | `0.35` | ReskillableMagic | Subtract round(fraction × incident bound) from warp severity after visor. |
+| Quiet Mind Cancel Chat | `Whispers try to cloud your thoughts, but you push them away...` | ReskillableMagic |  |
+| Full Font Aura Ratio | `0.9` | ReskillableMagic | Chunk vis / aura base at or above this counts as full. |
+| Full Font Vis Cost | `1.5` | ReskillableMagic | Multiply ItemCaster.consumeVis amount before Vis Thrift when the aura is full. |
+| Full Font Output | `1.5` | ReskillableMagic | Outgoing classified Magic / Heal-focus after drip and Blood Pact, then the stamp clears. |
+| Blood Pact Max Health | `-8.0` | ReskillableMagic | Unsaved generic.maxHealth add while Blood Pact is unlocked. |
+| Blood Pact Outgoing | `2.0` | ReskillableMagic | Outgoing classified Magic multiply after drip, before Full Font. |
+| School Thrift | `0.70` | ReskillableMagic | Parent resource spend multiply on the school perk (mana, ritual drain, altar starlight, Ember). |
+| Grove Range | `24.0` | ReskillableMagic |  |
+| Grove Mana | `1.15` | ReskillableMagic | Generating-flower addMana multiply while a Druid is in range. |
+| Mana Veil Absorb | `0.20` | ReskillableMagic |  |
+| Mana Veil Per HP | `1000` | ReskillableMagic |  |
+| Hearth Altar Gain | `1.15` | ReskillableMagic |  |
+| Altar Craft Time | `0.80` | ReskillableMagic | Astromancer craftingTickTime multiply. |
+| Star Powered Damage | `1.25` | ReskillableMagic |  |
+| Cinder Ward Fire | `0.80` | ReskillableMagic |  |
+| Cinder Ward Heal | `0.20` | ReskillableMagic |  |
+| Cinder Temp Max | `15` | ReskillableMagic |  |
+| Astral Temp Min | `9` | ReskillableMagic |  |
+| Foundry Pulse Every | `4` | ReskillableMagic | Extra machine tick when world time modulo this is 0. |
 
 ## Do not regress
 

@@ -147,6 +147,9 @@ JSON layer / parties / structure files: edit needs **restart** (or a Tweaks cfg 
 | `mixin/MixinWorldEntitySpawner.java` | Capture entry, fill pack, pack-size 1, hostile cap. Do **not** mixin `WorldServer`. |
 | `mixin/incontrol/MixinStructureCache.java` | RETURN inject (`cancellable = true`): memoized BB expand. `mixins.aqtweaks.incontrol.json` |
 | `mixin/MixinMobSpawnerBaseLogic.java` | Cage `updateSpawner` fail delay. Remap true. `mixins.aqtweaks.early.json` |
+| `spawning/IndexedSpawnRule.java`, `mixin/incontrol/MixinPotentialSpawnRuleIndex.java` | Mixed into In Control's `PotentialSpawnRule`: remembers each rule's dimension, biomes and creature type so `PotentialSpawnIndex` can skip rules that cannot match (null = unrestricted or unreadable, kept) |
+| `mixin/incontrol/MixinInControlPotentialSpawns.java` | Runs In Control's potential-spawn rules through `PotentialSpawnIndex` instead of all of them |
+| `spawning/rules/{CountSpec,RawRule,RuleKind,RuleProblem,RuleRow}.java` | Rule-file value types for the loader and validator ([spawn-tables-format.md](spawn-tables-format.md)): a count spec, one raw `{ ... }` block, the three file kinds, a located mistake, one validated rule |
 | `ArcanaQuestTweaksConfig.SpawningModuleConfig` | `aqtweaks_spawning.cfg` |
 
 ## Do not regress

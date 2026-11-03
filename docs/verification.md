@@ -236,6 +236,10 @@ Full spec: [temperature.md](temperature.md). The hypothermia / hyperthermia **fe
 | Serene Seasons removed from the instance | No `NoClassDefFoundError` from `DynamicModifierInsulation`. Greenhouse handling off, standard insulation unaffected | [temperature.md](temperature.md) |
 | `minWorldY` | Pinned at **-64**. No cfg knob to change it; bedrock floor, CoFH `Math.max` floor, and `RayMatcher.cast` all read that constant | [depths.md](depths.md) |
 
+## Doc drift check
+
+Run `python scripts/doc_audit.py` (stdlib only, read-only). Expect `OK 0 hard findings`. It checks: every `docs/*.md` is linked from the README and every README link resolves; every class file named in a doc (written with its package path and .java suffix) exists (history and changelog are skipped); every `Mixin*` class and non-mixin class is named in some doc; every `mixins.aqtweaks*.json` appears in the docs and names no missing class; every `Mixin*` class is registered in a json; every `@Config.Name` appears in a doc (category objects and perk layouts excepted); the README `@Mod` dependency string equals the code. The last section, table row names that are not config keys, is informational (many rows are labels). A new config key, class or mixin json without a doc line fails the check: add the line, do not add an exclusion.
+
 ## After mixin / parent bumps
 
 Re-read mixin targets ([compatibility-matrix.md](compatibility-matrix.md) upgrade check). RC version bumps: confirm `RayMatcher.cast` `@Overwrite` still matches.

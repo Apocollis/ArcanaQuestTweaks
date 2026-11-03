@@ -47,6 +47,8 @@ Before a build that touches mixins, run:
 python scripts/check_mixin_targets.py
 ```
 
+Before a release, or after a batch of doc or code changes, run `python scripts/doc_audit.py`. It is read-only and compares `docs/` with the tree (README index and links, classes named in docs, every `Mixin*` class and mixin json, every `@Config.Name`, the `@Mod` dependency string). Exit code 1 means a hard finding; the printed list says which. See [verification.md](verification.md) *Doc drift check*.
+
 It fails when a `method=` in any Tweaks mixin is not declared on the mixin's target class (Mixin does not search superclasses, and without `defaultRequire` a miss is silent). Vanilla targets are checked against the MCP/SRG snapshot in the gradle cache; parent targets with `javap -p` against `libs/`. Targets it cannot resolve (jar not in `libs/`) are listed as UNVERIFIED and do not fail the run. Methods that another mod's mixin adds at runtime go in the script's `ALLOW` set.
 
 If `libs/` is empty or incomplete, this still “works” only insofar as Gradle compiles what it finds. That is the unpinned-libs risk.

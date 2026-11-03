@@ -35,6 +35,7 @@ Each file covers: what Tweaks changes, how the **parent mod** implements the fea
 | Client | Toughness Bar (optional), tooltip lines for non-Metallurgy tools, default world type (RTG), Atum underground fog | [client.md](client.md) |
 | MineMenu | Vanilla client mouse grab (MineMenu, Reskillable, Hwyla screens) | [minemenu.md](minemenu.md) |
 | Spawning | Vanilla `PotentialSpawns` + pack `mob_overworldspawntype.json` (InControl still owns deny) | [spawning.md](spawning.md) |
+| Spawning rollout (In Control replacement) | Tweaks-read rule files + potential-spawn table; staged takeover | [spawn-tables-format.md](spawn-tables-format.md) (file format) · [spawning-rollout.md](spawning-rollout.md) (staged test runbook) · [spawning-handoff.md](spawning-handoff.md) (state and resume prompt) |
 | Recipes | Forge `CraftingHelper` (Metallurgy / Spartan JSON) | [recipes.md](recipes.md) |
 | Advancement | Animania Base (Farm / Extra addon JSON via Base handler) | [advancement.md](advancement.md) |
 | Somnia | Somnia Refreshed | [somnia.md](somnia.md) |
@@ -131,7 +132,7 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `
 | File | `required` | Module | If parent jar missing |
 | --- | --- | --- | --- |
 | `mixins.aqtweaks.json` | **true** | Depths, RTG villages, Recipes | Load fails |
-| `mixins.aqtweaks.vanilla.json` | **true** | Vanilla-only: `AccessorChunk` (Somnia light checks), `AccessorChunkProviderServer` (`chunkGenerator` and `loadedChunks`), `InvokerStructureStart` (protected `updateBoundingBox` for village/mineshaft pads), `MixinEntityAITasks` (swallows an NPE thrown by any AI task `updateTask`, then `resetTask`; logs once per task class via `util/AiTaskReport`), `MixinEntityGhastAIFireballAttack` (no target: stop attacking) | Load fails |
+| `mixins.aqtweaks.vanilla.json` | **true** | Vanilla-only: `AccessorMapGenBase` (`world`, `rand`), `AccessorMapGenStructure` (`structureMap`, `structureData`, `initializeStructureData`), `AccessorMapGenVillage` (`distance`, `minTownSeparation`), `AccessorStructureComponent` (`boundingBox`), `AccessorVillageStart` (`biomeProvider`) for the village and structure code, `AccessorChunk` (Somnia light checks), `AccessorChunkProviderServer` (`chunkGenerator` and `loadedChunks`), `InvokerStructureStart` (protected `updateBoundingBox` for village/mineshaft pads), `MixinEntityAITasks` (swallows an NPE thrown by any AI task `updateTask`, then `resetTask`; logs once per task class via `util/AiTaskReport`), `MixinEntityGhastAIFireballAttack` (no target: stop attacking) | Load fails |
 | `mixins.aqtweaks.grapple.json` | false | Stamina | Skip |
 | `mixins.aqtweaks.dss.json` | false | Stamina | Skip |
 | `mixins.aqtweaks.elenaidodge.json` | false | Stamina feather colors + armor tooltip weight | Skip |

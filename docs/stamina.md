@@ -240,11 +240,11 @@ Throwing weapons: class/registry keywords (`throwingweapon`, javelin, throwing_k
 
 ### Climbing (ladders / vines / ropes)
 
-Server: `isOnLadder`. Block at feet: registry contains `rope` → rope; else `BlockVine` or simple class name contains `vine` → vine; else ladder. `dy > 0.02` ascend; sneak or `|dy| ≤ 0.02` cling; sliding down without sneak is free.
+Server: `isOnLadder`. Block at feet: registry contains `rope` → rope; else `BlockVine` or simple class name contains `vine` → vine; else ladder. `dy > 0.02` ascend; sneak or `|dy| ≤ 0.02` cling; sliding down without sneak is free. Ascend and cling both need `!onGround`: standing on the ground in a ladder cell, or jumping inside it, costs nothing.
 
-On interval: if enough, spend; **always reset the timer** even if spend fails (avoids latching). Then `fallOnDepleted` may set `motionY = -0.15` unless ledge state is 1, `ticksExisted` ≤ `StaminaTweaksLedgeClimbGrace`, or climb jump packet is true.
+On interval: if enough, spend; **always reset the timer** even if spend fails (avoids latching). Then `fallOnDepleted` may set `motionY = -0.15` unless the player is on the ground and not pushing into the climbable (`onGround && !collidedHorizontally`; pushing in keeps the push so vanilla's +0.2 wall lift cannot become a bounce), ledge state is 1, `ticksExisted` ≤ `StaminaTweaksLedgeClimbGrace`, or climb jump packet is true.
 
-Client: while on a climbable, send `PacketSyncClimbingInput` (jump held). Slide locally if empty. `InputUpdateEvent` clears jump/sneak when empty so vanilla climb input dies. Mantle intent (jump+forward) skips the slide/clear.
+Client: while on a climbable, send `PacketSyncClimbingInput` (jump held). Slide locally if empty. `InputUpdateEvent` clears jump/sneak when empty so vanilla climb input dies. Mantle intent (jump+forward) and the grounded exemption above skip the slide/clear.
 
 ### Ledge climb (Tweaks-owned)
 
@@ -498,6 +498,70 @@ Sideways `dx/dz * 0.005` pushed the AABB into the 1.5-tall post before feet were
 ### 14. Red feathers and brown absorption
 
 Extended layer 0 multiplies the light-gray sprites by pure red, so a half feather is a dark sliver. Absorption does the same with a dark brown tint; the painted gold pair is only used on the fifth layer. **Fix:** `MixinDodgeGui` keeps the one-row layout. Layer 0 is the painted blue pair. Layer 1 and above is green on the light sprites. Absorption is the painted gold pair, clamped to 20.
+
+## Config key reference (keys not named elsewhere in this file)
+
+Exact `@Config.Name` strings and code defaults, so the doc and the cfg cannot drift apart. The meaning of each group is in the sections above; the note is the first sentence of the in-game comment.
+
+| Key | Default | Section | Note |
+| --- | --- | --- | --- |
+| Ladder Climb Tick Interval | `20` | Climbing | Ticks between feather consumption while ascending ladders (20 ticks = 1 second) |
+| Ladder Climb Cost | `1` | Climbing | Stamina cost (in half-feathers) per ascend interval on ladders |
+| Vine Climb Tick Interval | `20` | Climbing | Ticks between feather consumption while ascending vines (20 ticks = 1 second) |
+| Vine Climb Cost | `3` | Climbing | Stamina cost (in half-feathers) per ascend interval on vines |
+| Rope Climb Tick Interval | `20` | Climbing | Ticks between feather consumption while ascending ropes (20 ticks = 1 second) |
+| Light Weapons Cost | `1` | Weapons | Feather cost (in half-feathers) for light weapons |
+| Light Weapons Damage Multiplier | `0.8` | Weapons | Damage multiplier applied if attacking without enough feathers |
+| Light Weapons Custom List | `{}` | Weapons | List of registry names of custom items to treat as light weapons (e.g. |
+| Medium Weapons Cost | `2` | Weapons | Feather cost (in half-feathers) for medium weapons |
+| Medium Weapons Damage Multiplier | `0.5` | Weapons | Damage multiplier applied if attacking without enough feathers |
+| Medium Weapons Custom List | `{}` | Weapons | List of registry names of custom items to treat as medium weapons |
+| Heavy Weapons Cost | `4` | Weapons | Feather cost (in half-feathers) for heavy weapons |
+| Heavy Weapons Damage Multiplier | `0.3` | Weapons | Damage multiplier applied if attacking without enough feathers |
+| Heavy Weapons Custom List | `{}` | Weapons | List of registry names of custom items to treat as heavy weapons |
+| Grapple Climb Tick Interval | `20` | Grapple | Ticks between feather consumption while reeling in / climbing the rope (20 ticks = 1 second) |
+| Grapple Climb Cost | `3` | Grapple | Stamina cost (in half-feathers) per climb interval |
+| Grapple Swing Tick Interval | `20` | Grapple | Ticks between feather consumption while swinging (20 ticks = 1 second) |
+| Grapple Swing Cost | `2` | Grapple | Stamina cost (in half-feathers) per swing interval |
+| Grapple Hold Tick Interval | `20` | Grapple | Ticks between feather consumption while hanging still (20 ticks = 1 second) |
+| Grapple Hold Cost | `1` | Grapple | Stamina cost (in half-feathers) per hold interval. |
+| Glider Glide Tick Interval | `20` | Glider | Ticks between feather consumption while gliding (20 ticks = 1 second) |
+| Glider Glide Cost | `1` | Glider | Stamina cost (in half-feathers) consumed per glide interval |
+| Shield Hold Tick Interval | `20` | Shield | Ticks between feather consumption while holding a shield raised (20 ticks = 1 second) |
+| Shield Hold Cost | `1` | Shield | Stamina cost (in half-feathers) consumed per hold interval |
+| Ore/Obsidian Break Cost | `2` | Mining | Stamina cost (in half-feathers) for breaking ores and obsidian |
+| Default Block Break Cost | `1` | Mining | Stamina cost (in half-feathers) for breaking any other block |
+| Gathering Efficiency Perk ID | `aqtweaks:gathering_efficiency` | Reskillable |  |
+| Gathering Efficiency Reduction | `1` | Reskillable | Subtracted from forage BreakEvent stamina only (logs, leaves, gravel, flowers, mushrooms, tall grass). |
+| Melee Efficiency Perk ID | `aqtweaks:melee_efficiency` | Reskillable |  |
+| Melee Efficiency Reduction | `1` | Reskillable | Subtracted from light/medium/heavy melee costs (half-feathers). |
+| Ranged Efficiency Perk ID | `aqtweaks:ranged_efficiency` | Reskillable |  |
+| Ranged Draw Reduction | `1` | Reskillable | Subtracted from bow draw cost (half-feathers). |
+| Ranged Hold Interval Multiplier | `1.5` | Reskillable | Multiplies bow hold interval (and throw hold, which uses bow interval). |
+| Shield Efficiency Perk ID | `aqtweaks:shield_efficiency` | Reskillable |  |
+| Shield Hold Interval Multiplier | `2.0` | Reskillable | Multiplies shield hold interval. |
+| Adrenaline Perk ID | `aqtweaks:adrenaline` | Reskillable |  |
+| Adrenaline Threshold | `3` | Reskillable | Proc when regular feathers (half-feathers) are below this. |
+| Adrenaline Restore | `20` | Reskillable | Set regular feathers to this (half-feathers), capped at max. |
+| Adrenaline Cooldown Ticks | `400` | Reskillable | Ticks after a proc before it can fire again. |
+| Expert Climber Perk ID | `aqtweaks:expert_climber` | Reskillable |  |
+| Expert Climber Reduction | `1` | Reskillable | Subtracted from ladder/vine/rope/cling, ledge, and grapple climb/swing/hang (half-feathers). |
+| Cardio Master Perk ID | `aqtweaks:cardio_master` | Reskillable |  |
+| Cardio Master Reduction | `1` | Reskillable | Subtracted from jump and sprint costs (half-feathers). |
+| Evasion Perk ID | `aqtweaks:evasion` | Reskillable |  |
+| Evasion Cooldown Ticks | `600` | Reskillable | Ticks after a successful evade. |
+| Power Attack Perk ID | `aqtweaks:power_attack` | Reskillable |  |
+| Power Attack Extra Spend | `2` | Reskillable | Extra half-feathers on a full-bar medium/heavy hit. |
+| Power Attack Medium Multiplier | `1.5` | Reskillable |  |
+| Power Attack Heavy Multiplier | `2.0` | Reskillable |  |
+| Hypothermia Slowness | `true` | SimpleDifficulty |  |
+| Hypothermia Max Slowness Amplifier | `2` | SimpleDifficulty | 0 is Slowness I. |
+| Hypothermia Slowness Ramp Ticks | `200` | SimpleDifficulty | Exposure ticks per slowness amplifier step. |
+| Hypothermia Max Stamina Ramp Ticks | `100` | SimpleDifficulty | Exposure ticks per half-feather of max stamina lost. |
+| Hypothermia Lethal At Zero Max Stamina | `true` | SimpleDifficulty |  |
+| Hyperthermia Thirst Exhaustion Per Second | `0.4` | SimpleDifficulty | Passive thirst exhaustion each second while hyperthermic. |
+| Hyperthermia Max Stamina Ramp Ticks | `100` | SimpleDifficulty | Exposure ticks per half-feather of max stamina lost while hyperthermic. |
+| Hyperthermia Lethal At Zero Max Stamina | `true` | SimpleDifficulty |  |
 
 ## Do not regress
 

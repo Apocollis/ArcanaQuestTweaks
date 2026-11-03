@@ -88,6 +88,7 @@ Player-only for melee skip and bolt/bomb retype. Archer tip skip is at shoot tim
 - `gaia/GaiaEntityEvents.java` — load-gated `EntityEntry` (no Gaia import)
 - `gaia/GaiaDeepDwarfRegistry.java` / `gaia/EntityDeepDwarf.java` — hostile clone
 - `gaia/client/RenderDeepDwarf.java`, `ModelDeepDwarf.java`, `DeepDwarfSkin.java` — purple flesh bake, white hair and beard, red eyes
+- `gaia/client/GaiaDeepDwarfClient.java` — client `preInit`: registers the Deep Dwarf renderer; `LayerDeepDwarfGlow.java` (red additive eyes) and `LayerDeepDwarfHeldItem.java` (held weapon) are its render layers
 - `mixin/gaia/MixinEntityMobHostileBase.java`, `MixinEntityMobAssistBase.java`, `MixinGaiaMagicProjectile.java`, `MixinEntityGaiaProjectileBomb.java`, `MixinRanged.java`, `MixinEntityGaiaDeathword.java`
 - `mixins.aqtweaks.gaia.json`
 

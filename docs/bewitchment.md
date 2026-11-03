@@ -106,6 +106,14 @@ MoreTweaker already covers oven / distillery / cauldron / ritual. It does **not*
 - `compat/crafttweaker/CTBewitchmentSpinningWheel.java` — `mods.bewitchment.SpinningWheel`
 - Cambion worldgen: `mixin/bewitchment/MixinWorldGenCambionHome.java`, `MixinWorldGenCambionHomeMedium.java` — documented in [rtg.md](rtg.md)
 
+## Config key reference (keys not named elsewhere in this file)
+
+Exact `@Config.Name` strings and code defaults, so the doc and the cfg cannot drift apart. The meaning of each group is in the sections above; the note is the first sentence of the in-game comment.
+
+| Key | Default | Section | Note |
+| --- | --- | --- | --- |
+| Ritual Warp List | `{bewitchment:conjure_imp=1,3, bewitchment:conjure_demon=2,5,1, bewitchment:conjure_baphomet=5,15,2, bewitch...}` | BewitchmentConfig |  |
+
 ## Do not regress
 
 - Copy constructor args from the parent ritual; a mismatch breaks circles/power.

@@ -14,10 +14,13 @@ Scope boundaries:
 ## Files
 
 - `simpledifficulty/DynamicModifierInsulation.java` — the `ITemperatureDynamicModifier`
-- `simpledifficulty/SimpleDifficultyModule.java` — constructor registers it once
+- `simpledifficulty/SimpleDifficultyModule.java` — constructor registers it once; also the canteen right-click, thermia attack, player tick and max-feather hooks (see [stamina.md](stamina.md))
+- `simpledifficulty/SimpleDifficultyHelper.java` — load-gated reads of thirst, temperature and lit campfires so other modules do not import Simple Difficulty
+- `simpledifficulty/PacketTemperatureMax.java` — client sync of the stamina maximum; sent by `stamina/StaminaMaxSync`
+- `mixin/simpledifficulty/SimpleDifficultyFillContext.java` — thread-local holding the player during a canteen fill (`MixinItemCanteenUse` sets it, `MixinItemCanteen` reads it)
 - `mixin/simpledifficulty/MixinWorldUtil.java` — boat position lift
 - `mixins.aqtweaks.simpledifficulty.json` — `required: false`
-- `ArcanaQuestTweaksConfig.SimpleDifficulty` — the seven cfg keys below
+- `ArcanaQuestTweaksConfig.SimpleDifficulty` — the seven insulation cfg keys below (the class also holds the thirst-cost keys, see [stamina.md](stamina.md))
 - `entity.getRidingEntity()` is called directly (`func_184187_bx` after remap)
 
 ## How Simple Difficulty calculates temperature

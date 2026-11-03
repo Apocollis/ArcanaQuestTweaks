@@ -36,6 +36,7 @@ Missing Base jar → json skipped; Tweaks still boots.
 | Piece | Role |
 | --- | --- |
 | `mixin/animania/MixinAddonHandler.java` | Cancel `onWorldLoad` |
+| `animania/AnimaniaAddons.java` | `FARM` flag: Animania loaded and its Farm addon handler class present; gates the Farm/Extra advancement inject |
 | `mixins.aqtweaks.animania.json` | Optional apply |
 
 ## Live config

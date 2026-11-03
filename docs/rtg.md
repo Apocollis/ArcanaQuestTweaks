@@ -120,6 +120,13 @@ Flatten looks up `VillagePlate` records by **land-box overlap** first, via a per
 | `rtg/VillageLayoutAudit.java` | Counts only. One line per new village when village debug or perf timers are on: roads and houses placed, retried, missed, and which retry slot won |
 | `rtg/VillagePlate.java` | Remembered starts, plate Y, land-box query (chunk-bucket index), stamp `AQTVillagePlate` |
 | `rtg/VillageRelight.java` | After village paste, `checkLight` at emitters in placing-component AABBs ∩ clip (not Y 0..255) |
+| `rtg/VillageExpander.java` | When layout ends below `Village Min Building Count`, extends roads from open ends and missing well directions to lay out more buildings inside the 112-block cap |
+| `rtg/VillagePathLinker.java` | After paste, joins a road that ends in the open to the nearest other road or the well with a one-wide trodden path (L-shaped; never crosses a piece, water or the clip edge; pure function of the kept pieces) |
+| `rtg/VillagePlateSnapshot.java`, `VillagePlateSnapshots.java` | Immutable copy of the plate records one flatten or seal pass reads; the inline hooks and the Chunk Steward preparer build it with the same code (server thread only) |
+| `rtg/VillagePlateJobPreparer.java` | Chunk Steward job preparer for the plate passes: runs village layout for a server-thread chunk, then builds the snapshot; null for worlds without an RTG generator |
+| `rtg/PipelineContext.java` | Whether the current work is a Chunk Steward pipeline job (`ChunkStewardAPI.isPipelineContext()`), plus the per-job snapshots; false without Chunk Steward |
+| `rtg/PopulateScopeBridge.java` | Opens `PopulateRelight`'s recording scope for the part of populate Chunk Steward finishes after the call returns (needs API v4) |
+| `mixin/rtg/MixinRtgLatePopulate.java` | Gives RTG's `LatePopulatingChunk.doPopulate` the same relight recording scope as `Chunk.populate` |
 | `rtg/VillageBridges.java` | After village paste, stone brick river bridge at plate Y on road ∩ clip (revert vanilla water planks incl. 1-deep water, rails, piers; approach levels columns within `Village Water Bank` of water) |
 | `rtg/VillageBridgeRule.java` | Pure rule: which wet roads stay (plates, structures, reachability); unit tested |
 | `rtg/VillageBridgePrune.java` | After layout, applies the rule: drops failing wet roads and pieces joined only through them |
@@ -334,8 +341,8 @@ Teleport is **on the generated ground** at that column (`world.getHeight`, skip 
 | Village RC Relocate Walk | 64 | yes | Blocks of walk (steps of 8) to relocate a Recurrent Complex natural structure that overlapped a village; 0 = drop only |
 | Village Path Link Gap | 16 | yes | Max gap to join a road end in the open to the nearest road or well after paste; 0 = off |
 | Performance Stage Timers | false | yes | Log 5s worldgen stage timing summaries (`[AQ-PERF]` in `latest.log`) for village layout, flatten, seal, paste, wellReject/findDryWell, and DA starts |
-| Enable Village Well Disk Cache | true | yes | Cache `VillageLandHelper.chunkExists` per dimension (peeks `loadedChunks` without touching `unloadQueued`, permanent positive set, short-TTL negative map) to avoid repeated `RegionFileCache` disk probes |
-| Village Well Negative Cache TTL Ticks | 200 | yes | Server-tick TTL (0..6000) for negative `chunkExists` entries; `0` disables negative caching |
+| Enable Village Well Chunk Cache | true | yes | Cache `VillageLandHelper.chunkExists` per dimension (peeks `loadedChunks` without touching `unloadQueued`, permanent positive set, short-TTL negative map) to avoid repeated `RegionFileCache` disk probes |
+| Village Well Chunk Negative TTL Ticks | 200 | yes | Server-tick TTL (0..6000) for negative `chunkExists` entries; `0` disables negative caching |
 | Enable Village Well Verdict Memo | true | yes | Short-TTL memoization of `startRejectReason` and `findDryWell` per `(dimension, seed, configFingerprint)`. `null` (allow) verdicts are only cached/used while no `StructureStart` exists at that well chunk |
 | Village Well Verdict Memo TTL Ticks | 600 | yes | Server-tick TTL (0..6000) for `startRejectReason` and `findDryWell` memo entries |
 | Verify Village Well Verdict Memo | false | yes | Dev verification: recompute `startRejectReason` / `findDryWell` on memo hits and log a one-shot `[AQ-RTG]` warning on mismatch |
@@ -666,3 +673,11 @@ Every `layoutVillageGrid` pass and `MapGenVillage.canSpawnStructureAtCoords` che
 - Filling ocean/river beyond 1-block pad notches (`Village Shore Close Ocean`)
 - Small ruin as a village piece
 - Forcing Waystones `villageChance` so every village has a waystone
+
+## Config key reference (keys not named elsewhere in this file)
+
+Exact `@Config.Name` strings and code defaults, so the doc and the cfg cannot drift apart. The meaning of each group is in the sections above; the note is the first sentence of the in-game comment.
+
+| Key | Default | Section | Note |
+| --- | --- | --- | --- |
+| Enable Cambion River Walk In | `true` | Surface | If a Bewitchment Cambion house attempts to generate over a river or water, walk it inland and retest outline up to two times before placing as is. |

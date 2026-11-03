@@ -145,6 +145,7 @@ Tweaks’ `@Redirect` on `StructureComponent.func_74875_a` inside `StructureStar
 | `MixinGenericVillageCreationHandler` | Same skip/retry for RC AABBs (full `.rcst` box). |
 | `MixinASMHooksVillagePaste` | Charm populate abort if any column of the full AABB is ocean/river biome (roads exempt). Jar `MixinConfigs`; `VillageCharmPaste` at paste time. |
 | `MixinStructureStartVillagePaste` | Snapshot component iterator; populate walk/drop if remembered well is never-raise; abort if any column of the full AABB is ocean/river biome (incl. well; roads exempt); stamp pad children; `VillageBridges` stone brick river bridge at plate Y on kept river paths; `VillageRoadStamper` gravel on configured grass/dirt roads; relight clip. |
+| `VillageBridgePrune` (called from `MixinMapGenVillageStart` after layout) | Applies `VillageBridgeRule`: a wet road stays only as a bridge joining two plates that each hold a structure and are reachable from the well; failing wet roads and pieces joined only through them are dropped. Dry roads and all other pieces are never judged. Detail: [rtg.md](rtg.md) *Bridge rule*. |
 | `MixinMapGenVillageInside` | Detection = pad + Hermite (vanilla child hit first, then `startAt` XZ/Y). Also stamped into `Village.dat`. Well floor through plate + `villageBoxHeight`. |
 
 `isLandscapeLake`: a **null** sample (or nested sampling) is **not** wet. Load-time forget must not treat missing landscape as a flooded plains well. Layout must not treat missing landscape as a lake (that omitted every road).

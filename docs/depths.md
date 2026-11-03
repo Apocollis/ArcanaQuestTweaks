@@ -300,6 +300,14 @@ A Spark profile put Tweaks at ~56% of chunk generation: 34s primer carve, 18s su
 
 A later pass moved the remaining `remap = false` hot-path Reflect (`CarverUtils.canReplaceBlock`, chunk seam get/set) into `BetterCavesReplaceable` / `ChunkAccess`, memoised bridge **cells** (including inactive), and cached water-biome masks per seed+dim+chunk XZ. Still exact-equivalence.
 
+## Config key reference (keys not named elsewhere in this file)
+
+Exact `@Config.Name` strings and code defaults, so the doc and the cfg cannot drift apart. The meaning of each group is in the sections above; the note is the first sentence of the in-game comment.
+
+| Key | Default | Section | Note |
+| --- | --- | --- | --- |
+| Populate Relight RTG | `true` | General | Also record populate light for RTG-Plus chunks. |
+
 ## Do not regress
 
 - Primer owns **-Y**. Chunk writes below 0 are not trusted.

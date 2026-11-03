@@ -16,6 +16,18 @@ Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 - **Hearthside tooltip rate.** Updated the Hearthside line on the hover box to `* Hearthside: At Home (Cleansing warp - <rate>)` (1 warp per 3 min for Tier I, 1 warp per 2 min for Tier II, 1 warp per min for Tier III).
 - Serialized category capped scores in `PacketComfortStatus` and mapped active potion bonuses (kind 7) to sync full room telemetry to the client.
 
+## 2026-11-03 — No stamina drain standing on the ground in a ladder cell
+
+- `StaminaModule.handleServerClimbing`: clinging and ascending need `!onGround`, so idling, sneaking or jumping while standing in a ladder, vine or rope cell no longer spends stamina. The depleted pull (server `motionY = -0.15`, client slide and jump/sneak clearing) is skipped when grounded and not pushing into the climbable.
+
+## 2026-11-02 — Docs drift audit
+
+- Docs refreshed against the tree: `rtg.md` config row names (`Enable Village Well Chunk Cache`, `Village Well Chunk Negative TTL Ticks`), `client.md` dust particle default (250), README now links the three spawning-rollout docs, `villagegen_info.md` names the bridge prune, `portal.md` lists `PortalLang`.
+- File rows added for the classes no doc named (Atum pyramid classes and mixins, Deep Dwarf client layers, perk helpers, Fast Revive and Lithomancy mixins, RTG village plate snapshot/Chunk Steward helpers, `VillageExpander`, `VillagePathLinker`, spawning rule types and index mixins, Simple Difficulty helpers).
+- `Config key reference` tables added to `stamina.md`, `reskillable.md`, `client.md`, `comfort.md`, `bewitchment.md`, `rtg.md` and `depths.md`: every `@Config.Name` is now documented by exact name and default.
+- `compatibility-matrix.md` gains `atum`, `dsurround` and `orelib` rows (jars that sit in `libs/` but were not in the matrix).
+- New `scripts/doc_audit.py` (read-only) and *Doc drift check* in `verification.md`.
+
 ## 2026-11-02 — Village bridges join structure plates only, no dip
 
 - **Wet roads are kept only as bridges between two village plates that each hold a structure and are reachable from the well** (`rtg/VillageBridgeRule`, `VillageBridgePrune`). Ocean arms, bridges that start off the pad, end on nothing or join a road-only plate are dropped with pieces joined only through them. Dry roads, pads and layout are unchanged. Island plates joined only by a bridge stay. New chunks only.

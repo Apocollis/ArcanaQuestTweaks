@@ -1,6 +1,6 @@
 # Portal module (1.9)
 
-Last updated: 2026-09-18. Dest XYZ teleport, 60-tick gate, ground bind. No DS full-bypass mixin.
+Last updated: 2026-11-02. Dest XYZ teleport, 60-tick gate, ground bind. No DS full-bypass mixin.
 
 Config: `config/arcanaquesttweaks/aqtweaks_portal.cfg`. Tweaks-owned. No parent portal mod.
 
@@ -54,6 +54,7 @@ Particles (client `RiftParticles`, up to **2**/tick, each slot spawns with a rat
 | `portal/PortalModule.java` | Registry, chunk callback, dual-world spawn pair, wild land search, companion list |
 | `portal/ItemSpatialRiftTear.java` | Bind / open; bound display name |
 | `portal/ItemSpatialRiftWild.java` | Random land open |
+| `portal/PortalLang.java` | Registers the item name, lore, tooltip and status strings in code (`item.aqtweaks.spatial_rift_*`) so they need no lang file; ContentTweaker lang overrides in the pack can replace them |
 | `portal/EntityArcaneRift.java` | Lifetime, link, teleport, wild flag, lighting tick |
 | `portal/RiftLighting.java` | Glowstone-level emission cells |
 | `portal/RiftTeleporter.java` | Cross-dim place at dest rift XYZ |
@@ -74,7 +75,7 @@ Particles (client `RiftParticles`, up to **2**/tick, each slot spawns with a rat
 | Spawn Offset (`spawnOffset`) | 1.5 |
 | Exit Offset (`exitOffset`) | 1.5 (unused for teleport) |
 | Companion Radius | 16 |
-| Wild Min / Max Distance | 4000 / 6000 |
+| Wild Min Distance / Wild Max Distance | 4000 / 6000 |
 | Wild Search Attempts | 48 |
 
 Existing instance `aqtweaks_portal.cfg` keeps old cooldown / wild distances until edited.
