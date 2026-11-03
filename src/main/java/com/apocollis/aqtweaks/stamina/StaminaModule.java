@@ -346,10 +346,12 @@ public class StaminaModule {
         if (pData.hasKey(prevYKey)) {
             double dy = posY - pData.getDouble(prevYKey);
             if (dy > CLIMB_ASCEND_EPS) {
-                ascending = true;
+                // A jump or step-up inside the cell is not climbing.
+                ascending = !player.onGround;
             } else if (dy < -CLIMB_ASCEND_EPS && !player.isSneaking()) {
                 // Sliding down without sneak-hold — free
-            } else if (player.isSneaking() || Math.abs(dy) <= CLIMB_ASCEND_EPS) {
+            } else if (!player.onGround && (player.isSneaking() || Math.abs(dy) <= CLIMB_ASCEND_EPS)) {
+                // Clinging needs to be off the ground: standing in the bottom rung's cell costs nothing.
                 holding = true;
             }
         }
@@ -374,6 +376,7 @@ public class StaminaModule {
 
         if (ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.fallOnDepleted
                 && cost > 0
+                && !(player.onGround && !player.collidedHorizontally)
                 && !StaminaFeathers.hasEnoughStamina(player, cost)
                 && pData.getInteger("StaminaTweaksLedgeClimbState") != 1
                 && pData.getInteger("StaminaTweaksLedgeClimbGrace") <= player.ticksExisted

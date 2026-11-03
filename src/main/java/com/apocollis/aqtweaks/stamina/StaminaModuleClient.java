@@ -218,7 +218,8 @@ public class StaminaModuleClient {
             boolean ledgeActive = climbData.getInteger("StaminaTweaksLedgeClimbState") == 1;
             boolean mantleIntent = jumpPressed(player) && moveForward(player) > 0.0F;
 
-            if (!ledgeActive && !mantleIntent && cost > 0 && !StaminaFeathers.hasEnoughStamina(player, cost)) {
+            boolean grounded = player.onGround && !player.collidedHorizontally;
+            if (!ledgeActive && !mantleIntent && !grounded && cost > 0 && !StaminaFeathers.hasEnoughStamina(player, cost)) {
                 player.motionY = -0.15;
             }
         } else {
@@ -297,7 +298,8 @@ public class StaminaModuleClient {
             NBTTagCompound climbData = player.getEntityData();
             boolean ledgeActive = climbData.getInteger("StaminaTweaksLedgeClimbState") == 1;
             boolean mantleIntent = jumpPressed(player) && moveForward(player) > 0.0F;
-            if (!ledgeActive && !mantleIntent) {
+            boolean grounded = player.onGround && !player.collidedHorizontally;
+            if (!ledgeActive && !mantleIntent && !grounded) {
                 if (player instanceof EntityPlayerSP sp && sp.movementInput != null) {
                     sp.movementInput.jump = false;
                     sp.movementInput.sneak = false;
