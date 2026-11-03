@@ -1,10 +1,13 @@
 package com.apocollis.aqtweaks.comfort;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityPlayerSP;
+import net.minecraft.potion.Potion;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraftforge.fml.relauncher.Side;
@@ -13,6 +16,14 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 /** Last comfort packet. Client only; the server never loads this class. */
 @SideOnly(Side.CLIENT)
 public final class ComfortClientState {
+
+    public static final class CategoryScore {
+        public String name = "";
+        public float amount;
+        public int seen;
+        public int counted;
+        public int limit;
+    }
 
     public static boolean present;
     public static int state;
@@ -36,6 +47,7 @@ public final class ComfortClientState {
     public static int restedTicks;
     public static PacketComfortStatus.Line[] lines = new PacketComfortStatus.Line[0];
     public static final Map<String, int[]> categories = new HashMap<>();
+    public static final List<CategoryScore> categoryScores = new ArrayList<>();
     public static final Map<String, PacketComfortCatalog.Row> catalog = new HashMap<>();
     public static long changedAt;
 
@@ -81,9 +93,18 @@ public final class ComfortClientState {
         restedTicks = message.restedTicks;
         lines = message.lines.toArray(new PacketComfortStatus.Line[0]);
         categories.clear();
+        categoryScores.clear();
         for (PacketComfortStatus.Category category : message.categories) {
             categories.put(category.name, new int[] {category.seen, category.counted, category.limit});
+            CategoryScore cs = new CategoryScore();
+            cs.name = category.name;
+            cs.amount = category.amount;
+            cs.seen = category.seen;
+            cs.counted = category.counted;
+            cs.limit = category.limit;
+            categoryScores.add(cs);
         }
+        categoryScores.sort((a, b) -> Float.compare(b.amount, a.amount));
         EntityPlayerSP player = Minecraft.getMinecraft().player;
         if (wasPresent != present || (present && previousGranted != granted)) {
             changedAt = player == null ? 0L : player.ticksExisted;
@@ -156,13 +177,25 @@ public final class ComfortClientState {
 
     public static String lineLabel(PacketComfortStatus.Line line) {
         switch (line.kind) {
-            case 0: return "Hot";
+            case 0: return "Heat";
             case 1: return "Cold";
             case 2: return "Thirst";
             case 3: return "Hunger";
             case 4: return "Health";
             case 6: return "Resting";
-            default: return line.potion == null || line.potion.isEmpty() ? "Effect" : line.potion;
+            case 7:
+            case 5:
+                if (line.potion != null && !line.potion.isEmpty()) {
+                    Potion potion = Potion.getPotionFromResourceLocation(line.potion);
+                    if (potion != null) {
+                        return net.minecraft.client.resources.I18n.format(potion.getName());
+                    }
+                    int colon = line.potion.indexOf(':');
+                    String name = colon >= 0 ? line.potion.substring(colon + 1) : line.potion;
+                    return Character.toUpperCase(name.charAt(0)) + name.substring(1).replace('_', ' ');
+                }
+                return line.kind == 7 ? "Bonus" : "Penalty";
+            default: return "Effect";
         }
     }
 }

@@ -47,7 +47,8 @@ public class AQTweaksLateMixinLoader implements ILateMixinLoader {
                 "mixins.aqtweaks.geographicraft.json",
                 "mixins.aqtweaks.atum.json",
                 "mixins.aqtweaks.dsurround.json",
-                "mixins.aqtweaks.mdecore.json");
+                "mixins.aqtweaks.mdecore.json",
+                "mixins.aqtweaks.solcarrot.json");
     }
 
     @Override
@@ -63,6 +64,9 @@ public class AQTweaksLateMixinLoader implements ILateMixinLoader {
         }
         if ("mixins.aqtweaks.mdecore.json".equals(mixinConfig)) {
             return Loader.isModLoaded("mdecore");
+        }
+        if ("mixins.aqtweaks.solcarrot.json".equals(mixinConfig)) {
+            return Loader.isModLoaded("solcarrot");
         }
         return true;
     }

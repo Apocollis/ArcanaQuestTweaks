@@ -26,6 +26,12 @@ Configured via `config/arcanaquesttweaks/aqtweaks_somnia.cfg`.
    - Sleep activation: `[Somnia] 1/1 (100%) of players are sleeping! Fast-forwarding the night...` (live non-spectator count, not the cfg threshold)
    - Premature bed exit: `<Player> has left their bed. [<sleeping>/<total> (<pct>%)]`
    - Morning wakeup: suppressed to prevent spam.
+5. **Rest on Beds & Hammocks When Not Tired**:
+   - When Somnia refuses sleep because the player is not tired (`fatigue < fatigueSleepy`, producing `OTHER_PROBLEM`) or the time is not right (`NOT_POSSIBLE_NOW`), the player is mounted in a sitting posture on an invisible `EntityBedSeat`.
+   - Supports vanilla beds (`+0.52`), Comforts hammocks (`+0.35`), and Comforts sleeping bags (`+0.20`).
+   - Does not trigger sleeping, time acceleration, or sleep notifications. Player is mounted (`isRiding()`), which qualifies for Comfort homestead resting bonuses.
+   - Sneak dismounts cleanly, block break or player logout destroys the seat entity.
+   - Respects Somnia's armor sleeping rule (will not sit if `sleepWithArmor` is disabled and armor is equipped).
 
 ## How the parent works
 
@@ -40,6 +46,7 @@ Configured via `config/arcanaquesttweaks/aqtweaks_somnia.cfg`.
 - `MixinSomniaState` (@Overwrite) delegates to `SomniaSleepHandler.getState(handler)` to filter spectators, evaluate the 50% threshold, route to `ACTIVE` vs `WAITING_PLAYERS`, and broadcast activation.
 - `MixinServerTickHandler` (@Inject at HEAD of `doMultipliedTicking`) intercepts multiplied ticking. During Case B, it steps `worldServer.setWorldTime` by `(caseBTimeMultiplier - 1)` (vanilla world tick already applied `+1`), recovers that extra fatigue on sleepers, syncs `SPacketTimeUpdate`, and cancels the full entity/world tick loop. During Case A (100% sleeping), it lets normal multiplied ticking proceed.
 - `SomniaSleepHandler` listens to Forge `PlayerTickEvent`, `PlayerWakeUpEvent`, `PlayerLoggedOutEvent`, and `PlayerChangedDimensionEvent` for Morpheus chat notifications and state tracking.
+- `SomniaSleepHandler.onPlayerSleepInBed` (`@SubscribeEvent(priority = EventPriority.LOWEST)`): intercepts `PlayerSleepInBedEvent` after Somnia's own lowest handler; when result is `NOT_POSSIBLE_NOW` or `OTHER_PROBLEM` (with Somnia fatigue active and player not tired), mounts `EntityBedSeat` on the head block.
 - Missing Somnia jar → mixin config skipped gracefully (`required: false`).
 
 ## Files
@@ -47,7 +54,9 @@ Configured via `config/arcanaquesttweaks/aqtweaks_somnia.cfg`.
 | Piece | Role |
 | --- | --- |
 | `somnia/SomniaOptimizationHandler.java` | Core lighting check optimization, duplicate tracker, sleep check, and proximity-priority awake drain (paced via `StewardPacing` when Chunk Steward is present) |
-| `somnia/SomniaSleepHandler.java` | 3-tier sleep state logic, Case B time advancement & fatigue recovery, and Morpheus notifications |
+| `somnia/SomniaSleepHandler.java` | 3-tier sleep state logic, Case B time advancement & fatigue recovery, Morpheus notifications, and bed/hammock seat mounting on non-tired sleep refusal |
+| `somnia/EntityBedSeat.java` | Invisible, non-colliding mount entity positioned on beds, hammocks, or sleeping bags; auto-despawns when riderless or block removed |
+| `somnia/client/RenderBedSeat.java` | Client no-op renderer for `EntityBedSeat` |
 | `mixin/somnia/MixinSomniaUtil.java` | `@Overwrite SomniaUtil.chunkLightCheck` |
 | `mixin/somnia/MixinSomniaState.java` | `@Overwrite SomniaState.getState` |
 | `mixin/somnia/MixinServerTickHandler.java` | `@Inject doMultipliedTicking` to handle Case B time-only advancement |
@@ -64,6 +73,7 @@ Configured via `config/arcanaquesttweaks/aqtweaks_somnia.cfg`.
 | `Case B Partial Sleep Time Multiplier` | double | `2.0` | Total world-time / sleeper-fatigue rate vs one vanilla world tick during Case B (Tweaks extra = multiplier − 1) |
 | `Fatigue Recovered Per In-Game Hour` | double | `10.0` | Fatigue points recovered per in-game hour (1,000 ticks) in bed |
 | `Enable Sleep Notifications` | boolean | `true` | Morpheus-style chat notifications |
+| `Rest on Beds When Not Tired` | boolean | `true` | Sit on beds, hammocks, and sleeping bags when Somnia detects player is not tired enough to sleep |
 
 ## Do not regress
 

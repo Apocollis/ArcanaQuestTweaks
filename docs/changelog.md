@@ -2,6 +2,38 @@
 
 Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-11-02 — Comfort score breakdown in inventory popup HUD
+
+- **Comfort score breakdown in inventory popup HUD.** Hovering the Comfort tab in the inventory menu now displays the full Comfort score breakdown:
+  - Total effective score and tier status (`Comfort Score: X.X (Tier I)`), with the `Cozy + Bonus - Penalty` equation.
+  - Next tier goal, point gap, and promotion countdown (`Promotes in M:SS`).
+  - Gating warnings for missing required furniture (hearth, bedding, seating) or combat cooldowns (hurt/attack).
+  - Detailed cozy furnishings breakdown by category sorted descending by score with item counts (`Bedding: 8 (1/1)`, `Hearth: 6 (1/1)`, `Seating: 4 (1/1)`, etc.).
+  - Active bonuses breakdown (`Resting: +2`, active potion bonuses such as Farmer's Delight comfort).
+  - Active penalties breakdown (`Hunger: -2`, `Cold: -1.5`, negative status effects such as Somnia fatigue).
+  - Resting prompt (`Sit, sneak, or lie down to rest`) when in an eligible comfort area but standing.
+  - Clear indicator when away from home.
+- **Hearthside tooltip rate.** Updated the Hearthside line on the hover box to `* Hearthside: At Home (Cleansing warp - <rate>)` (1 warp per 3 min for Tier I, 1 warp per 2 min for Tier II, 1 warp per min for Tier III).
+- Serialized category capped scores in `PacketComfortStatus` and mapped active potion bonuses (kind 7) to sync full room telemetry to the client.
+
+## 2026-11-02 — Village bridges join structure plates only, no dip
+
+- **Wet roads are kept only as bridges between two village plates that each hold a structure and are reachable from the well** (`rtg/VillageBridgeRule`, `VillageBridgePrune`). Ocean arms, bridges that start off the pad, end on nothing or join a road-only plate are dropped with pieces joined only through them. Dry roads, pads and layout are unchanged. Island plates joined only by a bridge stay. New chunks only.
+- **No dip before the deck.** `VillageBridges` reverts the plank over 1-deep water, levels columns the deck did not cover, and the approach width follows `Village Water Bank`.
+- Unit test `VillageBridgeRuleTest`. No `/aqvillage bridges` command: diagnostics are the `bridge keep/drop` lines in `villagepatch.log`.
+
+## 2026-11-02 — SolCarrot book cleanup, immediate milestone stamina fill, bed/hammock resting when not tired, Vigor seconds tooltip
+
+- **Immediate SolCarrot milestone feather fill.** When achieving a SolCarrot food milestone, the newly unlocked stamina feather socket is immediately filled (`FeathersHelper.increaseFeathers`) in `StaminaModule.onFoodFinished` so the feather starts full rather than empty. Config `Minimum Food Value = 0` in DEVBOX `solcarrot.cfg` so low-nutrition foods and drinks contribute to food diversity progress.
+- **SolCarrot Food Book cleanliness.** Late client mixins in `mixins.aqtweaks.solcarrot.json`:
+  - `MixinGuiFoodBook`: removes `ConfigInfoPage` at RETURN of `initPages` so foods are not partitioned by nutrition tiers and the book flows directly from statistics to the food lists.
+  - `MixinFoodItemStacks`: filters JEI-blacklisted items from `FoodItemStacks.getAllFoods()` using `mezz.jei.Internal.getHelpers().getIngredientBlacklist()`, hiding disabled pack items from the book.
+- **Bed & hammock resting when not tired.** When right-clicking a bed or hammock and Somnia refuses sleep due to low fatigue (`OTHER_PROBLEM`) or daytime (`NOT_POSSIBLE_NOW`), players are now mounted on an invisible `EntityBedSeat` (`aqtweaks:bed_seat`) at the head block with custom height offsets (beds `+0.52`, hammocks `+0.35`, sleeping bags `+0.20`).
+  - Intercepted via `SomniaSleepHandler.onPlayerSleepInBed` at `EventPriority.LOWEST` after Somnia's own lowest listener.
+  - The player sits on the bed without triggering sleeping, fast-forwarding, or chat spam. Since `isRiding()` is true, Comfort homestead resting bonuses and Hearthside warp cleansing continue while seated.
+  - Dismounts cleanly on sneak (Shift), and despawns if the block is broken or the rider leaves. Respects Somnia's armor sleeping rule. Configurable via `restOnBedsWhenNotTired = true` in `aqtweaks_somnia.cfg`.
+- **Comfort Vigor tooltip in seconds.** Updated `ComfortTooltips.tabLines` to display Vigor regen as total seconds required to restore 10 full feathers: `Vigor: restores 10 feathers in Xs (base 30s)` (25s for Tier I, 20s for Tier II, 15s for Tier III).
+
 ## 2026-11-02 — Rested stamina sync without the full config packet, SolCarrot milestones, armor-weight HUD
 
 - **Disconnect on Rested tier change.** `RestedBonuses.reconcile` no longer calls `FeathersHelper.syncMaxFeathers` (it ends with Elenai's full `CUpdateConfigMessage` including the armor weight list, blank at join but full mid-game). It uses the new `stamina/StaminaMaxSync`, which lowers current feathers if above the maximum and sends `PacketTemperatureMax`. The temperature module's non-lethal paths use the same helper. Confirmed in game: no more disconnects on a Rested change.

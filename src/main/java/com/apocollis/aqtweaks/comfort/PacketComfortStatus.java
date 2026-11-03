@@ -75,6 +75,7 @@ public class PacketComfortStatus implements IMessage {
         for (int i = 0; i < categoryCount; i++) {
             Category category = new Category();
             category.name = ByteBufUtils.readUTF8String(buf);
+            category.amount = buf.readFloat();
             category.seen = buf.readUnsignedShort();
             category.counted = buf.readUnsignedShort();
             category.limit = buf.readUnsignedShort();
@@ -118,6 +119,7 @@ public class PacketComfortStatus implements IMessage {
         for (Category category : categories) {
             if (written++ >= 255) break;
             ByteBufUtils.writeUTF8String(buf, category.name == null ? "" : category.name);
+            buf.writeFloat(category.amount);
             buf.writeShort(category.seen);
             buf.writeShort(category.counted);
             buf.writeShort(category.limit);
@@ -132,6 +134,7 @@ public class PacketComfortStatus implements IMessage {
 
     public static final class Category {
         public String name = "";
+        public float amount;
         public int seen;
         public int counted;
         public int limit;

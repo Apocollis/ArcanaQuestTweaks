@@ -23,7 +23,7 @@ public final class VillageBridges {
     private static final int PIER_EVERY = 4;
     private static final int SCAN_ABOVE = 6;
     private static final int SCAN_MIN_Y = 20;
-    /** Dry road columns on each bank that are brought to deck height. */
+    /** Fewest dry road columns on each bank that are brought to deck height; the water bank width raises it. */
     private static final int APPROACH = 8;
     /** A bank more than this far above the deck is left as it is rather than cut. */
     private static final int MAX_CUT = 6;
@@ -68,13 +68,15 @@ public final class VillageBridges {
         int crossMax = alongX ? bb.maxZ : bb.maxX;
         boolean[] pierAt = null;
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        BiomeProvider provider = world.getBiomeProvider();
         int decks = 0;
         for (int a = axisMin; a <= axisMax; a++) {
             for (int c = crossMin; c <= crossMax; c++) {
                 int x = alongX ? a : c;
                 int z = alongX ? c : a;
                 if (!inClipXZ(clip, x, z)) continue;
-                int surfaceY = waterSurfaceAfterRevert(world, pos, x, z, plate);
+                boolean wetHere = VillageLandHelper.isVillageWaterColumn(world, provider, null, x, z);
+                int surfaceY = waterSurfaceAfterRevert(world, pos, x, z, plate, wetHere);
                 if (surfaceY < 0) continue;
                 int deckY = deckY(world, plate, surfaceY);
                 if (deckY > 250) continue;
@@ -99,8 +101,9 @@ public final class VillageBridges {
     }
 
     /**
-     * Brings the road's dry columns within {@link #APPROACH} slices of water to deck height, so the path meets the
-     * deck at one level (no step down at a cliff wall and back up). Ground below the deck is filled, ground above
+     * Brings the road's columns within the approach width of water to deck height (columns the deck did not cover
+     * too), so the path meets the deck at one level: no step down at a cliff wall or a bank slope and back up. The
+     * width follows {@code Village Water Bank}, the length of the slope the flatten leaves beside water. Ground below the deck is filled, ground above
      * it (seal wall, cliff lip) is cut through the road width only. Which slices are near water comes from the
      * landscape, so every clip of one road agrees.
      */
@@ -112,7 +115,7 @@ public final class VillageBridges {
         int deckY = Math.max(Math.round(plate), world.getSeaLevel() + 1);
         int columns = 0;
         for (int i = 0; i < len; i++) {
-            if (wet[i] || !nearWet(wet, i)) continue;
+            if (!wet[i] && !nearWet(wet, i)) continue;
             int a = axisMin + i;
             for (int c = crossMin; c <= crossMax; c++) {
                 int x = alongX ? a : c;
@@ -125,7 +128,8 @@ public final class VillageBridges {
     }
 
     private static boolean nearWet(boolean[] wet, int i) {
-        for (int d = 1; d <= APPROACH; d++) {
+        int reach = Math.max(APPROACH, ArcanaQuestTweaksConfig.RtgModuleConfig.surface.villageWaterBank);
+        for (int d = 1; d <= reach; d++) {
             if (i - d >= 0 && wet[i - d]) return true;
             if (i + d < wet.length && wet[i + d]) return true;
         }
@@ -169,7 +173,8 @@ public final class VillageBridges {
      * Top liquid Y of the column, or -1 if it is land. Vanilla {@code Path} laid planks on the water
      * surface; those are turned back into water first.
      */
-    private static int waterSurfaceAfterRevert(World world, BlockPos.MutableBlockPos pos, int x, int z, float plate) {
+    private static int waterSurfaceAfterRevert(World world, BlockPos.MutableBlockPos pos, int x, int z, float plate,
+                                               boolean landscapeWet) {
         int top = Float.isNaN(plate) ? world.getSeaLevel() : Math.max(world.getSeaLevel(), Math.round(plate));
         for (int y = Math.min(255, top + SCAN_ABOVE); y >= SCAN_MIN_Y; y--) {
             pos.setPos(x, y, z);
@@ -180,6 +185,12 @@ public final class VillageBridges {
             if (mat == Material.WOOD) {
                 pos.setPos(x, y - 1, z);
                 if (world.getBlockState(pos).getMaterial() == Material.WATER) {
+                    pos.setPos(x, y, z);
+                    world.setBlockState(pos, Blocks.WATER.getDefaultState(), 2);
+                    return y;
+                }
+                if (landscapeWet) {
+                    // One-deep water: the seabed is directly under vanilla's plank, so give the water back.
                     pos.setPos(x, y, z);
                     world.setBlockState(pos, Blocks.WATER.getDefaultState(), 2);
                     return y;

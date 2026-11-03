@@ -16,6 +16,13 @@ public final class GaiaEntityEvents {
 
     @SubscribeEvent
     public static void registerEntities(RegistryEvent.Register<EntityEntry> event) {
+        event.getRegistry().register(net.minecraftforge.fml.common.registry.EntityEntryBuilder.create()
+                .entity(com.apocollis.aqtweaks.somnia.EntityBedSeat.class)
+                .id(new net.minecraft.util.ResourceLocation(ArcanaQuestTweaks.MODID, "bed_seat"), 3)
+                .name("bed_seat")
+                .tracker(256, 20, false)
+                .build());
+
         if (!Loader.isModLoaded("grimoireofgaia") || !GrimoireOfGaiaConfig.enableDeepDwarf) {
             return;
         }

@@ -937,9 +937,17 @@ public class StaminaModule {
         int now = SolCarrotHelper.milestonesAchieved(player);
         if (now == SolCarrotHelper.UNREADABLE) return;
         NBTTagCompound data = player.getEntityData();
-        if (data.hasKey(SOLCARROT_MILESTONES_TAG) && data.getInteger(SOLCARROT_MILESTONES_TAG) == now) return;
+        boolean hadOld = data.hasKey(SOLCARROT_MILESTONES_TAG);
+        int old = hadOld ? data.getInteger(SOLCARROT_MILESTONES_TAG) : 0;
+        if (hadOld && old == now) return;
         data.setInteger(SOLCARROT_MILESTONES_TAG, now);
         StaminaMaxSync.sync(player);
+        if (hadOld && now > old) {
+            int fill = Math.min(now * 2, 20) - Math.min(old * 2, 20);
+            if (fill > 0) {
+                FeathersHelper.increaseFeathers(player, fill);
+            }
+        }
     }
 
     @SubscribeEvent

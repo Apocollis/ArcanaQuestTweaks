@@ -1196,6 +1196,61 @@ public final class VillageLandHelper {
         return best;
     }
 
+    /**
+     * Wet profile of a road for {@link VillageBridgeRule}: per slice along its long axis, whether any column across
+     * the width is water; {@code ocean} when any column is ocean. Null when the road is dry along its whole length
+     * or its world cannot be read. Pure landscape, so every chunk clip gets the same answer.
+     */
+    public static VillageBridgeRule.Wet wetProfile(Object villageStart, Object component) {
+        int[] box = StructureAccess.getStructureComponentBoxXZ(component);
+        if (box == null) return null;
+        World world = currentWorld();
+        if (world == null) {
+            world = StructureAccess.getVillageStartWorld(villageStart);
+        }
+        if (world == null) return null;
+        BiomeProvider provider = StructureAccess.getVillageStartBiomeProvider(villageStart);
+        if (provider == null) {
+            provider = world.getBiomeProvider();
+        }
+        boolean alongX = box[1] - box[0] >= box[3] - box[2];
+        int axisMin = alongX ? box[0] : box[2];
+        int axisMax = alongX ? box[1] : box[3];
+        int crossMin = alongX ? box[2] : box[0];
+        int crossMax = alongX ? box[3] : box[1];
+        boolean[] wet = new boolean[axisMax - axisMin + 1];
+        boolean any = false;
+        boolean ocean = false;
+        pushColumnLandscapeCache();
+        try {
+            Map<Long, ChunkLandscape> cache = columnLandscapeCache();
+            for (int a = axisMin; a <= axisMax; a++) {
+                for (int c = crossMin; c <= crossMax; c++) {
+                    int x = alongX ? a : c;
+                    int z = alongX ? c : a;
+                    ChunkLandscape land = landscapeCached(world, x, z, cache);
+                    if (isOceanColumn(world, provider, land, x, z)) {
+                        ocean = true;
+                        wet[a - axisMin] = true;
+                        any = true;
+                    } else if (isVillageWaterColumn(world, provider, land, x, z)) {
+                        wet[a - axisMin] = true;
+                        any = true;
+                    }
+                }
+            }
+        } finally {
+            popColumnLandscapeCache();
+        }
+        if (!any) return null;
+        return new VillageBridgeRule.Wet(component, alongX, axisMin, (crossMin + crossMax) >> 1, wet, ocean);
+    }
+
+    /** A lamp post: part of a plate's pad but not a structure. */
+    public static boolean isVillageLamp(Object component) {
+        return component instanceof StructureVillagePieces.Torch;
+    }
+
     public static String pathOmitReason(Object villageStart, Object component) {
         if (isAabbTouchesOceanOrRiver(villageStart, component)) {
             int[] box = StructureAccess.getStructureComponentBoxXZ(component);

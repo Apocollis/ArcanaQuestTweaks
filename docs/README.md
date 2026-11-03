@@ -168,6 +168,7 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `
 | `mixins.aqtweaks.geographicraft.json` | false | Server: `MixinDimensionManager` redirects client-only `Biome.getBiomeName` in `salvageSpawn` to the registry name ([server.md](server.md)). Queued only if `geographicraft` is loaded | Not queued |
 | `mixins.aqtweaks.dsurround.json` | false | Dynamic Surroundings fog & weather hooks. Queued only if `dsurround` is loaded | Not queued |
 | `mixins.aqtweaks.mdecore.json` | false | Server: `MixinTeleportHelper` fixes `/mde tpx` cross-dimension teleport crash and Nether bedrock displacement ([server.md](server.md)). Queued only if `mdecore` is loaded | Not queued |
+| `mixins.aqtweaks.solcarrot.json` | false | SolCarrot: client remove `ConfigInfoPage` and filter JEI-hidden foods from food book. Queued only if `solcarrot` is loaded | Not queued |
 
 `mixins.aqtweaks.json` contents (package `com.apocollis.aqtweaks.mixin`):
 

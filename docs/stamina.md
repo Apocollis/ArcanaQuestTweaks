@@ -96,7 +96,13 @@ Elenai stores no maximum: `Utils.getMaxDodges(player)` posts a `MaxFeathersEvent
 
 `StaminaMaxSync.sync(EntityPlayerMP)` is the one mid-game way to push a changed maximum: `getMaxDodges`, lower current feathers with `FeathersHelper.decreaseFeathers` if above it (a spend: paid from absorption first, can be cancelled by a `SpendFeatherEvent` listener, does nothing in creative or spectator), then message 4 `PacketTemperatureMax`. It never raises current feathers. Do **not** call `FeathersHelper.syncMaxFeathers` mid-game: it ends with `Utils.updateClientConfig`, the full `CUpdateConfigMessage` with the armor weight list (blank at join because of the join window above, full mid-game), which overflows on this pack and disconnects the player with "A fatal error has occurred, this connection is terminated". Callers: Rested tier change (`RestedBonuses.reconcile`, Fortitude), the temperature module (non-lethal paths; the `penalty >= getBaseDodges()` branches keep their own `PacketTemperatureMax(0)`), and the SolCarrot milestone listener.
 
-SolCarrot: the bonus is only read when Elenai asks for the maximum, so `StaminaModule.onFoodFinished` (`LivingEntityUseItemEvent.Finish`, `LOW`) compares `SolCarrotHelper.milestonesAchieved` with entity data `AQTSolCarrotMilestones` and calls `StaminaMaxSync.sync` when it changed. SolCarrot updates its list on AppleCore `FoodEvent.FoodEaten`, inside `ItemFood.onItemUseFinish`, before Forge posts `Finish`. On login and respawn `StaminaModule` also records the readable count in `AQTSolCarrotMilestones` (syncing only if a stored count differs), so a milestone gained earlier has a stored value without waiting for the next meal; Elenai's join recompute already sent the bonus in the maximum. An unreadable SolCarrot read returns `SolCarrotHelper.UNREADABLE` (-1, logged once), not 0: `onMaxFeathers` then uses the stored `AQTSolCarrotMilestones` count instead of dropping the bonus, and the listener does nothing. A real 0 lowers the maximum.
+SolCarrot: the bonus is only read when Elenai asks for the maximum, so `StaminaModule.onFoodFinished` (`LivingEntityUseItemEvent.Finish`, `LOW`) compares `SolCarrotHelper.milestonesAchieved` with entity data `AQTSolCarrotMilestones` and calls `StaminaMaxSync.sync` when it changed. SolCarrot updates its list on AppleCore `FoodEvent.FoodEaten`, inside `ItemFood.onItemUseFinish`, before Forge posts `Finish`. If a milestone was earned (`now > old`) and the player already had `AQTSolCarrotMilestones` stored, `onFoodFinished` immediately fills the newly unlocked stamina feather socket (`FeathersHelper.increaseFeathers(player, min(now * 2, 20) - min(old * 2, 20))`) so the unlocked feather starts full instead of empty. On login and respawn `StaminaModule` also records the readable count in `AQTSolCarrotMilestones` (syncing only if a stored count differs), so a milestone gained earlier has a stored value without waiting for the next meal; Elenai's join recompute already sent the bonus in the maximum. An unreadable SolCarrot read returns `SolCarrotHelper.UNREADABLE` (-1, logged once), not 0: `onMaxFeathers` then uses the stored `AQTSolCarrotMilestones` count instead of dropping the bonus, and the listener does nothing. A real 0 lowers the maximum.
+
+In `config/solcarrot.cfg`, `I:"Minimum Food Value"=0` ensures all foods (even 0-hunger drinks/teas) count toward milestone progression.
+
+Food Book cleanliness: `mixins.aqtweaks.solcarrot.json` (late client mixin, gated on `solcarrot`):
+- `MixinGuiFoodBook`: removes `ConfigInfoPage` at RETURN of `initPages`, so foods are not partitioned by nutrition level and the book progresses directly from stats to the food lists.
+- `MixinFoodItemStacks`: filters JEI-blacklisted items from `FoodItemStacks.getAllFoods()` at RETURN using `mezz.jei.Internal.getHelpers().getIngredientBlacklist()`, hiding disabled pack items from the food book.
 
 `network/ChannelErrorLogger` (installed from `FMLLoadCompleteEvent` on every registered channel, both sides) logs any exception raised while decoding or handling a mod packet, with the channel name, and passes it on unchanged. Forge reports such a failure as the "fatal error" disconnect and the pack never wrote the matching line. Search the log for `Exception on network channel`. `RestedBonuses.reconcile` also writes `[AQ-STAMINA]` lines for a Vigor delta change or a Fortitude tier change (tier, max, feathers after the clamp, world time); remove them once the cause of the disconnect is confirmed fixed.
 
@@ -105,12 +111,14 @@ SolCarrot: the bonus is only read when Elenai asks for the maximum, so `StaminaM
 | Piece | Role |
 | --- | --- |
 | `ArcanaQuestTweaksConfig.StaminaModuleConfig` | All knobs → `aqtweaks_stamina.cfg`. `DssSkillCosts.invalidate()` on any `aqtweaks` cfg change |
-| `stamina/StaminaModule.java` | Server spend/gate |
+| `stamina/StaminaModule.java` | Server spend/gate; SolCarrot milestone sync and immediate fill |
 | `stamina/StaminaPerks.java` | Perk spend reductions + Adrenaline |
 | `stamina/StaminaModuleClient.java` | HUD if dodge locked; climb fall + jump packet; ledge FSM; grapple `InputUpdateEvent` LOWEST |
 | `stamina/ElenaiFeatherHudColors.java` | Blue / green / gold draw for Extended’s layered bar |
 | `mixin/elenaidodge/MixinDodgeGui.java` | Client cancel of `renderLayeredBar` and `renderBaseWeightBar`. `mixins.aqtweaks.elenaidodge.json` |
 | `mixin/elenaidodge/MixinTooltipEventListener.java` | Client replace of `getWeight`. Local split of `weightValues`; static list unused |
+| `mixin/solcarrot/MixinGuiFoodBook.java` | Remove `ConfigInfoPage` nutrition partition from food book. `mixins.aqtweaks.solcarrot.json` |
+| `mixin/solcarrot/MixinFoodItemStacks.java` | Filter JEI-blacklisted items from `getAllFoods()`. `mixins.aqtweaks.solcarrot.json` |
 | `stamina/GrappleClientInput.java` | Climb / descend / swing / motor / grounded from Grapple keys + controller |
 | `stamina/PacketSyncClimbingInput` | Channel **0** — climb jump held |
 | `stamina/PacketLedgeClimb` | Channel **1** — mantle request (empty payload) |

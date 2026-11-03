@@ -72,6 +72,8 @@ Keep **what** villages create. Change **where** they start and **how RTG land un
 4. RTG carves from that noise. Caves and ravines then punch the primer. Tweaks reseals shore-mask columns solid up to plate Y before `new LatePopulatingChunk`. Production method `func_185932_a` (`remap = false`).
 5. Populate places the same pieces. Wet houses/RC/shrine/waystone/paths retry inland; leftover ocean/river or mostly-lake paths are omitted. If layout missed, paste skips the building (including the well) when any column of the full AABB is ocean/river biome (roads exempt). Nested chunk loads during paste iterate a **snapshot** of `components` so adding pad children or a second `generateStructure` cannot CME vanilla’s `LinkedList`. Water lakes whose blob overlaps the 12-pad are skipped (lava lakes are not). After paste in a chunk, Tweaks re-checks light at torch/lamp sources so flag-2 placements actually flood.
 
+**Bridge rule (`VillageBridgeRule`, run by `VillageBridgePrune` after layout).** A *plate* is a connected set of land boxes whose pads (`Village Component Pad`) overlap; it is built-up only if one box is a structure (not a road, not a lamp). A wet road (water in any column, from the landscape) is kept only if every water run lands directly on a plate at both sides (first and last wet column within pad + 1 of a box), is at most Village Bridge Max Span, joins two different plates that both hold a structure, and both plates are reachable from the well by land or by other kept wet roads (an island joined only by this bridge counts as reachable through it). Ocean columns, a wet end, no plate at a side, a road-only plate or the same plate on both sides drop the road. A dropped road takes plates that were joined to the village only through it; plates never joined to the village, dry roads and every other piece are left alone. `villagepatch.log` (Village Flatten Debug) logs `bridge keep`, `bridge drop reason=` and `bridge drop orphan`. Reasons: `ocean`, `wet-end`, `no-near-plate`, `no-far-plate`, `span`, `same-plate`, `no-structure`, `unreachable`. The vanilla water planks of a dropped road are never pasted, so no deck or rails appear. Approach: `VillageBridges` levels the road columns within max(8, `Village Water Bank`) slices of water (including columns the deck did not cover) and turns the plank over 1-deep water back into water, so the path meets the deck without a dip. Worldgen applies to new chunks only.
+
 Do not recarve old chunks. Do not veto a whole village because one building was wet. Do not treat a puddle on a path as a water bridge.
 
 ## Why we flatten noise, not blocks
@@ -118,7 +120,9 @@ Flatten looks up `VillagePlate` records by **land-box overlap** first, via a per
 | `rtg/VillageLayoutAudit.java` | Counts only. One line per new village when village debug or perf timers are on: roads and houses placed, retried, missed, and which retry slot won |
 | `rtg/VillagePlate.java` | Remembered starts, plate Y, land-box query (chunk-bucket index), stamp `AQTVillagePlate` |
 | `rtg/VillageRelight.java` | After village paste, `checkLight` at emitters in placing-component AABBs ∩ clip (not Y 0..255) |
-| `rtg/VillageBridges.java` | After village paste, stone brick river bridge at plate Y on road ∩ clip (revert vanilla water planks, rails, piers) |
+| `rtg/VillageBridges.java` | After village paste, stone brick river bridge at plate Y on road ∩ clip (revert vanilla water planks incl. 1-deep water, rails, piers; approach levels columns within `Village Water Bank` of water) |
+| `rtg/VillageBridgeRule.java` | Pure rule: which wet roads stay (plates, structures, reachability); unit tested |
+| `rtg/VillageBridgePrune.java` | After layout, applies the rule: drops failing wet roads and pieces joined only through them |
 | `rtg/VillageRoadStamper.java` | After that, gravel on road columns whose top is a `Village Road Gravel Blocks` id with air above (BOP grass and dirt) |
 | `rtg/RcStructureVillageOverlapHandler.java` | Forge listener, registered when `reccomplex` is loaded. Cancels `StructureGenerationEventLite.Suggest` when the box overlaps a village. Nothing is pasted or recorded. RC village pieces are not this event |
 | `mixin/MixinStructureStartVillagePaste.java` | Snapshot `components` iterator; drop/walk ocean well at paste HEAD; populate abort on ocean/river floor (incl. well); stamp `AQTVillagePlate`; river bridges; relight clip |
@@ -288,7 +292,7 @@ Teleport is **on the generated ground** at that column (`world.getHeight`, skip 
 | Village Path Retry Cap | 3 | yes | Successful path slides per village (0..16). 0 omits every wet path. Buildings do not count |
 | Village River Bridges | true | yes | Keep river-crossing paths with dry ends; stone brick deck at plate Y, cobble wall rails, piers. False = omit |
 | Village Bridge Max Span | 16 | yes | Longest water run a bridge path may cross |
-| Village Bridge Require Both Ends | true | yes | Drop a bridge road whose either end touches no other village piece (bridge into open water or onto an empty bank) and pieces only reachable through it |
+| Village Bridge Require Both Ends | true | yes | A wet road stays only as a bridge joining two village plates that each hold a structure and are reachable from the well (see Bridge rule). Others are dropped with pieces joined only through them |
 | Village Water Retry Distance | 20 | yes | How far a building walks inland, and how far a path may slide along its line |
 | Reject Coastal Village Starts | true | yes | Well veto: never-raise with no dry slot; ocean coast buffer. Walk river/ocean wells inland |
 | Village Min Well Height | 64 | yes | Dry well / lake plate floor. Live DEVBOX cfg already 64 |

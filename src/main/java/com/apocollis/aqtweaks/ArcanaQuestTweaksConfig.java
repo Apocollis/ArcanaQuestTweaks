@@ -938,6 +938,10 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Enable Sleep Notifications")
         @Config.Comment("Broadcast Morpheus-style chat notifications when players enter/leave bed and when fast-forward sleep begins.")
         public static boolean enableSleepNotifications = true;
+
+        @Config.Name("Rest on Beds When Not Tired")
+        @Config.Comment("When Somnia detects the player is not tired enough to sleep, sit on beds and hammocks instead of doing nothing.")
+        public static boolean restOnBedsWhenNotTired = true;
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_grimoireofgaia")
@@ -1404,7 +1408,7 @@ public class ArcanaQuestTweaksConfig {
         public boolean villageRiverBridges = true;
 
         @Config.Name("Village Bridge Require Both Ends")
-        @Config.Comment("After a village is laid out, drop a bridge road whose either end touches no other village piece (a bridge into open water, or onto an empty bank), and the pieces reachable from the well only through it. False keeps every bridge that passes the river test.")
+        @Config.Comment("After a village is laid out, keep a wet road only as a bridge joining two village plates that each hold a structure and are reachable from the well; drop the others (ocean arms, bridges into open water or onto a bare bank) and the pieces joined only through them. False keeps every bridge that passes the river test.")
         public boolean villageBridgeRequireBothEnds = true;
 
         @Config.Name("Village Bridge Max Span")

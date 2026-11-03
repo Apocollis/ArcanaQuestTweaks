@@ -259,7 +259,14 @@ public class SomniaSleepHandler {
 
     @SubscribeEvent
     public void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
-        SLEEPING_PLAYERS.remove(event.player.getUniqueID());
+        if (event.player != null) {
+            SLEEPING_PLAYERS.remove(event.player.getUniqueID());
+            if (event.player.getRidingEntity() instanceof EntityBedSeat) {
+                net.minecraft.entity.Entity seat = event.player.getRidingEntity();
+                event.player.dismountRidingEntity();
+                seat.setDead();
+            }
+        }
     }
 
     @SubscribeEvent
@@ -310,5 +317,38 @@ public class SomniaSleepHandler {
         for (EntityPlayer p : world.playerEntities) {
             p.sendMessage(text);
         }
+    }
+
+    @SubscribeEvent(priority = net.minecraftforge.fml.common.eventhandler.EventPriority.LOWEST)
+    public void onPlayerSleepInBed(net.minecraftforge.event.entity.player.PlayerSleepInBedEvent event) {
+        if (!ArcanaQuestTweaksConfig.SomniaModuleConfig.restOnBedsWhenNotTired) return;
+        EntityPlayer player = event.getEntityPlayer();
+        if (player == null || player.world == null || player.world.isRemote) return;
+        if (player.isRiding() || player.isSneaking()) return;
+
+        EntityPlayer.SleepResult result = event.getResultStatus();
+        if (result == null) return;
+
+        boolean canSeat = false;
+        if (result == EntityPlayer.SleepResult.NOT_POSSIBLE_NOW) {
+            canSeat = true;
+        } else if (result == EntityPlayer.SleepResult.OTHER_PROBLEM) {
+            if (SomniaConfig.FATIGUE != null && SomniaConfig.FATIGUE.enableFatigueSystem
+                    && !com.kingrunes.somnia.common.util.SomniaUtil.checkFatigue(player)) {
+                canSeat = true;
+            }
+        }
+
+        if (!canSeat) return;
+
+        // Skip seating if player is in armor and armor sleep is disabled
+        if (SomniaConfig.OPTIONS != null && !SomniaConfig.OPTIONS.sleepWithArmor
+                && !player.capabilities.isCreativeMode
+                && com.kingrunes.somnia.common.util.SomniaUtil.doesPlayHaveAnyArmor(player)) {
+            return;
+        }
+
+        // Mount the player on the bed / hammock
+        EntityBedSeat.mount(player.world, event.getPos(), player);
     }
 }

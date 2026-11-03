@@ -1,0 +1,10 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.apocollis.aqtweaks.mixin.solcarrot",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "MixinGuiFoodBook",
+    "MixinFoodItemStacks"
+  ]
+}

@@ -184,12 +184,20 @@ public final class ComfortFeedback {
         if (eval.restBonus > 0.0f) {
             addPenalty(packet, 6, eval.restBonus, "");
         }
+        if (eval.activeBonuses != null) {
+            for (ComfortSettings.PotionModifier modifier : eval.activeBonuses) {
+                if (modifier == null) continue;
+                addPenalty(packet, 7, modifier.amount, modifier.potion);
+            }
+        }
         if (eval.categorySeen != null) {
             for (Map.Entry<String, Integer> entry : eval.categorySeen.entrySet()) {
                 PacketComfortStatus.Category category = new PacketComfortStatus.Category();
                 category.name = entry.getKey();
+                Float amount = eval.cappedByCategory != null ? eval.cappedByCategory.get(entry.getKey()) : null;
+                category.amount = amount == null ? 0.0f : amount;
                 category.seen = entry.getValue() == null ? 0 : entry.getValue();
-                Integer counted = eval.categoryCounted.get(entry.getKey());
+                Integer counted = eval.categoryCounted != null ? eval.categoryCounted.get(entry.getKey()) : null;
                 category.counted = counted == null ? 0 : counted;
                 category.limit = ComfortSystemHandler.CATEGORY_LIMITS.getOrDefault(entry.getKey(), 1);
                 packet.categories.add(category);
@@ -199,7 +207,7 @@ public final class ComfortFeedback {
     }
 
     private static void addPenalty(PacketComfortStatus packet, int kind, float amount, String potion) {
-        if (amount == 0.0f || packet.lines.size() >= 8) return;
+        if (amount == 0.0f || packet.lines.size() >= 24) return;
         PacketComfortStatus.Line line = new PacketComfortStatus.Line();
         line.kind = kind;
         line.amount = amount;
@@ -225,6 +233,11 @@ public final class ComfortFeedback {
         for (PacketComfortStatus.Line line : packet.lines) {
             hash = 31 * hash + line.kind;
             hash = 31 * hash + Float.floatToIntBits(line.amount);
+        }
+        for (PacketComfortStatus.Category cat : packet.categories) {
+            hash = 31 * hash + cat.name.hashCode();
+            hash = 31 * hash + Float.floatToIntBits(cat.amount);
+            hash = 31 * hash + cat.counted;
         }
         return hash;
     }

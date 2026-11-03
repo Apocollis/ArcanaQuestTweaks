@@ -112,7 +112,7 @@ public final class ComfortHud extends Gui {
         int shown = 0;
         int extra = 0;
         for (PacketComfortStatus.Line line : ComfortClientState.lines) {
-            if (line.kind == 6 || line.amount <= 0.0f) continue;
+            if (line.kind == 6 || line.kind == 7 || line.amount <= 0.0f) continue;
             if (shown >= 3) {
                 extra++;
                 continue;
