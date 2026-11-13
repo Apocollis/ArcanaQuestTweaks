@@ -64,6 +64,7 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testImplementation 'com.google.code.gson:gson:2.8.9'
+    testImplementation 'it.unimi.dsi:fastutil:7.1.0' // the flood-fill test (the game ships the same version)
 }
 
 tasks.named('test') {

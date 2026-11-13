@@ -201,9 +201,9 @@ public class QualityRuneAnvilRecipe extends DawnstoneAnvilRecipe {
                     || (isNormalOrYellow(kept) && QualityNbt.applyColorWouldSucceed(bottom, QualityNbt.COLOR_YELLOW));
             case UNCOMMON -> isUpgradeOrReroll(kept, QualityNbt.COLOR_YELLOW, QualityNbt.COLOR_GREEN)
                     && QualityNbt.applyColorWouldSucceed(bottom, QualityNbt.COLOR_GREEN);
-            case RARE -> isUpgradeOrReroll(kept, QualityNbt.COLOR_GREEN, QualityNbt.COLOR_BLUE)
-                    && QualityNbt.applyColorWouldSucceed(bottom, QualityNbt.COLOR_BLUE);
-            case LEGENDARY -> isUpgradeOrReroll(kept, QualityNbt.COLOR_BLUE, QualityNbt.COLOR_GOLD)
+            case RARE -> isUpgradeOrReroll(kept, QualityNbt.COLOR_GREEN, QualityNbt.COLOR_DARK_AQUA)
+                    && QualityNbt.applyColorWouldSucceed(bottom, QualityNbt.COLOR_DARK_AQUA);
+            case LEGENDARY -> isUpgradeOrReroll(kept, QualityNbt.COLOR_DARK_AQUA, QualityNbt.COLOR_GOLD)
                     && QualityNbt.applyColorWouldSucceed(bottom, QualityNbt.COLOR_GOLD);
         };
     }
@@ -213,7 +213,7 @@ public class QualityRuneAnvilRecipe extends DawnstoneAnvilRecipe {
     }
 
     private static boolean isUpgradeOrReroll(String kept, String from, String same) {
-        return from.equals(kept) || same.equals(kept);
+        return QualityNbt.colorMatches(from, kept) || QualityNbt.colorMatches(same, kept);
     }
 
     @Override
@@ -228,10 +228,10 @@ public class QualityRuneAnvilRecipe extends DawnstoneAnvilRecipe {
             String to = switch (rung) {
                 case COMMON -> QualityNbt.COLOR_YELLOW;
                 case UNCOMMON -> QualityNbt.COLOR_GREEN;
-                case RARE -> QualityNbt.COLOR_BLUE;
+                case RARE -> QualityNbt.COLOR_DARK_AQUA;
                 case LEGENDARY -> QualityNbt.COLOR_GOLD;
             };
-            String exclude = to.equals(kept) ? QualityNbt.liveName(out) : null;
+            String exclude = QualityNbt.colorMatches(to, kept) ? QualityNbt.liveName(out) : null;
             QualityNbt.applyColor(out, to, exclude);
             QualityNbt.setQualityBaseFromLive(out);
             QualityNbt.setWearFlag(out, false);

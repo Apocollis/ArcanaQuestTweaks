@@ -80,7 +80,7 @@ public class AtumStormGameplayHandler {
 
         if (entity instanceof EntityPlayer) {
             EntityPlayer player = (EntityPlayer) entity;
-            boolean sheltered = isSheltered(player, world, windVec);
+            boolean sheltered = world.isRemote ? isSheltered(player, world, windVec) : shelteredCached(player, world, windVec);
 
             if (world.isRemote) {
                 // Client-side: smooth physical wind push and velocity adjustments
@@ -353,27 +353,60 @@ public class AtumStormGameplayHandler {
      * Checks if the entity is in shelter (indoors/underground) or in the leeward wind shadow
      * behind a solid dune, wall, pyramid step, or cliff.
      */
+    /** Server shelter result per player: recomputed when the player changes block or after 10 ticks. */
+    private static final class CachedShelter {
+        long tick;
+        int dim;
+        int x;
+        int y;
+        int z;
+        boolean sheltered;
+    }
+
+    private static final java.util.Map<java.util.UUID, CachedShelter> SHELTER_CACHE =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    private static boolean shelteredCached(EntityPlayer player, World world, Vec3d windVec) {
+        long now = world.getTotalWorldTime();
+        int bx = (int) Math.floor(player.posX);
+        int by = (int) Math.floor(player.posY);
+        int bz = (int) Math.floor(player.posZ);
+        int dim = world.provider.getDimension();
+        CachedShelter c = SHELTER_CACHE.get(player.getUniqueID());
+        if (c != null && c.dim == dim && c.x == bx && c.y == by && c.z == bz && now - c.tick >= 0 && now - c.tick < 10) {
+            return c.sheltered;
+        }
+        if (c == null) {
+            c = new CachedShelter();
+            SHELTER_CACHE.put(player.getUniqueID(), c);
+        }
+        c.tick = now;
+        c.dim = dim;
+        c.x = bx;
+        c.y = by;
+        c.z = bz;
+        c.sheltered = isSheltered(player, world, windVec);
+        return c.sheltered;
+    }
+
+    @SubscribeEvent
+    public void onShelterLogout(net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedOutEvent event) {
+        SHELTER_CACHE.remove(event.player.getUniqueID());
+    }
+
+    @SubscribeEvent
+    public void onShelterDimension(net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerChangedDimensionEvent event) {
+        SHELTER_CACHE.remove(event.player.getUniqueID());
+    }
+
+    @SubscribeEvent
+    public void onShelterWorldUnload(net.minecraftforge.event.world.WorldEvent.Unload event) {
+        if (!event.getWorld().isRemote) SHELTER_CACHE.clear();
+    }
+
     public static boolean isSheltered(EntityLivingBase entity, World world, Vec3d windVec) {
-        BlockPos eyePos = new BlockPos(entity.posX, entity.posY + entity.getEyeHeight(), entity.posZ);
-        if (!world.canSeeSky(eyePos)) {
-            return true; // Indoors or underground
-        }
-
-        double shelterDist = ArcanaQuestTweaksConfig.AtumModuleConfig.shelterWindShadowDistance;
-
-        // Check feet height upwind (bottom of model)
-        Vec3d feetVec = new Vec3d(entity.posX, entity.posY + Math.min(0.25D, entity.height * 0.2D), entity.posZ);
-        Vec3d upFeet = new Vec3d(feetVec.x - windVec.x * shelterDist, feetVec.y, feetVec.z - windVec.z * shelterDist);
-        RayTraceResult rayFeet = world.rayTraceBlocks(upFeet, feetVec, false, true, false);
-        if (rayFeet == null || rayFeet.typeOfHit != RayTraceResult.Type.BLOCK) {
-            return false; // Feet exposed to wind (e.g. gap or floating overhang)
-        }
-
-        // Check chest height upwind (top barrier in front must also block chest / upper body)
-        Vec3d chestVec = new Vec3d(entity.posX, entity.posY + entity.height * 0.70D, entity.posZ);
-        Vec3d upChest = new Vec3d(chestVec.x - windVec.x * shelterDist, chestVec.y, chestVec.z - windVec.z * shelterDist);
-        RayTraceResult rayChest = world.rayTraceBlocks(upChest, chestVec, false, true, false);
-        return rayChest != null && rayChest.typeOfHit == RayTraceResult.Type.BLOCK;
+        return com.apocollis.aqtweaks.weather.StormShelter.isSheltered(entity, world, windVec,
+                ArcanaQuestTweaksConfig.AtumModuleConfig.shelterWindShadowDistance);
     }
 
     /**
@@ -440,11 +473,7 @@ public class AtumStormGameplayHandler {
     }
 
     public static boolean matchesPattern(String text, String pattern) {
-        if (text == null || pattern == null) return false;
-        if (pattern.equals("*") || pattern.equalsIgnoreCase(text)) return true;
-        if (!pattern.contains("*")) return pattern.equalsIgnoreCase(text);
-        String regex = "\\Q" + pattern.replace("*", "\\E.*\\Q") + "\\E";
-        return text.matches("(?i)" + regex);
+        return com.apocollis.aqtweaks.weather.Wildcard.matches(text, pattern);
     }
 
     private static void decreaseStamina(EntityPlayerMP player, int amount) {

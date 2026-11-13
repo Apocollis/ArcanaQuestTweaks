@@ -198,7 +198,7 @@ public class StaminaModuleClient {
 
     @SideOnly(Side.CLIENT)
     private void handleClientClimbing(net.minecraft.client.entity.EntityPlayerSP player) {
-        if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.enableClimbCost) return;
+        boolean costOn = ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.enableClimbCost;
 
         if (player.isOnLadder()) {
             // Keep jump input synced (used by other climb edge cases / older servers)
@@ -209,18 +209,26 @@ public class StaminaModuleClient {
             }
             player.getEntityData().setBoolean("StaminaTweaksLastJumpInput", isJumpPressed);
 
-            if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.fallOnDepleted) return;
-
-            int cost = clientClimbCost(player);
-            if (cost < 0) return;
+            int cost = costOn ? clientClimbCost(player) : 0;
+            boolean free = cost <= 0;
+            boolean enough = free || StaminaFeathers.hasEnoughStamina(player, cost);
 
             NBTTagCompound climbData = player.getEntityData();
             boolean ledgeActive = climbData.getInteger("StaminaTweaksLedgeClimbState") == 1;
-            boolean mantleIntent = jumpPressed(player) && moveForward(player) > 0.0F;
-
+            boolean mantleIntent = isJumpPressed && moveForward(player) > 0.0F;
             boolean grounded = player.onGround && !player.collidedHorizontally;
-            if (!ledgeActive && !mantleIntent && !grounded && cost > 0 && !StaminaFeathers.hasEnoughStamina(player, cost)) {
-                player.motionY = -0.15;
+            boolean sneak = player.movementInput != null && player.movementInput.sneak;
+
+            if (!ledgeActive && !mantleIntent && !grounded) {
+                if (enough && sneak) {
+                    // Shift holds position, even with W pressed into the wall (vanilla would climb at 0.2).
+                    player.motionY = 0.0D;
+                } else if (enough && isJumpPressed) {
+                    // Space climbs, with or without a wall behind the ladder or vine.
+                    player.motionY = 0.2D;
+                } else if (!enough && ArcanaQuestTweaksConfig.StaminaModuleConfig.climbing.fallOnDepleted) {
+                    player.motionY = -0.15;
+                }
             }
         } else {
             NBTTagCompound clientData = player.getEntityData();

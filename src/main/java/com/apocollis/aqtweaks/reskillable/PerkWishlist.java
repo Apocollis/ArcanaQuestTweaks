@@ -201,9 +201,9 @@ public class PerkWishlist {
     }
 
     private static void tunnel(EntityPlayer player) {
+        if (player.ticksExisted % 10 != 0) return;
         if (!PerkAccess.on(player, "aqtweaks:tunnel_sense",
                 ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.tunnelSense.enable)) return;
-        if (player.ticksExisted % 10 != 0) return;
         long now = player.world.getTotalWorldTime();
         if (player.getEntityData().getLong(TUNNEL) > now) return;
         List<EntityMob> mobs = player.world.getEntitiesWithinAABB(EntityMob.class,
@@ -255,16 +255,28 @@ public class PerkWishlist {
     private static void unyielding(EntityPlayer player) {
         var attribute = player.getEntityAttribute(SharedMonsterAttributes.KNOCKBACK_RESISTANCE);
         if (attribute == null) return;
-        attribute.removeModifier(KNOCKBACK);
-        if (!player.isActiveItemStackBlocking()) return;
-        if (!PerkAccess.on(player, "aqtweaks:unyielding",
-                ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.unyielding.enable)) return;
-        attribute.applyModifier(new AttributeModifier(KNOCKBACK, "aqtweaks.unyielding", 1.0, 0));
+        AttributeModifier existing = attribute.getModifier(KNOCKBACK);
+        boolean want = player.isActiveItemStackBlocking() && PerkAccess.on(player, "aqtweaks:unyielding",
+                ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.unyielding.enable);
+        // Touch the attribute only on a change: every apply or remove dirties it and resends SPacketEntityProperties.
+        boolean present = existing != null && existing.getAmount() == 1.0 && existing.getOperation() == 0
+                && !existing.isSaved();
+        if (want == present && (existing != null) == want) return;
+        if (existing != null) attribute.removeModifier(KNOCKBACK);
+        if (want) attribute.applyModifier(new AttributeModifier(KNOCKBACK, "aqtweaks.unyielding", 1.0, 0).setSaved(false));
     }
 
+    private static Potion cachedFeather;
+    private static boolean featherLooked;
+
     private static void slowFall(EntityPlayer player) {
-        Potion feather = potion("rustic", "feather");
-        if (!(feather instanceof PotionFeather)) return;
+        if (!featherLooked) {
+            featherLooked = true;
+            Potion looked = potion("rustic", "feather");
+            if (looked instanceof PotionFeather) cachedFeather = looked;
+        }
+        Potion feather = cachedFeather;
+        if (feather == null) return;
         boolean wall = player.motionY < 0.0 && !player.onGround
                 && PerkAccess.on(player, "aqtweaks:slow_fall",
                         ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.slowFall.enable)

@@ -14,7 +14,13 @@ public abstract class MixinItemStackDurability {
     @Inject(method = "damageItem", at = @At("HEAD"), cancellable = true)
     private void aqtweaks$freeBreak(int amount, EntityLivingBase entity, CallbackInfo ci) {
         if (!(entity instanceof EntityPlayer player)) return;
-        if (com.apocollis.aqtweaks.reskillable.PerkDurability.consume(player, (ItemStack) (Object) this)) {
+        ItemStack self = (ItemStack) (Object) this;
+        if (com.apocollis.aqtweaks.reskillable.PerkDurability.consume(player, self)) {
+            ci.cancel();
+            return;
+        }
+        // Mana-Weave: a tagged stack lets Botania mana pay for the damage (the helper checks the tag first).
+        if (com.apocollis.aqtweaks.thaumcraft.ManaRepairTag.absorbDamage(player, self, amount)) {
             ci.cancel();
         }
     }

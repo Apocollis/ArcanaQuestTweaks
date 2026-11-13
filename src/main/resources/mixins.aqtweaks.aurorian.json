@@ -1,0 +1,11 @@
+{
+  "required": false,
+  "injectors": {"defaultRequire": 1},
+  "minVersion": "0.8",
+  "refmap": "mixins.aqtweaks.refmap.json",
+  "package": "com.apocollis.aqtweaks.mixin.aurorian",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "MixinAurorianWorldProvider"
+  ]
+}

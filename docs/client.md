@@ -60,6 +60,7 @@ Light reaches the client only inside chunk data, or when the client runs its own
 | --- | --- |
 | `ArcanaQuestTweaksConfig.ClientModuleConfig` | `aqtweaks_client.cfg` |
 | `client/ClientModule.java` | Tooltip handler; registered in `ClientProxy` |
+| `atum/AtumStormGameplayHandler.java` | Server shelter result per player is cached for 10 ticks or until the player changes block (the client push stays per tick) |
 | `client/atum/AtumFogHandler.java` | Overrides Atum fog with uniform linear fog and smooth cave transition |
 | `client/atum/AtumOutdoorDustEmitter.java` | Spawns volumetric 3D drifting sand particles outdoors, dynamically scaling during sandstorms |
 | `client/atum/ParticleAtumDustSheet.java` | Custom 3D billboard dust particle with soft depth blending |
@@ -88,6 +89,9 @@ Light reaches the client only inside chunk data, or when the client runs its own
 | Sandstorm Wind Sound Event | "aqtweaks:sandstorm.wind" | Category "Atum Fog". Registry name of sound event for sandstorm gale audio |
 | Sandstorm Wind Sound Volume | 1.0 | Category "Atum Fog". Volume multiplier (0.0 to 2.0) |
 | Suppress Animal Sounds in Atum | true | Category "Atum Fog". Suppresses Dynamic Surroundings and AmbientSounds animal/bird sounds (birds, crickets, frogs, etc.) in Atum |
+| Enable Storm Warning | true | Category "Atum Fog". Before a sandstorm the blowing sand gradually picks up (particles only; no fog, sound or gameplay change) |
+| Storm Warning Seconds | 30 | Category "Atum Fog". How long before a sandstorm the warning starts to build (range 5..120) |
+| Warning Dust Fraction | 0.6 | Category "Atum Fog". Fraction of full sandstorm intensity the dust reaches at the end of the warning; the storm ramps on from there |
 | Suppress External Storm Wind in Atum | true | Category "Atum Fog". Suppresses external Dynamic Surroundings and AmbientSounds wind loops during Atum sandstorms |
 
 ## Atum visual overhaul & weather particles
@@ -114,6 +118,7 @@ Atum 2's default visuals have two major issues:
   - Acoustic muffling: when indoors or deep underground (`canSeeSky` false), the volume is muffled to 25% with lowered pitch (0.85). Behind an upwind wall/barrier shelter, volume is reduced to 50% (pitch 0.92). Outdoors in the open desert, the full howling wind roars at 100% volume.
   - **Ambient Sound Filtering:** Client event handler `AtumSoundFilter` (`PlaySoundEvent`) suppresses Dynamic Surroundings and AmbientSounds animal/bird/insect audio (birds, owls, crickets, cicadas, frogs, etc.) in Atum at all times. During active sandstorms, it suppresses external wind and rain loops from DSurround and AmbientSounds so only AQTweaks' howling gale plays cleanly. In clear weather, external ambient wind loops continue playing normally.
   - **Exposure & Shelter** (`AtumStormGameplayHandler`, `aqtweaks_atum.cfg`): upwind barriers must block both feet and chest of the model to provide wind shadow shelter; 1-high blocks leaving the upper body exposed do not block the wind. An unsheltered player with no protective headgear loses breath (about 4 air per tick, choking damage once the bar is empty). Missing chest, legs, or boots, or armor under 10, takes half a heart of abrasion every 4 seconds. A wanderer or mummy set on those three slots stops the abrasion. A strong storm occasionally plays a low howl. Shelter and the existing wind push, headwind drain, and grit blindness are unchanged.
+- **Sandstorm warning (`AtumStormWarning`, `AtumWarningRamp`, `AtumWeatherSync`):** over the `Storm Warning Seconds` before a storm the outdoor dust blends from the clear-weather values toward the storm values at `Warning Dust Fraction` of full strength (spawn attempts, wind speed, fleck alpha, lifetime, band size), eased, and the storm then ramps on from that level with no jump. The level comes from the client Atum provider's own `stormTime`. Atum counts that down on both sides but sends `PacketWeather` only when the state flips, never on join or dimension change, so a client that joined mid-countdown redrew a random value of its own. `AtumWeatherSync` (server, registered with the Atum handler) sends Atum's own `PacketWeather(isStorming, stormTime)` only to players in Atum: on login there, on entering it, on respawning there, and every `Warning Resync Seconds` (`aqtweaks_atum.cfg`, default 30, 0 = events only) while no storm is active; never while vanilla clean-weather time pins the countdown at 1 or 2 (the ramp also ignores those values). The wind heading stays the calm one during the warning; fog, sound and gameplay are untouched.
 - **Looming Sandstorm Frequency (`MixinWorldProviderAtum`, `aqtweaks_atum.cfg`):**
   - Overrides Atum 2's sparse hardcoded countdown ($12,000 + \text{rand}(168,000)$ ticks, up to 2.5 hours) with configurable, frequent storm intervals.
   - Injects into `WorldProviderAtum.updateWeather()` right before weather packet dispatch.

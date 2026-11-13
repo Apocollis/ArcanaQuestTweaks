@@ -16,6 +16,97 @@ Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 - **Hearthside tooltip rate.** Updated the Hearthside line on the hover box to `* Hearthside: At Home (Cleansing warp - <rate>)` (1 warp per 3 min for Tier I, 1 warp per 2 min for Tier II, 1 warp per min for Tier III).
 - Serialized category capped scores in `PacketComfortStatus` and mapped active potion bonuses (kind 7) to sync full room telemetry to the client.
 
+## 2026-11-13 — Moonfrost blizzard and Ley-Rupture eruption particles
+
+- **Moonfrost storm:** the fog is gone (no fog at any point, so no jump at a doorway); `Whiteout Fog End Fraction` and `Warning Fog Fraction` were removed. Snow now falls diagonally with the wind (`Snow Fall Angle` 58, much faster, gust pulses) in seven classes using vanilla particle sprites (specks, flakes, stars, pellets, soft puffs, chunky `ParticleDigging` clumps, streaks), with a dense veil about 10 blocks around the player (`Visibility Perimeter Radius`), a one-second doorway ease, a stronger solid check for fast flakes and a roof kill (`Cull Snow Under Roofs`; canopies do not count). New keys: `Snow Fall Angle`, `Snow Speed Multiplier`, `Snow Streaks`, `Cull Snow Under Roofs`, `Visibility Perimeter Radius`, `Perimeter Density`.
+- **Snow accumulation (server):** during a storm exposed ground gains vanilla snow layers across the loaded area, up to 16 layers (two blocks, `Max Snow Layers`), smoothly (neighbouring columns at most `Snow Max Step` layers apart), with a wind shadow in the lee of walls and trees; vanilla snow afterwards (melts only near bright light, snowballs as vanilla). **Burial hazard:** entities are not skipped, so a player who stands still can be buried: Slowness II at chest depth, air loss and damage (never below 1 heart) with the head under; dig out by hand. New keys: `Enable Snow Accumulation`, `Snow Layers Per Chunk Per Second`, `Snow Max Changes Per Tick`, `Max Snow Layers`, `Snow Max Step`, `Snow Accumulation Radius`, `Snow Wind Shadow`, `Enable Snow Burial`, `Snow Burial Slowness`, `Snow Burial Air Drain Per Second`, `Snow Burial Damage`. Design: [aurorian.md](aurorian.md).
+- **Ley-Rupture particles:** warning glyphs rise, zigzag and fade after about 2 s instead of being pulled into the ground; the surge is a heavy eruption (glyphs, sparks, dots and vent plumes, violet 70 percent and emerald 30 percent, full-bright) spread over a 48 block radius with the density per square block held at the old level. New keys: `Ley Particle Radius`, `Max Ley Particles` (9000), `Ley Particle Density`. Design: [twilightforest.md](twilightforest.md).
+
+## 2026-11-13 — Performance and stability fixes
+
+- `Wildcard` is a regex-free glob matcher (Atum headgear, gear tiers, gas blocking). Regexes were compiled on every call, per tick in a storm.
+- Ash clouds share one `Gas Cells Per Tick` budget for the whole Nether (it was per cloud), and an unchanged cloud is not rebroadcast (the client extrapolates the drift).
+- Carminite phlogiston and Void Breach rituals are dropped when their world unloads, so they cannot tick in a later singleplayer world.
+- Unyielding no longer re-applies its knockback modifier every tick (it resent attribute packets); Tunnel Sense checks its throttle first; Star Powered runs every 10 ticks; potion lookups are cached.
+- Atum server shelter test is cached per player for 10 ticks or a block change.
+- Loot quality stamping uses a per-tile-entity depth instead of a thread-local stack; the rarity base probe is cached per subtype.
+
+## 2026-11-12 — Carminite Reactor Void Breach ritual
+
+- **Void Breach ritual.** Right-click an inactive Carminite Reactor with Salis Mundus while it is encased in the configured casing (default Void Metal, optional separate cap block) and, with the `voidmastery` GameStage, a charge ends in a permanent pair of Thaumic Augmentation fractures to The Emptiness (one at the reactor, one beside the nearest Eldritch Spire). Works anywhere except inside The Emptiness. The fractures are TA's own entities, so they spawn guardians and behave as natural fractures. A missing Emptiness or no standable destination refunds the Salis Mundus and keeps the shell. New category `Void Breach Ritual` in `aqtweaks_twilightforest.cfg`. Compile-hard against Thaumic Augmentation 2.1.14, `after:thaumicaugmentation`. Design: [twilightforest.md](twilightforest.md).
+
+## 2026-11-12 — Infinity Blade
+
+- **Infinity Blade.** New `aqtweaks:infinity_blade` sword with the animated texture, replacing the ContentTweaker placeholder that never loaded. Configurable attack damage (default 18 total), attack speed (1.6), durability (6000) and anvil repair item (Nether Star, `none` disables). The placeholder recipe (8 Nether Stars around a Diamond Sword) is **off by default** (`Enable Default Recipe`); the crafting method is undecided. Rarity comes from the rarity overhaul's `Custom Item Rarities`. Design: [weapon.md](weapon.md).
+- The old DEVBOX `infinity_sword` CraftTweaker and ContentTweaker scripts were removed; no remap (no old swords existed).
+
+## 2026-11-10 — Rarity overhaul
+
+- **New rarity ladder.** Common white, Uncommon green, Rare dark aqua, Epic light purple, Legendary gold, Mythic rainbow. Uncommon, Rare and Epic recolor the vanilla `EnumRarity` constants (Forge `EnumHelper` adds `LEGENDARY` and `MYTHIC`).
+- **Enchantments and Quality Tools lift rarity.** An item shows the highest of its base tier, its best non-curse enchantment (common/uncommon to Uncommon, rare to Rare, very rare to Epic) and its Quality Tools quality color (green and yellow to Uncommon, dark_aqua to Rare, gold to Legendary). Nothing lowers a tier; a Sharpness-only sword is Uncommon instead of vanilla's flat Rare.
+- **Overrides.** `Custom Item Rarities` (empty by default) sets any item, meta or `modid:*` to a tier and always wins. Two early mixins (`ItemStack.getRarity`, `Item.getForgeRarity`) carry it, because tooltips and JEI read `getForgeRarity`.
+- **Tooltip.** Mythic names are a per-character rainbow (animated by default); an optional rarity subtitle line is off by default. The hotbar name stays white.
+- New `config/arcanaquesttweaks/aqtweaks_rarity.cfg`. Design: [rarity.md](rarity.md). Six unit-test classes (25 tests).
+
+## 2026-11-09 — Mana-Weave infusion (Thaumcraft + Botania)
+
+- New Thaumcraft infusion "Mana-Weaving": any damageable item can be infused with Botania's Manasteel self-repair. It needs the item's Manasteel cousin (or a Manasteel Block when there is none), a full-size Mana Tablet (500,000 mana, consumed), a Rune of Mana, Mana Pearl, Mana Diamond, Salis Mundus and two Thaumium Ingots, plus essentia (30 / 30 / 60 / 30) at instability 9.
+- Infused items repair one point per tick from the carrier's Botania mana (120 per point for tools and weapons, 140 for armor; armor only while worn) and let mana pay durability damage (60 / 70 per point), as Manasteel gear does. Botania's own mana items, Manasteel gear and Spartan Manasteel items are not accepted.
+- Config: `Enable Mana Repair`, `Enable Mana Repair Damage Mitigation`, `Mana Repair Cost Multiplier`. Docs: [thaumcraft.md](thaumcraft.md).
+## 2026-11-09 — Tartarite Paragon absorbs other metals
+
+- Metallurgy's Tartarite tools and armor can take a Paragon from Aurorian Steel, Fiery, Octine, Knightmetal, Zanite and Gravitite (four metal blocks around the item, Metallurgy's own pattern). New recipe type `aqtweaks:paragon_shaped` (36 recipe files, shown in JEI), NBT key `arcana_paragon`, one Paragon per item, Metallurgy's own Paragon wins a tie. Per-item effects: Aurorian Steel leveling, Fiery and Octine burn, Knightmetal armor-piercing bonus, Zanite wear scaling, Gravitite launch and block lifting. Full-set perk: Gravitite's high jump needs all four worn pieces. Config `aqtweaks_paragon.cfg`; per-trait switch `Disabled Traits`. Docs: [paragon.md](paragon.md).
+
+## 2026-11-08 — Twilight Forest: Carminite Reactor Phlogiston Matrix Synthesis Ritual
+
+- Right-clicking a Carminite Reactor (Inactive) (`twilightforest:tower_device:12`) with Thaumcraft Salis Mundus surrounded by 6 Betweenlands Octine Blocks initiates an in-world 200-tick (10-second) synthesis ritual. An incomplete shell does not cancel the click, so a normal Twilight Forest reactor still activates.
+- Requires GameStage `adamantine`, which the pack grants (Tweaks does not). The refusal is sent only when the Octine shell is complete, and Salis Mundus is not consumed. Lang: `chat.aqtweaks.twilightforest.reactor_unlearned`.
+- Features a rising audio ramp (`BLOCK_PORTAL_TRIGGER`, pitch 0.5 toward 2.0) and inward flame, lava, and portal particles (directed velocity uses particle count 0).
+- On tick 200, plays an explosion sound and particles with no entity or block damage, dissolves the core and 6 Octine blocks, and yields 5–7 `contenttweaker:phlogiston_matrix` alongside crystalline chime / triumph sounds. If that item is not registered, the ritual fizzles and the shell stays. A chunk or dimension unload pauses the ritual instead of dropping it. A server restart forgets a ritual that was still charging.
+- Handler registers only when Twilight Forest, Thaumcraft, Game Stages, Betweenlands, and ContentTweaker are all present. Docs: [twilightforest.md](twilightforest.md).
+
+## 2026-11-09 — Twilight Forest Ley-Rupture
+
+- Timed arcane surges rising from the ground ([twilightforest.md](twilightforest.md)): a 30 s telegraph (silence, a rising hum, glyph wisps), then 25 to 30 s of armor-bypassing magic scour (4.0, or 1.5 in proper arcane gear) scaled by a surface-relative height gradient (full on the forest floor and underground, none about 14 blocks above the ground, so the canopy is the escape), zeroed inside Lich Tower-class structure bounds and Comfort rooms. Hunger burn, capped temporary warp, biome intensity and extras.
+- Spell backlash for any magic item used while exposed (Thaumcraft casters, Botania mana items, a pattern list, brooms); surge charging of carried Embers and Botania items and placed Vis Batteries (at a warp or flux price); impermanent ley mobs with no drops.
+- New `Ley-Rupture` category in `aqtweaks_twilightforest.cfg`, `/leyrupture`, channel 5, packet 13, death message. Not built: fissures, the caster Vis cost multiplier, Thaumic Augmentation charging.
+
+## 2026-11-09 — Nether lava spouts and ash clouds; Aether Silver Squalls
+
+- **Nether** ([nether.md](nether.md)): clustered lava spout events (30 s, 3 to 6 staggered eruptions per player, 3 s telegraph, a 6 s tremor warning, temporary flowing lava tracked and cleared by a saved queue) and withering ash clouds that flood-fill open space (through doorways, never walls) and build a Slowness, Wither and ash-lung dose by gear tier. New `aqtweaks_nether.cfg`, `/netherhazard`, channels 1 and 2, packets 10 and 11, `LoadedBlocks` (loaded-chunk reads), `weather/GearTierRule`.
+- **Aether** ([aether.md](aether.md)): Silver Squalls, 2 to 5 s crosswind gusts every 45 to 120 s with a 5 s warning (heading from the event seed, pushes gliders and flyers like Atum, anchored by sneaking) and telegraphed lightning on its own timer. New `Silver Squalls` category in `aqtweaks_aether.cfg`, `/aethersquall` (alias `/aetherwind`), channels 3 and 4, packet 12.
+- Death messages for the spout, ash and Aether lightning. `fastutil` added to the test classpath for the flood-fill test.
+
+## 2026-11-08 — Ladders and vines: Space climbs, Shift holds; no drain on the ground
+
+- Space now climbs ladders, vines and ropes (with or without a wall behind them), and Shift holds position (even with W pressed into the wall), both at the existing climb and cling costs. Standing on the ground in a ladder, vine or rope cell costs nothing and the depleted slide/input clearing is skipped there. Empty stamina still breaks the grip and slides. Docs: [stamina.md](stamina.md).
+
+## 2026-11-08 — Moonfrost follows the Atum system
+
+- Particles at Atum scale (up to 12000 live, thousands of attempts a tick) with Atum's spawn rules; fog end 0.12 (was 0.06); the warning is stronger (fog to 50%, snow to 60% of full) and continuous into the storm.
+- Shelter is the Atum rule, but leaves do not count as a roof (`StormShelter.openSky`) and the state is held for 2 s (`ShelterHold`, `Shelter Change Delay Seconds`), so passing under a tree or doorway does not flip the effects. Atum is unchanged.
+- New `Hazard Debug` HUD line. New cfg keys `Warning Particle Fraction`, `Warning Fog Fraction`, `Shelter Change Delay Seconds`, `Hazard Debug`; defaults of `Max Storm Snow Particles` (12000) and `Whiteout Fog End Fraction` (0.12) changed. Docs: [aurorian.md](aurorian.md).
+
+## 2026-11-08 — Thaumcraft: portable Vis Battery
+
+- A broken Vis Battery keeps its charge as item damage 0 to 10 (`MixinBlockVisBattery`); placing it restores the charge, and item subtypes are turned on so different charges never merge. Client tooltip `Stored vis: N/10`, optional charged item model and creative entry. New `aqtweaks_thaumcraft.cfg` rows `Portable Vis Battery Charge`, `Vis Battery Charge Tooltip`, `Charged Battery Model`, `Creative Charged Batteries`. Docs: [thaumcraft.md](thaumcraft.md).
+
+## 2026-11-08 — Shared hazard timeline
+
+- New hazard engine (`hazard/`, [hazards.md](hazards.md)): the server owns each scheduled event per dimension and channel and announces it once with `PacketHazardEvent` (replaces `PacketMoonfrostOffset`, id 9); clients animate it from the world clock. The Moonfrost storm is channel 0.
+- `/aurorianweather moonfrost` now warns like a natural storm; `skipWarning` restores the old instant start. Removed `MoonfrostWorldData`, `MoonfrostNetwork` and the key/offset sync.
+
+## 2026-11-08 — Atum sandstorm warning
+
+- Over the 30 s before an Atum sandstorm the outdoor dust blends toward 60% of storm intensity (faster, denser flecks), then the storm ramps on from there. Particles only. New client settings `Enable Storm Warning`, `Storm Warning Seconds`, `Warning Dust Fraction`.
+- `AtumWeatherSync` (server) sends Atum's own `PacketWeather` on login, entering Atum and respawn, and every `Warning Resync Seconds` (default 30) while no storm is active, so a joining client's storm countdown matches the server (Atum never sent it on join). This also fixes briefly wrong storm visuals after joining. Docs: [client.md](client.md).
+
+## 2026-11-08 — Aurorian: fixed moonlit lighting and the Moonfrost storm
+
+- **Fixed lighting.** `MixinAurorianWorldProvider` pins the moon phase and celestial angle (the Darkness mod's brightness swing stops); `MixinWorldFixedSkylight` fixes the gameplay sky light at 9 (crops and saplings grow, outdoor hostile spawns stop). New cfg `aqtweaks_aurorian.cfg`; `theaurorian` jar in `libs/`.
+- **Moonfrost storm.** A deterministic schedule (`weather/StormSchedule`, Atum's timings) from the world time: frostbite by gear tier, non-deadlocking rime, wind push, whiteout fog applied after every fog handler (`MixinEntityRendererFog`), moon snow, wind sound, frost vignette, a 30 s fog-and-wind warning, and Elenai stamina regeneration slowed while exposed (regen modifier, never max stamina) with `MixinCUpdateRegenHandler` clamping the running timer when it ends. Proper cold gear is detected by the `simpledifficulty:cold_resist` effect (the pack's SetBonus sets) or a magic-armor whitelist. `/aurorianweather` forces and clears storms.
+- `AtumStormGameplayHandler.isSheltered` now delegates to the shared `weather/StormShelter`. Docs: [aurorian.md](aurorian.md).
+
 ## 2026-11-03 — Dimension hazards overview doc
 
 - New `docs/dimension-hazards.md`: roster of environmental hazards per dimension and their owners, Betweenlands decay and corrosion (parent mod), and the Beneath darkness hunt (`config/lycanitesmobs/spawners/darkness.json`, a Lycanites config, not Tweaks).

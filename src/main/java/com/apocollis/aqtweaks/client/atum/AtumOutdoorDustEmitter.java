@@ -132,6 +132,16 @@ public class AtumOutdoorDustEmitter {
 
         ArcanaQuestTweaksConfig.AtumFog config = ArcanaQuestTweaksConfig.ClientModuleConfig.atumFog;
 
+        // Sandstorm warning: before a storm the dust blends from the clear-weather values toward the storm
+        // values taken at Warning Dust Fraction of full strength; the storm then starts from that same level.
+        float warning = AtumStormWarning.level(world);
+        float fraction = (float) config.warningDustFraction;
+        boolean serverStorming = provider instanceof WorldProviderAtum && ((WorldProviderAtum) provider).isStorming;
+        float storm01 = isStorming ? 1.0F : warning;
+        float strength = isStorming
+                ? (config.enableStormWarning && serverStorming ? Math.max(stormStrength, fraction) : stormStrength)
+                : fraction;
+
         // Sandstorm howling wind audio management
         if (isStorming && config.enableSandstormWindSound) {
             if (activeStormSound == null || activeStormSound.isDonePlaying() || !mc.getSoundHandler().isSoundPlaying(activeStormSound)) {
@@ -166,15 +176,13 @@ public class AtumOutdoorDustEmitter {
         double breezeFactor = Math.max(0.12D, Math.min(1.70D, 0.85D + 0.55D * wave1 + 0.30D * wave2));
 
         // Particle budget: scaled by breezeFactor in clear weather, maxSandstormDustParticles during sandstorms
-        int particleLimit = isStorming
-                ? config.maxSandstormDustParticles
-                : (int) Math.max(35, config.maxOutdoorDustParticles * breezeFactor);
+        int particleLimit = (int) lerp(Math.max(35, config.maxOutdoorDustParticles * breezeFactor),
+                config.maxSandstormDustParticles, storm01);
         if (ParticleAtumDustSheet.ACTIVE_COUNT.get() >= particleLimit) return;
 
         // Spawn density: a handful of attempts in clear weather; 1050 to 2600 during sandstorms
-        int attempts = isStorming
-                ? (int) (1050 + stormStrength * 1550)
-                : (int) Math.max(6, 32.0D * breezeFactor);
+        int attempts = (int) lerp(Math.max(6, 32.0D * breezeFactor), 1050 + strength * 1550, storm01);
+        if (attempts <= 0) return;
 
         Vec3d eyeVec = player.getPositionEyes(1.0F);
         Vec3d lookVec = player.getLook(1.0F);
@@ -182,11 +190,10 @@ public class AtumOutdoorDustEmitter {
         boolean playerOutdoors = world.canSeeSky(new BlockPos(eyeVec));
 
         // Wind speed: high-speed howling gale during storms, gentle fluctuating breeze in clear weather
-        double windSpeed = isStorming
-                ? (2.05D + stormStrength * 1.05D) // 2.05 - 3.10 blocks/tick in sandstorms
-                : (0.16D + 0.16D * breezeFactor); // 0.18 - 0.43 blocks/tick in clear weather
+        double windSpeed = lerp(0.16D + 0.16D * breezeFactor, // 0.18 - 0.43 blocks/tick in clear weather
+                2.05D + strength * 1.05D, storm01);           // 2.05 - 3.10 blocks/tick in sandstorms
 
-        int lifetime = isStorming ? 33 : 55;
+        int lifetime = (int) lerp(55.0D, 33.0D, storm01);
 
         for (int i = 0; i < attempts; i++) {
             if (ParticleAtumDustSheet.ACTIVE_COUNT.get() >= particleLimit) break;
@@ -207,10 +214,8 @@ public class AtumOutdoorDustEmitter {
             } else {
                 // Outdoors: wind-aligned band. Storms reach 50 blocks upwind so looking into the gale is a wall of sand.
                 // alongWind storm [-50, +16], calm [-25, +25]; crossWind [-35, +35] storm, [-25, +25] calm
-                double alongWind = isStorming
-                        ? rand.nextDouble() * 66.0D - 50.0D
-                        : rand.nextDouble() * 50.0D - 25.0D;
-                double crossWidth = isStorming ? 70.0D : 50.0D;
+                double alongWind = rand.nextDouble() * lerp(50.0D, 66.0D, storm01) - lerp(25.0D, 50.0D, storm01);
+                double crossWidth = lerp(50.0D, 70.0D, storm01);
                 double crossWind = (rand.nextDouble() - 0.5D) * crossWidth;
 
                 cx = player.posX + windDirX * alongWind - windDirZ * crossWind;
@@ -220,8 +225,8 @@ public class AtumOutdoorDustEmitter {
 
             // Elevation: appear above and below player elevation
             // Clear weather: -6 to +14 blocks; Storm: -10 to +20 blocks (covering dunes, pits, cliffs, sky)
-            double elevationSpan = isStorming ? 30.0D : 20.0D;
-            double elevationOffset = isStorming ? 10.0D : 6.0D;
+            double elevationSpan = lerp(20.0D, 30.0D, storm01);
+            double elevationOffset = lerp(6.0D, 10.0D, storm01);
             double cy = player.posY + (rand.nextDouble() * elevationSpan - elevationOffset);
 
             checkPos.setPos(cx, cy, cz);
@@ -232,7 +237,7 @@ public class AtumOutdoorDustEmitter {
             }
 
             // Upwind solid obstruction check: do not originate within 6-7 blocks downwind of a solid obstacle
-            double upwindDist = isStorming ? 7.0D : 6.0D;
+            double upwindDist = lerp(6.0D, 7.0D, storm01);
             double upX = cx - windDirX * upwindDist;
             double upZ = cz - windDirZ * upwindDist;
             checkPos.setPos(upX, cy, upZ);
@@ -257,25 +262,29 @@ public class AtumOutdoorDustEmitter {
             }
 
             // Mix: 85% small sand grains / 15% moderate sheets in storm; 65/35 in clear weather
-            boolean isSmallFleck = isStorming ? (rand.nextFloat() < 0.85F) : (rand.nextFloat() < 0.65F);
+            boolean isSmallFleck = rand.nextFloat() < lerp(0.65D, 0.85D, storm01);
             float particleScale;
             float particleAlpha;
             float particleSpeed = (float) (windSpeed * (isSmallFleck ? 1.15D : 1.0D));
 
             if (isSmallFleck) {
                 particleScale = 0.6F + rand.nextFloat() * 0.5F;
-                particleAlpha = isStorming ? Math.min(0.95F, 0.55F + stormStrength * 0.40F) : 0.45F;
+                particleAlpha = (float) lerp(0.45D, Math.min(0.95F, 0.55F + strength * 0.40F), storm01);
             } else {
                 particleScale = 3.6F + rand.nextFloat() * 1.6F;
-                particleAlpha = isStorming ? Math.min(0.85F, 0.35F + stormStrength * 0.50F) : 0.20F;
+                particleAlpha = (float) lerp(0.20D, Math.min(0.85F, 0.35F + strength * 0.50F), storm01);
             }
 
-            int particleLifetime = lifetime + rand.nextInt(isStorming ? 8 : 12);
+            int particleLifetime = lifetime + rand.nextInt(Math.max(1, (int) lerp(12.0D, 8.0D, storm01)));
 
             ParticleAtumDustSheet particle = new ParticleAtumDustSheet(
                     world, cx, cy, cz, particleSpeed, particleScale, particleAlpha, particleLifetime
             );
             mc.effectRenderer.addEffect(particle);
         }
+    }
+
+    private static double lerp(double a, double b, double t) {
+        return a + (b - a) * Math.max(0.0D, Math.min(1.0D, t));
     }
 }

@@ -1,7 +1,5 @@
 package com.apocollis.aqtweaks.mixin;
 
-import java.util.ArrayDeque;
-
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -18,9 +16,13 @@ import net.minecraft.util.ResourceLocation;
 @Mixin(TileEntityLockableLoot.class)
 public abstract class MixinTileEntityLockableLoot {
 
+    /** Nesting depth of fillWithLoot on this tile entity; only the outermost call decides whether to stamp. */
     @Unique
-    private static final ThreadLocal<ArrayDeque<Boolean>> AQTWEAKS$FILL =
-            ThreadLocal.withInitial(ArrayDeque::new);
+    private int aqtweaks$fillDepth;
+
+    /** Whether the outermost call started with a loot table set. */
+    @Unique
+    private boolean aqtweaks$hadLoot;
 
     @Shadow
     protected ResourceLocation lootTable;
@@ -30,18 +32,18 @@ public abstract class MixinTileEntityLockableLoot {
 
     @Inject(method = "fillWithLoot", at = @At("HEAD"))
     private void aqtweaks$markLootFill(EntityPlayer player, CallbackInfo ci) {
-        AQTWEAKS$FILL.get().addLast(Boolean.valueOf(this.lootTable != null));
+        if (this.aqtweaks$fillDepth++ == 0) {
+            this.aqtweaks$hadLoot = this.lootTable != null;
+        }
     }
 
     @Inject(method = "fillWithLoot", at = @At("RETURN"))
     private void aqtweaks$stampLoot(EntityPlayer player, CallbackInfo ci) {
-        ArrayDeque<Boolean> stack = AQTWEAKS$FILL.get();
-        if (stack.isEmpty()) {
+        if (this.aqtweaks$fillDepth > 0) this.aqtweaks$fillDepth--;
+        if (this.aqtweaks$fillDepth != 0 || !this.aqtweaks$hadLoot) {
             return;
         }
-        if (!Boolean.TRUE.equals(stack.removeLast())) {
-            return;
-        }
+        this.aqtweaks$hadLoot = false;
         com.apocollis.aqtweaks.qualitytools.QualityStamp.stampStacks(this.getItems());
     }
 }

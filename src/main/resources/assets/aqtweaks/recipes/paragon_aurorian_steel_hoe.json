@@ -1,0 +1,15 @@
+{
+  "type": "aqtweaks:paragon_shaped",
+  "trait": "aurorian_steel",
+  "item": "metallurgy:tartarite_hoe",
+  "conditions": [
+    {
+      "type": "forge:mod_loaded",
+      "modid": "metallurgy"
+    },
+    {
+      "type": "forge:mod_loaded",
+      "modid": "theaurorian"
+    }
+  ]
+}

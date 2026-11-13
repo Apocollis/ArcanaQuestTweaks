@@ -343,19 +343,27 @@ public class StaminaModule {
         boolean ascending = false;
         boolean holding = false;
 
-        if (pData.hasKey(prevYKey)) {
+        boolean jumpInput = pData.getBoolean("StaminaTweaksClimbJumpInput");
+        boolean enough = cost <= 0 || StaminaFeathers.hasEnoughStamina(player, cost);
+        // Standing on the ground in a ladder cell is free: no climbing, no holding.
+        if (!player.onGround && pData.hasKey(prevYKey)) {
             double dy = posY - pData.getDouble(prevYKey);
-            if (dy > CLIMB_ASCEND_EPS) {
-                // A jump or step-up inside the cell is not climbing.
-                ascending = !player.onGround;
+            if (dy > CLIMB_ASCEND_EPS || jumpInput) {
+                ascending = true;
             } else if (dy < -CLIMB_ASCEND_EPS && !player.isSneaking()) {
-                // Sliding down without sneak-hold — free
-            } else if (!player.onGround && (player.isSneaking() || Math.abs(dy) <= CLIMB_ASCEND_EPS)) {
-                // Clinging needs to be off the ground: standing in the bottom rung's cell costs nothing.
+                // Sliding down without sneak-hold: free
+            } else if (player.isSneaking() || Math.abs(dy) <= CLIMB_ASCEND_EPS) {
                 holding = true;
             }
         }
         pData.setDouble(prevYKey, posY);
+        if (enough && !player.onGround) {
+            if (holding && player.isSneaking()) {
+                player.motionY = 0.0D; // Shift holds position
+            } else if (ascending && jumpInput) {
+                player.motionY = 0.2D; // Space climbs
+            }
+        }
 
         if (ascending || holding) {
             int interval = ascending
@@ -379,8 +387,7 @@ public class StaminaModule {
                 && !(player.onGround && !player.collidedHorizontally)
                 && !StaminaFeathers.hasEnoughStamina(player, cost)
                 && pData.getInteger("StaminaTweaksLedgeClimbState") != 1
-                && pData.getInteger("StaminaTweaksLedgeClimbGrace") <= player.ticksExisted
-                && !pData.getBoolean("StaminaTweaksClimbJumpInput")) {
+                && pData.getInteger("StaminaTweaksLedgeClimbGrace") <= player.ticksExisted) {
             player.motionY = -0.15;
         }
     }

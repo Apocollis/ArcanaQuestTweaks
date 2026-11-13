@@ -11,6 +11,7 @@
   ],
   "mixins": [
     "MixinWorldRiftLight",
+    "MixinWorldFixedSkylight",
     "MixinWorldCheckLight",
     "lighting.MixinChunkBulkRelight",
     "lighting.MixinChunkPopulateRelight",
@@ -22,6 +23,8 @@
     "MixinTileEntityLockableLoot",
     "MixinItemStackQualityDurability",
     "MixinItemStackDurability",
+    "MixinItemStackRarity",
+    "MixinItemRarity",
     "MixinBlockCropsSeed"
   ]
 }

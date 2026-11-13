@@ -1,0 +1,15 @@
+{
+  "type": "aqtweaks:paragon_shaped",
+  "trait": "octine",
+  "item": "metallurgy:tartarite_pickaxe",
+  "conditions": [
+    {
+      "type": "forge:mod_loaded",
+      "modid": "metallurgy"
+    },
+    {
+      "type": "forge:mod_loaded",
+      "modid": "thebetweenlands"
+    }
+  ]
+}

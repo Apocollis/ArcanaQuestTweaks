@@ -6,7 +6,7 @@ Loot stamp, wear/Broken overlays, Dawnstone rune upgrades. Tweaks cfg: `config/a
 
 ## Locked intent
 
-- One live QT `Quality` compound. Tweaks stash `aqtweaks.QualityBase` = last earned **kept** quality (`red` / `yellow` / `green` / `blue` / `gold`). `red` is a real trait, not a wear overlay.
+- One live QT `Quality` compound. Tweaks stash `aqtweaks.QualityBase` = last earned **kept** quality (`red` / `yellow` / `green` / `dark_aqua` (`blue` alias) / `gold`). `red` is a real trait, not a wear overlay.
 - Pack quality JSON contract (per type): exactly **one** `dark_gray` = Broken; exactly **one** `gray` = wear. Tweaks looks those up by color.
 - Wear/Broken never write QualityBase. `red` **does**.
 - No QT living-update first stamp. Craft, `/give`, JEI, trades stay untagged until loot/drop/equipment hooks or a rune.
@@ -14,7 +14,7 @@ Loot stamp, wear/Broken overlays, Dawnstone rune upgrades. Tweaks cfg: `config/a
 - Wear (default ≤20% remaining): unique `gray` only. **Never** if live is `dark_gray`. Wear never applies `dark_gray`.
 - Repair: Broken at **≥ 26% and < 51%** remaining becomes wear `gray` (QualityBase kept). Wear, or Broken repaired in one step **past 51%**, clears that stamp and restores QualityBase (including `red`) or `normal`. Exactly 51% does neither. Do **not** strip `red`.
 - Lethal damage: apply unique `dark_gray`, leave **one use** (`max - 1`), drop the stack, keep QualityBase, play `ENTITY_ITEM_BREAK` at volume 0.5 / pitch 1.5±0.15 — **except** `charm:salvage`, which Charm already salvages. Tweaks does not cancel that destroy, does not stamp Broken, and does not drop a second copy. A later hit that spends the last use of an already Broken tool is a real destroy. Wear still applies. Do not mixin Charm.
-- Dawnstone Anvil: **strict** ladder, no skip: `red` → white (`normal`) → `yellow` → `green` → `blue` → `gold`. Common does the first two hammers. Uncommon/Rare/Legendary are yellow→green, green→blue, blue→gold. The **same** rune also rerolls that tier’s color (Common yellow, Uncommon green, Rare blue, Legendary gold), equal chance among other Names of that color (weight unused). **One rune consumed** per success. Place the **tool/gear first** (slot 0), then the rune (slot 1), same as stock repair. Unwritten Rune (`sccraftingrunes:itemmatbag`) is never matched.
+- Dawnstone Anvil: **strict** ladder, no skip: `red` → white (`normal`) → `yellow` → `green` → `dark_aqua` (or `blue` for backwards compatibility) → `gold`. Common does the first two hammers. Uncommon/Rare/Legendary are yellow→green, green→`dark_aqua` (`blue`), `dark_aqua` (`blue`)→gold. The **same** rune also rerolls that tier’s color (Common yellow, Uncommon green, Rare `dark_aqua`/`blue`, Legendary gold), equal chance among other Names of that color (weight unused). **One rune consumed** per success. Place the **tool/gear first** (slot 0), then the rune (slot 1), same as stock repair. Unwritten Rune (`sccraftingrunes:itemmatbag`) is never matched.
 - Do not compile-hard `sccraftingrunes`; cfg defaults are registry names.
 - Do not cancel all of `CommonEventHandler.onLivingUpdate` (attribute reapply must stay).
 - Do not globally no-op `generateQualityTag(..., false)` (chest/drop stamping uses it).
@@ -59,12 +59,12 @@ If untagged and `isQualityItem`: `generateQualityTag(stack, false)`. Then pre-da
 | Common | same | `yellow` | reroll `yellow` + QualityBase |
 | Uncommon | `sccraftingrunes:itemuncommonmat` | `yellow` | `green` + QualityBase |
 | Uncommon | same | `green` | reroll `green` + QualityBase |
-| Rare | `sccraftingrunes:itemraremat` | `green` | `blue` + QualityBase |
-| Rare | same | `blue` | reroll `blue` + QualityBase |
-| Legendary | `sccraftingrunes:itemlegendarymat` | `blue` | `gold` + QualityBase |
+| Rare | `sccraftingrunes:itemraremat` | `green` | `dark_aqua` (`blue`) + QualityBase |
+| Rare | same | `dark_aqua` / `blue` | reroll `dark_aqua` (`blue`) + QualityBase |
+| Legendary | `sccraftingrunes:itemlegendarymat` | `dark_aqua` / `blue` | `gold` + QualityBase |
 | Legendary | same | `gold` | reroll `gold` + QualityBase |
 
-Rune apply is **unweighted**. Same-color reroll skips the live quality Name when another entry of that color exists. Step-up (e.g. green→blue) uses the full next-color pool. `gray` / `dark_gray` refuse every rune except Common when QualityBase is `red` (gray overlay still counts as red→white). Failed match (quality gear in slot 0 + configured rune in slot 1, `matches` false): action bar `chat.aqtweaks.quality.rune_mismatch`, 40-tick cooldown, rune not consumed. No message for stock repair, empty slots, Unwritten Rune, rune-first placement, or auto-hammers with no nearby player.
+Rune apply is **unweighted**. Same-color reroll skips the live quality Name when another entry of that color exists. Step-up (e.g. green→dark_aqua) uses the full next-color pool (`QualityNbt.colorMatches` treats `dark_aqua` and `blue` interchangeably for backwards compatibility). `gray` / `dark_gray` refuse every rune except Common when QualityBase is `red` (gray overlay still counts as red→white). Failed match (quality gear in slot 0 + configured rune in slot 1, `matches` false): action bar `chat.aqtweaks.quality.rune_mismatch`, 40-tick cooldown, rune not consumed. No message for stock repair, empty slots, Unwritten Rune, rune-first placement, or auto-hammers with no nearby player.
 
 JEI: a few example bottoms (iron sword/pick/chestplate). Missing rune item → that recipe does not register.
 
@@ -105,16 +105,20 @@ Vanilla durability/loot mixins FQCN into `QualityStamp` / `QualityDurability` (c
 | `general` / `Wear Check Interval Ticks` | int | 40 | Minimum ticks between wear rolls on one stack |
 | `general` / `Common Rune` | string | `sccraftingrunes:itemcommonmat` | red→white, white→yellow, yellow reroll; `common_mat` alias |
 | `general` / `Uncommon Rune` | string | `sccraftingrunes:itemuncommonmat` | yellow→green, green reroll; `uncommon_mat` alias |
-| `general` / `Rare Rune` | string | `sccraftingrunes:itemraremat` | green→blue, blue reroll; `rare_mat` alias |
-| `general` / `Legendary Rune` | string | `sccraftingrunes:itemlegendarymat` | blue→gold, gold reroll; `legendary_mat` alias |
+| `general` / `Rare Rune` | string | `sccraftingrunes:itemraremat` | green→dark_aqua (blue), dark_aqua (blue) reroll; `rare_mat` alias |
+| `general` / `Legendary Rune` | string | `sccraftingrunes:itemlegendarymat` | dark_aqua (blue)→gold, gold reroll; `legendary_mat` alias |
 
 ## Pack instance (not this repo)
 
-Quality JSON must keep **one** `dark_gray` and **one** `gray` per type. **`Quailities/tools.json` currently has `gray` (chipped) but no `dark_gray`** — add that or tool breaks cannot stamp Broken. Optional: weight 0 on those two so loot never rolls them (Tweaks still applies them). Shields/fishing need a `blue` entry before Rare/Legendary match. `contenttweaker:reforge_rune` stays the Reforging Station material until that station is removed.
+Quality JSON must keep **one** `dark_gray` and **one** `gray` per type. **`Quailities/tools.json` currently has `gray` (chipped) but no `dark_gray`** — add that or tool breaks cannot stamp Broken. Optional: weight 0 on those two so loot never rolls them (Tweaks still applies them). Shields/fishing need a `dark_aqua` (or `blue`) entry before Rare/Legendary match. `contenttweaker:reforge_rune` stays the Reforging Station material until that station is removed.
 
 ## Wear trace
 
 `Trace Wear` (general, default false) enables one INFO `quality-wear ...` line per durability check. When off, `QualityDurability.trace` returns before reading NBT, and the call sites skip their formatting. Turn it on only while diagnosing wear and break.
+
+## Rarity (read-only)
+
+The [rarity overhaul](rarity.md) reads the stack's root NBT `Quality.Color` (the color name Quality Tools stores when it rolls a quality) and maps it to an item tier (green and yellow Uncommon, dark_aqua Rare, gold Legendary by default). It never writes Quality Tools data and does not import its classes. The `Quality:` tooltip line keeps the color Quality Tools gives it; the rarity color is only on the name line. The DEVBOX quality JSON uses `dark_aqua` (was `blue`) so Rare qualities match the Rare tier.
 
 ## Do not regress
 

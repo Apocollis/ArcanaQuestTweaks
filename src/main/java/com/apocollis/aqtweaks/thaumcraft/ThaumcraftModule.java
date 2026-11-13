@@ -19,6 +19,18 @@ import thaumcraft.common.lib.potions.PotionWarpWard;
 
 public class ThaumcraftModule {
 
+    /**
+     * The Vis Battery item is a plain ItemBlock with no subtypes, so two charges would merge in a stack and
+     * Silk Touch would drop it empty. Turning subtypes on makes the damage (the charge) count.
+     */
+    public static void enableVisBatterySubtypes() {
+        net.minecraft.item.Item item = net.minecraft.item.Item.REGISTRY.getObject(
+                new ResourceLocation("thaumcraft", "vis_battery"));
+        if (item != null) {
+            item.setHasSubtypes(true);
+        }
+    }
+
     /** The player's persisted-data compound ({@code ForgeData.PlayerPersisted}), created if missing. */
     private static NBTTagCompound persistedTag(EntityPlayer player) {
         NBTTagCompound data = player.getEntityData();

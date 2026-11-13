@@ -36,6 +36,7 @@ public final class QualityNbt {
     public static final String COLOR_RED = "red";
     public static final String COLOR_YELLOW = "yellow";
     public static final String COLOR_GREEN = "green";
+    public static final String COLOR_DARK_AQUA = "dark_aqua";
     public static final String COLOR_BLUE = "blue";
     public static final String COLOR_GOLD = "gold";
     public static final String COLOR_NORMAL = "normal";
@@ -180,11 +181,25 @@ public final class QualityNbt {
         return COLOR_GRAY.equals(liveColor(stack));
     }
 
+    public static boolean isRareColor(String color) {
+        return COLOR_DARK_AQUA.equalsIgnoreCase(color) || COLOR_BLUE.equalsIgnoreCase(color);
+    }
+
+    public static boolean colorMatches(String targetColor, String entryColor) {
+        if (targetColor == null || entryColor == null) {
+            return false;
+        }
+        if (targetColor.equalsIgnoreCase(entryColor)) {
+            return true;
+        }
+        return isRareColor(targetColor) && isRareColor(entryColor);
+    }
+
     public static boolean isKeptColor(String color) {
         return COLOR_RED.equals(color)
                 || COLOR_YELLOW.equals(color)
                 || COLOR_GREEN.equals(color)
-                || COLOR_BLUE.equals(color)
+                || isRareColor(color)
                 || COLOR_GOLD.equals(color);
     }
 
@@ -310,7 +325,7 @@ public final class QualityNbt {
             if (entry == null || entry.color == null) {
                 continue;
             }
-            if (color.equalsIgnoreCase(entry.color.getFriendlyName())) {
+            if (colorMatches(color, entry.color.getFriendlyName())) {
                 return true;
             }
         }
@@ -332,7 +347,7 @@ public final class QualityNbt {
             if (entry == null || entry.color == null) {
                 continue;
             }
-            if (!color.equalsIgnoreCase(entry.color.getFriendlyName())) {
+            if (!colorMatches(color, entry.color.getFriendlyName())) {
                 continue;
             }
             matches.add(entry);
@@ -369,7 +384,7 @@ public final class QualityNbt {
             if (entry == null || entry.color == null) {
                 continue;
             }
-            if (color.equalsIgnoreCase(entry.color.getFriendlyName())) {
+            if (colorMatches(color, entry.color.getFriendlyName())) {
                 if (found != null) {
                     return null;
                 }

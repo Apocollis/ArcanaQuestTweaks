@@ -11,7 +11,7 @@ import net.minecraftforge.fml.common.event.FMLServerStoppingEvent;
 import net.minecraftforge.fml.common.network.NetworkRegistry;
 import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 
-@Mod(modid = ArcanaQuestTweaks.MODID, name = ArcanaQuestTweaks.NAME, version = ArcanaQuestTweaks.VERSION, dependencies = "required-after:elenaidodge2;required-after:charm;after:incontrol;after:grimoireofgaia;after:thaumcraft;after:bewitchment;after:grapplemod;after:dynamicswordskills;after:baubles;after:embers;after:qualitytools;after:reskillable;after:effortlessbuilding;after:stats_keeper;after:randomportals;after:twilightforest;after:aether_legacy;after:chisel;after:gamestages;after:recipestages;after:simpletomb;after:chunksteward")
+@Mod(modid = ArcanaQuestTweaks.MODID, name = ArcanaQuestTweaks.NAME, version = ArcanaQuestTweaks.VERSION, dependencies = "required-after:elenaidodge2;required-after:charm;after:incontrol;after:grimoireofgaia;after:thaumcraft;after:bewitchment;after:grapplemod;after:dynamicswordskills;after:baubles;after:embers;after:qualitytools;after:reskillable;after:effortlessbuilding;after:stats_keeper;after:randomportals;after:twilightforest;after:aether_legacy;after:metallurgy;after:theaurorian;after:thebetweenlands;after:chisel;after:gamestages;after:recipestages;after:simpletomb;after:chunksteward;after:thaumicaugmentation")
 public class ArcanaQuestTweaks {
     public static final String MODID = "aqtweaks";
     public static final String NAME = "Arcana Quest Tweaks";
@@ -56,11 +56,21 @@ public class ArcanaQuestTweaks {
     @Mod.EventHandler
     public void serverStarting(FMLServerStartingEvent event) {
         event.registerServerCommand(new com.apocollis.aqtweaks.rtg.CommandAqVillage());
+        event.registerServerCommand(new com.apocollis.aqtweaks.nether.CommandNetherHazard());
+        if (Loader.isModLoaded("aether_legacy")) {
+            event.registerServerCommand(new com.apocollis.aqtweaks.aether.CommandAetherSquall());
+        }
+        if (Loader.isModLoaded("twilightforest")) {
+            event.registerServerCommand(new com.apocollis.aqtweaks.twilightforest.CommandLeyRupture());
+        }
         event.registerServerCommand(new com.apocollis.aqtweaks.world.CommandAqLight());
         event.registerServerCommand(new com.apocollis.aqtweaks.spawning.CommandAqSpawnTable());
         event.registerServerCommand(new com.apocollis.aqtweaks.comfort.CommandAqComfort());
         if (Loader.isModLoaded("simpletomb")) {
             event.registerServerCommand(new com.apocollis.aqtweaks.simpletomb.CommandAqTomb());
+        }
+        if (Loader.isModLoaded("theaurorian")) {
+            event.registerServerCommand(new com.apocollis.aqtweaks.aurorian.CommandAurorianWeather());
         }
     }
 }

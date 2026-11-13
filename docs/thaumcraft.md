@@ -115,6 +115,23 @@ Bonus rolls run at RETURN of `getSmeltingBonus`, once per bellows pass, and only
 
 The flag is read on each call. Off does not restore the CraftTweaker removals. `canSmelt` stays false and the Infernal Furnace destroys those stacks.
 
+### Mana-Weave infusion (Thaumcraft + Botania)
+
+An infusion altar recipe (research `MANA_REPAIR`, Infusion tab, child of `INFUSIONENCHANTMENT`, needs `THEORY;INFUSION;2`) that gives any damageable item Botania's Manasteel self-repair. Registered in `CommonProxy.init` through `ManaRepairModule.init()` only when `thaumcraft` and `botania` are both loaded and `Enable Mana Repair` is on (recipe changes need a restart).
+
+* **Marker.** One root NBT byte `aqtweaks_mana_repair` (`ManaRepairTag`). It holds no mod types, so the early `MixinItemStackDurability` can call it.
+* **Central item.** Any `isItemStackDamageable()` item not yet tagged, not a Botania `IManaUsingItem`, and not already Manasteel (`ManaRepairLogic.isManasteelItem`: Botania's ten Manasteel items, `spartanshields:shield_botania_manasteel` and the 23 `spartanweaponryarcana:<type>_manasteel` weapons, which self-repair).
+* **Pedestals (8).** The central item's Manasteel cousin (armor by slot, tool by tool class; Spartan shield and weapons by name through `ManaRepairLogic.cousins`) or one `blockManasteel` when there is none; one normal Mana Tablet with at least 500,000 mana (`REQUIRED_TABLET_MANA`; a creative tablet never qualifies; consumed, no return); `runeManaB`; `manaPearl`; `manaDiamond`; `thaumcraft:salis_mundus`; two `ingotThaumium`. `InfusionManaRepairRecipe.matches` builds the ingredient list from the central item and matches it with `RecipeMatcher`; the matrix consumes the actual pedestal items. The Thaumonomicon page shows the chestplate case.
+* **Essentia and instability** (constants in `ManaRepairLogic`, tune after a test): Instrumentum 30, Praemunio 30, Potentia 60, Permutatio 30; instability 9.
+* **Repair.** `ManaRepairHandler` (server `PlayerTickEvent` END) repairs one durability point per tick per tagged, damaged stack while mana lasts, as Botania's Manasteel gear does: 120 mana per point for tools and weapons (`requestManaExactForTool`, which applies Botania's armor-set discount), 140 for armor (`requestManaExact`). Tools repair from any inventory slot; armor only while worn. No fake players.
+* **Mitigation.** `MixinItemStackDurability` (`ItemStack.damageItem` HEAD) calls `ManaRepairTag.absorbDamage` after the Reskillable durability perks: for a tagged stack held by a server-side, non-creative player, Botania mana pays 60 per point (tools) or 70 (armor), all or nothing, and the damage is cancelled. Only `ManaRepairBotania` touches Botania types.
+* **Tooltip.** `client/manarepair/ManaRepairTooltipHandler` adds one line (`aqtweaks.manarepair.tooltip`).
+* **Cost note.** At Botania's price a long-lived tool repaired from empty costs six figures of mana; `Mana Repair Cost Multiplier` scales it.
+* **Files.** `thaumcraft/ManaRepairLogic` (pure, tested), `ManaRepairTag`, `ManaRepairBotania`, `ManaRepairHandler`, `ManaRepairModule`, `InfusionManaRepairRecipe`; `assets/aqtweaks/research/mana_infusion.json`; lang `research.MANA_REPAIR.*`.
+### Portable Vis Battery
+
+`thaumcraft:vis_battery` is a plain block with state `CHARGE` 0 to 10, no tile entity and no item NBT; its `damageDropped` returns 0, so breaking it lost the charge, and its `ItemBlock` has no subtypes, so different charges would merge in a stack. `MixinBlockVisBattery` (`func_180651_a` HEAD) returns the state's `CHARGE` (clamped by `VisBatteryCharge.damageFor`) when `Portable Vis Battery Charge` is on; mining, explosions, middle-click and Silk Touch then keep it, and placing the item restores it (vanilla `getStateForPlacement` reads the damage). `ThaumcraftModule.enableVisBatterySubtypes()` (init, `CommonProxy`) turns on `setHasSubtypes` so charges never merge; it stays on when the drop flag is off. Client (`client/thaumcraft/VisBatteryClient`): models for damage 1 to 10 (the empty icon, or the block's `charge=N` variants with `Charged Battery Model`) and a `Stored vis: N/10` tooltip. `getSubBlocks` (`func_149666_a` RETURN) adds a full battery to the creative tab with `Creative Charged Batteries`. Carrying moves vis between places; breaking and re-placing does not recharge it. Nothing migrates for batteries already placed.
+
 ### Deep vis crystals
 
 `ThaumcraftWorldGenerator.generateOres` picks crystal Y with `nextInt(max(5, getTopSolidOrLiquidBlock(x, 0, z) - 5))`, so the lowest sample is 0. The method returns at once in the Nether, and `generateNether` is empty. `DeepCrystalGenerator` is a Tweaks `IWorldGenerator` registered from `CommonProxy.init` when `thaumcraft` is loaded. It runs on new Overworld chunks only (`ModConfig.CONFIG_WORLD.overworldDim`).
@@ -182,7 +199,14 @@ Client mixins in `mixins.aqtweaks.baubles.json` (`required: false`). The `getMod
 | Enable Deep Vis Crystals | true | yes | Seed vis crystal clusters below Y 0 on new Overworld chunks. Off leaves Thaumcraft's surface pass as it is. Also skipped when Thaumcraft `generateCrystals` is off |
 | Deep Crystal Min Y | −60 | yes | Inclusive low Y for a cluster centre |
 | Deep Crystal Max Y | −1 | yes | Inclusive high Y for a cluster centre |
+| Portable Vis Battery Charge | true | yes | A broken or picked Vis Battery keeps its charge as item damage 0 to 10 |
+| Vis Battery Charge Tooltip | true | yes | Client: `Stored vis: N/10` line |
+| Charged Battery Model | false | restart | Client: charged items use the block's `charge=N` variants; off keeps the empty icon |
+| Creative Charged Batteries | false | yes | List a full battery beside the empty one in the creative tab |
 | Deep Crystal Density Scale | 1.0 | yes | Multiplies the parent's attempt count (8) and size budget (64), both already times `oreDensity/100`. 0 places nothing |
+| Enable Mana Repair | true | restart | Mana-Weave recipe, research and the per-tick repair. Tagged items keep their tag when off |
+| Enable Mana Repair Damage Mitigation | true | yes | Mana pays durability damage first (60 tool / 70 armor per point at x1) |
+| Mana Repair Cost Multiplier | 1.0 | yes | Scales all four Botania prices; 0 is free |
 
 ## Files
 
@@ -192,7 +216,7 @@ Client mixins in `mixins.aqtweaks.baubles.json` (`required: false`). The `getMod
 - `thaumcraft/ThaumcraftPerkHooks.java` — Vis Thrift / Quiet Mind / Full Font stamp (`PerkAccess.has`, guarded direct `ReskillableBonuses.stampFullFont`)
 - `thaumcraft/InfernalFurnaceHelper.java` — gated-metal ingot, experience fallback, and nugget / Rare Earth rolls for `MixinTileInfernalFurnace`
 - `thaumcraft/DeepCrystalGenerator.java` — below-Y-0 vis crystal clusters on new Overworld chunks. Compile-hard Thaumcraft. Constructed only from the `thaumcraft`-loaded gate in `CommonProxy.init`
-- `mixin/thaumcraft/MixinFocusEffectExecute.java`, `MixinFocusEffectHeal.java`, `MixinCasterManager.java`, `MixinWarpEvents.java`, `MixinTileCrucible.java`, `MixinTileInfernalFurnace.java`
+- `mixin/thaumcraft/MixinFocusEffectExecute.java`, `MixinFocusEffectHeal.java`, `MixinCasterManager.java`, `MixinWarpEvents.java`, `MixinTileCrucible.java`, `MixinTileInfernalFurnace.java`, `MixinBlockVisBattery.java` (portable Vis Battery), with `thaumcraft/VisBatteryCharge.java` and `client/thaumcraft/VisBatteryClient.java`
 - `thaumcraft/RunicShieldHud.java` — client gear cap, rune rows, and gold surplus. Not `@SideOnly`
 - `mixin/thaumcraft/MixinGuiIngameForgeRunicShield.java` — early json client, `GuiIngameForge.renderHealth`
 - `mixin/thaumcraft/MixinRunicShieldingHudHandler.java` — late thaumcraft json

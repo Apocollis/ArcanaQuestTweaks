@@ -5,10 +5,10 @@ Last updated: 2026-11-03. This is the roster of how each pack dimension makes th
 | Dimension | Hazard | Owner | State |
 | --- | --- | --- | --- |
 | Atum | Sandstorm: wind push, headwind drain, grit blindness, choking, three-tier scour damage, armor wear | Tweaks ([client.md](client.md), `atum/AtumStormGameplayHandler`) | Built |
-| Aurorian | Moonfrost storm: frostbite, rime, whiteout, regeneration pause | Tweaks | Planned (`.plans/20261103-0130-aurorian-moonfrost-storm.md`) |
-| Nether | Clustered lava spout events (30 s, 3 to 6 staggered eruptions per player, temporary lava splashes that clear by themselves) and withering ash clouds (gas-like, flow through openings, not walls) on separate timers | Tweaks | Planned (`.plans/20261103-0200-nether-lava-spouts-and-ash-clouds.md`) |
-| Aether | Very short, very fast, telegraphed wind gusts that can push players off island edges (grappling hook, crouching at the edge or shelter to resist), plus telegraphed lightning strikes on a separate timer | Tweaks | Planned (`.plans/20261103-0210-aether-wind-bursts.md`) |
-| Twilight Forest | Ley-Rupture: telegraphed (30 s) arcane surges rising from the ground, strongest at the forest floor and fading with height, sheltered by tall canopy, ancient structures and Comfort rooms; using any magic item while exposed backfires | Tweaks | Planned (`.plans/20261103-0220-twilightforest-wild-magic.md`) |
+| Aurorian | Moonfrost storm: frostbite, rime, blizzard snow that piles up (burial hazard), regeneration pause | Tweaks ([aurorian.md](aurorian.md)) | Built |
+| Nether | Clustered lava spout events (30 s, 3 to 6 staggered eruptions per player, temporary lava splashes that clear by themselves) and withering ash clouds (gas-like, flow through openings, not walls) on separate timers | Tweaks ([nether.md](nether.md)) | Built (not yet tested in game) |
+| Aether | Very short, very fast, telegraphed wind gusts that can push players off island edges (grappling hook, crouching at the edge or shelter to resist), plus telegraphed lightning strikes on a separate timer | Tweaks ([aether.md](aether.md)) | Built (not yet tested in game) |
+| Twilight Forest | Ley-Rupture: telegraphed (30 s) arcane surges rising from the ground, strongest at the forest floor and fading with height, sheltered by tall canopy, ancient structures and Comfort rooms; using any magic item while exposed backfires | Tweaks ([twilightforest.md](twilightforest.md)) | Built (not yet tested in game) |
 | Betweenlands | Decay (and tool corrosion) | Betweenlands (parent mod), pack config | Built into the parent; see below |
 | Beneath | Darkness effects, plus a timed hunt when you stay in the dark | Lycanites Mobs spawner config, pack config | Pack config; see below |
 
@@ -32,6 +32,6 @@ The pack's SetBonus mod (`config/setbonus/1.12.2.009+.cfg`) gives a fully worn s
 
 ## Design notes shared by the Tweaks hazards
 * Hazards are scheduled or local events with a warning, a shelter rule and a gear scale, not permanent debuffs (the permanent pressure, such as the Aurorian cold or the Nether heat, already comes from Simple Difficulty).
-* Schedules are computed from `World.getTotalWorldTime()` and the world seed, so the server and every client agree with no packet and `/time set` does not move them.
+* Scheduled hazards run on the shared hazard engine ([hazards.md](hazards.md)): the server owns each event and announces it once; clients animate it from `World.getTotalWorldTime()`, so `/time set` does not move it and command-started events warn like natural ones.
 * Armor tiers follow Atum's whole-set rule (exposed, ordinary armor, proper gear), with a per-dimension "proper gear" list.
-* Shared pieces planned in `weather/`: `StormSchedule` (the deterministic schedule) and `StormShelter` (the roof and upwind-wall test, extracted from the Atum handler).
+* Shared pieces in `weather/`: `StormSchedule` (the pure gap and duration generator used by the hazard engine) and `StormShelter` (the roof and upwind-wall test, extracted from the Atum handler).

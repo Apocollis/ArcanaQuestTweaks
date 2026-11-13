@@ -1,0 +1,15 @@
+{
+  "type": "aqtweaks:paragon_shaped",
+  "trait": "fiery",
+  "item": "metallurgy:tartarite_axe",
+  "conditions": [
+    {
+      "type": "forge:mod_loaded",
+      "modid": "metallurgy"
+    },
+    {
+      "type": "forge:mod_loaded",
+      "modid": "twilightforest"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "type": "aqtweaks:paragon_shaped",
+  "trait": "gravitite",
+  "item": "metallurgy:tartarite_chestplate",
+  "conditions": [
+    {
+      "type": "forge:mod_loaded",
+      "modid": "metallurgy"
+    },
+    {
+      "type": "forge:mod_loaded",
+      "modid": "aether_legacy"
+    }
+  ]
+}

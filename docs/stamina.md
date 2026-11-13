@@ -240,11 +240,11 @@ Throwing weapons: class/registry keywords (`throwingweapon`, javelin, throwing_k
 
 ### Climbing (ladders / vines / ropes)
 
-Server: `isOnLadder`. Block at feet: registry contains `rope` → rope; else `BlockVine` or simple class name contains `vine` → vine; else ladder. `dy > 0.02` ascend; sneak or `|dy| ≤ 0.02` cling; sliding down without sneak is free. Ascend and cling both need `!onGround`: standing on the ground in a ladder cell, or jumping inside it, costs nothing.
+Server: `isOnLadder`. Block at feet: registry contains `rope` → rope; else `BlockVine` or simple class name contains `vine` → vine; else ladder. Standing on the ground in the cell (`onGround`) is free. Off the ground: `dy > 0.02` or the jump packet (`StaminaTweaksClimbJumpInput`) is ascending; sneak or `|dy| ≤ 0.02` is cling; sliding down without sneak is free. With enough stamina the server also sets `motionY = 0.2` while ascending by jump and `motionY = 0` while clinging by sneak.
 
-On interval: if enough, spend; **always reset the timer** even if spend fails (avoids latching). Then `fallOnDepleted` may set `motionY = -0.15` unless the player is on the ground and not pushing into the climbable (`onGround && !collidedHorizontally`; pushing in keeps the push so vanilla's +0.2 wall lift cannot become a bounce), ledge state is 1, `ticksExisted` ≤ `StaminaTweaksLedgeClimbGrace`, or climb jump packet is true.
+On interval: if enough, spend; **always reset the timer** even if spend fails (avoids latching). Then `fallOnDepleted` may set `motionY = -0.15` unless the player is on the ground and not pushing into the climbable (`onGround && !collidedHorizontally`; pushing in keeps the push so vanilla's +0.2 wall lift cannot become a bounce), ledge state is 1, or `ticksExisted` ≤ `StaminaTweaksLedgeClimbGrace`.
 
-Client: while on a climbable, send `PacketSyncClimbingInput` (jump held). Slide locally if empty. `InputUpdateEvent` clears jump/sneak when empty so vanilla climb input dies. Mantle intent (jump+forward) and the grounded exemption above skip the slide/clear.
+Client: while on a climbable, send `PacketSyncClimbingInput` (jump held). Off the ground, with enough stamina (or a free climbable, or `Enable Climbing Stamina Cost` off): **Shift** sets `motionY = 0` (holds position even with W pressed into the wall, where vanilla would climb) and **Space** sets `motionY = 0.2` (climbs ladders and vines with or without a wall behind them; vanilla only climbs by pushing into a wall). Sneak wins if both are held. Empty (and `fallOnDepleted`): slide locally at -0.15 and `InputUpdateEvent` clears jump/sneak so the grip fails. Mantle intent (jump+forward) and the grounded exemption (`onGround && !collidedHorizontally`) skip the slide, the input clearing and the new climb/hold.
 
 ### Ledge climb (Tweaks-owned)
 

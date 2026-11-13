@@ -45,7 +45,7 @@ These json files are `required: false`. Removing the parent should skip that jso
 | YUNG’s Better Mineshafts | No locate/stub mixins; stock BM Y=64 `/locate Mineshaft` |
 | Stats Keeper | No `LifeElixirCapHandler`; stock SK Finish refuse + vanilla consume |
 | RandomPortals | No `MixinRPOTeleporter`; stock RP generate (leaves/Y≥70 fallback). Handler also off if TF missing |
-| Twilight Forest | No `TfPortalLandingHandler` unless RP is also present |
+| Twilight Forest | No `TfPortalLandingHandler` unless RP is also present. No `CarminiteReactorRitualHandler` unless Thaumcraft, Game Stages, Betweenlands, and ContentTweaker are also present |
 | The Aether | No `AetherPortalLandingHandler` unless RP is also present |
 | Quark | Helper not called; +Y stock Quark unchanged; Deepslate columns/spikes still generate |
 | Chisel | No Chisel mixins; stock GUI / in-world carving |
@@ -213,7 +213,7 @@ Full spec: [temperature.md](temperature.md). The hypothermia / hyperthermia **fe
 | Advancement | Join log: no `AddonHandler.onWorldLoad` → `ForgeHooks.loadAdvancements`. Mixin json applied. Animania animals still spawn/register. No Farm/Extra Animania advancement trees. See [advancement.md](advancement.md) |
 | Better Mineshafts | `/locate Mineshaft` TPs to tunnels; new chunks use `aqtweaks_bettermineshafts.cfg` rate/spacing; log: no `mixins.aqtweaks.bettermineshafts.json` `setBoundingBox` / `func_75072_c` apply failure. See [bettermineshafts.md](bettermineshafts.md) |
 | Stats Keeper | 10 hearts: elixir consumes, +1 heart, drink sound from `aqtweaks_statskeeper.cfg` (default level-up; empty = silent). 20 hearts: drink cancelled, stack remains, red action bar `Your vitality is already at its peak!`, no drink sound. Baubles/buffs above 20 hearts with unused SK additional still drink. See [statskeeper.md](statskeeper.md) |
-| Twilight Forest | New Overworld→TF RandomPortals trip into a locked/hazard column lands in a safe biome **on grass** (frame bottom **on** grass, not sunk), not a landmark, not tree canopy. Return through the same sending portal stays linked. Nether RP unchanged. Rift items unchanged. See [twilightforest.md](twilightforest.md) |
+| Twilight Forest | New Overworld→TF RandomPortals trip into a locked/hazard column lands in a safe biome **on grass** (frame bottom **on** grass, not sunk), not a landmark, not tree canopy. Return through the same sending portal stays linked. Nether RP unchanged. Rift items unchanged. Carminite ritual: incomplete Octine shell falls through to a normal reactor; missing `adamantine` refuses only on a full shell and keeps Salis Mundus; creative spends nothing; breaking one Octine mid-charge fizzles and leaves the rest; the climax does not hurt the player or neighboring blocks; drop is 5–7 `contenttweaker:phlogiston_matrix`. See [twilightforest.md](twilightforest.md) |
 | Aether | New Overworld→Aether RandomPortals trip into open sky lands on island grass/dirt/holystone, not a floating Y≥70 frame. Return through the same sending portal stays linked. TF and Nether RP unchanged. See [aether.md](aether.md) |
 | Game Stages | No `apprentice_builder`: chiseling a staged output (GUI and in-world) fails, red action bar, input remains. After the stage is granted, that tier chisels; higher builder tiers stay locked. Unstaged variants and crafting-table Recipe Stages unchanged. See [gamestages.md](gamestages.md) |
 | Quality Tools | Crafted sword has no Quality tag. Loot chest stamps before pickup (`dark_gray` ~25% remaining, `gray` ~50%). Dawnstone: tool then rune; same-tier reroll changes Name when another same-color exists; wrong rung action bar, rune kept. Break without Salvage drops Broken with one use left; the next break destroys it. Repair 26–51% turns Broken into `gray`; past 51% restores the saved quality. Salvage uses Charm. See [qualitytools.md](qualitytools.md) |
@@ -235,6 +235,184 @@ Full spec: [temperature.md](temperature.md). The hypothermia / hyperthermia **fe
 | Boat in a one-high water channel under stone | Sample stays in the water (wet applies). It is **not** lifted into the ceiling, and the player is not treated as sheltered | [temperature.md](temperature.md) |
 | Serene Seasons removed from the instance | No `NoClassDefFoundError` from `DynamicModifierInsulation`. Greenhouse handling off, standard insulation unaffected | [temperature.md](temperature.md) |
 | `minWorldY` | Pinned at **-64**. No cfg knob to change it; bedrock floor, CoFH `Math.max` floor, and `RayMatcher.cast` all read that constant | [depths.md](depths.md) |
+
+## Atum storm warning
+
+| Check | Expect | Doc |
+| --- | --- | --- |
+| Wait for a natural sandstorm outdoors (short clear interval in `aqtweaks_atum.cfg` helps) | About 30 s before the storm the dust flecks speed up and thicken, then the storm ramps on from that level with no jump; no fog, sound or damage change | [client.md](client.md) |
+| Join, or enter Atum from a portal, 10 s before a storm | The warning picks up the remainder at once; the storm starts when the server's does | client |
+| `/weather clear` in Atum | The warning never sits at full | client |
+| `Enable Storm Warning` false | Behaviour as before; `Warning Resync Seconds` 0 keeps only the join sync | client |
+
+## Twilight Forest Ley-Rupture
+
+| Check | Expect | Doc |
+| --- | --- | --- |
+| `/leyrupture surge` | 30 s of warning: crickets and ambient animals go silent, a hum rises, in the last 10 s violet and emerald glyphs rise, zigzag and fade after about 2 s over a wide area (none on top of you); then 25 to 30 s of scour every 4 s (about 2 s grace) with a heavy eruption of glyphs, sparks and plumes in violet (70 percent) and emerald (30 percent) across a 48 block radius, plumes at least 8 blocks away, thinning when sheltered; hills do not thin the far field | [twilightforest.md](twilightforest.md) |
+| Forest floor in diamond armor / full Steeleaf or Thaumium robes | 4.0 / 1.5 magic damage per hit, hunger burn, violet-emerald edge static | twilightforest |
+| Climb a tree; stand on a leaf block; go underground | The effect shrinks steadily and stops about 14 blocks above the ground; a leaf counts the ground below; caves are full effect | twilightforest |
+| Inside a Lich Tower, Labyrinth, Knight Stronghold; just outside | Damage stops inside, resumes just outside; hills, hedge maze, naga courtyard are not shelter | twilightforest |
+| Use a Thaumcraft gauntlet, Botania rod, Astral wand, Aether staff, Twilight scepter, mount a Bewitchment broom while exposed | 3.0 recoil scaled by exposure, sparks and hiss, once per cooldown; a caster adds capped warp; `/leyrupture item` reports the rule | twilightforest |
+| Carry an Embers cartridge and a Botania mana tablet in the open | About 10% charge per 5 s, scour damage taken, temporary warp up to the cap | twilightforest |
+| Place a Vis Battery in the open before a surge | Its charge rises about 1 per 5 s during the active phase, with flux added; not under a roof, in a structure or high in the canopy | twilightforest |
+| Active phase | A few wraiths or wolves surface 12 to 24 blocks away, glowing, no drops, and dissipate at the end | twilightforest |
+| `/leyrupture biome` in the Dark Forest, Fire Swamp, Highlands, a Clearing | Intensity and extra effect differ as configured | twilightforest |
+
+## Nether hazards
+
+| Check | Expect | Doc |
+| --- | --- | --- |
+| `/netherhazard spout` near lava | A 6 s tremor (rumble, bubbling lava, faint shake), then 3 to 6 eruptions 2 to 5 s apart, each with 3 s of bubbling first; a splash patch (centre level 4, gradient to about 3 spaces, no source) that is gone after 20 s, also after a chunk unload and a restart | [nether.md](nether.md) |
+| Fire Resistance or a full Salamander set in a column | No damage, no ignition | nether |
+| `/netherhazard ash` | A cloud grows around you, drifts, flows through a doorway and around pillars but not through a sealed room; dose gives Slowness I / Wither I-III; leaving fades it; milk clears it; Wither Ward slows the dose to a quarter | nether |
+| `/netherhazard status`, `clear` | Cloud and thrown-lava counts; clear removes clouds and lava | nether |
+| Several ash clouds at once (`Max Ash Clouds` 8) | Clouds still grow, fade, veer and drift without popping; the ash tick stays small in spark | nether |
+| Overworld, Atum, Aurorian | Unaffected | nether |
+
+## Aether Silver Squalls
+
+| Check | Expect | Doc |
+| --- | --- | --- |
+| `/aethersquall gust` | A 5 s warning (streaming wisps, rising wind), then a 2 to 5 s gust that pushes you, heading shifting about every 2.5 s; Shift cuts the push to 25%; gliding and creative flight are pushed too | [aether.md](aether.md) |
+| `/aethersquall lightning` outdoors in iron or Zanite | A spark ring and column at your feet for about 1.75 s, then a bolt: 6 damage if you stay, none if you leave the 2.5 block ring; no fires | aether |
+| Full Valkyrie/Phoenix/Obsidian/Neptune set | Bolt lands on nearby ground; 2 damage if caught; push reduced | aether |
+| Under a roof | No push, no strike | aether |
+| Open Glider, Aether parachute, grappling hook in a gust | Work as without a gust | aether |
+
+## Moonfrost visibility and shelter
+
+| Check | Expect | Doc |
+| --- | --- | --- |
+| `/aurorianweather moonfrost`, watch the 30 s warning (`Hazard Debug` on) | Snow and wind rise with no fog; the debug line shows the warning rising; the storm continues with no dip | [aurorian.md](aurorian.md) |
+| Full storm | Heavy snow streaking steeply down with the wind in seven visibly different sizes and kinds (specks, flakes, pellets, soft puffs, rare chunky clumps, streaks), pulsing with gusts; a dense veil about 10 blocks away in every direction, including above and behind; no fog anywhere | aurorian |
+| Walk under a tree | No change in snow or damage (the canopy is not a roof for particles, shelter or the hazards) | aurorian |
+| Enter a stone-roofed room | Effects ease out and damage stops after about 2 s; the snow fades over about a second with no jump; snow shows through openings; no flake is ever visible under a roof or below a thin ceiling; a wall upwind in open sky also stops the hazards | aurorian |
+
+## Portable Vis Battery
+
+| Check | Expect | Doc |
+| --- | --- | --- |
+| Set a battery to charge 7 (`/setblock ... thaumcraft:vis_battery 7`), break it | The dropped item has damage 7; placing it gives charge 7; middle-click picks a charge-7 stack | [thaumcraft.md](thaumcraft.md) |
+| Two stacks of different charge | They do not merge; equal charges do; tooltip `Stored vis: 7/10`, empty shows none | thaumcraft |
+| Explosion, Silk Touch | Charge kept | thaumcraft |
+| `Portable Vis Battery Charge` false | Break drops an empty battery; a stack that already has damage still places that charge | thaumcraft |
+| Crafting recipe, JEI, creative tab | Empty battery crafts and shows; a full one appears with `Creative Charged Batteries` | thaumcraft |
+
+## Hazard timeline
+
+| Check | Expect | Doc |
+| --- | --- | --- |
+| `/aurorianweather moonfrost` in the Aurorian | The 30 s warning plays (fog closing, wind rising), then the storm ramps in; with `skipWarning` it starts at once | [hazards.md](hazards.md) |
+| `/aurorianweather clear` | An active storm ramps down; an upcoming one is cancelled; `status` shows the event | hazards |
+| Two clients, one joining 10 s into a warning | Same warning start and storm start; the late joiner picks up the remainder | hazards |
+| `/time set` day and night | The event does not move | hazards |
+| Server restart mid-gap | The upcoming storm is still there; an event that has passed is not replayed | hazards |
+
+## Aurorian
+
+| Check | Expect | Doc |
+| --- | --- | --- |
+| Lighting (existing world) | Outdoors F3 sky light 9; `/time set day` and `night` and many `/time add 1000` do not change the screen brightness or the moon (full, overhead); crops and saplings grow in the open; no outdoor hostile spawns on open ground | [aurorian.md](aurorian.md) |
+| Lighting off (`Enable Fixed Lighting` false) | Vanilla Aurorian behavior returns, including the time-driven brightness swing | aurorian |
+| `/aurorianweather moonfrost` | Wind rises, moon snow falls, storm ramps over 30 s; `status` agrees; `clear` ends it with the fade-out | aurorian |
+| Open ground, no armor | Frostbite 6.0 every 4 s, rime builds while standing still, stamina regeneration about 20x slower, wind pushes (sneaking anchors) | aurorian |
+| Full iron armor / full Aurorian, Arctic or Yeti set / magic armors / Cold Resistance potion | Damage 4.0 / 2.0 / 2.0 / 2.0, rime slower, regeneration 2x / 1.25x; Atum armor counts as ordinary armor | aurorian |
+| Standing still | Slowness I at rime 5, Slowness III and Mining Fatigue I at 10, Slowness V at 15; walking thaws it even under Slowness V | aurorian |
+| Roof, cave, upwind wall, lit campfire, Comfort room | Hazards stop and rime melts; regeneration resumes within about a second (client clamp) | aurorian |
+| `/time set` during a storm; two clients | The storm does not move; both see the same state | aurorian |
+| Relog or death mid-storm | No stuck regeneration delta or rime; no disconnect when the regeneration state changes | aurorian |
+| Overworld, Nether, Atum | Unchanged (Atum shelter now calls `StormShelter`; behaviour the same) | aurorian |
+| Snow accumulation: stand in open ground in a full storm for a few minutes | Snow layers appear across the whole loaded area (to your view distance), rising gradually, faster mid-storm; none under a roof, a canopy or beside a torch; crops, water and tall grass are left alone; two players close together do not double it | aurorian |
+| Smooth snow | Any two orthogonally adjacent snow columns differ by at most 2 layers; dig a hole and it fills first | aurorian |
+| Wind shadow | Behind a wall or tree line the ground stays thinner for a stretch downwind; `Snow Wind Shadow` off gives an even rate | aurorian |
+| Depth | `Max Snow Layers` 16 stacks a second block on a full one and stops at 16; 8 stops at one block; later storms add nothing to full columns | aurorian |
+| Burial | Stand still in a full storm: Slowness II once the snow reaches your chest, the air bar drains once your head is under and you lose health but stop at 1 heart; digging with a hand or shovel frees you; creative and spectator are unaffected; `Enable Snow Burial` off does nothing | aurorian |
+| After the storm | The snow stays; a torch beside a layer clears it with no drop; a shovel drops snowballs as vanilla; quit and reload changes nothing | aurorian |
+
+## Void Breach ritual
+
+Needs Twilight Forest, Thaumcraft, Thaumic Augmentation and Game Stages. Creative world first. Design: [twilightforest.md](twilightforest.md) (Void Breach).
+
+1. An incomplete casing, or stone around the reactor, with Salis Mundus in hand does not cancel the click and a ready vanilla reactor arms normally.
+2. Six `thebetweenlands:octine_block` around the reactor still runs the phlogiston ritual unchanged.
+3. Six Void Metal blocks, no `voidmastery`: purple and gray refusal, Salis Mundus kept, the ritual does not start.
+4. `Casing Block` and `Cap Block` changes work (new shell works, old one no longer does); an Octine or air value logs one warning and uses Void Metal.
+5. With `voidmastery`, survival: one Salis Mundus spent, a 10-second charge (cave rumble, low portal roar, inward purple motes). Breaking a casing block at tick 100 fizzles with no fracture and the remaining blocks stay.
+6. It works away from the Dark Tower (Overworld, and another dimension). It is refused inside The Emptiness and when TA's `DisableEmptinessDimension` is true, with nothing consumed.
+7. Climax: the reactor and casing vanish, the player takes no blast damage, a fracture opens at the reactor and one opens on standable ground beside the Eldritch Spire; walking through works both ways.
+8. The Fracture Locator points at the new fractures.
+9. Eldritch Guardians spawn around the fractures as they do around TA's natural ones.
+10. A second ritual near the same spire does not stack a fracture on the first.
+11. Forced failure (for example the Emptiness cannot load): the Salis Mundus drops at the reactor and the shell stays.
+12. A server restart during the charge forgets the ritual: the shell stays, the Salis Mundus is spent.
+| Start a Void Breach or phlogiston charge, quit to title, load another world | No stale ritual, sound or drop in the new world | twilightforest |
+
+## Infinity Blade
+
+Creative world. Design: [weapon.md](weapon.md).
+
+1. Startup log has no ghost-item warning for `infinity_sword` (the old scripts are deleted) and no error for `aqtweaks:infinity_blade`.
+2. `/give @p aqtweaks:infinity_blade`: the animated texture cycles in hand and inventory (not the missing-model texture).
+3. The tooltip shows 18 attack damage and 1.6 attack speed. Change `Attack Damage` in `aqtweaks_weapon.cfg` and re-equip: the number changes.
+4. Durability reads out of 6000; changing `Durability` applies. Anvil repair works with the configured `Repair Item`; `none` disables it.
+5. `Enable Default Recipe` false (default): no crafting-grid recipe appears in JEI. True (restart): 8 Nether Stars around a Diamond Sword craft it.
+6. Rarity is Epic by default; add `aqtweaks:infinity_blade=LEGENDARY` to `Custom Item Rarities` in `aqtweaks_rarity.cfg` for Legendary gold.
+7. Stamina treats it as a medium weapon (swing cost like other swords).
+
+## Rarity overhaul
+
+Creative world with Quality Tools, Metallurgy items and JEI. Design: [rarity.md](rarity.md).
+
+1. Startup log has no `AQTweaks-Rarity` error. If it says it could not add the rarities or recolor, Legendary and Mythic show as Epic or vanilla colors stay; report it.
+2. Tooltips: a native Uncommon item is green, Rare dark aqua, Epic light purple. The same colors show in the JEI hover tooltip. The hotbar name popup stays white.
+3. An iron sword enchanted with Sharpness only is Uncommon (green); with Mending it is Rare (dark aqua); with a Very Rare enchantment it is Epic. A curse-only item keeps its vanilla tier. An enchanted book keeps its own rating.
+4. A genuinely Rare, Epic or Legendary item with any enchantment keeps its tier (for example an Epic item with Sharpness stays Epic).
+5. Quality Tools: reforge until a gold quality (Masterwork, Vorpal) appears: Legendary gold. Green or yellow quality: Uncommon. dark_aqua quality: Rare. Red, gray or dark_gray quality: tier unchanged. The `Quality:` line keeps its own color.
+6. A Common item with a Very Rare enchantment and a gold quality is Legendary (highest trait wins, no stacking).
+7. `Custom Item Rarities`: `minecraft:nether_star=LEGENDARY` gives a gold name; `minecraft:dragon_egg=MYTHIC` is a rainbow name in the tooltip and in the JEI hover; a config reload applies without a restart; the override wins even over an enchanted item.
+8. `Show Rarity Subtitle` true adds one line under the name at every tier (and respects `Subtitle Visibility` and `Subtitle Style`).
+9. A bad color code, enchantment line, quality line or override line logs one warning each and does not crash.
+10. A long Mythic item name still wraps correctly with the rainbow.
+11. Crafting Rune names look unchanged. `Enable Rarity Overhaul` false restores vanilla colors after a restart.
+12. Spark: no visible cost from `RarityOverrides.resolve` with many enchanted items in a chest view.
+| `minecraft:golden_apple:1` and a damaged enchanted tool | Rarity of subtype items unchanged; damaged gear does not change tier | rarity |
+| Blocking with a shield with Unyielding (Reskillable) | Knockback resistance holds; no per-tick attribute traffic | reskillable |
+| Atum sandstorm with goggles or wildcard armor | Same protection as before; stepping behind a wall stops the push at once and the debuffs within half a second | client |
+
+## Mana-Weave infusion
+
+Needs Thaumcraft and Botania. Creative world, then survival checks. Design: [thaumcraft.md](thaumcraft.md) (Mana-Weave).
+
+1. Thaumonomicon, Infusion tab: the "Mana-Weaving" entry sits left of Infusion Enchantment (it needs Theory of Infusion 2); its second page shows the recipe (the chestplate case).
+2. Build 8 pedestals. Put a damaged iron chestplate in the middle and on the pedestals `botania:manasteelchest`, a Mana Tablet at 500,000 mana (`/give` then fill, or a pool), a Rune of Mana, Mana Pearl, Mana Diamond, Salis Mundus, two Thaumium Ingots. The matrix accepts. Swap the tablet for one with less mana, then a creative tablet: it does not accept. Swap the chestplate for a Manasteel chestplate as the central item: it does not accept.
+3. Feed essentia; the infusion completes; the chestplate keeps its damage and enchants, gains the tooltip line, and the tablet and pedestal items are gone. Check the instability (9) reads as high and note the effect.
+4. A bow or shield (no cousin) needs a Manasteel Block instead of the cousin. A Spartan longbow needs `spartanweaponryarcana:longbow_manasteel`. A hoe needs the block.
+5. Wear the infused chestplate (damaged) with a charged Mana Tablet in the inventory: durability rises one point per tick and the tablet drains 140 per point. Empty tablet: no repair, no error.
+6. Carry an infused pickaxe in the inventory: it repairs at 120 per point from any slot. An infused chestplate in the inventory (not worn) does not repair.
+7. Mine with an infused pickaxe and mana in the inventory: durability does not drop and mana falls 60 per block. With no mana the tool wears normally. Same for armor hits (70 per point).
+8. Quality Tools: the wear overlay on an infused item does not desync when mana pays for a hit.
+9. The Spartan Manasteel items are expected to self-repair; if one does not, report it (it needs a separate fix).
+10. `Mana Repair Cost Multiplier` 0.5 halves the drain; `Enable Mana Repair` false after a restart removes the recipe.
+## Tartarite Paragon
+
+Build, deploy, then in a creative world with a Tartarite item of each kind (`metallurgy:tartarite_*`) and the metal blocks (`/give` the block named in [paragon.md](paragon.md)).
+
+| Check | Expect | Doc |
+| --- | --- | --- |
+| JEI shows the recipes | Searching a Tartarite item lists Metallurgy's Paragon and the aqtweaks ones: four blocks plus the item in the plus pattern, the output tooltip showing the trait | [paragon.md](paragon.md) |
+| Craft each trait on a sword | Output keeps damage, enchantments and name; tooltip header `Paragon: <metal>` and one effect line | paragon |
+| Item with Metallurgy's Paragon, or a boots/other item not in the recipe list | The aqtweaks recipe does not match | paragon |
+| Second craft: same trait / other trait | Same trait: no match. Other trait: the item swaps and the old trait's line disappears | paragon |
+| Aurorian Steel (enchanted Tartarite pickaxe, sword, helmet, hoe) | Tooltip shows the level `[n/max]`; mining, hitting, taking damage and tilling raise it; at the maximum an enchantment gains a level | paragon |
+| Fiery sword; Octine sword | Fiery: target burns 15 s with flame particles. Octine: about a quarter of hits burn for 5 s. Fire-immune targets unaffected | paragon |
+| Knightmetal sword on an armored mob / a bare mob; axe on both | Sword: +2 damage on armored only. Axe: +2 on unarmored only | paragon |
+| Zanite pickaxe at full durability, then worn below 20 percent left | Mining speed rises in steps (x3 at the last tier); a Zanite sword hits harder as it wears; four Zanite armor pieces raise the armor bar by half a point per tier per piece and drop it when a piece is removed | paragon |
+| Gravitite sword | The target rises about a block after the hit; a player target syncs without rubber banding | paragon |
+| Gravitite pickaxe / axe / shovel on a harvestable block with air above | The block lifts as a floating block, 4 durability lost; chests, bedrock and a block under another block do nothing | paragon |
+| Gravitite helmet, chestplate, leggings and boots together | A jump rises about 5 blocks; with one piece missing or a different trait among them it is a normal jump | paragon |
+| `Disabled Traits` = `fiery` and restart | The Fiery recipes no longer match and an existing Fiery item does nothing | paragon |
+| Server and client | No errors at startup from the recipe factory; a pack without a trait's mod loads without its recipes | paragon |
 
 ## Doc drift check
 

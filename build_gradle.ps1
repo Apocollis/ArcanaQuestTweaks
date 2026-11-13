@@ -89,7 +89,12 @@ $deps = @(
     "ChunkSteward-1.1.jar",
     "HadEnoughItems_1.12.2-4.37.3.jar",
     "solcarrot-1.12.2-1.8.4.jar",
-    "comforts-1.12.2-1.4.1.3.jar"
+    "comforts-1.12.2-1.4.1.3.jar",
+    "ThaumicAugmentation-1.12.2-2.1.14.jar",
+    "Atum-1.12.2-2.0.20.jar",
+    "DynamicSurroundings-1.12.2-3.6.3.jar",
+    "OreLib-1.12.2-3.6.0.1.jar",
+    "theaurorian-1.12.2-1.2.jar"
 )
 foreach ($dep in $deps) {
     $src = "$localModsDir/$dep"

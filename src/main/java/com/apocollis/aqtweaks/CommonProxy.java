@@ -31,6 +31,7 @@ public class CommonProxy {
     public void preInit(FMLPreInitializationEvent event) {
         // Forge has already read the cfg files by now; pin the keys that are not tunable.
         com.apocollis.aqtweaks.ArcanaQuestTweaksConfig.normalizePinned();
+        com.apocollis.aqtweaks.rarity.RarityModule.init();
         ArcanaQuestTweaks.NETWORK.registerMessage(PacketSyncClimbingInput.Handler.class, PacketSyncClimbingInput.class, 0, Side.SERVER);
         ArcanaQuestTweaks.NETWORK.registerMessage(PacketLedgeClimb.Handler.class, PacketLedgeClimb.class, 1, Side.SERVER);
         ArcanaQuestTweaks.NETWORK.registerMessage(PacketSyncGrappleInput.Handler.class, PacketSyncGrappleInput.class, 2, Side.SERVER);
@@ -49,6 +50,24 @@ public class CommonProxy {
         ArcanaQuestTweaks.NETWORK.registerMessage(
                 com.apocollis.aqtweaks.comfort.PacketComfortPlaced.Handler.class,
                 com.apocollis.aqtweaks.comfort.PacketComfortPlaced.class, 7, Side.CLIENT);
+        ArcanaQuestTweaks.NETWORK.registerMessage(
+                com.apocollis.aqtweaks.network.PacketMoonfrostState.Handler.class,
+                com.apocollis.aqtweaks.network.PacketMoonfrostState.class, 8, Side.CLIENT);
+        ArcanaQuestTweaks.NETWORK.registerMessage(
+                com.apocollis.aqtweaks.network.PacketHazardEvent.Handler.class,
+                com.apocollis.aqtweaks.network.PacketHazardEvent.class, 9, Side.CLIENT);
+        ArcanaQuestTweaks.NETWORK.registerMessage(
+                com.apocollis.aqtweaks.network.PacketSpoutTelegraph.Handler.class,
+                com.apocollis.aqtweaks.network.PacketSpoutTelegraph.class, 10, Side.CLIENT);
+        ArcanaQuestTweaks.NETWORK.registerMessage(
+                com.apocollis.aqtweaks.network.PacketAshCloud.Handler.class,
+                com.apocollis.aqtweaks.network.PacketAshCloud.class, 11, Side.CLIENT);
+        ArcanaQuestTweaks.NETWORK.registerMessage(
+                com.apocollis.aqtweaks.network.PacketAetherBoltTelegraph.Handler.class,
+                com.apocollis.aqtweaks.network.PacketAetherBoltTelegraph.class, 12, Side.CLIENT);
+        ArcanaQuestTweaks.NETWORK.registerMessage(
+                com.apocollis.aqtweaks.network.PacketLeyExposure.Handler.class,
+                com.apocollis.aqtweaks.network.PacketLeyExposure.class, 13, Side.CLIENT);
         ComfortConfigLoader.load(event.getModConfigurationDirectory());
         GaiaDamageConfig.load(event.getModConfigurationDirectory());
         com.apocollis.aqtweaks.spawning.SpawnTypeLists.load(event.getModConfigurationDirectory());
@@ -58,6 +77,7 @@ public class CommonProxy {
         com.apocollis.aqtweaks.spawning.PotentialSpawnTable.load(event.getModConfigurationDirectory());
         com.apocollis.aqtweaks.spawning.ConditionShadow.reload();
         com.apocollis.aqtweaks.portal.PortalModule.preInit();
+        com.apocollis.aqtweaks.paragon.ParagonModule.preInit();
         if (net.minecraftforge.fml.common.Loader.isModLoaded("reskillable")) {
             com.apocollis.aqtweaks.reskillable.ReskillablePerkRegistry.preInit();
         }
@@ -70,14 +90,20 @@ public class CommonProxy {
         com.apocollis.aqtweaks.rtg.PipelineContext.registerPreparer();
         // Chunk Steward API v4: record light work for staged populate, as for an unstaged one.
         com.apocollis.aqtweaks.rtg.PipelineContext.registerPopulateScope();
+        MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.hazard.Hazards.Handler());
+        com.apocollis.aqtweaks.paragon.ParagonModule.init();
         MinecraftForge.EVENT_BUS.register(new StaminaModule());
         MinecraftForge.EVENT_BUS.register(new GaiaDamageHandler());
 
         if (net.minecraftforge.fml.common.Loader.isModLoaded("thaumcraft")) {
             MinecraftForge.EVENT_BUS.register(new ThaumcraftModule());
+            ThaumcraftModule.enableVisBatterySubtypes();
             MinecraftForge.EVENT_BUS.register(com.apocollis.aqtweaks.thaumcraft.ThaumcraftFocusHooks.class);
             com.apocollis.aqtweaks.thaumcraft.ThaumcraftFocusHooks.warnNerfedHealFocus();
             DeepCrystalGenerator.register();
+            if (net.minecraftforge.fml.common.Loader.isModLoaded("botania")) {
+                com.apocollis.aqtweaks.thaumcraft.ManaRepairModule.init();
+            }
         }
 
         if (net.minecraftforge.fml.common.Loader.isModLoaded("bewitchment")) {
@@ -122,6 +148,21 @@ public class CommonProxy {
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.twilightforest.TfPortalLandingHandler());
         }
 
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("twilightforest")
+                && net.minecraftforge.fml.common.Loader.isModLoaded("thaumcraft")
+                && net.minecraftforge.fml.common.Loader.isModLoaded("gamestages")
+                && net.minecraftforge.fml.common.Loader.isModLoaded("thebetweenlands")
+                && net.minecraftforge.fml.common.Loader.isModLoaded("contenttweaker")) {
+            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.twilightforest.CarminiteReactorRitualHandler());
+        }
+
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("twilightforest")
+                && net.minecraftforge.fml.common.Loader.isModLoaded("thaumcraft")
+                && net.minecraftforge.fml.common.Loader.isModLoaded("thaumicaugmentation")
+                && net.minecraftforge.fml.common.Loader.isModLoaded("gamestages")) {
+            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.twilightforest.CarminiteReactorVoidBreachHandler());
+        }
+
         if (net.minecraftforge.fml.common.Loader.isModLoaded("randomportals")
                 && net.minecraftforge.fml.common.Loader.isModLoaded("aether_legacy")) {
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.aether.AetherPortalLandingHandler());
@@ -133,6 +174,24 @@ public class CommonProxy {
 
         if (net.minecraftforge.fml.common.Loader.isModLoaded("atum")) {
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.atum.AtumStormGameplayHandler());
+            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.atum.AtumWeatherSync());
+        }
+
+        // The Nether is vanilla, so its hazards register unconditionally.
+        com.apocollis.aqtweaks.nether.NetherHazards.register();
+
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("aether_legacy")) {
+            com.apocollis.aqtweaks.aether.AetherChannels.register();
+        }
+
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("twilightforest")) {
+            com.apocollis.aqtweaks.twilightforest.LeyChannels.register();
+        }
+
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("theaurorian")) {
+            com.apocollis.aqtweaks.hazard.HazardChannels.register(com.apocollis.aqtweaks.aurorian.MoonfrostState.CHANNEL);
+            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.aurorian.MoonfrostHandler());
+            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.aurorian.MoonfrostSnowHandler());
         }
 
         if (net.minecraftforge.fml.common.Loader.isModLoaded("qualitytools")) {

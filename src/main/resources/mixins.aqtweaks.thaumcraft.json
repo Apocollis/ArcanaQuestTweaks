@@ -13,7 +13,8 @@
     "MixinItemCaster",
     "MixinToolEvents",
     "MixinTileCrucible",
-    "MixinTileInfernalFurnace"
+    "MixinTileInfernalFurnace",
+    "MixinBlockVisBattery"
   ],
   "client": [
     "MixinRunicShieldingHudHandler"

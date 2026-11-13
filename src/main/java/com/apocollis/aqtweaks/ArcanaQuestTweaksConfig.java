@@ -761,6 +761,20 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Suppress External Storm Wind in Atum")
         @Config.Comment("Suppresses external Dynamic Surroundings and AmbientSounds wind loops during Atum sandstorms so AQTweaks howling wind plays cleanly.")
         public boolean suppressExternalStormWindInAtum = true;
+
+        @Config.Name("Enable Storm Warning")
+        @Config.Comment("Before an Atum sandstorm the blowing sand gradually picks up (faster, denser flecks) so the storm does not arrive without warning. Particles only: no fog, sound or gameplay change.")
+        public boolean enableStormWarning = true;
+
+        @Config.Name("Storm Warning Seconds")
+        @Config.Comment("How many seconds before a sandstorm the warning starts to build.")
+        @Config.RangeInt(min = 5, max = 120)
+        public int stormWarningSeconds = 30;
+
+        @Config.Name("Warning Dust Fraction")
+        @Config.Comment("How close to full sandstorm intensity the dust is at the end of the warning (0.6 = 60%). The storm then ramps on from that level.")
+        @Config.RangeDouble(min = 0.1D, max = 1.0D)
+        public double warningDustFraction = 0.6D;
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_atum")
@@ -860,6 +874,11 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("If true, an unsheltered player in a strong sandstorm occasionally hears a low cave-wind howl.")
         public static boolean enableDesertStormAmbience = true;
 
+        @Config.Name("Warning Resync Seconds")
+        @Config.Comment("Server: how often (seconds) the Atum storm countdown is re-sent to players in Atum while no storm is active, so every client's storm warning stays in step. 0 = only on login, entering Atum and respawn. Not sent while vanilla clean weather is active.")
+        @Config.RangeInt(min = 0, max = 600)
+        public static int warningResyncSeconds = 30;
+
         @Config.Name("Enable Baubles Goggles Protection")
         @Config.Comment("If true, goggles equipped in the Baubles head slot protect against sandstorm blindness and choking.")
         public static boolean enableBaublesGogglesProtection = true;
@@ -912,6 +931,274 @@ public class ArcanaQuestTweaksConfig {
                 "thaumcraft:fortress_*",
                 "bewitchment:besmirched_*"
         };
+    }
+
+    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_aurorian")
+    public static class AurorianModuleConfig {
+        @Config.Name("Enable Fixed Lighting")
+        @Config.Comment("Pin the Aurorian to a permanent moonlit look (fixed moon phase and celestial angle) and a fixed gameplay sky light, so the time-driven brightness swing stops.")
+        public static boolean enableFixedLighting = true;
+
+        @Config.Name("Sky Light Level")
+        @Config.Comment("Gameplay sky light of open sky in the Aurorian (crops and saplings need 9, hostile spawns stop above 7). Does not change the screen brightness.")
+        @Config.RangeInt(min = 0, max = 15)
+        public static int skyLightLevel = 9;
+
+        @Config.Name("Moon Phase")
+        @Config.Comment("Fixed moon phase for the Aurorian. 0 = full moon, 4 = new moon. The Darkness mod darkens the screen with the phase. A full moon also maxes regional difficulty.")
+        @Config.RangeInt(min = 0, max = 7)
+        public static int moonPhase = 0;
+
+        @Config.Name("Celestial Angle")
+        @Config.Comment("Fixed celestial angle for the Aurorian. 0.5 = moon overhead.")
+        @Config.RangeDouble(min = 0.0D, max = 1.0D)
+        public static double celestialAngle = 0.5D;
+
+        @Config.Name("Enable Moonfrost Storms")
+        @Config.Comment("Scheduled cold storms in the Aurorian: frostbite, rime, blizzard snow, snow that piles up on the ground, wind and slowed stamina regeneration while exposed.")
+        public static boolean enableMoonfrostStorms = true;
+
+        @Config.Name("Storm Interval Min Seconds")
+        @Config.Comment("Minimum clear time between Moonfrost storms in seconds. Editing the storm timing re-hashes the schedule once.")
+        @Config.RangeInt(min = 60, max = 72000)
+        public static int stormIntervalMinSeconds = 360;
+
+        @Config.Name("Storm Interval Max Seconds")
+        @Config.Comment("Maximum clear time between Moonfrost storms in seconds.")
+        @Config.RangeInt(min = 60, max = 72000)
+        public static int stormIntervalMaxSeconds = 1200;
+
+        @Config.Name("Storm Duration Min Seconds")
+        @Config.Comment("Minimum Moonfrost storm duration in seconds.")
+        @Config.RangeInt(min = 30, max = 3600)
+        public static int stormDurationMinSeconds = 240;
+
+        @Config.Name("Storm Duration Max Seconds")
+        @Config.Comment("Maximum Moonfrost storm duration in seconds.")
+        @Config.RangeInt(min = 30, max = 3600)
+        public static int stormDurationMaxSeconds = 420;
+
+        @Config.Name("Warning Ticks")
+        @Config.Comment("Ticks before a storm during which the snow thickens and the wind rises. No chat message is sent.")
+        @Config.RangeInt(min = 0, max = 6000)
+        public static int warningTicks = 600;
+
+        @Config.Name("Ramp Ticks")
+        @Config.Comment("Ticks a storm takes to ramp up to full strength, and to fade out again.")
+        @Config.RangeInt(min = 20, max = 6000)
+        public static int rampTicks = 600;
+
+        @Config.Name("Enable Frostbite")
+        @Config.Comment("If true, unsheltered players in a Moonfrost storm take periodic armor-bypassing frostbite damage every 4 seconds.")
+        public static boolean enableFrostbite = true;
+
+        @Config.Name("Frostbite Damage Exposed")
+        @Config.Comment("Damage every 4 seconds when unsheltered with any armor slot empty.")
+        @Config.RangeDouble(min = 0.0D, max = 40.0D)
+        public static double frostbiteDamageExposed = 6.0D;
+
+        @Config.Name("Frostbite Damage Armored")
+        @Config.Comment("Damage every 4 seconds when unsheltered in four slots of ordinary armor.")
+        @Config.RangeDouble(min = 0.0D, max = 40.0D)
+        public static double frostbiteDamageArmored = 4.0D;
+
+        @Config.Name("Frostbite Damage Proper")
+        @Config.Comment("Damage every 4 seconds when unsheltered with proper cold gear (Cold Resistance effect or a full Proper Gear Whitelist set).")
+        @Config.RangeDouble(min = 0.0D, max = 40.0D)
+        public static double frostbiteDamageProper = 2.0D;
+
+        @Config.Name("Enable Rime")
+        @Config.Comment("If true, standing still unsheltered in a Moonfrost storm builds rime (up to 15), which slows and weakens the player. Moving or sheltering thaws it. Never immobilizes fully.")
+        public static boolean enableRime = true;
+
+        @Config.Name("Rime Move Threshold Factor")
+        @Config.Comment("A player counts as moving if they covered more than this factor times their current movement speed in the last second. Relative to speed, so Slowness cannot make thawing impossible.")
+        @Config.RangeDouble(min = 0.0D, max = 2.0D)
+        public static double rimeMoveThresholdFactor = 0.5D;
+
+        @Config.Name("Rime Gain Exposed")
+        @Config.Comment("Rime gained per second while standing still, no full armor.")
+        @Config.RangeDouble(min = 0.0D, max = 15.0D)
+        public static double rimeGainExposed = 1.0D;
+
+        @Config.Name("Rime Gain Armored")
+        @Config.Comment("Rime gained per second while standing still in ordinary full armor.")
+        @Config.RangeDouble(min = 0.0D, max = 15.0D)
+        public static double rimeGainArmored = 0.6D;
+
+        @Config.Name("Rime Gain Proper")
+        @Config.Comment("Rime gained per second while standing still in proper cold gear.")
+        @Config.RangeDouble(min = 0.0D, max = 15.0D)
+        public static double rimeGainProper = 0.25D;
+
+        @Config.Name("Enable Regen Pause")
+        @Config.Comment("If true, the Elenai Dodge stamina regeneration interval is multiplied while exposed in a storm (Regen Interval Multiplier settings). Max stamina is never touched.")
+        public static boolean enableRegenPause = true;
+
+        @Config.Name("Regen Interval Multiplier Exposed")
+        @Config.Comment("Multiplier on the interval between regenerated feathers while exposed with no full armor. 20 is about 30 s per feather (effectively paused).")
+        @Config.RangeDouble(min = 1.0D, max = 100.0D)
+        public static double regenIntervalMultiplierExposed = 20.0D;
+
+        @Config.Name("Regen Interval Multiplier Armored")
+        @Config.Comment("Multiplier on the feather interval while exposed in ordinary full armor.")
+        @Config.RangeDouble(min = 1.0D, max = 100.0D)
+        public static double regenIntervalMultiplierArmored = 2.0D;
+
+        @Config.Name("Regen Interval Multiplier Proper")
+        @Config.Comment("Multiplier on the feather interval while exposed in proper cold gear.")
+        @Config.RangeDouble(min = 1.0D, max = 100.0D)
+        public static double regenIntervalMultiplierProper = 1.25D;
+
+        @Config.Name("Enable Wind Push")
+        @Config.Comment("If true, unsheltered players in a Moonfrost storm are pushed by the wind (tailwind boost, headwind resistance). Sneaking anchors.")
+        public static boolean enableWindPush = true;
+
+        @Config.Name("Wind Push Force")
+        @Config.Comment("Base velocity force applied to unsheltered players in a Moonfrost storm.")
+        @Config.RangeDouble(min = 0.005D, max = 0.100D)
+        public static double windPushForce = 0.020D;
+
+        @Config.Name("Enable Headwind Stamina Drain")
+        @Config.Comment("If true, sprinting directly into the Moonfrost wind drains feathers and adds exhaustion.")
+        public static boolean enableHeadwindStaminaDrain = true;
+
+        @Config.Name("Shelter Wind Shadow Distance")
+        @Config.Comment("Distance in blocks upwind to trace for solid blocks that shield the player from the wind.")
+        @Config.RangeDouble(min = 3.0D, max = 16.0D)
+        public static double shelterWindShadowDistance = 6.5D;
+
+        @Config.Name("Proper Gear Effect")
+        @Config.Comment("Potion registry name that marks proper cold gear. The pack's SetBonus config gives this to full Aurorian, Arctic and Yeti sets, and a Cold Resistance potion gives it too. Empty disables the effect check.")
+        public static String properGearEffect = "simpledifficulty:cold_resist";
+
+        @Config.Name("Proper Gear Whitelist")
+        @Config.Comment("Item registry names (wildcards supported). Wearing all four armor slots from this list counts as proper cold gear. Separate from Atum's list. Extend with twilightforest:arctic_*, twilightforest:yeti_*, theaurorian:* if the SetBonus config changes.")
+        public static String[] properGearWhitelist = new String[] {
+                "thaumcraft:goggles",
+                "thaumcraft:thaumium_robes_*",
+                "thaumcraft:fortress_*",
+                "bewitchment:besmirched_*"
+        };
+
+        @Config.Name("Enable Storm Particles")
+        @Config.Comment("Client: spawn wind-blown moon snow around the player during a Moonfrost storm.")
+        public static boolean enableStormParticles = true;
+
+        @Config.Name("Max Storm Snow Particles")
+        @Config.Comment("Client: cap on live moon snow particles at full strength (Atum's sandstorm allows 20000).")
+        @Config.RangeInt(min = 0, max = 40000)
+        public static int maxStormSnowParticles = 12000;
+
+        @Config.Name("Warning Particle Fraction")
+        @Config.Comment("Client: fraction of full storm snow density reached at the end of the warning; the storm ramps on from there.")
+        @Config.RangeDouble(min = 0.0D, max = 1.0D)
+        public static double warningParticleFraction = 0.6D;
+
+        @Config.Name("Snow Fall Angle")
+        @Config.Comment("Client: how steeply the blizzard snow falls, in degrees below horizontal (it leans with the wind).")
+        @Config.RangeDouble(min = 5.0D, max = 80.0D)
+        public static double snowFallAngle = 58.0D;
+
+        @Config.Name("Snow Speed Multiplier")
+        @Config.Comment("Client: multiplier on the speed of the blizzard snow.")
+        @Config.RangeDouble(min = 0.5D, max = 2.0D)
+        public static double snowSpeedMultiplier = 1.0D;
+
+        @Config.Name("Snow Streaks")
+        @Config.Comment("Client: draw the fastest flakes as streaks aligned with their motion instead of dots.")
+        public static boolean snowStreaks = true;
+
+        @Config.Name("Cull Snow Under Roofs")
+        @Config.Comment("Client: snow particles vanish when they get under a roof or overhang (tree canopies do not count).")
+        public static boolean cullSnowUnderRoofs = true;
+
+        @Config.Name("Visibility Perimeter Radius")
+        @Config.Comment("Client: radius in blocks of the dense veil of snow around the player that limits how far they can see in a storm. 0 turns the veil off.")
+        @Config.RangeInt(min = 0, max = 32)
+        public static int visibilityPerimeterRadius = 10;
+
+        @Config.Name("Perimeter Density")
+        @Config.Comment("Client: multiplier on the snow veil around the player.")
+        @Config.RangeDouble(min = 0.0D, max = 4.0D)
+        public static double perimeterDensity = 1.0D;
+
+        @Config.Name("Enable Snow Accumulation")
+        @Config.Comment("While a Moonfrost storm rages, ground exposed to the sky gradually gains snow layers (vanilla snow: it melts only near bright light and can be harvested for snowballs).")
+        public static boolean enableSnowAccumulation = true;
+
+        @Config.Name("Snow Layers Per Chunk Per Second")
+        @Config.Comment("How fast snow builds up at full storm strength, in layers per loaded chunk per second (it scales with the square of the storm strength).")
+        @Config.RangeDouble(min = 0.0D, max = 64.0D)
+        public static double snowLayersPerChunkPerSecond = 8.0D;
+
+        @Config.Name("Snow Max Changes Per Tick")
+        @Config.Comment("Hard cap on snow block changes per tick for the whole dimension, whatever the other settings.")
+        @Config.RangeInt(min = 10, max = 1000)
+        public static int snowMaxChangesPerTick = 120;
+
+        @Config.Name("Max Snow Layers")
+        @Config.Comment("Deepest a column of storm snow can get, in layers (8 per block, so 16 is two blocks). Storms build on each other up to this depth. From 6 layers a column is a step players must jump; lower it for a one-block world.")
+        @Config.RangeInt(min = 1, max = 16)
+        public static int maxSnowLayers = 16;
+
+        @Config.Name("Snow Max Step")
+        @Config.Comment("Neighbouring snow columns never differ by more than this many layers; the layer goes to the lower neighbour instead.")
+        @Config.RangeInt(min = 1, max = 4)
+        public static int snowMaxStep = 2;
+
+        @Config.Name("Snow Accumulation Radius")
+        @Config.Comment("Snow builds up in the loaded chunks within this many blocks of any player (in practice limited by the server view distance).")
+        @Config.RangeInt(min = 16, max = 256)
+        public static int snowAccumulationRadius = 128;
+
+        @Config.Name("Snow Wind Shadow")
+        @Config.Comment("Snow builds up more slowly in the lee of walls, hills and trees (using the slant of the falling snow). False gives an even rate.")
+        public static boolean snowWindShadow = true;
+
+        @Config.Name("Enable Snow Burial")
+        @Config.Comment("A player who stands still in a storm can be buried by the snow: slowed when it reaches the chest, and out of air and losing health (never below 1 heart) when it covers the head. Dig out with a hand or shovel.")
+        public static boolean enableSnowBurial = true;
+
+        @Config.Name("Snow Burial Slowness")
+        @Config.Comment("Slowness II while the snow is at chest height or deeper.")
+        public static boolean snowBurialSlowness = true;
+
+        @Config.Name("Snow Burial Air Drain Per Second")
+        @Config.Comment("Air lost per second with the head under snow (out of 300). 0 turns suffocation off.")
+        @Config.RangeInt(min = 0, max = 300)
+        public static int snowBurialAirDrainPerSecond = 40;
+
+        @Config.Name("Snow Burial Damage")
+        @Config.Comment("Damage per second once the air is gone. It never takes a player below 1 heart.")
+        @Config.RangeDouble(min = 0.0D, max = 20.0D)
+        public static double snowBurialDamage = 2.0D;
+
+        @Config.Name("Shelter Change Delay Seconds")
+        @Config.Comment("The sheltered or exposed state must hold this long before it changes, so passing under a branch or a doorway does not flip the storm effects. 0 turns the hold off.")
+        @Config.RangeDouble(min = 0.0D, max = 30.0D)
+        public static double shelterChangeDelaySeconds = 2.0D;
+
+        @Config.Name("Hazard Debug")
+        @Config.Comment("Client: show a HUD line per hazard channel in this world with the phase, warning, strength and seconds to start and end.")
+        public static boolean hazardDebug = false;
+
+        @Config.Name("Enable Storm Sound")
+        @Config.Comment("Client: looping wind that rises through the warning and follows storm strength.")
+        public static boolean enableStormSound = true;
+
+        @Config.Name("Storm Wind Volume")
+        @Config.Comment("Client: volume of the Moonfrost wind loop.")
+        @Config.RangeDouble(min = 0.0D, max = 2.0D)
+        public static double stormWindVolume = 1.0D;
+
+        @Config.Name("Suppress External Wind in Aurorian")
+        @Config.Comment("Client: during a storm, suppress Dynamic Surroundings and AmbientSounds wind and animal loops in the Aurorian.")
+        public static boolean suppressExternalWindInAurorian = true;
+
+        @Config.Name("Enable Frost Overlay")
+        @Config.Comment("Client: draw a frost vignette on the HUD that grows with rime.")
+        public static boolean enableFrostOverlay = true;
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_somnia")
@@ -1023,6 +1310,19 @@ public class ArcanaQuestTweaksConfig {
         @Config.RangeDouble(min = 0.0, max = 10.0)
         public static float dimensionEntrySoundVolume = 2.0F;
 
+        @Config.Name("Enable Mana Repair")
+        @Config.Comment("Mana-Weave infusion (Thaumcraft + Botania): the recipe, and tagged items repairing from the carrier's Botania mana at one point per tick. Needs a restart to add or remove the recipe. Items keep their tag.")
+        public static boolean enableManaRepair = true;
+
+        @Config.Name("Enable Mana Repair Damage Mitigation")
+        @Config.Comment("Mana-Weave items pay durability damage with mana first (60 per tool point, 70 per armor point at multiplier 1), as Botania's Manasteel gear does.")
+        public static boolean enableManaRepairMitigation = true;
+
+        @Config.Name("Mana Repair Cost Multiplier")
+        @Config.Comment("Scales Botania's prices (120 tool / 140 armor per repaired point, 60 / 70 per damage point). 1.0 matches Botania. 0 makes repair and protection free.")
+        @Config.RangeDouble(min = 0.0, max = 100.0)
+        public static double manaRepairCostMultiplier = 1.0D;
+
         @Config.Name("Enable Warp Exposure")
         @Config.Comment("Should players slowly accumulate temporary warp over time when exposed to certain environments?")
         public static boolean enableExposureWarp = true;
@@ -1123,6 +1423,22 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Multiplies Thaumcraft's crystal attempt count (8 * oreDensity/100) and size budget (64 * oreDensity/100) for the deep band. 1.0 matches the surface pass's per-chunk budget. 0 disables placement.")
         @Config.RangeDouble(min = 0.0, max = 8.0)
         public static float deepCrystalDensityScale = 1.0F;
+
+        @Config.Name("Portable Vis Battery Charge")
+        @Config.Comment("A broken Vis Battery drops (and middle-click picks) an item that keeps its charge as item damage 0 to 10; placing it restores the charge. Off drops an empty battery as Thaumcraft does. Item subtypes stay on either way so different charges never merge.")
+        public static boolean portableVisBatteryCharge = true;
+
+        @Config.Name("Vis Battery Charge Tooltip")
+        @Config.Comment("Client: show 'Stored vis: N/10' on a charged Vis Battery item.")
+        public static boolean visBatteryChargeTooltip = true;
+
+        @Config.Name("Charged Battery Model")
+        @Config.Comment("Client: charged Vis Battery items use the block's charge texture variants. Off keeps the empty icon for every charge. Read at model registration, so a restart is needed.")
+        public static boolean chargedBatteryModel = false;
+
+        @Config.Name("Creative Charged Batteries")
+        @Config.Comment("List a fully charged Vis Battery beside the empty one in the creative tab.")
+        public static boolean creativeChargedBatteries = false;
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_bewitchment")
@@ -1695,6 +2011,37 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("General")
         @Config.Comment("RandomPortals landings into Twilight Forest.")
         public static final TwilightForestGeneral general = new TwilightForestGeneral();
+
+        @Config.Name("Ley-Rupture")
+        @Config.Comment("Timed arcane surges rising from the ground.")
+        public static final LeyRupture ley = new LeyRupture();
+
+        @Config.Name("Void Breach Ritual")
+        @Config.Comment("Carminite Reactor ritual that opens a permanent Thaumic Augmentation fracture pair to The Emptiness. See docs/twilightforest.md.")
+        public static final VoidBreach voidBreach = new VoidBreach();
+    }
+
+    public static class VoidBreach {
+        @Config.Name("Enable Void Breach Ritual")
+        @Config.Comment("When false, a Carminite Reactor in the casing is left to Twilight Forest and the ritual never starts. [default: true]")
+        public boolean enable = true;
+
+        @Config.Name("Required GameStage")
+        @Config.Comment("GameStage the player needs to start the ritual. The pack grants it; Tweaks does not. Empty means no stage is required. [default: voidmastery]")
+        public String requiredStage = "voidmastery";
+
+        @Config.Name("Casing Block")
+        @Config.Comment("Block (modid:block or modid:block:meta) on all six faces of the reactor, or the four side faces when Cap Block is set. Air, the reactor block and the Betweenlands Octine block (the Phlogiston ritual's shell) are not allowed and fall back to the default. [default: thaumcraft:metal_void]")
+        public String casingBlock = "thaumcraft:metal_void";
+
+        @Config.Name("Cap Block")
+        @Config.Comment("Optional block for the top and bottom faces, for example thaumcraft:metal_thaumium. Empty means the casing block.")
+        public String capBlock = "";
+
+        @Config.Name("Charge Duration Ticks")
+        @Config.Comment("Length of the charging sequence in ticks (20 ticks = 1 second). [default: 200]")
+        @Config.RangeInt(min = 40, max = 1200)
+        public int chargeDurationTicks = 200;
     }
 
     public static class TwilightForestGeneral {
@@ -1726,6 +2073,10 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("General")
         @Config.Comment("RandomPortals landings into The Aether.")
         public static final AetherGeneral general = new AetherGeneral();
+
+        @Config.Name("Silver Squalls")
+        @Config.Comment("Aether crosswind gusts and telegraphed lightning.")
+        public static final AetherSquall squall = new AetherSquall();
     }
 
     public static class AetherGeneral {
@@ -1803,11 +2154,11 @@ public class ArcanaQuestTweaksConfig {
         public String uncommonRune = "sccraftingrunes:itemuncommonmat";
 
         @Config.Name("Rare Rune")
-        @Config.Comment("green→blue, then blue reroll. rare_mat is accepted as an alias.")
+        @Config.Comment("green→dark_aqua (blue), then dark_aqua (blue) reroll. rare_mat is accepted as an alias.")
         public String rareRune = "sccraftingrunes:itemraremat";
 
         @Config.Name("Legendary Rune")
-        @Config.Comment("blue→gold, then gold reroll. legendary_mat is accepted as an alias.")
+        @Config.Comment("dark_aqua (blue)→gold, then gold reroll. legendary_mat is accepted as an alias.")
         public String legendaryRune = "sccraftingrunes:itemlegendarymat";
     }
 
@@ -2714,6 +3065,714 @@ public class ArcanaQuestTweaksConfig {
         }
     }
 
+    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_nether")
+    public static class NetherModuleConfig {
+        @Config.Name("Enable Lava Spouts")
+        @Config.Comment("Timed eruption events in the Nether: lava lakes throw flame and temporary flowing lava near players.")
+        public static boolean enableSpouts = true;
+
+        @Config.Name("Enable Ash Clouds")
+        @Config.Comment("Timed withering ash clouds in the Nether that flow through open space and build a Wither dose.")
+        public static boolean enableAsh = true;
+
+        @Config.Name("Spout Interval Min Seconds")
+        @Config.RangeInt(min = 10, max = 7200)
+        public static int spoutIntervalMinSeconds = 180;
+
+        @Config.Name("Spout Interval Max Seconds")
+        @Config.RangeInt(min = 10, max = 7200)
+        public static int spoutIntervalMaxSeconds = 360;
+
+        @Config.Name("Spout Window Seconds")
+        @Config.Comment("Length of one eruption event in seconds.")
+        @Config.RangeInt(min = 5, max = 300)
+        public static int spoutWindowSeconds = 30;
+
+        @Config.Name("Spout Tremor Seconds")
+        @Config.Comment("Warning before an eruption event: rumble, bubbling lava and a faint camera shake.")
+        @Config.RangeInt(min = 0, max = 60)
+        public static int spoutTremorSeconds = 6;
+
+        @Config.Name("Tremor Camera Shake")
+        @Config.Comment("Client: very small camera shake during the tremor.")
+        public static boolean tremorCameraShake = true;
+
+        @Config.Name("Tremor Max Particles")
+        @Config.Comment("Client: cap on lava bubble particles spawned per tick at full tremor.")
+        @Config.RangeInt(min = 0, max = 400)
+        public static int tremorMaxParticles = 60;
+
+        @Config.Name("Spout Min Per Player")
+        @Config.RangeInt(min = 0, max = 20)
+        public static int spoutMinPerPlayer = 3;
+
+        @Config.Name("Spout Max Per Player")
+        @Config.RangeInt(min = 0, max = 20)
+        public static int spoutMaxPerPlayer = 6;
+
+        @Config.Name("Spout Stagger Min Seconds")
+        @Config.RangeDouble(min = 0.5D, max = 30.0D)
+        public static double spoutStaggerMinSeconds = 2.0D;
+
+        @Config.Name("Spout Stagger Max Seconds")
+        @Config.RangeDouble(min = 0.5D, max = 30.0D)
+        public static double spoutStaggerMaxSeconds = 5.0D;
+
+        @Config.Name("Spout Range")
+        @Config.RangeInt(min = 8, max = 64)
+        public static int spoutRange = 24;
+
+        @Config.Name("Spout Min Distance")
+        @Config.RangeInt(min = 0, max = 32)
+        public static int spoutMinDistance = 6;
+
+        @Config.Name("Spout Probes Per Eruption")
+        @Config.RangeInt(min = 1, max = 200)
+        public static int spoutProbes = 40;
+
+        @Config.Name("Max Active Spouts")
+        @Config.RangeInt(min = 1, max = 64)
+        public static int maxActiveSpouts = 8;
+
+        @Config.Name("Spout Column Radius")
+        @Config.RangeDouble(min = 0.5D, max = 6.0D)
+        public static double spoutColumnRadius = 1.5D;
+
+        @Config.Name("Spout Damage")
+        @Config.RangeDouble(min = 0.0D, max = 40.0D)
+        public static double spoutDamage = 4.0D;
+
+        @Config.Name("Throw Lava")
+        @Config.Comment("Eruptions place temporary flowing lava nearby. Off leaves flame, noise and damage only.")
+        public static boolean throwLava = true;
+
+        @Config.Name("Splash Center Level")
+        @Config.Comment("Lava level of the splash centre: 4 reaches about 3 spaces, 5 about 2.")
+        @Config.RangeInt(min = 4, max = 5)
+        public static int splashCenterLevel = 4;
+
+        @Config.Name("Splashes Per Eruption")
+        @Config.RangeInt(min = 0, max = 6)
+        public static int splashesPerEruption = 2;
+
+        @Config.Name("Splash Lifetime Seconds")
+        @Config.RangeInt(min = 3, max = 300)
+        public static int splashLifetimeSeconds = 20;
+
+        @Config.Name("Max Thrown Lava Cells")
+        @Config.RangeInt(min = 0, max = 2000)
+        public static int maxThrownLavaCells = 96;
+
+        @Config.Name("Fire Resistance Effect")
+        @Config.Comment("Potion registry name that fully protects against the spout column.")
+        public static String fireResistanceEffect = "minecraft:fire_resistance";
+
+        @Config.Name("Ash Interval Min Seconds")
+        @Config.RangeInt(min = 10, max = 7200)
+        public static int ashIntervalMinSeconds = 480;
+
+        @Config.Name("Ash Interval Max Seconds")
+        @Config.RangeInt(min = 10, max = 7200)
+        public static int ashIntervalMaxSeconds = 900;
+
+        @Config.Name("Ash Duration Min Seconds")
+        @Config.RangeInt(min = 20, max = 3600)
+        public static int ashDurationMinSeconds = 240;
+
+        @Config.Name("Ash Duration Max Seconds")
+        @Config.RangeInt(min = 20, max = 3600)
+        public static int ashDurationMaxSeconds = 360;
+
+        @Config.Name("Ash Cloud Reach Horizontal")
+        @Config.RangeDouble(min = 6.0D, max = 48.0D)
+        public static double ashReachHorizontal = 20.0D;
+
+        @Config.Name("Ash Cloud Reach Vertical")
+        @Config.RangeDouble(min = 4.0D, max = 32.0D)
+        public static double ashReachVertical = 16.0D;
+
+        @Config.Name("Ash Cloud Speed")
+        @Config.Comment("Drift speed of a cloud centre in blocks per second.")
+        @Config.RangeDouble(min = 0.0D, max = 6.0D)
+        public static double ashCloudSpeed = 1.5D;
+
+        @Config.Name("Gas Cells Per Tick")
+        @Config.Comment("Flood-fill budget per tick for the whole Nether, shared by every ash cloud that is filling. More cells fill clouds faster but cost server time.")
+        @Config.RangeInt(min = 200, max = 20000)
+        public static int gasCellsPerTick = 3000;
+
+        @Config.Name("Gas Max Cells")
+        @Config.RangeInt(min = 1000, max = 200000)
+        public static int gasMaxCells = 30000;
+
+        @Config.Name("Gas Blocking Blocks")
+        @Config.Comment("Registry names (wildcards supported) that block the gas even though they are not full cubes.")
+        public static String[] gasBlockingBlocks = new String[] {
+                "minecraft:glass", "minecraft:stained_glass", "minecraft:glass_pane", "minecraft:stained_glass_pane",
+                "minecraft:iron_bars", "minecraft:iron_door", "minecraft:iron_trapdoor"
+        };
+
+        @Config.Name("Max Ash Clouds Per World")
+        @Config.RangeInt(min = 1, max = 32)
+        public static int maxAshClouds = 8;
+
+        @Config.Name("Ash Dose Gain Exposed")
+        @Config.RangeDouble(min = 0.0D, max = 10.0D)
+        public static double ashGainExposed = 1.0D;
+
+        @Config.Name("Ash Dose Gain Armored")
+        @Config.RangeDouble(min = 0.0D, max = 10.0D)
+        public static double ashGainArmored = 0.6D;
+
+        @Config.Name("Ash Dose Gain Proper")
+        @Config.RangeDouble(min = 0.0D, max = 10.0D)
+        public static double ashGainProper = 0.25D;
+
+        @Config.Name("Ash Dose Threshold 1")
+        @Config.Comment("Dose for Slowness I and Wither I.")
+        public static double ashThreshold1 = 5.0D;
+
+        @Config.Name("Ash Dose Threshold 2")
+        @Config.Comment("Dose for Wither II and short Blindness pulses.")
+        public static double ashThreshold2 = 12.0D;
+
+        @Config.Name("Ash Dose Threshold 3")
+        @Config.Comment("Dose for Wither III (the cap).")
+        public static double ashThreshold3 = 20.0D;
+
+        @Config.Name("Wither Ward Effect")
+        @Config.Comment("Potion registry name that marks proper ash gear (the pack's SetBonus gives it to Wither Bone and Black Salamander sets).")
+        public static String witherWardEffect = "rustic:wither_ward";
+
+        @Config.Name("Ash Proper Gear Whitelist")
+        @Config.Comment("Item registry names (wildcards supported). Four armor slots from this list count as proper ash gear without the effect.")
+        public static String[] ashProperGearWhitelist = new String[0];
+
+        @Config.Name("Enable Spout Effects")
+        @Config.Comment("Client: spout telegraph, eruption and tremor effects.")
+        public static boolean enableSpoutEffects = true;
+
+        @Config.Name("Enable Ash Particles")
+        @Config.Comment("Client: draw the ash cloud as particles.")
+        public static boolean enableAshParticles = true;
+
+        @Config.Name("Ash Max Particles Per Cloud")
+        @Config.RangeInt(min = 0, max = 4000)
+        public static int ashMaxParticlesPerCloud = 600;
+
+        @Config.Name("Ash Max Particles Total")
+        @Config.RangeInt(min = 0, max = 10000)
+        public static int ashMaxParticlesTotal = 2500;
+
+        @Config.Name("Ash Render Distance")
+        @Config.RangeInt(min = 16, max = 128)
+        public static int ashRenderDistance = 64;
+
+        @Config.Name("Ash Flake Rate")
+        @Config.Comment("Client: falling ash flakes spawned per tick inside a cloud.")
+        @Config.RangeInt(min = 0, max = 64)
+        public static int ashFlakeRate = 8;
+
+        @Config.Name("Enable Ash Fog")
+        @Config.Comment("Client: local fog while the camera is inside a cloud.")
+        public static boolean enableAshFog = true;
+
+        @Config.Name("Enable Ash Sound")
+        @Config.Comment("Client: muffled wind while inside a cloud.")
+        public static boolean enableAshSound = true;
+
+        @Config.Name("Nether Hazard Debug")
+        @Config.Comment("Log spout sites, rejected sites and cloud spawns.")
+        public static boolean netherHazardDebug = false;
+    }
+
+    /** Silver Squalls (category of {@code aqtweaks_aether.cfg}, read through {@code AetherModuleConfig.squall}). */
+    public static class AetherSquall {
+        @Config.Name("Enable Silver Squalls")
+        @Config.Comment("Timed gusts of crosswind in the Aether that push unsheltered players.")
+        public boolean enableSqualls = true;
+
+        @Config.Name("Gust Interval Min Seconds")
+        @Config.RangeInt(min = 5, max = 3600)
+        public int gustIntervalMinSeconds = 45;
+
+        @Config.Name("Gust Interval Max Seconds")
+        @Config.RangeInt(min = 5, max = 3600)
+        public int gustIntervalMaxSeconds = 120;
+
+        @Config.Name("Gust Duration Min Seconds")
+        @Config.RangeInt(min = 1, max = 60)
+        public int gustDurationMinSeconds = 2;
+
+        @Config.Name("Gust Duration Max Seconds")
+        @Config.RangeInt(min = 1, max = 60)
+        public int gustDurationMaxSeconds = 5;
+
+        @Config.Name("Ramp Up Ticks")
+        @Config.RangeInt(min = 0, max = 100)
+        public int rampUpTicks = 6;
+
+        @Config.Name("Ramp Down Ticks")
+        @Config.RangeInt(min = 0, max = 100)
+        public int rampDownTicks = 10;
+
+        @Config.Name("Warning Seconds")
+        @Config.RangeInt(min = 0, max = 30)
+        public int warningSeconds = 5;
+
+        @Config.Name("Crosswind Shift Interval Ticks")
+        @Config.RangeInt(min = 10, max = 400)
+        public int crosswindShiftTicks = 50;
+
+        @Config.Name("Crosswind Push Force")
+        @Config.RangeDouble(min = 0.0D, max = 0.5D)
+        public double crosswindPushForce = 0.025D;
+
+        @Config.Name("Max Gust Speed")
+        @Config.Comment("Horizontal speed cap in blocks per tick while pushing.")
+        @Config.RangeDouble(min = 0.1D, max = 3.0D)
+        public double maxGustSpeed = 0.9D;
+
+        @Config.Name("Sneak Anchor Factor")
+        @Config.RangeDouble(min = 0.0D, max = 1.0D)
+        public double sneakAnchorFactor = 0.25D;
+
+        @Config.Name("Enable Headwind Stamina Drain")
+        public boolean enableHeadwindStaminaDrain = true;
+
+        @Config.Name("Shelter Wind Shadow Distance")
+        @Config.RangeDouble(min = 1.0D, max = 32.0D)
+        public double shelterWindShadowDistance = 6.5D;
+
+        @Config.Name("Enable Electrostatic Lightning")
+        public boolean enableLightning = true;
+
+        @Config.Name("Lightning Interval Min Seconds")
+        @Config.RangeInt(min = 5, max = 3600)
+        public int lightningIntervalMinSeconds = 40;
+
+        @Config.Name("Lightning Interval Max Seconds")
+        @Config.RangeInt(min = 5, max = 3600)
+        public int lightningIntervalMaxSeconds = 120;
+
+        @Config.Name("Lightning Telegraph Ticks")
+        @Config.RangeInt(min = 10, max = 100)
+        public int lightningTelegraphTicks = 35;
+
+        @Config.Name("Lightning Strike Damage")
+        @Config.RangeDouble(min = 0.0D, max = 40.0D)
+        public double lightningDamage = 6.0D;
+
+        @Config.Name("Lightning Insulated Gear Damage")
+        @Config.RangeDouble(min = 0.0D, max = 40.0D)
+        public double lightningInsulatedDamage = 2.0D;
+
+        @Config.Name("Insulated Gear Whitelist")
+        @Config.Comment("Item registry names (wildcards supported) worn in all four armor slots: lower wind push, no lightning lock-on, reduced shock damage.")
+        public String[] insulatedGear = new String[] {
+                "aether_legacy:valkyrie_*", "aether_legacy:phoenix_*", "aether_legacy:obsidian_*",
+                "aether_legacy:neptune_*", "aether_legacy:sentry_boots", "thaumcraft:thaumium_robes_*",
+                "thaumcraft:fortress_*", "bewitchment:besmirched_*"
+        };
+
+        @Config.Name("Conductive Gear List")
+        @Config.Comment("Item registry names (wildcards supported) worn or held that attract lightning.")
+        public String[] conductiveGear = new String[] {
+                "minecraft:iron_*", "minecraft:chainmail_*", "minecraft:golden_*", "aether_legacy:zanite_*",
+                "aether_legacy:gravitite_*"
+        };
+
+        @Config.Name("Enable Squall Particles")
+        @Config.Comment("Client: cloud wisps along the gust and the lightning telegraph effects.")
+        public boolean enableSquallParticles = true;
+
+        @Config.Name("Enable Squall Sound")
+        @Config.Comment("Client: rising wind before and during a gust, and the telegraph hum.")
+        public boolean enableSquallSound = true;
+    }
+
+    /** Ley-Rupture (category of {@code aqtweaks_twilightforest.cfg}, read through {@code TwilightForestModuleConfig.ley}). */
+    public static class LeyRupture {
+        @Config.Name("Enable Ley-Ruptures")
+        @Config.Comment("Timed arcane surges in the Twilight Forest that rise from the ground: magic damage, hunger burn, spell backlash.")
+        public boolean enable = true;
+
+        @Config.Name("Rupture Interval Min Seconds")
+        @Config.RangeInt(min = 30, max = 7200)
+        public int intervalMinSeconds = 300;
+
+        @Config.Name("Rupture Interval Max Seconds")
+        @Config.RangeInt(min = 30, max = 7200)
+        public int intervalMaxSeconds = 480;
+
+        @Config.Name("Rupture Duration Min Seconds")
+        @Config.RangeInt(min = 5, max = 300)
+        public int durationMinSeconds = 25;
+
+        @Config.Name("Rupture Duration Max Seconds")
+        @Config.RangeInt(min = 5, max = 300)
+        public int durationMaxSeconds = 30;
+
+        @Config.Name("Warning Seconds")
+        @Config.Comment("Telegraph before the first damage: silence and a faint hum, then glyph wisps in the last third.")
+        @Config.RangeInt(min = 30, max = 120)
+        public int warningSeconds = 30;
+
+        @Config.Name("Unprotected Magic Scour Damage")
+        @Config.RangeDouble(min = 0.0D, max = 40.0D)
+        public double scourUnprotected = 4.0D;
+
+        @Config.Name("Proper Gear Magic Scour Damage")
+        @Config.RangeDouble(min = 0.0D, max = 40.0D)
+        public double scourProper = 1.5D;
+
+        @Config.Name("Fade Height Blocks")
+        @Config.Comment("The effect fades linearly to nothing this many blocks above the reference point.")
+        @Config.RangeInt(min = 2, max = 64)
+        public int fadeHeight = 14;
+
+        @Config.Name("Reference Offset Blocks")
+        @Config.Comment("The reference point is the average ground surface minus this.")
+        @Config.RangeInt(min = 0, max = 16)
+        public int referenceOffset = 2;
+
+        @Config.Name("Exposure Grace Ticks")
+        @Config.Comment("Delay before the first scour hit after a player becomes exposed.")
+        @Config.RangeInt(min = 0, max = 400)
+        public int graceTicks = 40;
+
+        @Config.Name("Hunger Burn")
+        @Config.Comment("Exhaustion added each second at full exposure (proper gear takes 40%).")
+        @Config.RangeDouble(min = 0.0D, max = 10.0D)
+        public double hungerBurn = 1.0D;
+
+        @Config.Name("Warp Chance")
+        @Config.Comment("Chance per scour hit to absorb 1 temporary warp (Thaumcraft).")
+        @Config.RangeDouble(min = 0.0D, max = 1.0D)
+        public double warpChance = 0.25D;
+
+        @Config.Name("Warp Cap Per Surge")
+        @Config.Comment("Most temporary warp the hazard itself (hits and backlash) gives one player in one surge.")
+        @Config.RangeInt(min = 0, max = 20)
+        public int warpCapPerSurge = 1;
+
+        @Config.Name("Proper Arcane Gear Whitelist")
+        @Config.Comment("Item registry names (wildcards supported). Four armor slots from this list count as proper arcane gear.")
+        public String[] properGear = new String[] {
+                "twilightforest:steeleaf_*", "twilightforest:ironwood_*", "twilightforest:knightmetal_*",
+                "twilightforest:naga_*", "twilightforest:fiery_*", "thaumcraft:thaumium_robes_*",
+                "thaumcraft:fortress_*", "thaumcraft:goggles", "bewitchment:besmirched_*"
+        };
+
+        @Config.Name("Shelter Features")
+        @Config.Comment("Twilight Forest feature names whose structure bounds shelter a player.")
+        public String[] shelterFeatures = new String[] {
+                "LICH_TOWER", "KNIGHT_STRONGHOLD", "LABYRINTH", "DARK_TOWER", "ICE_TOWER", "FINAL_CASTLE",
+                "MUSHROOM_TOWER", "WORLD_TREE"
+        };
+
+        @Config.Name("Enable Spell Backlash")
+        @Config.Comment("Using a magic item while exposed hurts the user.")
+        public boolean enableBacklash = true;
+
+        @Config.Name("Spell Backlash Damage")
+        @Config.RangeDouble(min = 0.0D, max = 40.0D)
+        public double backlashDamage = 3.0D;
+
+        @Config.Name("Backlash Warp")
+        @Config.Comment("Temporary warp for a Thaumcraft caster's backlash (counts against Warp Cap Per Surge).")
+        @Config.RangeInt(min = 0, max = 10)
+        public int backlashWarp = 1;
+
+        @Config.Name("Backlash Cooldown Ticks")
+        @Config.RangeInt(min = 0, max = 400)
+        public int backlashCooldown = 20;
+
+        @Config.Name("Backlash Cancels Use")
+        public boolean backlashCancelsUse = false;
+
+        @Config.Name("Magic Item Patterns")
+        @Config.Comment("Registry names (wildcards supported) of magic items besides Thaumcraft casters and Botania mana-using items.")
+        public String[] magicItemPatterns = new String[] {
+                "astralsorcery:item*wand", "bewitchment:*broom*", "bewitchment:athame", "bewitchment:leonards_wand",
+                "aether_legacy:*_staff", "lycanitesmobs:*summoningstaff", "twilightforest:scepter*",
+                "thebetweenlands:*_staff", "arcanearchives:scepter_*", "embers:staff_ember", "embers:caster_orb"
+        };
+
+        @Config.Name("Biome Intensity")
+        @Config.Comment("biome=multiplier (TFBiomes field names). Unlisted biomes use 1.0.")
+        public String[] biomeIntensity = new String[] {
+                "clearing=0.6", "oakSavanna=0.6", "tfLake=0.6", "stream=0.6", "enchantedForest=1.2",
+                "spookyForest=1.2", "darkForest=1.3", "darkForestCenter=1.5", "tfSwamp=1.1", "fireSwamp=1.4",
+                "snowy_forest=1.2", "glacier=1.4", "mushrooms=1.1", "deepMushrooms=1.1", "highlands=1.5",
+                "highlandsCenter=1.6", "thornlands=1.5"
+        };
+
+        @Config.Name("Biome Extras")
+        @Config.Comment("biome=potion,ticks[,amplifier] once per hit while exposed; the potion 'fire' sets the player on fire for ticks.")
+        public String[] biomeExtras = new String[] {
+                "enchantedForest=minecraft:levitation,20", "spookyForest=minecraft:blindness,40",
+                "darkForest=minecraft:blindness,40", "darkForestCenter=minecraft:blindness,60",
+                "tfSwamp=minecraft:weakness,80", "fireSwamp=fire,40", "snowy_forest=minecraft:slowness,60",
+                "glacier=minecraft:slowness,60", "mushrooms=minecraft:nausea,60", "deepMushrooms=minecraft:nausea,60",
+                "highlands=minecraft:mining_fatigue,80", "highlandsCenter=minecraft:mining_fatigue,80",
+                "thornlands=minecraft:mining_fatigue,80"
+        };
+
+        @Config.Name("Max Biome Intensity")
+        @Config.RangeDouble(min = 0.1D, max = 4.0D)
+        public double maxBiomeIntensity = 1.6D;
+
+        @Config.Name("Enable Surge Charging")
+        @Config.Comment("Carried Embers, Botania and similar energy items gain charge in the open during a surge, at the price of temporary warp.")
+        public boolean enableCharging = true;
+
+        @Config.Name("Charge Min Exposure")
+        @Config.RangeDouble(min = 0.0D, max = 1.0D)
+        public double chargeMinExposure = 0.25D;
+
+        @Config.Name("Charge Pulse Seconds")
+        @Config.RangeInt(min = 1, max = 60)
+        public int chargePulseSeconds = 5;
+
+        @Config.Name("Charge Percent Per Pulse")
+        @Config.RangeDouble(min = 0.0D, max = 100.0D)
+        public double chargePercent = 10.0D;
+
+        @Config.Name("Charge Warp")
+        @Config.RangeInt(min = 0, max = 10)
+        public int chargeWarp = 1;
+
+        @Config.Name("Charge Warp Cap Per Surge")
+        @Config.RangeInt(min = 0, max = 100)
+        public int chargeWarpCap = 12;
+
+        @Config.Name("Charge Vis Batteries")
+        @Config.Comment("Thaumcraft Vis Batteries placed in an exposed spot gain charge during a surge.")
+        public boolean chargeVisBatteries = true;
+
+        @Config.Name("Battery Levels Per Pulse")
+        @Config.RangeInt(min = 0, max = 10)
+        public int batteryLevelsPerPulse = 1;
+
+        @Config.Name("Battery Flux Per Level")
+        @Config.Comment("Flux added to the chunk aura for each charge level added to a battery.")
+        @Config.RangeDouble(min = 0.0D, max = 10.0D)
+        public double batteryFluxPerLevel = 0.25D;
+
+        @Config.Name("Enable Ley Mobs")
+        @Config.Comment("Impermanent mobs surface near exposed players during the active phase; they drop nothing.")
+        public boolean enableLeyMobs = true;
+
+        @Config.Name("Mob Pulse Seconds")
+        @Config.RangeInt(min = 1, max = 120)
+        public int mobPulseSeconds = 10;
+
+        @Config.Name("Mob Chance")
+        @Config.RangeDouble(min = 0.0D, max = 1.0D)
+        public double mobChance = 0.35D;
+
+        @Config.Name("Ley Mob Pool")
+        public String[] mobPool = new String[] {
+                "twilightforest:wraith", "twilightforest:mist_wolf", "twilightforest:hostile_wolf"
+        };
+
+        @Config.Name("Ley Mobs Per Player")
+        @Config.RangeInt(min = 0, max = 32)
+        public int mobsPerPlayer = 4;
+
+        @Config.Name("Ley Mobs Total")
+        @Config.RangeInt(min = 0, max = 128)
+        public int mobsTotal = 16;
+
+        @Config.Name("Enable Ley Vignette")
+        @Config.Comment("Client: violet and emerald edge overlay while exposed.")
+        public boolean enableVignette = true;
+
+        @Config.Name("Enable Ley Particles")
+        @Config.Comment("Client: glyph wisps and motes rising from the ground.")
+        public boolean enableParticles = true;
+
+        @Config.Name("Ley Particle Radius")
+        @Config.Comment("Client: how far from the player (in blocks) Ley-Rupture particles are spread. Particle density per square block stays the same, so a larger radius means more particles.")
+        @Config.RangeInt(min = 16, max = 48)
+        public int particleRadius = 48;
+
+        @Config.Name("Max Ley Particles")
+        @Config.Comment("Client: cap on live Ley-Rupture glyph and eruption particles (the eruption is meant to be heavy; lower this on slower machines).")
+        @Config.RangeInt(min = 100, max = 14000)
+        public int maxParticles = 9000;
+
+        @Config.Name("Ley Particle Density")
+        @Config.Comment("Client: multiplier on Ley-Rupture particle spawn attempts.")
+        @Config.RangeDouble(min = 0.25D, max = 4.0D)
+        public double particleDensity = 1.0D;
+
+        @Config.Name("Enable Ley Audio")
+        @Config.Comment("Client: ambient forest sounds fall silent and a resonance hum builds.")
+        public boolean enableAudio = true;
+    }
+
+    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_paragon", category = "")
+    public static class ParagonModuleConfig {
+        @Config.Name("General")
+        @Config.Comment("Tartarite Paragon absorption of other metals' properties.")
+        public static final ParagonGeneral general = new ParagonGeneral();
+
+        @Config.Name("Traits")
+        @Config.Comment("Numbers of the absorbed traits.")
+        public static final ParagonTraits traits = new ParagonTraits();
+    }
+
+    public static class ParagonGeneral {
+        @Config.Name("Enable Paragon Absorption")
+        @Config.Comment("When false, the aqtweaks Paragon recipes do not match and absorbed traits do nothing. Items keep their stored trait.")
+        public boolean enable = true;
+
+        @Config.Name("Disabled Traits")
+        @Config.Comment("Trait ids to switch off (recipe and effect): aurorian_steel, fiery, octine, knightmetal, zanite, gravitite.")
+        public String[] disabledTraits = {};
+    }
+
+    public static class ParagonTraits {
+        @Config.Name("Fiery Burn Seconds")
+        @Config.Comment("Seconds a target burns after a hit with a Fiery Tartarite weapon or tool. Twilight Forest's Fiery pickaxe uses 15.")
+        @Config.RangeInt(min = 0, max = 60)
+        public int fieryBurnSeconds = 15;
+
+        @Config.Name("Octine Burn Chance")
+        @Config.Comment("Chance (0 to 1) that a hit with an Octine Tartarite weapon or tool sets the target on fire. The Betweenlands uses 0.25, or 0.5 with a Crimson circle gem.")
+        @Config.RangeDouble(min = 0.0D, max = 1.0D)
+        public double octineBurnChance = 0.25D;
+
+        @Config.Name("Octine Burn Seconds")
+        @Config.Comment("Seconds an Octine hit burns the target. The Betweenlands uses 5.")
+        @Config.RangeInt(min = 0, max = 60)
+        public int octineBurnSeconds = 5;
+
+        @Config.Name("Knightmetal Bonus Damage")
+        @Config.Comment("Extra damage of a Knightmetal Tartarite sword or pickaxe against an armored target, and of an axe against an unarmored one. Twilight Forest uses 2.")
+        @Config.RangeDouble(min = 0.0D, max = 20.0D)
+        public double knightmetalBonusDamage = 2.0D;
+
+        @Config.Name("Zanite Armor Bonus Per Tier")
+        @Config.Comment("Armor points each Zanite Tartarite armor piece adds per wear tier (0 to 4); the tier rises as the piece wears down.")
+        @Config.RangeDouble(min = 0.0D, max = 4.0D)
+        public double zaniteArmorPerTier = 0.5D;
+
+        @Config.Name("Gravitite Launch Speed")
+        @Config.Comment("Upward speed a Gravitite Tartarite sword hit gives the target. The Aether uses 1.")
+        @Config.RangeDouble(min = 0.0D, max = 3.0D)
+        public double gravititeLaunchSpeed = 1.0D;
+
+        @Config.Name("Gravitite Set Jump Speed")
+        @Config.Comment("Upward speed of a jump in a full Gravitite Tartarite armor set. The Aether set uses 1; a plain jump is about 0.42.")
+        @Config.RangeDouble(min = 0.42D, max = 2.0D)
+        public double gravititeSetJumpSpeed = 1.0D;
+
+        @Config.Name("Gravitite Float Durability")
+        @Config.Comment("Durability a Gravitite Tartarite tool loses floating one block. The Aether uses 4.")
+        @Config.RangeInt(min = 0, max = 64)
+        public int gravititeFloatDurability = 4;
+    }
+
+    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_weapon", category = "")
+    public static class InfinityBladeModuleConfig {
+        @Config.Name("General")
+        @Config.Comment("Infinity Blade weapon settings.")
+        public static final InfinityBladeGeneral general = new InfinityBladeGeneral();
+    }
+
+    public static class InfinityBladeGeneral {
+        @Config.Name("Attack Damage")
+        @Config.Comment("Total attack damage of the Infinity Blade, the player base of 1 included. [default: 18.0]")
+        @Config.RangeDouble(min = 1.0D, max = 10000.0D)
+        public double attackDamage = 18.0D;
+
+        @Config.Name("Attack Speed")
+        @Config.Comment("Attack speed of the Infinity Blade in attacks per second (default 1.6).")
+        @Config.RangeDouble(min = 0.1D, max = 20.0D)
+        public double attackSpeed = 1.6D;
+
+        @Config.Name("Durability")
+        @Config.Comment("Durability of the Infinity Blade (default 6000).")
+        @Config.RangeInt(min = 1, max = 1000000)
+        public int durability = 6000;
+
+        @Config.Name("Repair Item")
+        @Config.Comment("Registry name of the item that repairs the Infinity Blade in an anvil, for example minecraft:nether_star. Set to none or leave empty to disable anvil repair. [default: minecraft:nether_star]")
+        public String repairItem = "minecraft:nether_star";
+
+        @Config.Name("Enable Default Recipe")
+        @Config.Comment("When true, registers a placeholder shaped recipe (8 Nether Stars around a Diamond Sword). Off by default: the real crafting method is undecided, so define the recipe with CraftTweaker or JSON instead. Needs a restart. [default: false]")
+        public boolean enableDefaultRecipe = false;
+    }
+
+    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_rarity", category = "")
+    public static class RarityModuleConfig {
+        @Config.Name("Rarity Overhaul")
+        @Config.Comment("Unified rarity colors and tiers (Common, Uncommon, Rare, Epic, Legendary, Mythic) for items, enchantments and Quality Tools qualities. See docs/rarity.md.")
+        public static final RarityGeneral general = new RarityGeneral();
+    }
+
+    public static class RarityGeneral {
+        @Config.Name("Enable Rarity Overhaul")
+        @Config.Comment("When false, vanilla and mod rarities and colors are untouched and every other key here is ignored. [default: true]")
+        public boolean enable = true;
+
+        @Config.Name("Color Uncommon")
+        @Config.Comment("Color code for the Uncommon tier: one of 0-9, a-f (vanilla is e, yellow). [default: a, green]")
+        public String colorUncommon = "a";
+
+        @Config.Name("Color Rare")
+        @Config.Comment("Color code for the Rare tier: one of 0-9, a-f (vanilla is b, aqua). [default: 3, dark aqua]")
+        public String colorRare = "3";
+
+        @Config.Name("Color Epic")
+        @Config.Comment("Color code for the Epic tier: one of 0-9, a-f. [default: d, light purple, same as vanilla]")
+        public String colorEpic = "d";
+
+        @Config.Name("Color Legendary")
+        @Config.Comment("Color code for the Legendary tier: one of 0-9, a-f. Mythic uses this as its base color too. [default: 6, gold]")
+        public String colorLegendary = "6";
+
+        @Config.Name("Mythic Style")
+        @Config.Comment("How a Mythic name is drawn in tooltips: ANIMATED_RAINBOW or STATIC_RAINBOW. [default: ANIMATED_RAINBOW]")
+        public String mythicStyle = "ANIMATED_RAINBOW";
+
+        @Config.Name("Enchantment Rarity Mapping")
+        @Config.Comment("When true, an enchanted item is at least the tier of its best non-curse enchantment and never lower than its unenchanted tier. [default: true]")
+        public boolean enchantmentRarityMapping = true;
+
+        @Config.Name("Enchantment Rarity Map")
+        @Config.Comment("Enchantment rarity to item tier, one ENCHANT_RARITY=TIER per line. ENCHANT_RARITY is COMMON, UNCOMMON, RARE or VERY_RARE; TIER is COMMON, UNCOMMON, RARE, EPIC, LEGENDARY or MYTHIC (RELIC = MYTHIC). Missing or bad lines keep the default.")
+        public String[] enchantmentRarityMap = {"COMMON=UNCOMMON", "UNCOMMON=UNCOMMON", "RARE=RARE", "VERY_RARE=EPIC"};
+
+        @Config.Name("Quality Rarity Mapping")
+        @Config.Comment("When true, an item with a Quality Tools quality is at least the tier mapped from that quality's color. Never lowers a tier. [default: true]")
+        public boolean qualityRarityMapping = true;
+
+        @Config.Name("Quality Color Map")
+        @Config.Comment("Quality Tools color to item tier, one color=TIER per line (green, yellow, dark_aqua, gold ...). Colors not listed have no effect, so red, gray and dark_gray (negative qualities) never change a tier.")
+        public String[] qualityColorMap = {"green=UNCOMMON", "yellow=UNCOMMON", "dark_aqua=RARE", "gold=LEGENDARY"};
+
+        @Config.Name("Custom Item Rarities")
+        @Config.Comment("Explicit tier per item, applied last and always winning. One per line: modid:item=TIER, modid:item:meta=TIER or modid:*=TIER. Empty by default, so every item keeps its native rarity. Example: aqtweaks:infinity_blade=LEGENDARY")
+        public String[] customItemRarities = new String[0];
+
+        @Config.Name("Show Rarity Subtitle")
+        @Config.Comment("When true, a tooltip line under the item name shows the tier (for example a gold star and Legendary). [default: false]")
+        public boolean showRaritySubtitle = false;
+
+        @Config.Name("Subtitle Visibility")
+        @Config.Comment("Which tiers show the subtitle: ALL, ABOVE_COMMON (Uncommon and up) or HIGH_ONLY (Legendary and Mythic). [default: ALL]")
+        public String subtitleVisibility = "ALL";
+
+        @Config.Name("Subtitle Style")
+        @Config.Comment("ICON (a symbol before the tier name) or CLEAN (text only). [default: ICON]")
+        public String subtitleStyle = "ICON";
+    }
+
     @Mod.EventBusSubscriber(modid = ArcanaQuestTweaks.MODID)
     public static class ConfigEventHandler {
         @SubscribeEvent
@@ -2726,6 +3785,7 @@ public class ArcanaQuestTweaksConfig {
                 DssSkillCosts.invalidate();
                 StaminaFeathers.invalidateWeightCache();
                 com.apocollis.aqtweaks.stamina.StaminaModule.clearWeaponCaches();
+                com.apocollis.aqtweaks.rarity.RarityModule.reload();
                 com.apocollis.aqtweaks.spawning.SpawnTypeLists.reload();
                 com.apocollis.aqtweaks.spawning.SpawnStructureLists.reload();
                 com.apocollis.aqtweaks.spawning.SpawnParties.reload();

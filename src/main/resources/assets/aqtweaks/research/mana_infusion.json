@@ -1,0 +1,22 @@
+{
+  "entries": [
+    {
+      "key": "MANA_REPAIR",
+      "name": "research.MANA_REPAIR.title",
+      "icons": [ "botania:manatablet" ],
+      "category": "INFUSION",
+      "location": [ -8, 4 ],
+      "parents": [ "INFUSIONENCHANTMENT" ],
+      "stages": [
+        {
+          "text": "research.MANA_REPAIR.stage.1",
+          "required_knowledge": [ "THEORY;INFUSION;2" ]
+        },
+        {
+          "text": "research.MANA_REPAIR.stage.2",
+          "recipes": [ "aqtweaks:mana_repair" ]
+        }
+      ]
+    }
+  ]
+}

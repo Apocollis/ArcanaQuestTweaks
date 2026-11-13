@@ -81,15 +81,25 @@ public final class MagicSchoolEffects {
         if (phase != TickEvent.Phase.END || player.world == null || player.world.isRemote) {
             return;
         }
+        // The ambient effect is refreshed at 80 ticks and only when under 40 remain, so a 10 tick pass is plenty.
+        if ((player.ticksExisted + player.getEntityId()) % 10 != 0) {
+            return;
+        }
         var perks = ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks;
         boolean want = MagicSchoolPresence.unlocked(player, "aqtweaks:star_powered", perks.starPowered.enable)
                 && starPoweredActive(player);
         keepAmbient(player, MobEffects.REGENERATION, want);
-        Potion replenish = Potion.getPotionFromResourceLocation("elenaidodge2:replenishment");
-        if (replenish != null) {
-            keepAmbient(player, replenish, want);
+        if (!replenishLooked) {
+            replenishLooked = true;
+            replenishPotion = Potion.getPotionFromResourceLocation("elenaidodge2:replenishment");
+        }
+        if (replenishPotion != null) {
+            keepAmbient(player, replenishPotion, want);
         }
     }
+
+    private static Potion replenishPotion;
+    private static boolean replenishLooked;
 
     public static boolean starPoweredActive(EntityPlayer player) {
         if (player.world == null) {
