@@ -1,4 +1,4 @@
-package com.apocollis.aqtweaks.aurorian;
+package com.apocollis.aqtweaks.weather;
 
 import java.util.function.LongToIntFunction;
 
@@ -7,8 +7,8 @@ import java.util.function.LongToIntFunction;
  * layers shallower, so orthogonal neighbours never end up more than {@code step} apart. Columns are packed
  * (x, z) longs. No Minecraft types.
  */
-public final class SnowLeveling {
-    private SnowLeveling() {}
+public final class LayerLeveling {
+    private LayerLeveling() {}
 
     public static final long NONE = Long.MIN_VALUE;
     public static final int MAX_HOPS = 3;
@@ -31,7 +31,7 @@ public final class SnowLeveling {
      * @return the column that takes the layer, or {@link #NONE} when the start cannot take one or every candidate is at the cap
      */
     public static long walk(long start, LongToIntFunction depthOf, int step, int cap, int maxHops) {
-        int limit = Math.min(Math.max(cap, 1), SnowRate.MAX_LAYERS);
+        int limit = Math.min(Math.max(cap, 1), LayerRate.MAX_LAYERS);
         int st = Math.max(1, step);
         long cur = start;
         int d = depthOf.applyAsInt(cur);

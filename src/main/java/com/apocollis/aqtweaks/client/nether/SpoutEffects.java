@@ -74,6 +74,34 @@ public class SpoutEffects {
             }
             s.remaining--;
         }
+        boolean landingMarkers = ArcanaQuestTweaksConfig.NetherModuleConfig.telegraphSplashLandings;
+        for (ClientSpouts.Landing l : ClientSpouts.landings()) {
+            if (landingMarkers && l.remaining > 0) {
+                double x = l.x + 0.5D;
+                double y = l.y + 0.1D;
+                double z = l.z + 0.5D;
+                float t = 1.0F - (float) l.remaining / l.total;
+                if (l.remaining == l.total) {
+                    world.playSound(x, y, z, SoundEvents.BLOCK_FIRE_EXTINGUISH, SoundCategory.BLOCKS, 0.9F, 0.7F, false);
+                }
+                // A glowing ring and rising embers on the patch footprint (about two blocks around the centre).
+                int embers = 3 + (int) (t * 7.0F);
+                for (int i = 0; i < embers; i++) {
+                    double a = rand.nextDouble() * Math.PI * 2.0D;
+                    double r = i % 3 == 0 ? 2.0D : 0.3D + rand.nextDouble() * 1.7D;
+                    world.spawnParticle(i % 2 == 0 ? EnumParticleTypes.FLAME : EnumParticleTypes.LAVA,
+                            x + Math.cos(a) * r, y, z + Math.sin(a) * r, 0.0D, 0.02D + 0.05D * t, 0.0D);
+                }
+                // In the last few ticks drops of lava fall into the spot.
+                if (l.remaining <= 8) {
+                    for (int i = 0; i < 4; i++) {
+                        world.spawnParticle(EnumParticleTypes.FLAME, x + (rand.nextDouble() - 0.5D) * 1.6D, y + 6.0D,
+                                z + (rand.nextDouble() - 0.5D) * 1.6D, 0.0D, -0.7D, 0.0D);
+                    }
+                }
+            }
+            l.remaining--;
+        }
         ClientSpouts.removeFinished();
     }
 }

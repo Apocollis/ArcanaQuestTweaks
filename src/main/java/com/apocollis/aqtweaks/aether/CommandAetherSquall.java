@@ -22,7 +22,7 @@ import javax.annotation.Nullable;
 /**
  * OP {@code /aethersquall <gust|lightning|clear|status> [seconds] [skipWarning]} (alias {@code /aetherwind}). Works
  * on the loaded Aether through the hazard engine, so a forced gust warns like a natural one unless
- * {@code skipWarning}; {@code lightning} locks a strike on an exposed player and telegraphs it.
+ * {@code skipWarning}; {@code lightning} starts a storm of strike salvos that lock onto exposed players, after a storm warning.
  */
 public final class CommandAetherSquall extends CommandBase {
 
@@ -73,8 +73,9 @@ public final class CommandAetherSquall extends CommandBase {
                         + describe(world));
                 break;
             case "lightning":
-                Hazards.trigger(world, AetherChannels.LIGHTNING, 0, skip);
-                reply(sender, TextFormatting.YELLOW, "Lightning strike scheduled. " + describe(world));
+                Hazards.trigger(world, AetherChannels.LIGHTNING, seconds, skip);
+                reply(sender, TextFormatting.YELLOW, "Lightning storm scheduled" + (skip ? " (no warning). " : " with its warning. ")
+                        + describe(world));
                 break;
             case "clear":
                 Hazards.clear(world, AetherChannels.GUST);

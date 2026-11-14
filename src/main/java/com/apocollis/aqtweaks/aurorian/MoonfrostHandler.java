@@ -89,9 +89,7 @@ public class MoonfrostHandler {
         if (isShelteredHeld(player, world, wind)) return;
 
         double force = ArcanaQuestTweaksConfig.AurorianModuleConfig.windPushForce * state.strength;
-        if (player.isSneaking()) {
-            force *= 0.30D; // sneaking anchors against the wind
-        }
+        force *= com.apocollis.aqtweaks.weather.WindResistanceGear.factor(player, 0.70D);
         player.motionX += wind.x * force;
         player.motionZ += wind.z * force;
     }

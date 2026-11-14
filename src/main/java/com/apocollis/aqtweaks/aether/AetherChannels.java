@@ -11,7 +11,7 @@ import net.minecraftforge.common.MinecraftForge;
 
 /**
  * The two Aether hazard channels on the shared hazard engine ({@code docs/hazards.md}): {@code gust} (id 3) and
- * {@code lightning} (id 4, its own timer; its warning window is the strike telegraph). Registered only when
+ * {@code lightning} (id 4, its own timer; its warning window is the storm warning, each bolt has its own glow). Registered only when
  * {@code aether_legacy} is loaded.
  */
 public final class AetherChannels {
@@ -42,8 +42,10 @@ public final class AetherChannels {
         return new HazardTiming(
                 ArcanaQuestTweaksConfig.AetherModuleConfig.squall.lightningIntervalMinSeconds * 20L,
                 ArcanaQuestTweaksConfig.AetherModuleConfig.squall.lightningIntervalMaxSeconds * 20L,
-                20L, 20L,
-                ArcanaQuestTweaksConfig.AetherModuleConfig.squall.lightningTelegraphTicks, 0, 0);
+                ArcanaQuestTweaksConfig.AetherModuleConfig.squall.lightningDurationMinSeconds * 20L,
+                Math.max(ArcanaQuestTweaksConfig.AetherModuleConfig.squall.lightningDurationMinSeconds,
+                        ArcanaQuestTweaksConfig.AetherModuleConfig.squall.lightningDurationMaxSeconds) * 20L,
+                ArcanaQuestTweaksConfig.AetherModuleConfig.squall.lightningWarningSeconds * 20, 0, 0);
     }
 
     public static AetherSquallHandler handler;

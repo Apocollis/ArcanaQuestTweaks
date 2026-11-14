@@ -2,8 +2,8 @@ package com.apocollis.aqtweaks.aether;
 
 /**
  * Gust heading for the Silver Squalls. Every client and the server derive the same heading from the gust event
- * seed and the world tick: a new heading every shift interval, blended over a few ticks so changes read as
- * buffeting rather than snaps. No Minecraft types.
+ * seed and the world tick: one fixed heading per gust by default, or (with a positive shift interval) a new heading
+ * every interval, blended over a few ticks so changes read as buffeting rather than snaps. No Minecraft types.
  */
 public final class AetherWindHelper {
     private AetherWindHelper() {}
@@ -21,7 +21,9 @@ public final class AetherWindHelper {
 
     /** Heading at {@code tick}: sub-window from {@code start}, blended from the previous heading at its start. */
     public static double headingAt(long seed, long start, long tick, int shiftTicks) {
-        int shift = Math.max(1, shiftTicks);
+        // 0 (or less) keeps one fixed heading from the start of the warning to the end of the gust.
+        if (shiftTicks <= 0) return angleOf(seed, 0L);
+        int shift = shiftTicks;
         long elapsed = Math.max(0L, tick - start);
         long window = elapsed / shift;
         double current = angleOf(seed, window);

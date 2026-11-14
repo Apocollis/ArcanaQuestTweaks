@@ -1,8 +1,8 @@
-package com.apocollis.aqtweaks.aurorian;
+package com.apocollis.aqtweaks.weather;
 
 /** Pure rate arithmetic for the storm snow accumulation. No Minecraft types. */
-public final class SnowRate {
-    private SnowRate() {}
+public final class LayerRate {
+    private LayerRate() {}
 
     public static final double MIN_STRENGTH = 0.25D;
     public static final int MAX_LAYERS = 16;

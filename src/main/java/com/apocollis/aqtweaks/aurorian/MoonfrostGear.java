@@ -42,13 +42,12 @@ public final class MoonfrostGear {
     }
 
     private static boolean isWhitelisted(ItemStack stack) {
-        ResourceLocation reg = stack.getItem().getRegistryName();
-        return reg != null && Wildcard.matchesAny(reg.toString(),
-                ArcanaQuestTweaksConfig.AurorianModuleConfig.properGearWhitelist);
+        return com.apocollis.aqtweaks.weather.GearTierRule.matchesStack(stack,
+                ArcanaQuestTweaksConfig.HazardGearConfig.aurorian.properGearWhitelist);
     }
 
     private static boolean hasGearEffect(EntityPlayer player) {
-        String name = ArcanaQuestTweaksConfig.AurorianModuleConfig.properGearEffect;
+        String name = ArcanaQuestTweaksConfig.HazardGearConfig.aurorian.properGearEffect;
         if (name == null || name.trim().isEmpty()) return false;
         Potion potion = Potion.REGISTRY.getObject(new ResourceLocation(name.trim()));
         return potion != null && player.isPotionActive(potion);

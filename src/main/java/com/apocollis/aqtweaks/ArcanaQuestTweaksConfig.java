@@ -818,12 +818,12 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Storm Interval Min Seconds")
         @Config.Comment("Minimum clear weather time between sandstorms in seconds.")
         @Config.RangeInt(min = 60, max = 72000)
-        public static int stormIntervalMinSeconds = 360;
+        public static int stormIntervalMinSeconds = 840;
 
         @Config.Name("Storm Interval Max Seconds")
         @Config.Comment("Maximum clear weather time between sandstorms in seconds.")
         @Config.RangeInt(min = 60, max = 72000)
-        public static int stormIntervalMaxSeconds = 1200;
+        public static int stormIntervalMaxSeconds = 2040;
 
         @Config.Name("Storm Duration Min Seconds")
         @Config.Comment("Minimum active sandstorm duration in seconds.")
@@ -833,7 +833,7 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Storm Duration Max Seconds")
         @Config.Comment("Maximum active sandstorm duration in seconds.")
         @Config.RangeInt(min = 30, max = 3600)
-        public static int stormDurationMaxSeconds = 420;
+        public static int stormDurationMaxSeconds = 360;
 
         @Config.Name("Enable Wind Push")
         @Config.Comment("If true, unsheltered players in a sandstorm are physically pushed by the gale (tailwind boost, headwind resistance).")
@@ -862,10 +862,6 @@ public class ArcanaQuestTweaksConfig {
         @Config.RangeDouble(min = 3.0D, max = 16.0D)
         public static double shelterWindShadowDistance = 6.5D;
 
-        @Config.Name("Enable Sand Inhalation Choking")
-        @Config.Comment("If true, an unsheltered player in a sandstorm without protective headgear loses breath and takes choking damage when the air bar is empty. Shelter or headgear refills it.")
-        public static boolean enableSandInhalationChoking = true;
-
         @Config.Name("Enable Abrasive Sand Scour")
         @Config.Comment("If true, unsheltered entities in a sandstorm take periodic sand scour damage every 4 seconds. Shelter prevents damage.")
         public static boolean enableAbrasiveSandScour = true;
@@ -874,13 +870,59 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("If true, an unsheltered player in a strong sandstorm occasionally hears a low cave-wind howl.")
         public static boolean enableDesertStormAmbience = true;
 
+        @Config.Name("Enable Sand Accumulation")
+        @Config.Comment("While an Atum sandstorm rages, exposed ground gradually gains Atum sand layers, smoothly and shadowed by the wind. Replaces Atum's own weather sand (which stops at three layers). Nothing is removed afterwards.")
+        public static boolean enableSandAccumulation = true;
+
+        @Config.Name("Sand Layers Per Chunk Per Second")
+        @Config.Comment("How fast sand builds up at full storm strength, in layers per loaded chunk per second (it scales with the square of the storm strength).")
+        @Config.RangeDouble(min = 0.0D, max = 64.0D)
+        public static double sandLayersPerChunkPerSecond = 6.0D;
+
+        @Config.Name("Sand Max Changes Per Tick")
+        @Config.Comment("Hard cap on sand block changes per tick for the whole dimension, whatever the other settings.")
+        @Config.RangeInt(min = 10, max = 1000)
+        public static int sandMaxChangesPerTick = 120;
+
+        @Config.Name("Sand Accumulation Radius")
+        @Config.Comment("Sand builds up in the loaded chunks within this many blocks of any player (in practice limited by the server view distance).")
+        @Config.RangeInt(min = 16, max = 256)
+        public static int sandAccumulationRadius = 128;
+
+        @Config.Name("Max Sand Layers")
+        @Config.Comment("Deepest a column of storm sand can get, in layers (8 per block). Collision is (layers - 2) x 0.125: 6 layers is 0.5, still walked over; 7 and 8 need a jump and are walls for mobs. Storms build on each other up to this depth and nothing erodes afterwards.")
+        @Config.RangeInt(min = 1, max = 16)
+        public static int maxSandLayers = 6;
+
+        @Config.Name("Sand Max Step")
+        @Config.Comment("Neighbouring sand columns never differ by more than this many layers; the layer goes to the lower neighbour instead.")
+        @Config.RangeInt(min = 1, max = 4)
+        public static int sandMaxStep = 2;
+
+        @Config.Name("Sand Wind Shadow")
+        @Config.Comment("Sand builds up more slowly in the lee of walls, pyramids and dunes (using the slant of the blowing sand). False gives an even rate.")
+        public static boolean sandWindShadow = true;
+
+        @Config.Name("Sand Wind Shadow Angle")
+        @Config.Comment("Slant of the blowing sand in degrees below horizontal; a lower angle casts longer drift shadows (35 gives drifts about 1.4 times the obstacle height downwind).")
+        @Config.RangeDouble(min = 10.0D, max = 80.0D)
+        public static double sandWindShadowAngle = 35.0D;
+
+        @Config.Name("Accumulate On Strange Sand")
+        @Config.Comment("If true, sand layers also build on Strange Sand dunes and limestone gravel (Atum's own weather sand skipped them). Oasis and cracked limestone pyramid floors are separate settings and rules.")
+        public static boolean accumulateOnStrangeSand = true;
+
+        @Config.Name("Skip Oasis Biome")
+        @Config.Comment("If true, oasis biomes never gain storm sand, so oases stay clear.")
+        public static boolean skipOasisBiome = true;
+
         @Config.Name("Warning Resync Seconds")
         @Config.Comment("Server: how often (seconds) the Atum storm countdown is re-sent to players in Atum while no storm is active, so every client's storm warning stays in step. 0 = only on login, entering Atum and respawn. Not sent while vanilla clean weather is active.")
         @Config.RangeInt(min = 0, max = 600)
         public static int warningResyncSeconds = 30;
 
         @Config.Name("Enable Baubles Goggles Protection")
-        @Config.Comment("If true, goggles equipped in the Baubles head slot protect against sandstorm blindness and choking.")
+        @Config.Comment("If true, eye-protection gear equipped in the Baubles head slot protects against sandstorm blindness.")
         public static boolean enableBaublesGogglesProtection = true;
 
         @Config.Name("Scour Damage Exposed")
@@ -910,27 +952,6 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Seconds between durability wear ticks on unsheltered non-Atum armor.")
         @Config.RangeInt(min = 1, max = 60)
         public static int abrasionWearIntervalSeconds = 10;
-
-        @Config.Name("Protective Headgear Whitelist")
-        @Config.Comment("Item registry names (wildcards supported) for helmets, veils, turbans, or goggles that protect from stinging sand grit blindness.")
-        public static String[] protectiveHeadgear = new String[] {
-                "atum:desert_helmet_iron",
-                "atum:desert_helmet_gold",
-                "atum:desert_helmet_diamond",
-                "atum:wanderer_helmet",
-                "atum:mummy_helmet",
-                "atum:mask_of_nuit",
-                "thaumcraft:goggles"
-        };
-
-        @Config.Name("Sandstorm Resistant Armor Whitelist")
-        @Config.Comment("Item registry names (wildcards supported) for non-Atum armor that grants Tier 2 scour reduction (2.0 dmg) and resists durability abrasion wear.")
-        public static String[] sandstormResistantArmorWhitelist = new String[] {
-                "thaumcraft:goggles",
-                "thaumcraft:thaumium_robes_*",
-                "thaumcraft:fortress_*",
-                "bewitchment:besmirched_*"
-        };
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_aurorian")
@@ -961,12 +982,12 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Storm Interval Min Seconds")
         @Config.Comment("Minimum clear time between Moonfrost storms in seconds. Editing the storm timing re-hashes the schedule once.")
         @Config.RangeInt(min = 60, max = 72000)
-        public static int stormIntervalMinSeconds = 360;
+        public static int stormIntervalMinSeconds = 840;
 
         @Config.Name("Storm Interval Max Seconds")
         @Config.Comment("Maximum clear time between Moonfrost storms in seconds.")
         @Config.RangeInt(min = 60, max = 72000)
-        public static int stormIntervalMaxSeconds = 1200;
+        public static int stormIntervalMaxSeconds = 2040;
 
         @Config.Name("Storm Duration Min Seconds")
         @Config.Comment("Minimum Moonfrost storm duration in seconds.")
@@ -976,7 +997,7 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Storm Duration Max Seconds")
         @Config.Comment("Maximum Moonfrost storm duration in seconds.")
         @Config.RangeInt(min = 30, max = 3600)
-        public static int stormDurationMaxSeconds = 420;
+        public static int stormDurationMaxSeconds = 360;
 
         @Config.Name("Warning Ticks")
         @Config.Comment("Ticks before a storm during which the snow thickens and the wind rises. No chat message is sent.")
@@ -1068,19 +1089,6 @@ public class ArcanaQuestTweaksConfig {
         @Config.RangeDouble(min = 3.0D, max = 16.0D)
         public static double shelterWindShadowDistance = 6.5D;
 
-        @Config.Name("Proper Gear Effect")
-        @Config.Comment("Potion registry name that marks proper cold gear. The pack's SetBonus config gives this to full Aurorian, Arctic and Yeti sets, and a Cold Resistance potion gives it too. Empty disables the effect check.")
-        public static String properGearEffect = "simpledifficulty:cold_resist";
-
-        @Config.Name("Proper Gear Whitelist")
-        @Config.Comment("Item registry names (wildcards supported). Wearing all four armor slots from this list counts as proper cold gear. Separate from Atum's list. Extend with twilightforest:arctic_*, twilightforest:yeti_*, theaurorian:* if the SetBonus config changes.")
-        public static String[] properGearWhitelist = new String[] {
-                "thaumcraft:goggles",
-                "thaumcraft:thaumium_robes_*",
-                "thaumcraft:fortress_*",
-                "bewitchment:besmirched_*"
-        };
-
         @Config.Name("Enable Storm Particles")
         @Config.Comment("Client: spawn wind-blown moon snow around the player during a Moonfrost storm.")
         public static boolean enableStormParticles = true;
@@ -1155,6 +1163,16 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Snow Wind Shadow")
         @Config.Comment("Snow builds up more slowly in the lee of walls, hills and trees (using the slant of the falling snow). False gives an even rate.")
         public static boolean snowWindShadow = true;
+
+        @Config.Name("Snow Replaces Plants")
+        @Config.Comment("Server: if true, storm snow layers overwrite the ground plants listed in Snow Replaceable Plants (no drops) instead of leaving bare stems poking out of the drifts. Crops, saplings, water and every other block are never replaced.")
+        public static boolean snowReplacesPlants = true;
+
+        @Config.Name("Snow Replaceable Plants")
+        @Config.Comment("Block registry names (wildcards supported) that storm snow may overwrite. Wild plants only; planted crops such as theaurorian:lavendercrop and theaurorian:silkberrycrop are deliberately not listed.")
+        public static String[] snowReplaceablePlants = new String[] {
+                "theaurorian:lavenderplant", "theaurorian:auroriantallgrass", "theaurorian:auroriantallgrasslight"
+        };
 
         @Config.Name("Enable Snow Burial")
         @Config.Comment("A player who stands still in a storm can be buried by the snow: slowed when it reaches the chest, and out of air and losing health (never below 1 heart) when it covers the head. Dig out with a hand or shovel.")
@@ -2087,6 +2105,262 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Destination Dimension ID")
         @Config.Comment("Aether dimension id. Pack default is 4.")
         public int destinationDimensionId = 4;
+    }
+
+    /** Gear lists and hazard-protection effect IDs shared by all dimensional hazards ({@code aqtweaks_hazard_gear.cfg}). */
+    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_hazard_gear", category = "")
+    public static class HazardGearConfig {
+        @Config.Name("wind")
+        @Config.Comment("Shared wind-push resistance across Aether squalls, Atum sandstorms, and Aurorian Moonfrost.")
+        public static final WindGear wind = new WindGear();
+
+        @Config.Name("eye_protection")
+        @Config.Comment("Goggles, eyewear, and sealed helmets that protect against stinging grit blindness (checked across armor HEAD and Baubles HEAD).")
+        public static final EyeProtectionGear eyeProtection = new EyeProtectionGear();
+
+        @Config.Name("aether")
+        @Config.Comment("Aether Silver Squalls electrostatic lightning gear classes.")
+        public static final AetherHazardGear aether = new AetherHazardGear();
+
+        @Config.Name("atum")
+        @Config.Comment("Atum sandstorm scour mitigation and abrasion-immune armor.")
+        public static final AtumHazardGear atum = new AtumHazardGear();
+
+        @Config.Name("aurorian")
+        @Config.Comment("Aurorian Moonfrost storm cold protection gear and effect.")
+        public static final AurorianHazardGear aurorian = new AurorianHazardGear();
+
+        @Config.Name("nether")
+        @Config.Comment("Nether lava spout fire resistance and ash cloud proper gear rules.")
+        public static final NetherHazardGear nether = new NetherHazardGear();
+
+        @Config.Name("twilightforest")
+        @Config.Comment("Twilight Forest Ley-Rupture proper arcane gear list.")
+        public static final TwilightForestHazardGear twilightforest = new TwilightForestHazardGear();
+    }
+
+    public static class WindGear {
+        @Config.Name("Enable Wind Gear")
+        @Config.Comment("Master switch for iron-feather weight, Wind Resistant gear, and Anchoring boots wind-push reduction.")
+        public boolean enableWindGear = true;
+
+        @Config.Name("Enable Weight Push Resistance")
+        @Config.Comment("Scale wind-push resistance dynamically from Elenai Dodge 2 iron-feather weight (before Armor Mastery reduction).")
+        public boolean enableWeightPushResistance = true;
+
+        @Config.Name("Weight Reduction Threshold")
+        @Config.Comment("Weight (in half-feathers) below which weight grants no wind resistance.")
+        @Config.RangeDouble(min = 0.0D, max = 20.0D)
+        public double weightReductionThreshold = 0.0D;
+
+        @Config.Name("Weight Full Reduction At")
+        @Config.Comment("Weight (in half-feathers) at which weight reaches Max Weight Push Reduction (20.0 = 10 iron feathers).")
+        @Config.RangeDouble(min = 1.0D, max = 40.0D)
+        public double weightFullReductionAt = 20.0D;
+
+        @Config.Name("Max Weight Push Reduction")
+        @Config.Comment("Maximum wind-push reduction from armor weight (scales linearly from Threshold to Full Reduction At).")
+        @Config.RangeDouble(min = 0.0D, max = 0.9D)
+        public double maxWeightPushReduction = 0.50D;
+
+        @Config.Name("Wind Resistant Gear Whitelist")
+        @Config.Comment("Item registry names (wildcards supported, optional :meta suffix). Aerodynamic/wind-cutting armor active both grounded and mid-air across the 4 armor slots.")
+        public String[] windResistantGear = new String[] {
+                "aether_legacy:valkyrie_*",
+                "atum:wanderer_*",
+                "twilightforest:naga_*",
+                "twilightforest:steeleaf_*",
+                "thebetweenlands:lurker_skin_*",
+                "embers:ashen_cloak_*",
+                "metallurgy:quicksilver_*",
+                "metallurgy:mithril_*",
+                "metallurgy:atlarus_*",
+                "crimsonrevelations:crimson_ranger_*",
+                "theaurorian:spectral*",
+                "da:adventure_*"
+        };
+
+        @Config.Name("Wind Resistant Full Set Push Reduction")
+        @Config.Comment("Wind-push reduction for a full 4-piece Wind Resistant set (each worn piece grants 1/4 of this value).")
+        @Config.RangeDouble(min = 0.0D, max = 0.9D)
+        public double windResistantFullSetPushReduction = 0.40D;
+
+        @Config.Name("Anchoring Boots Whitelist")
+        @Config.Comment("Item registry names (wildcards supported, optional :meta suffix) in the FEET slot that grant extra push reduction while standing on solid ground.")
+        public String[] anchoringBoots = new String[] {
+                "aether_legacy:sentry_boots",
+                "lost_aether:agility_boots",
+                "thaumcraft:traveller_boots",
+                "grapplemod:longfallboots",
+                "thaumicwonders:void_walker_boots",
+                "crimsonrevelations:comet_boots",
+                "crimsonrevelations:meteor_boots",
+                "atum:feet_of_ra",
+                "atum:feet_of_atum"
+        };
+
+        @Config.Name("Anchoring Grounded Push Reduction")
+        @Config.Comment("Extra wind-push reduction granted by Anchoring Boots while touching the ground (drops immediately when airborne).")
+        @Config.RangeDouble(min = 0.0D, max = 0.9D)
+        public double anchoringGroundedPushReduction = 0.25D;
+    }
+
+    public static class EyeProtectionGear {
+        @Config.Name("Eye Protection Gear Whitelist")
+        @Config.Comment("Item registry names (wildcards supported, optional :meta suffix) protecting eyes in armor HEAD or Baubles HEAD slots against sandstorm blindness.")
+        public String[] eyeProtectionGear = new String[] {
+                // Atum headgear
+                "atum:desert_helmet_iron", "atum:desert_helmet_gold", "atum:desert_helmet_diamond",
+                "atum:wanderer_helmet", "atum:mummy_helmet", "atum:eyes_of_atum", "atum:halo_of_ra",
+                // Goggles & goggled helmets
+                "*goggles*", "thaumcraft:goggles", "congregamystica:goggled_thaumium_helmet",
+                "crimsonrevelations:void_goggles", "thaumicwonders:night_vision_goggles",
+                "artifacts:night_vision_goggles", "embers:ashen_cloak_head",
+                "aetherworks:aetherium_ashen_cloak_head", "botania:manasteelhelmreveal",
+                "botania:terrasteelhelmreveal", "botania:elementiumhelmreveal", "botania:cosmetic:4",
+                // Eyepieces & glasses
+                "embers:eyepiece", "bibliocraft:biblioglasses:0", "bibliocraft:biblioglasses:1",
+                // Full-face / sealed / masked helmets & hoods
+                "thaumcraft:fortress_helm", "thaumcraft:void_robe_helm", "thaumicwonders:void_fortress_helm",
+                "thaumicwonders:voidcaller_helm", "thaumicaugmentation:thaumium_robes_hood",
+                "thaumcraft:crimson_plate_helm", "thaumcraft:crimson_praetor_helm",
+                "thaumcraft:crimson_robe_helm", "crimsonrevelations:*_helmet",
+                "kami:ichorweave_hood", "kami:awakened_ichorweave_hood",
+                "thebetweenlands:silk_mask", "thebetweenlands:skull_mask",
+                "thebetweenlands:amphibious_helmet", "aether_legacy:phoenix_helmet",
+                "aether_legacy:obsidian_helmet", "lost_aether:swetty_mask",
+                "mysticalworld:beetle_mask", "bewitchment:besmirched_hood"
+        };
+    }
+
+    public static class AetherHazardGear {
+        @Config.Name("Channeling Gear Whitelist")
+        @Config.Comment("Item registry names (wildcards supported, optional :meta suffix) worn in all four armor slots that channel lightning: locked onto like conductive gear, but takes no damage and no slowness from any bolt.")
+        public String[] channelingGear = new String[] {
+                "aether_legacy:valkyrie_*", "aether_legacy:neptune_*", "da:imperial_*",
+                "aetherworks:aetherium_ashen_cloak_*", "metallurgy:astral_silver_*",
+                "metallurgy:celenegil_*", "botania:elementium*", "kami:ichorweave_*",
+                "kami:awakened_ichorweave_*", "thaumcraft:void_*", "thaumicwonders:void_*",
+                "thaumicwonders:voidcaller_*", "thaumicaugmentation:void_boots", "ee:endfall_*"
+        };
+
+        @Config.Name("Insulated Gear Whitelist")
+        @Config.Comment("Item registry names (wildcards supported, optional :meta suffix) worn in all four armor slots: no lightning lock-on (strikes land 3 to 8 blocks away) and reduced shock damage.")
+        public String[] insulatedGear = new String[] {
+                "aether_legacy:phoenix_*", "aether_legacy:obsidian_*", "aether_legacy:sentry_boots",
+                "embers:ashen_cloak_*", "minecraft:leather_*", "netherex:black_salamander_hide_*",
+                "netherex:orange_salamander_hide_*", "twilightforest:yeti_*",
+                "thaumcraft:traveller_boots", "thaumcraft:crimson_*", "crimsonrevelations:crimson_*",
+                "crimsonrevelations:ancient_crimson_*", "crimsonrevelations:comet_boots",
+                "crimsonrevelations:meteor_boots", "thaumicaugmentation:thaumium_robes_*",
+                "thaumcraft:fortress_*", "bewitchment:besmirched_*"
+        };
+
+        @Config.Name("Conductive Gear List")
+        @Config.Comment("Item registry names (wildcards supported, optional :meta suffix) worn or held that attract lightning. Insulated and Channeling items are automatically excluded.")
+        public String[] conductiveGear = new String[] {
+                "minecraft:iron_*", "minecraft:chainmail_*", "minecraft:golden_*",
+                "aether_legacy:zanite_*", "aether_legacy:gravitite_*",
+                "metallurgy:copper_*", "metallurgy:bronze_*", "metallurgy:brass_*", "metallurgy:steel_*",
+                "metallurgy:silver_*", "metallurgy:damascus_steel_*", "metallurgy:deep_iron_*",
+                "metallurgy:prometheum_*", "metallurgy:platinum_*", "metallurgy:quicksilver_*",
+                "metallurgy:ignatius_*", "metallurgy:shadow_iron_*", "metallurgy:shadow_steel_*",
+                "metallurgy:vyroxeres_*", "metallurgy:ceruclase_*", "metallurgy:kalendrite_*",
+                "metallurgy:vulcanite_*", "metallurgy:sanguinite_*", "metallurgy:amordrine_*",
+                "metallurgy:mithril_*", "metallurgy:orichalcum_*", "metallurgy:tartarite_*",
+                "metallurgy:atlarus_*", "metallurgy:black_steel_*", "metallurgy:desichalkos_*",
+                "metallurgy:eximite_*",
+                "botania:manasteel*", "botania:terrasteel*",
+                "bewitchment:cold_iron_*", "bewitchment:silver_*",
+                "thaumcraft:thaumium_*",
+                "atum:desert_*_iron", "atum:desert_*_gold", "atum:halo_of_ra", "atum:body_of_ra",
+                "atum:legs_of_ra", "atum:feet_of_ra", "atum:eyes_of_atum", "atum:body_of_atum",
+                "atum:legs_of_atum", "atum:feet_of_atum",
+                "theaurorian:cerulean*", "theaurorian:auroriansteel*", "theaurorian:knight*",
+                "twilightforest:knightmetal_*", "twilightforest:fiery_*", "thebetweenlands:syrmorite_*",
+                "da:dark_metal_*", "da:novik_*", "da:fallen_*"
+        };
+    }
+
+    public static class AtumHazardGear {
+        @Config.Name("Sandstorm Resistant Armor Whitelist")
+        @Config.Comment("Item registry names (wildcards supported, optional :meta suffix) immune to sandstorm abrasion wear and qualifying for Tier 2 scour mitigation alongside native Atum armor.")
+        public String[] sandstormResistantArmorWhitelist = new String[] {
+                "thaumcraft:goggles", "thaumcraft:traveller_boots", "thaumicaugmentation:thaumium_robes_*",
+                "thaumicaugmentation:void_boots", "thaumcraft:fortress_*", "thaumcraft:void_*",
+                "thaumcraft:crimson_*", "thaumicwonders:void_*", "thaumicwonders:voidcaller_*",
+                "crimsonrevelations:crimson_*", "crimsonrevelations:ancient_crimson_*",
+                "crimsonrevelations:comet_boots", "crimsonrevelations:meteor_boots",
+                "kami:ichorweave_*", "kami:awakened_ichorweave_*",
+                "bewitchment:besmirched_*", "bewitchment:alchemist_*", "bewitchment:green_witch_*",
+                "embers:ashen_cloak_*", "aetherworks:aetherium_ashen_cloak_*",
+                "botania:manasteel*", "botania:elementium*", "botania:terrasteel*", "botania:manaweave*",
+                "aether_legacy:phoenix_*", "aether_legacy:obsidian_*", "aether_legacy:valkyrie_*",
+                "aether_legacy:neptune_*", "aether_legacy:sentry_boots",
+                "twilightforest:fiery_*", "twilightforest:knightmetal_*", "twilightforest:naga_*",
+                "netherex:black_salamander_hide_*", "netherex:orange_salamander_hide_*"
+        };
+    }
+
+    public static class AurorianHazardGear {
+        @Config.Name("Proper Gear Effect")
+        @Config.Comment("Potion registry name that marks proper cold gear. The pack's SetBonus gives this to full Aurorian, Arctic and Yeti sets, and a Cold Resistance potion gives it too. Empty disables the effect check.")
+        public String properGearEffect = "simpledifficulty:cold_resist";
+
+        @Config.Name("Proper Gear Whitelist")
+        @Config.Comment("Item registry names (wildcards supported, optional :meta suffix). Wearing four armor slots from this list counts as proper cold gear.")
+        public String[] properGearWhitelist = new String[] {
+                "simpledifficulty:wool_*", "twilightforest:yeti_*", "twilightforest:arctic_*",
+                "metallurgy:ceruclase_*", "theaurorian:*", "da:wyrk_*", "da:draugr_*",
+                "aether_legacy:phoenix_*", "thaumicaugmentation:thaumium_robes_*",
+                "thaumicaugmentation:void_boots", "thaumcraft:fortress_*", "thaumcraft:void_*",
+                "thaumcraft:crimson_*", "thaumcraft:traveller_boots", "thaumicwonders:void_*",
+                "thaumicwonders:voidcaller_*", "crimsonrevelations:crimson_*",
+                "crimsonrevelations:ancient_crimson_*", "crimsonrevelations:comet_boots",
+                "crimsonrevelations:meteor_boots", "kami:ichorweave_*",
+                "kami:awakened_ichorweave_*", "bewitchment:besmirched_*",
+                "bewitchment:alchemist_*", "bewitchment:green_witch_*", "embers:ashen_cloak_*",
+                "aetherworks:aetherium_ashen_cloak_*", "aether_legacy:sentry_boots"
+        };
+    }
+
+    public static class NetherHazardGear {
+        @Config.Name("Fire Resistance Effect")
+        @Config.Comment("Potion registry name that fully protects against the spout column.")
+        public String fireResistanceEffect = "minecraft:fire_resistance";
+
+        @Config.Name("Wither Ward Effect")
+        @Config.Comment("Potion registry name that marks proper ash gear (the pack's SetBonus gives it to Wither Bone and Black Salamander sets).")
+        public String witherWardEffect = "rustic:wither_ward";
+
+        @Config.Name("Ash Proper Gear Whitelist")
+        @Config.Comment("Item registry names (wildcards supported, optional :meta suffix). Four armor slots from this list count as proper ash gear without the effect.")
+        public String[] ashProperGearWhitelist = new String[0];
+    }
+
+    public static class TwilightForestHazardGear {
+        @Config.Name("Proper Arcane Gear Whitelist")
+        @Config.Comment("Item registry names (wildcards supported, optional :meta suffix). Four armor slots from this list count as proper arcane gear.")
+        public String[] properGear = new String[] {
+                "twilightforest:steeleaf_*", "twilightforest:ironwood_*", "twilightforest:knightmetal_*",
+                "twilightforest:naga_*", "twilightforest:fiery_*", "twilightforest:phantom_*",
+                "twilightforest:arctic_*", "twilightforest:yeti_*",
+                "thaumcraft:goggles", "thaumcraft:thaumium_*", "thaumcraft:fortress_*",
+                "thaumcraft:void_*", "thaumcraft:crimson_*", "thaumcraft:traveller_boots",
+                "thaumicaugmentation:thaumium_robes_*", "thaumicaugmentation:void_boots",
+                "congregamystica:goggled_thaumium_helmet", "thaumicwonders:void_*",
+                "thaumicwonders:voidcaller_*", "crimsonrevelations:crimson_*",
+                "crimsonrevelations:ancient_crimson_*", "crimsonrevelations:comet_boots",
+                "crimsonrevelations:meteor_boots", "kami:ichorweave_*", "kami:awakened_ichorweave_*",
+                "botania:manaweave*", "botania:manasteel*", "botania:elementium*", "botania:terrasteel*",
+                "bewitchment:besmirched_*", "bewitchment:alchemist_*", "bewitchment:green_witch_*",
+                "bewitchment:witches_*", "bewitchment:cold_iron_*", "bewitchment:silver_*",
+                "embers:ashen_cloak_*", "aetherworks:aetherium_ashen_cloak_*", "astralsorcery:itemcape",
+                "metallurgy:astral_silver_*", "metallurgy:tartarite_*", "aether_legacy:phoenix_*",
+                "da:lich_*", "da:voidiant_*", "ee:endfall_*", "theaurorian:auroriansteel*",
+                "atum:halo_of_ra", "atum:body_of_ra", "atum:legs_of_ra", "atum:feet_of_ra",
+                "atum:eyes_of_atum", "atum:body_of_atum", "atum:legs_of_atum", "atum:feet_of_atum"
+        };
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_qualitytools", category = "")
@@ -3086,7 +3360,7 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Spout Window Seconds")
         @Config.Comment("Length of one eruption event in seconds.")
         @Config.RangeInt(min = 5, max = 300)
-        public static int spoutWindowSeconds = 30;
+        public static int spoutWindowSeconds = 45;
 
         @Config.Name("Spout Tremor Seconds")
         @Config.Comment("Warning before an eruption event: rumble, bubbling lava and a faint camera shake.")
@@ -3103,20 +3377,20 @@ public class ArcanaQuestTweaksConfig {
         public static int tremorMaxParticles = 60;
 
         @Config.Name("Spout Min Per Player")
-        @Config.RangeInt(min = 0, max = 20)
-        public static int spoutMinPerPlayer = 3;
+        @Config.RangeInt(min = 0, max = 40)
+        public static int spoutMinPerPlayer = 10;
 
         @Config.Name("Spout Max Per Player")
-        @Config.RangeInt(min = 0, max = 20)
-        public static int spoutMaxPerPlayer = 6;
+        @Config.RangeInt(min = 0, max = 40)
+        public static int spoutMaxPerPlayer = 16;
 
         @Config.Name("Spout Stagger Min Seconds")
         @Config.RangeDouble(min = 0.5D, max = 30.0D)
-        public static double spoutStaggerMinSeconds = 2.0D;
+        public static double spoutStaggerMinSeconds = 1.5D;
 
         @Config.Name("Spout Stagger Max Seconds")
         @Config.RangeDouble(min = 0.5D, max = 30.0D)
-        public static double spoutStaggerMaxSeconds = 5.0D;
+        public static double spoutStaggerMaxSeconds = 3.5D;
 
         @Config.Name("Spout Range")
         @Config.RangeInt(min = 8, max = 64)
@@ -3128,11 +3402,11 @@ public class ArcanaQuestTweaksConfig {
 
         @Config.Name("Spout Probes Per Eruption")
         @Config.RangeInt(min = 1, max = 200)
-        public static int spoutProbes = 40;
+        public static int spoutProbes = 64;
 
         @Config.Name("Max Active Spouts")
         @Config.RangeInt(min = 1, max = 64)
-        public static int maxActiveSpouts = 8;
+        public static int maxActiveSpouts = 16;
 
         @Config.Name("Spout Column Radius")
         @Config.RangeDouble(min = 0.5D, max = 6.0D)
@@ -3153,7 +3427,7 @@ public class ArcanaQuestTweaksConfig {
 
         @Config.Name("Splashes Per Eruption")
         @Config.RangeInt(min = 0, max = 6)
-        public static int splashesPerEruption = 2;
+        public static int splashesPerEruption = 3;
 
         @Config.Name("Splash Lifetime Seconds")
         @Config.RangeInt(min = 3, max = 300)
@@ -3161,11 +3435,12 @@ public class ArcanaQuestTweaksConfig {
 
         @Config.Name("Max Thrown Lava Cells")
         @Config.RangeInt(min = 0, max = 2000)
-        public static int maxThrownLavaCells = 96;
+        public static int maxThrownLavaCells = 320;
 
-        @Config.Name("Fire Resistance Effect")
-        @Config.Comment("Potion registry name that fully protects against the spout column.")
-        public static String fireResistanceEffect = "minecraft:fire_resistance";
+        @Config.Name("Splash Warning Ticks")
+        @Config.Comment("Ticks between a spout bursting and its thrown lava landing; each landing spot shows a warning marker for this long. The 3 second spout telegraph before the burst is separate.")
+        @Config.RangeInt(min = 10, max = 60)
+        public static int splashWarningTicks = 25;
 
         @Config.Name("Ash Interval Min Seconds")
         @Config.RangeInt(min = 10, max = 7200)
@@ -3177,11 +3452,11 @@ public class ArcanaQuestTweaksConfig {
 
         @Config.Name("Ash Duration Min Seconds")
         @Config.RangeInt(min = 20, max = 3600)
-        public static int ashDurationMinSeconds = 240;
+        public static int ashDurationMinSeconds = 180;
 
         @Config.Name("Ash Duration Max Seconds")
         @Config.RangeInt(min = 20, max = 3600)
-        public static int ashDurationMaxSeconds = 360;
+        public static int ashDurationMaxSeconds = 300;
 
         @Config.Name("Ash Cloud Reach Horizontal")
         @Config.RangeDouble(min = 6.0D, max = 48.0D)
@@ -3240,29 +3515,37 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Dose for Wither III (the cap).")
         public static double ashThreshold3 = 20.0D;
 
-        @Config.Name("Wither Ward Effect")
-        @Config.Comment("Potion registry name that marks proper ash gear (the pack's SetBonus gives it to Wither Bone and Black Salamander sets).")
-        public static String witherWardEffect = "rustic:wither_ward";
-
-        @Config.Name("Ash Proper Gear Whitelist")
-        @Config.Comment("Item registry names (wildcards supported). Four armor slots from this list count as proper ash gear without the effect.")
-        public static String[] ashProperGearWhitelist = new String[0];
-
         @Config.Name("Enable Spout Effects")
         @Config.Comment("Client: spout telegraph, eruption and tremor effects.")
         public static boolean enableSpoutEffects = true;
+
+        @Config.Name("Telegraph Splash Landings")
+        @Config.Comment("Client: marker particles and a hiss at each spot where a spout's thrown lava is about to land.")
+        public static boolean telegraphSplashLandings = true;
 
         @Config.Name("Enable Ash Particles")
         @Config.Comment("Client: draw the ash cloud as particles.")
         public static boolean enableAshParticles = true;
 
         @Config.Name("Ash Max Particles Per Cloud")
-        @Config.RangeInt(min = 0, max = 4000)
-        public static int ashMaxParticlesPerCloud = 600;
+        @Config.Comment("Client: live ash motes one cloud may have at once (always bounded by the total below).")
+        @Config.RangeInt(min = 0, max = 14000)
+        public static int ashMaxParticlesPerCloud = 4000;
 
         @Config.Name("Ash Max Particles Total")
-        @Config.RangeInt(min = 0, max = 10000)
-        public static int ashMaxParticlesTotal = 2500;
+        @Config.Comment("Client: live ash motes at once across all clouds and the warning wisps. The particle manager holds 16384 per list, so keep this well under that.")
+        @Config.RangeInt(min = 0, max = 14000)
+        public static int ashMaxParticlesTotal = 8000;
+
+        @Config.Name("Ash Swirl Speed")
+        @Config.Comment("Client: how fast the ash cloud turns about its centre (1.0 = default, 0 = still).")
+        @Config.RangeDouble(min = 0.0D, max = 3.0D)
+        public static double ashSwirlSpeed = 1.0D;
+
+        @Config.Name("Ash Warning Seconds")
+        @Config.Comment("Warning before an ash storm: ash wisps and cinders stir and the wind rises, then the clouds arrive. 0 = no warning.")
+        @Config.RangeInt(min = 0, max = 120)
+        public static int ashWarningSeconds = 30;
 
         @Config.Name("Ash Render Distance")
         @Config.RangeInt(min = 16, max = 128)
@@ -3321,12 +3604,13 @@ public class ArcanaQuestTweaksConfig {
         public int warningSeconds = 5;
 
         @Config.Name("Crosswind Shift Interval Ticks")
-        @Config.RangeInt(min = 10, max = 400)
-        public int crosswindShiftTicks = 50;
+        @Config.Comment("Ticks between heading changes during a gust. 0 (default) keeps one fixed heading from the start of the warning to the end of the gust.")
+        @Config.RangeInt(min = 0, max = 400)
+        public int crosswindShiftTicks = 0;
 
         @Config.Name("Crosswind Push Force")
         @Config.RangeDouble(min = 0.0D, max = 0.5D)
-        public double crosswindPushForce = 0.025D;
+        public double crosswindPushForce = 0.050D;
 
         @Config.Name("Max Gust Speed")
         @Config.Comment("Horizontal speed cap in blocks per tick while pushing.")
@@ -3349,16 +3633,65 @@ public class ArcanaQuestTweaksConfig {
 
         @Config.Name("Lightning Interval Min Seconds")
         @Config.RangeInt(min = 5, max = 3600)
-        public int lightningIntervalMinSeconds = 40;
+        public int lightningIntervalMinSeconds = 90;
 
         @Config.Name("Lightning Interval Max Seconds")
         @Config.RangeInt(min = 5, max = 3600)
-        public int lightningIntervalMaxSeconds = 120;
+        public int lightningIntervalMaxSeconds = 180;
 
         @Config.Name("Lightning Telegraph Ticks")
         @Config.RangeInt(min = 10, max = 100)
         public int lightningTelegraphTicks = 35;
 
+        @Config.Name("Lightning Warning Seconds")
+        @Config.Comment("Warning before a lightning storm: building thunder and static on exposed players, before the first strike marker appears.")
+        @Config.RangeInt(min = 3, max = 60)
+        public int lightningWarningSeconds = 10;
+
+        @Config.Name("Lightning Warning Message")
+        @Config.Comment("Client: one action-bar line when a lightning storm's warning starts.")
+        public boolean lightningWarningMessage = true;
+
+        @Config.Name("Lightning Duration Min Seconds")
+        @Config.RangeInt(min = 1, max = 120)
+        public int lightningDurationMinSeconds = 18;
+
+        @Config.Name("Lightning Duration Max Seconds")
+        @Config.RangeInt(min = 1, max = 120)
+        public int lightningDurationMaxSeconds = 24;
+
+        @Config.Name("Lightning Salvos Min")
+        @Config.Comment("Strike salvos spread across a lightning storm (each locks every exposed player in range, then rains secondary bolts around them).")
+        @Config.RangeInt(min = 1, max = 20)
+        public int lightningWavesMin = 5;
+
+        @Config.Name("Lightning Salvos Max")
+        @Config.RangeInt(min = 1, max = 20)
+        public int lightningWavesMax = 6;
+
+        @Config.Name("Lightning Cluster Bolts Min")
+        @Config.Comment("Secondary bolts around each marked player spot, per salvo.")
+        @Config.RangeInt(min = 0, max = 16)
+        public int lightningClusterMin = 5;
+
+        @Config.Name("Lightning Cluster Bolts Max")
+        @Config.RangeInt(min = 0, max = 16)
+        public int lightningClusterMax = 6;
+
+        @Config.Name("Lightning Cluster Radius")
+        @Config.Comment("Secondary bolts land 2 to this many blocks from the marked spot.")
+        @Config.RangeInt(min = 2, max = 16)
+        public int lightningClusterRadius = 7;
+
+        @Config.Name("Lightning Secondary Damage Factor")
+        @Config.Comment("Secondary (cluster) bolts deal this fraction of the strike damage and apply no slowness. Primary and retarget bolts deal full damage.")
+        @Config.RangeDouble(min = 0.0D, max = 1.0D)
+        public double lightningSecondaryDamageFactor = 0.5D;
+
+        @Config.Name("Lightning Conductive Extra Bolts")
+        @Config.Comment("Extra full-damage bolts per salvo that re-aim at the current position of each player wearing conductive or channeling gear.")
+        @Config.RangeInt(min = 0, max = 4)
+        public int lightningConductiveExtraBolts = 1;
         @Config.Name("Lightning Strike Damage")
         @Config.RangeDouble(min = 0.0D, max = 40.0D)
         public double lightningDamage = 6.0D;
@@ -3366,21 +3699,6 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Lightning Insulated Gear Damage")
         @Config.RangeDouble(min = 0.0D, max = 40.0D)
         public double lightningInsulatedDamage = 2.0D;
-
-        @Config.Name("Insulated Gear Whitelist")
-        @Config.Comment("Item registry names (wildcards supported) worn in all four armor slots: lower wind push, no lightning lock-on, reduced shock damage.")
-        public String[] insulatedGear = new String[] {
-                "aether_legacy:valkyrie_*", "aether_legacy:phoenix_*", "aether_legacy:obsidian_*",
-                "aether_legacy:neptune_*", "aether_legacy:sentry_boots", "thaumcraft:thaumium_robes_*",
-                "thaumcraft:fortress_*", "bewitchment:besmirched_*"
-        };
-
-        @Config.Name("Conductive Gear List")
-        @Config.Comment("Item registry names (wildcards supported) worn or held that attract lightning.")
-        public String[] conductiveGear = new String[] {
-                "minecraft:iron_*", "minecraft:chainmail_*", "minecraft:golden_*", "aether_legacy:zanite_*",
-                "aether_legacy:gravitite_*"
-        };
 
         @Config.Name("Enable Squall Particles")
         @Config.Comment("Client: cloud wisps along the gust and the lightning telegraph effects.")
@@ -3399,37 +3717,42 @@ public class ArcanaQuestTweaksConfig {
 
         @Config.Name("Rupture Interval Min Seconds")
         @Config.RangeInt(min = 30, max = 7200)
-        public int intervalMinSeconds = 300;
+        public int intervalMinSeconds = 720;
 
         @Config.Name("Rupture Interval Max Seconds")
         @Config.RangeInt(min = 30, max = 7200)
-        public int intervalMaxSeconds = 480;
+        public int intervalMaxSeconds = 1200;
 
         @Config.Name("Rupture Duration Min Seconds")
-        @Config.RangeInt(min = 5, max = 300)
-        public int durationMinSeconds = 25;
+        @Config.RangeInt(min = 5, max = 600)
+        public int durationMinSeconds = 150;
 
         @Config.Name("Rupture Duration Max Seconds")
-        @Config.RangeInt(min = 5, max = 300)
-        public int durationMaxSeconds = 30;
+        @Config.RangeInt(min = 5, max = 600)
+        public int durationMaxSeconds = 210;
 
         @Config.Name("Warning Seconds")
         @Config.Comment("Telegraph before the first damage: silence and a faint hum, then glyph wisps in the last third.")
-        @Config.RangeInt(min = 30, max = 120)
+        @Config.RangeInt(min = 20, max = 120)
         public int warningSeconds = 30;
 
         @Config.Name("Unprotected Magic Scour Damage")
         @Config.RangeDouble(min = 0.0D, max = 40.0D)
-        public double scourUnprotected = 4.0D;
+        public double scourUnprotected = 3.0D;
 
         @Config.Name("Proper Gear Magic Scour Damage")
         @Config.RangeDouble(min = 0.0D, max = 40.0D)
-        public double scourProper = 1.5D;
+        public double scourProper = 1.0D;
+
+        @Config.Name("Scour Interval Seconds")
+        @Config.Comment("Seconds between scour hits while exposed (the damage above is per hit, scaled by exposure and biome intensity). Biome extras, fire and warp have their own 4 second timer.")
+        @Config.RangeInt(min = 1, max = 60)
+        public int scourIntervalSeconds = 8;
 
         @Config.Name("Fade Height Blocks")
         @Config.Comment("The effect fades linearly to nothing this many blocks above the reference point.")
         @Config.RangeInt(min = 2, max = 64)
-        public int fadeHeight = 14;
+        public int fadeHeight = 22;
 
         @Config.Name("Reference Offset Blocks")
         @Config.Comment("The reference point is the average ground surface minus this.")
@@ -3444,7 +3767,7 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Hunger Burn")
         @Config.Comment("Exhaustion added each second at full exposure (proper gear takes 40%).")
         @Config.RangeDouble(min = 0.0D, max = 10.0D)
-        public double hungerBurn = 1.0D;
+        public double hungerBurn = 0.25D;
 
         @Config.Name("Warp Chance")
         @Config.Comment("Chance per scour hit to absorb 1 temporary warp (Thaumcraft).")
@@ -3456,13 +3779,52 @@ public class ArcanaQuestTweaksConfig {
         @Config.RangeInt(min = 0, max = 20)
         public int warpCapPerSurge = 1;
 
-        @Config.Name("Proper Arcane Gear Whitelist")
-        @Config.Comment("Item registry names (wildcards supported). Four armor slots from this list count as proper arcane gear.")
-        public String[] properGear = new String[] {
-                "twilightforest:steeleaf_*", "twilightforest:ironwood_*", "twilightforest:knightmetal_*",
-                "twilightforest:naga_*", "twilightforest:fiery_*", "thaumcraft:thaumium_robes_*",
-                "thaumcraft:fortress_*", "thaumcraft:goggles", "bewitchment:besmirched_*"
-        };
+        @Config.Name("Enable Surge Exposure Updraft")
+        @Config.Comment("After continuous outdoor surge exposure, roll once per exposure for a weighted updraft outcome (none, Flight + Slowfall, or Levitation + Slowfall).")
+        public boolean enableSurgeUpdraft = true;
+
+        @Config.Name("Surge Exposure Delay Seconds")
+        @Config.Comment("Seconds of continuous outdoor surge exposure before rolling the updraft outcome once for that exposure.")
+        @Config.RangeInt(min = 1, max = 120)
+        public int surgeExposureDelaySeconds = 16;
+
+        @Config.Name("Surge Updraft Weight None")
+        @Config.Comment("Relative weight for no additional effect when the updraft roll triggers.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int surgeWeightNone = 1;
+
+        @Config.Name("Surge Updraft Weight Flight")
+        @Config.Comment("Relative weight for granting Flight + Slowfall when the updraft roll triggers.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int surgeWeightFlight = 2;
+
+        @Config.Name("Surge Updraft Weight Levitation")
+        @Config.Comment("Relative weight for granting Levitation + Slowfall when the updraft roll triggers.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int surgeWeightLevitation = 2;
+
+        @Config.Name("Surge Flight Duration Seconds")
+        @Config.Comment("Duration in seconds of the Flight effect granted by the updraft roll.")
+        @Config.RangeInt(min = 1, max = 120)
+        public int surgeFlightDurationSeconds = 16;
+
+        @Config.Name("Surge Levitation Duration Seconds")
+        @Config.Comment("Duration in seconds of the Levitation effect granted by the updraft roll.")
+        @Config.RangeInt(min = 1, max = 120)
+        public int surgeLevitationDurationSeconds = 16;
+
+        @Config.Name("Surge Slowfall Extra Seconds")
+        @Config.Comment("Extra seconds added on top of both Flight and Levitation durations for Slowfall landing protection.")
+        @Config.RangeInt(min = 0, max = 120)
+        public int surgeSlowfallExtraSeconds = 10;
+
+        @Config.Name("Surge Flight Effect")
+        @Config.Comment("Potion registry name granted for the Flight updraft outcome.")
+        public String surgeFlightEffect = "potioncore:flight";
+
+        @Config.Name("Surge Slowfall Effect")
+        @Config.Comment("Potion registry name granted for Slowfall landing protection.")
+        public String surgeSlowfallEffect = "potioncore:slow_fall";
 
         @Config.Name("Shelter Features")
         @Config.Comment("Twilight Forest feature names whose structure bounds shelter a player.")
@@ -3533,11 +3895,11 @@ public class ArcanaQuestTweaksConfig {
 
         @Config.Name("Charge Pulse Seconds")
         @Config.RangeInt(min = 1, max = 60)
-        public int chargePulseSeconds = 5;
+        public int chargePulseSeconds = 10;
 
         @Config.Name("Charge Percent Per Pulse")
         @Config.RangeDouble(min = 0.0D, max = 100.0D)
-        public double chargePercent = 10.0D;
+        public double chargePercent = 6.0D;
 
         @Config.Name("Charge Warp")
         @Config.RangeInt(min = 0, max = 10)
@@ -3566,7 +3928,7 @@ public class ArcanaQuestTweaksConfig {
 
         @Config.Name("Mob Pulse Seconds")
         @Config.RangeInt(min = 1, max = 120)
-        public int mobPulseSeconds = 10;
+        public int mobPulseSeconds = 15;
 
         @Config.Name("Mob Chance")
         @Config.RangeDouble(min = 0.0D, max = 1.0D)
@@ -3784,6 +4146,7 @@ public class ArcanaQuestTweaksConfig {
                 VillageWellCache.invalidateAll();
                 DssSkillCosts.invalidate();
                 StaminaFeathers.invalidateWeightCache();
+                com.apocollis.aqtweaks.weather.WindResistanceGear.invalidateCache();
                 com.apocollis.aqtweaks.stamina.StaminaModule.clearWeaponCaches();
                 com.apocollis.aqtweaks.rarity.RarityModule.reload();
                 com.apocollis.aqtweaks.spawning.SpawnTypeLists.reload();

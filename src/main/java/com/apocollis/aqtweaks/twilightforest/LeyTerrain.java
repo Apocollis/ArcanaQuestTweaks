@@ -11,6 +11,7 @@ import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.gen.IChunkGenerator;
 import net.minecraft.world.chunk.IChunkProvider;
+import net.minecraft.world.gen.structure.StructureBoundingBox;
 import twilightforest.TFFeature;
 import twilightforest.biomes.TFBiomes;
 import twilightforest.world.ChunkGeneratorTFBase;
@@ -121,6 +122,36 @@ public final class LeyTerrain {
     public static double heightExposure(World world, double px, double py, double pz) {
         return GroundReference.exposure(py, reference(world, px, py, pz),
                 ArcanaQuestTweaksConfig.TwilightForestModuleConfig.ley.fadeHeight);
+    }
+
+    private static boolean isShelterFeature(TFFeature feature) {
+        String name = feature.name();
+        for (String allowed : ArcanaQuestTweaksConfig.TwilightForestModuleConfig.ley.shelterFeatures) {
+            if (allowed.trim().equalsIgnoreCase(name)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * The full bounds (minX, minY, minZ, maxX, maxY, maxZ) of a Shelter Features structure whose footprint lies within
+     * 8 blocks of the column, or null. Reads the generator's in-memory structure starts only (no chunk loading); the
+     * caller samples on a coarse grid and caches, since this only drives where particles stop.
+     */
+    public static int[] shelterBoxNear(World world, int x, int z) {
+        IChunkProvider provider = world.getChunkProvider();
+        if (!(provider instanceof AccessorChunkProviderServer accessor)) return null;
+        IChunkGenerator generator = accessor.aqtweaks$getChunkGenerator();
+        if (!(generator instanceof ChunkGeneratorTFBase tf)) return null;
+        try {
+            StructureBoundingBox box = tf.getFullSBBNear(x, z, 8);
+            if (box == null) return null;
+            BlockPos centre = new BlockPos((box.minX + box.maxX) / 2, box.minY, (box.minZ + box.maxZ) / 2);
+            TFFeature feature = tf.getFeatureAt(centre);
+            if (feature == null || !isShelterFeature(feature)) return null;
+            return new int[] {box.minX, box.minY, box.minZ, box.maxX, box.maxY, box.maxZ};
+        } catch (RuntimeException ignored) {
+            return null;
+        }
     }
 
     /** True if the position is inside the bounds of a feature on the Shelter Features list. */

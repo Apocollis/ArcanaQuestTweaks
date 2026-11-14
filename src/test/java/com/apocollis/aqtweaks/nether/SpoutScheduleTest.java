@@ -29,4 +29,21 @@ class SpoutScheduleTest {
         long[] t = SpoutSchedule.draw(r, 6, 6, 0, 100, 100, 250L);
         assertTrue(t.length == 3);
     }
+
+    @Test
+    void newDefaultsFitTheFortyFiveSecondWindow() {
+        // 10 to 16 eruptions, 1.5 to 3.5 s apart (30 to 70 ticks), first within 3 s, window 45 s.
+        Random r = new Random(9L);
+        int total = 0;
+        for (int run = 0; run < 500; run++) {
+            long[] t = SpoutSchedule.draw(r, 10, 16, 60, 30, 70, 900L);
+            assertTrue(t.length >= 8 && t.length <= 16, "count " + t.length);
+            for (long at : t) {
+                assertTrue(at >= 0 && at < 900L);
+            }
+            total += t.length;
+        }
+        // On average most of the requested eruptions fit (a worst-case draw ends a few early).
+        assertTrue(total / 500.0D > 11.0D);
+    }
 }

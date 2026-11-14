@@ -47,7 +47,8 @@ public class LeyRuptureBacklash {
         if (player.ticksExisted - last < c.backlashCooldown) return false;
         cooldown.put(player.getUniqueID(), player.ticksExisted);
 
-        boolean proper = GearTierRule.allSlotsOnList(player, c.properGear);
+        boolean proper = GearTierRule.allSlotsOnList(player,
+                ArcanaQuestTweaksConfig.HazardGearConfig.twilightforest.properGear);
         double damage = SurgeMath.backlash(c.backlashDamage, exposure, proper, c.scourUnprotected, c.scourProper);
         if (damage > 0.0D) {
             player.attackEntityFrom(LeyRuptureHandler.DAMAGE_LEY, (float) damage);
@@ -116,7 +117,8 @@ public class LeyRuptureBacklash {
         int last = cooldown.getOrDefault(player.getUniqueID(), -1000);
         if (player.ticksExisted - last < c.backlashCooldown) return;
         cooldown.put(player.getUniqueID(), player.ticksExisted);
-        boolean proper = GearTierRule.allSlotsOnList(player, c.properGear);
+        boolean proper = GearTierRule.allSlotsOnList(player,
+                ArcanaQuestTweaksConfig.HazardGearConfig.twilightforest.properGear);
         player.attackEntityFrom(LeyRuptureHandler.DAMAGE_LEY,
                 (float) SurgeMath.backlash(c.backlashDamage, exposure, proper, c.scourUnprotected, c.scourProper));
     }

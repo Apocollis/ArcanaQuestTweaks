@@ -68,6 +68,9 @@ public class CommonProxy {
         ArcanaQuestTweaks.NETWORK.registerMessage(
                 com.apocollis.aqtweaks.network.PacketLeyExposure.Handler.class,
                 com.apocollis.aqtweaks.network.PacketLeyExposure.class, 13, Side.CLIENT);
+        ArcanaQuestTweaks.NETWORK.registerMessage(
+                com.apocollis.aqtweaks.network.PacketSplashTelegraph.Handler.class,
+                com.apocollis.aqtweaks.network.PacketSplashTelegraph.class, 14, Side.CLIENT);
         ComfortConfigLoader.load(event.getModConfigurationDirectory());
         GaiaDamageConfig.load(event.getModConfigurationDirectory());
         com.apocollis.aqtweaks.spawning.SpawnTypeLists.load(event.getModConfigurationDirectory());
@@ -175,6 +178,7 @@ public class CommonProxy {
         if (net.minecraftforge.fml.common.Loader.isModLoaded("atum")) {
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.atum.AtumStormGameplayHandler());
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.atum.AtumWeatherSync());
+            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.atum.AtumSandHandler());
         }
 
         // The Nether is vanilla, so its hazards register unconditionally.

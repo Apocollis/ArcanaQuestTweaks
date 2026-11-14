@@ -36,8 +36,6 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 public class AtumStormGameplayHandler {
 
     private static final String NBT_GRIT_TIMER = "AQTweaks_AtumGritTimer";
-    /** Breath missing from a full bar. Vanilla refills air every tick on dry land, so the drain is stored here. */
-    private static final String NBT_AIR_DEBT = "AQTweaks_AtumAirDebt";
     private static final String NBT_MOB_SHELTERED = "AQTweaks_StormSheltered";
 
     public static final DamageSource DAMAGE_SANDSTORM = new DamageSource("atum_sandstorm").setDamageBypassesArmor();
@@ -71,7 +69,9 @@ public class AtumStormGameplayHandler {
                 if (player.getEntityData().hasKey(NBT_GRIT_TIMER)) {
                     player.getEntityData().removeTag(NBT_GRIT_TIMER);
                 }
-                recoverBreath(player, 300);
+                if (player.getEntityData().hasKey("AQTweaks_AtumAirDebt")) {
+                    player.getEntityData().removeTag("AQTweaks_AtumAirDebt");
+                }
             }
             return;
         }
@@ -86,7 +86,7 @@ public class AtumStormGameplayHandler {
                 // Client-side: smooth physical wind push and velocity adjustments
                 handleClientWindPush(player, windVec, stormStrength, sheltered);
             } else if (player instanceof EntityPlayerMP) {
-                // Server-side: stamina drain, hunger exhaustion, grit blindness, choking, 3-tier scour, armor wear
+                // Server-side: stamina drain, hunger exhaustion, grit blindness, 3-tier scour, armor wear
                 handleServerPlayerEffects((EntityPlayerMP) player, windVec, stormStrength, sheltered);
             }
         } else if (!world.isRemote && ArcanaQuestTweaksConfig.AtumModuleConfig.enableSandstormMobEffects) {
@@ -96,12 +96,10 @@ public class AtumStormGameplayHandler {
     }
 
     private void handleClientWindPush(EntityPlayer player, Vec3d windVec, float stormStrength, boolean sheltered) {
-        if (sheltered || !ArcanaQuestTweaksConfig.AtumModuleConfig.enableWindPush) return;
+        if (!player.isUser() || sheltered || !ArcanaQuestTweaksConfig.AtumModuleConfig.enableWindPush) return;
 
         double baseForce = ArcanaQuestTweaksConfig.AtumModuleConfig.windPushForce * stormStrength;
-        if (player.isSneaking()) {
-            baseForce *= 0.30D; // Sneaking/crouching anchors against the wind
-        }
+        baseForce *= com.apocollis.aqtweaks.weather.WindResistanceGear.factor(player, 0.70D);
 
         player.motionX += windVec.x * baseForce;
         player.motionZ += windVec.z * baseForce;
@@ -112,7 +110,6 @@ public class AtumStormGameplayHandler {
             if (player.getEntityData().getInteger(NBT_GRIT_TIMER) > 0) {
                 player.getEntityData().setInteger(NBT_GRIT_TIMER, 0);
             }
-            recoverBreath(player, 10);
             return;
         }
 
@@ -167,25 +164,7 @@ public class AtumStormGameplayHandler {
             }
         }
 
-        // 3. Sand inhalation. Headgear or the shelter return above refills the bar.
-        if (ArcanaQuestTweaksConfig.AtumModuleConfig.enableSandInhalationChoking) {
-            if (isProtectedHeadgear(player)) {
-                recoverBreath(player, 10);
-            } else {
-                int debt = Math.min(320, player.getEntityData().getInteger(NBT_AIR_DEBT) + 4);
-                player.getEntityData().setInteger(NBT_AIR_DEBT, debt);
-                player.setAir(300 - debt);
-                if (debt >= 300 && player.ticksExisted % 20 == 0) {
-                    player.attackEntityFrom(DamageSource.DROWN, 2.0F);
-                    player.world.playSound(null, player.posX, player.posY, player.posZ,
-                            SoundEvents.ENTITY_PLAYER_BREATH, SoundCategory.PLAYERS, 0.8F, 1.0F);
-                    player.addPotionEffect(new PotionEffect(MobEffects.SLOWNESS, 60, 0, false, false));
-                    player.addPotionEffect(new PotionEffect(MobEffects.WEAKNESS, 80, 0, false, false));
-                }
-            }
-        }
-
-        // 4. Three-tier sand scour damage (every 80 ticks / 4 seconds)
+        // 3. Three-tier sand scour damage (every 80 ticks / 4 seconds)
         if (ArcanaQuestTweaksConfig.AtumModuleConfig.enableAbrasiveSandScour && player.ticksExisted % 80 == 0) {
             float damage = getScourDamage(player);
             if (damage > 0.0F) {
@@ -195,7 +174,7 @@ public class AtumStormGameplayHandler {
             }
         }
 
-        // 5. Sandblasting armor durability wear
+        // 4. Sandblasting armor durability wear
         if (ArcanaQuestTweaksConfig.AtumModuleConfig.enableArmorAbrasionWear) {
             int wearInterval = Math.max(1, ArcanaQuestTweaksConfig.AtumModuleConfig.abrasionWearIntervalSeconds) * 20;
             if (player.ticksExisted % wearInterval == 0) {
@@ -203,7 +182,7 @@ public class AtumStormGameplayHandler {
             }
         }
 
-        // 6. Low howl while standing in a strong storm.
+        // 5. Low howl while standing in a strong storm.
         if (ArcanaQuestTweaksConfig.AtumModuleConfig.enableDesertStormAmbience
                 && stormStrength > 0.40F
                 && player.world.rand.nextInt(240) == 0) {
@@ -316,13 +295,8 @@ public class AtumStormGameplayHandler {
         if ("atum".equals(reg.getNamespace())) {
             return true;
         }
-        String id = reg.toString();
-        for (String pattern : ArcanaQuestTweaksConfig.AtumModuleConfig.sandstormResistantArmorWhitelist) {
-            if (matchesPattern(id, pattern)) {
-                return true;
-            }
-        }
-        return false;
+        return com.apocollis.aqtweaks.weather.Wildcard.matchesAnyItem(reg.toString(), stack.getMetadata(),
+                ArcanaQuestTweaksConfig.HazardGearConfig.atum.sandstormResistantArmorWhitelist);
     }
 
     /**
@@ -334,18 +308,6 @@ public class AtumStormGameplayHandler {
             if (!stack.isEmpty() && stack.isItemStackDamageable() && !isResistantArmor(stack)) {
                 stack.damageItem(1, entity);
             }
-        }
-    }
-
-    private static void recoverBreath(EntityPlayer player, int amount) {
-        if (!player.getEntityData().hasKey(NBT_AIR_DEBT) && amount < 300) return;
-        int debt = Math.max(0, player.getEntityData().getInteger(NBT_AIR_DEBT) - amount);
-        if (debt == 0) {
-            player.getEntityData().removeTag(NBT_AIR_DEBT);
-            player.setAir(300);
-        } else {
-            player.getEntityData().setInteger(NBT_AIR_DEBT, debt);
-            player.setAir(300 - debt);
         }
     }
 
@@ -423,53 +385,33 @@ public class AtumStormGameplayHandler {
     }
 
     /**
-     * Checks if the player is wearing headgear or Baubles goggles that protect against stinging sand grit and choking.
-     * Only Atum-native headgear and goggles protect; generic non-Atum helmets do not.
+     * Checks if the player is wearing headgear or Baubles goggles that protect against stinging sand grit.
      */
     public static boolean isProtectedHeadgear(EntityPlayer player) {
-        // 1. Check primary helmet slot
         ItemStack helmet = player.getItemStackFromSlot(EntityEquipmentSlot.HEAD);
-        if (!helmet.isEmpty()) {
-            ResourceLocation reg = helmet.getItem().getRegistryName();
-            if (reg != null) {
-                if ("atum".equals(reg.getNamespace())) {
-                    String path = reg.getPath();
-                    if (path.contains("helmet") || path.contains("bandage") || path.contains("mask")
-                            || path.contains("wanderer") || path.contains("eyes_of_atem") || path.contains("halo_of_ra")) {
-                        return true;
-                    }
-                }
-                if (isGoggles(helmet)) {
-                    return true;
-                }
-            }
+        if (isEyeProtectionGear(helmet)) {
+            return true;
         }
 
-        // 2. Check Baubles head accessory slot if Baubles is loaded
         if (ArcanaQuestTweaksConfig.AtumModuleConfig.enableBaublesGogglesProtection
                 && Loader.isModLoaded("baubles")) {
-            if (BaublesGogglesHelper.hasGogglesInHeadSlot(player)) {
-                return true;
-            }
+            return BaublesGogglesHelper.hasGogglesInHeadSlot(player);
         }
 
         return false;
     }
 
     /**
-     * Checks if an item represents goggles or is on the protective headgear whitelist.
+     * Checks if an item is on the centralized {@code [eye_protection]} whitelist (supports {@code :meta} matching).
      */
+    public static boolean isEyeProtectionGear(ItemStack stack) {
+        return com.apocollis.aqtweaks.weather.GearTierRule.matchesStack(stack,
+                ArcanaQuestTweaksConfig.HazardGearConfig.eyeProtection.eyeProtectionGear);
+    }
+
+    /** Alias for {@link #isEyeProtectionGear(ItemStack)}. */
     public static boolean isGoggles(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) return false;
-        ResourceLocation reg = stack.getItem().getRegistryName();
-        if (reg == null) return false;
-        String id = reg.toString();
-        for (String pattern : ArcanaQuestTweaksConfig.AtumModuleConfig.protectiveHeadgear) {
-            if (matchesPattern(id, pattern)) {
-                return true;
-            }
-        }
-        return reg.getPath().contains("goggles");
+        return isEyeProtectionGear(stack);
     }
 
     public static boolean matchesPattern(String text, String pattern) {

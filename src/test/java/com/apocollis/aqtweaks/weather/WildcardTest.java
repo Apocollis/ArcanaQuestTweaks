@@ -50,4 +50,18 @@ class WildcardTest {
         assertFalse(Wildcard.matches("axb", "a.b*"));
         assertTrue(Wildcard.matches("a+b(c)", "a+b(*)"));
     }
+
+    @Test
+    void defaultReplaceablePlantsMatchOnlyTheWildOnes() {
+        String[] defaults = {"theaurorian:lavenderplant", "theaurorian:auroriantallgrass",
+                "theaurorian:auroriantallgrasslight"};
+        assertTrue(Wildcard.matchesAny("theaurorian:lavenderplant", defaults));
+        assertTrue(Wildcard.matchesAny("theaurorian:auroriantallgrass", defaults));
+        assertTrue(Wildcard.matchesAny("theaurorian:auroriantallgrasslight", defaults));
+        assertFalse(Wildcard.matchesAny("theaurorian:lavendercrop", defaults));
+        assertFalse(Wildcard.matchesAny("theaurorian:silkberrycrop", defaults));
+        assertFalse(Wildcard.matchesAny("theaurorian:petuniaplant", defaults));
+        assertFalse(Wildcard.matchesAny("theaurorian:silkberryplant", defaults));
+        assertFalse(Wildcard.matchesAny("theaurorian:silentwoodsapling", defaults));
+    }
 }

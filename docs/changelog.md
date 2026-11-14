@@ -2,6 +2,12 @@
 
 Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-11-14 — Hazard gear centralization, Atum choking removal, TF surge updraft
+
+- **Centralized hazard gear (`aqtweaks_hazard_gear.cfg`, `HazardGearConfig`, `HazardGearAudit`, `WindResistanceGear`):** moved all dimension hazard armor/gear whitelists and effect IDs into seven categories (`wind`, `eye_protection`, `aether`, `atum`, `aurorian`, `nether`, `twilightforest`) with `:meta` matching and startup audit logging for unmatched patterns. Added shared additive wind-push resistance across Aether gusts, Atum sandstorms, and Aurorian Moonfrost storms from live Elenai Dodge 2 iron-feather weight (before Armor Mastery), Wind Resistant armor, grounded Anchoring boots, and additive sneaking (clamped up to 100%). Renamed Aether `Channelled` → `Channeling`, excluded Insulated and Channeling gear from Conductive, fixed `thaumicaugmentation:thaumium_robes_*` and `atum:eyes_of_atum`, and replaced hardcoded eye-protection shortcuts with `Eye Protection Gear Whitelist`.
+- **Atum choking removed:** removed Sand Inhalation Choking, air-bar drain, `Enable Sand Inhalation Choking`, and `recoverBreath` from `AtumStormGameplayHandler` (cleans leftover `"AQTweaks_AtumAirDebt"` NBT).
+- **Twilight Forest Ley-Rupture updraft (`SurgeExposureRoll`):** after 16 s of continuous outdoor surge exposure, rolls once per continuous exposure (`1:2:2` weights) for no effect, 16 s Flight + 26 s Slowfall, or 16 s Levitation + 26 s Slowfall across all exposed players equally (refresh if shorter).
+
 ## 2026-11-02 — Comfort score breakdown in inventory popup HUD
 
 - **Comfort score breakdown in inventory popup HUD.** Hovering the Comfort tab in the inventory menu now displays the full Comfort score breakdown:
@@ -15,6 +21,20 @@ Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
   - Clear indicator when away from home.
 - **Hearthside tooltip rate.** Updated the Hearthside line on the hover box to `* Hearthside: At Home (Cleansing warp - <rate>)` (1 warp per 3 min for Tier I, 1 warp per 2 min for Tier II, 1 warp per min for Tier III).
 - Serialized category capped scores in `PacketComfortStatus` and mapped active potion bonuses (kind 7) to sync full room telemetry to the client.
+
+## 2026-11-14 — Hazard timers, ash storm, Ley-Rupture, Aether lightning storm, Moonfrost plants
+
+- **Timers:** Atum and Aurorian storms are now 4 to 6 minutes (240 to 360 s) with 14 to 34 minutes (840 to 2040 s) clear; the Nether ash storm lasts 3 to 5 minutes; the Ley-Rupture surge lasts 150 to 210 s every 12 to 20 minutes (charge, hunger and mob pulses re-paced; scour every 8 s for 3.0 unprotected / 1.0 proper, new `Scour Interval Seconds`). The DEVBOX cfg values were updated to match.
+- **Nether lava spouts:** 45 s events with 10 to 16 eruptions per player; spouts prefer lava near land; the thrown lava is chosen when the spout starts, warned with embers and a hiss for `Splash Warning Ticks` (25) after the burst (`PacketSplashTelegraph`, id 14) and then placed per cell on the local surface (no more all-or-nothing rejection), so it reliably lands on the bank (and on players who do not move).
+- **Nether ash storm:** a 30 s warning (wisps, cinders, rising wind), clouds created and filled in the last 2 s so they arrive on the first active tick, and a rounded, turning cloud of `ParticleAshSwirl` motes (dense core, feathered rim) with far higher particle caps (4000 per cloud, 8000 total).
+- **Ley-Rupture:** the warning is visible from the first second (columns, hum, growing vignette); columns start 24 blocks below the player (never above Y30), rise through ordinary blocks to Y50-55 and dissolve there, about 30 percent runes and about half the spawns within 18 blocks; they stop only in Shelter Features structures (boxes sent in `PacketLeyExposure`); the effect reaches about Y50 (`Fade Height Blocks` 22); surge charging now covers Thaumcraft rechargeable items, Thaumic Augmentation caster vis batteries, worn armor and Baubles.
+- **Aether:** gusts keep one heading from the warning to the end and push twice as hard with 2x active wisps; lightning is a storm: 10 s warning, 18 to 24 s of 5 to 6 salvos that lock onto every exposed player (insulated sets are diverted 3 to 8 blocks; conductive gear is locked first and retargeted; a channelled set, list empty for now, takes no damage), each bolt glowing on its block; clear interval 90 to 180 s. Conductive and insulated gear no longer change the wind push.
+- **Moonfrost snow** overwrites wild Aurorian lavender and tall grass (`Snow Replaces Plants`, `Snow Replaceable Plants`).
+
+## 2026-11-13 — Atum: sandstorm warning from `/atumweather`, and sand accumulation
+
+- **`/atumweather <sandstorm|clear|status> [seconds] [skipWarning]`** now runs through Tweaks (`MixinAtumWeatherCommand`): a forced sandstorm builds its `Storm Warning Seconds` of warning dust first, `[seconds]` sets the storm's length after the warning, `skipWarning` starts at once, `clear` and the storm state reach clients immediately, and `status` is new. The forced duration is stored on the provider, so it cannot leak into another world.
+- **Sand accumulation:** during a sandstorm exposed ground gains smooth, wind-shadowed Atum sand layers (default up to 6 layers, 1 to 16), shared with the Aurorian snow through the new `weather/LayerAccumulator` and `Layer*` classes (the Snow* pure classes moved there). Atum's own weather sand loop (every chunk every tick, three layers) is switched off while this is on. Nothing erodes afterwards. New keys: `Enable Sand Accumulation`, `Sand Layers Per Chunk Per Second`, `Sand Max Changes Per Tick`, `Sand Accumulation Radius`, `Max Sand Layers`, `Sand Max Step`, `Sand Wind Shadow`, `Sand Wind Shadow Angle`, `Accumulate On Strange Sand`, `Skip Oasis Biome`. Design: [client.md](client.md).
 
 ## 2026-11-13 — Moonfrost blizzard and Ley-Rupture eruption particles
 

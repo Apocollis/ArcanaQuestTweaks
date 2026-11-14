@@ -16,7 +16,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import java.util.Random;
 
-/** The dodgeable lightning telegraph: a crackling ground ring, a rising spark column and a charge hum. */
+/** The dodgeable lightning telegraph: a glowing marked block, a crackling ground ring, a rising spark column and a charge hum. */
 @SideOnly(Side.CLIENT)
 public class AetherBoltEffects {
     private static final double RING_RADIUS = 2.5D;
@@ -51,6 +51,13 @@ public class AetherBoltEffects {
                     double a = rand.nextDouble() * Math.PI * 2.0D;
                     world.spawnParticle(EnumParticleTypes.FIREWORKS_SPARK, x + Math.cos(a) * RING_RADIUS, y,
                             z + Math.sin(a) * RING_RADIUS, 0.0D, 0.02D, 0.0D);
+                }
+                // The marked block itself glows: bright glints across its top face, denser as the strike nears.
+                int glow = 3 + (int) (t * 9.0F);
+                for (int i = 0; i < glow; i++) {
+                    world.spawnParticle(i % 2 == 0 ? EnumParticleTypes.END_ROD : EnumParticleTypes.FIREWORKS_SPARK,
+                            b.x + 0.1D + rand.nextDouble() * 0.8D, b.y + 0.03D + rand.nextDouble() * 0.15D,
+                            b.z + 0.1D + rand.nextDouble() * 0.8D, 0.0D, 0.01D + 0.02D * t, 0.0D);
                 }
                 int column = 2 + (int) (t * 8.0F);
                 for (int i = 0; i < column; i++) {

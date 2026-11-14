@@ -31,8 +31,7 @@ public final class GearTierRule {
                 allWhitelisted = false;
                 break;
             }
-            ResourceLocation reg = stack.getItem().getRegistryName();
-            if (allWhitelisted && (reg == null || !Wildcard.matchesAny(reg.toString(), whitelist))) {
+            if (allWhitelisted && !matchesStack(stack, whitelist)) {
                 allWhitelisted = false;
             }
         }
@@ -45,24 +44,60 @@ public final class GearTierRule {
         return potion != null && player.isPotionActive(potion);
     }
 
-    /** True if every armor slot holds a piece on the list (used for the Aether insulated set). */
+    public static boolean matchesStack(ItemStack stack, String[] list) {
+        if (stack == null || stack.isEmpty() || list == null || list.length == 0) return false;
+        ResourceLocation reg = stack.getItem().getRegistryName();
+        return reg != null && Wildcard.matchesAnyItem(reg.toString(), stack.getMetadata(), list);
+    }
+
+    /** True if every armor slot holds a piece on the list (used for insulated, channeling, and arcane sets). */
     public static boolean allSlotsOnList(EntityPlayer player, String[] list) {
         for (EntityEquipmentSlot slot : SLOTS) {
-            ItemStack stack = player.getItemStackFromSlot(slot);
-            if (stack.isEmpty()) return false;
-            ResourceLocation reg = stack.getItem().getRegistryName();
-            if (reg == null || !Wildcard.matchesAny(reg.toString(), list)) return false;
+            if (!matchesStack(player.getItemStackFromSlot(slot), list)) return false;
         }
         return true;
+    }
+
+    /** Number of the four armor slots currently holding an item matching the list. */
+    public static int countOnList(EntityPlayer player, String[] list) {
+        int count = 0;
+        for (EntityEquipmentSlot slot : SLOTS) {
+            if (matchesStack(player.getItemStackFromSlot(slot), list)) count++;
+        }
+        return count;
+    }
+
+    /** True if the specified equipment slot holds an item matching the list. */
+    public static boolean slotMatches(EntityPlayer player, EntityEquipmentSlot slot, String[] list) {
+        return matchesStack(player.getItemStackFromSlot(slot), list);
     }
 
     /** True if any armor slot or either hand holds an item on the list. */
     public static boolean anyOnList(EntityPlayer player, String[] list) {
         for (EntityEquipmentSlot slot : EntityEquipmentSlot.values()) {
+            if (matchesStack(player.getItemStackFromSlot(slot), list)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * True if any armor slot or either hand holds an item matching {@code list} that does not match
+     * any of {@code excluded} (so Insulated or Channeling pieces never also count as Conductive).
+     */
+    public static boolean anyOnListExcluding(EntityPlayer player, String[] list, String[]... excluded) {
+        for (EntityEquipmentSlot slot : EntityEquipmentSlot.values()) {
             ItemStack stack = player.getItemStackFromSlot(slot);
-            if (stack.isEmpty()) continue;
-            ResourceLocation reg = stack.getItem().getRegistryName();
-            if (reg != null && Wildcard.matchesAny(reg.toString(), list)) return true;
+            if (!matchesStack(stack, list)) continue;
+            boolean isExcluded = false;
+            if (excluded != null) {
+                for (String[] ex : excluded) {
+                    if (matchesStack(stack, ex)) {
+                        isExcluded = true;
+                        break;
+                    }
+                }
+            }
+            if (!isExcluded) return true;
         }
         return false;
     }

@@ -39,4 +39,14 @@ class GroundReferenceTest {
         double reference = GroundReference.reference(new int[] {40, 40, 40, 40, 40}, 2);
         assertEquals(1.0D, GroundReference.exposure(20, reference, 14), 1e-9);
     }
+
+    @Test
+    void defaultFadeHeightReachesAboutYFiftyOverTypicalForestGround() {
+        // Reference 30 (ground 32 minus the offset 2) and the default fade height 22.
+        assertEquals(1.0D, GroundReference.exposure(30, 30, 22), 1e-9);
+        assertEquals(0.545D, GroundReference.exposure(40, 30, 22), 1e-3);
+        assertEquals(0.09D, GroundReference.exposure(50, 30, 22), 1e-2);
+        assertEquals(0.0D, GroundReference.exposure(52, 30, 22), 1e-9);
+        assertEquals(0.0D, GroundReference.exposure(55, 30, 22), 1e-9);
+    }
 }

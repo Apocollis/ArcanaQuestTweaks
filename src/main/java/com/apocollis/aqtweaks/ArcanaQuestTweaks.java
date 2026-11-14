@@ -44,6 +44,7 @@ public class ArcanaQuestTweaks {
     public void loadComplete(net.minecraftforge.fml.common.event.FMLLoadCompleteEvent event) {
         // After every mod has registered its channels, so the logger covers elenaidodge2 and the rest.
         com.apocollis.aqtweaks.network.ChannelErrorLogger.installAll();
+        com.apocollis.aqtweaks.weather.HazardGearAudit.run();
     }
 
     @Mod.EventHandler

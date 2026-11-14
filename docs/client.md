@@ -1,6 +1,6 @@
 # Client module (1.9)
 
-Last updated: 2026-10-19.
+Last updated: 2026-11-14.
 
 Config: `config/arcanaquesttweaks/aqtweaks_client.cfg`. Client-only. No `@Mod` parent. Optional mixin if Toughness Bar is present.
 
@@ -60,6 +60,9 @@ Light reaches the client only inside chunk data, or when the client runs its own
 | --- | --- |
 | `ArcanaQuestTweaksConfig.ClientModuleConfig` | `aqtweaks_client.cfg` |
 | `client/ClientModule.java` | Tooltip handler; registered in `ClientProxy` |
+| `mixin/atum/MixinAtumWeatherCommand.java`, `atum/AtumWeatherCommands.java`, `atum/AtumWeatherCommandHelper.java`, `atum/PendingStorm.java` | `/atumweather <sandstorm\|clear\|status> [seconds] [skipWarning]` runs through Tweaks so a forced storm warns first; the pure parsing and durations are unit tested; the forced duration lives on the provider (`PendingStorm`, implemented by `MixinWorldProviderAtum`) |
+| `atum/AtumSandHandler.java`, `weather/LayerAccumulator.java`, `LayerRate`, `LayerShadow`, `LayerStack`, `LayerLeveling` | Server sand accumulation (shared with the Aurorian snow) |
+| `mixin/atum/MixinWorldProviderAtum.java` | Storm intervals and durations, the forced storm duration, and switches off Atum's own weather sand loop while Tweaks accumulates sand |
 | `atum/AtumStormGameplayHandler.java` | Server shelter result per player is cached for 10 ticks or until the player changes block (the client push stays per tick) |
 | `client/atum/AtumFogHandler.java` | Overrides Atum fog with uniform linear fog and smooth cave transition |
 | `client/atum/AtumOutdoorDustEmitter.java` | Spawns volumetric 3D drifting sand particles outdoors, dynamically scaling during sandstorms |
@@ -117,12 +120,20 @@ Atum 2's default visuals have two major issues:
   - Volume dynamically scales with `stormStrength` and smoothly fades in/out as storms build and subside.
   - Acoustic muffling: when indoors or deep underground (`canSeeSky` false), the volume is muffled to 25% with lowered pitch (0.85). Behind an upwind wall/barrier shelter, volume is reduced to 50% (pitch 0.92). Outdoors in the open desert, the full howling wind roars at 100% volume.
   - **Ambient Sound Filtering:** Client event handler `AtumSoundFilter` (`PlaySoundEvent`) suppresses Dynamic Surroundings and AmbientSounds animal/bird/insect audio (birds, owls, crickets, cicadas, frogs, etc.) in Atum at all times. During active sandstorms, it suppresses external wind and rain loops from DSurround and AmbientSounds so only AQTweaks' howling gale plays cleanly. In clear weather, external ambient wind loops continue playing normally.
-  - **Exposure & Shelter** (`AtumStormGameplayHandler`, `aqtweaks_atum.cfg`): upwind barriers must block both feet and chest of the model to provide wind shadow shelter; 1-high blocks leaving the upper body exposed do not block the wind. An unsheltered player with no protective headgear loses breath (about 4 air per tick, choking damage once the bar is empty). Missing chest, legs, or boots, or armor under 10, takes half a heart of abrasion every 4 seconds. A wanderer or mummy set on those three slots stops the abrasion. A strong storm occasionally plays a low howl. Shelter and the existing wind push, headwind drain, and grit blindness are unchanged.
-- **Sandstorm warning (`AtumStormWarning`, `AtumWarningRamp`, `AtumWeatherSync`):** over the `Storm Warning Seconds` before a storm the outdoor dust blends from the clear-weather values toward the storm values at `Warning Dust Fraction` of full strength (spawn attempts, wind speed, fleck alpha, lifetime, band size), eased, and the storm then ramps on from that level with no jump. The level comes from the client Atum provider's own `stormTime`. Atum counts that down on both sides but sends `PacketWeather` only when the state flips, never on join or dimension change, so a client that joined mid-countdown redrew a random value of its own. `AtumWeatherSync` (server, registered with the Atum handler) sends Atum's own `PacketWeather(isStorming, stormTime)` only to players in Atum: on login there, on entering it, on respawning there, and every `Warning Resync Seconds` (`aqtweaks_atum.cfg`, default 30, 0 = events only) while no storm is active; never while vanilla clean-weather time pins the countdown at 1 or 2 (the ramp also ignores those values). The wind heading stays the calm one during the warning; fog, sound and gameplay are untouched.
+  - **Exposure & Shelter** (`AtumStormGameplayHandler`, `aqtweaks_atum.cfg` and `aqtweaks_hazard_gear.cfg`): upwind barriers must block both feet and chest of the model to provide wind shadow shelter; 1-high blocks leaving the upper body exposed do not block the wind. Eye protection (`Eye Protection Gear Whitelist` in `aqtweaks_hazard_gear.cfg` `eye_protection`, checked across armor `HEAD` and Baubles `HEAD`) prevents stinging grit blindness (inhalation choking was removed, and any leftover `"AQTweaks_AtumAirDebt"` NBT tag is cleared). Missing chest, legs, or boots, or armor under 10, takes half a heart of abrasion every 4 seconds. A wanderer, mummy, or whitelisted resistant set on those slots stops the abrasion. A strong storm occasionally plays a low howl. Client wind push guards `player.isUser()` and scales by `WindResistanceGear.factor(player, 0.70)` (additive with weight, Wind Resistant gear, and grounded Anchoring boots). Shelter, headwind drain, and grit blindness are unchanged.
+- **Sandstorm warning (`AtumStormWarning`, `AtumWarningRamp`, `AtumWeatherSync`):** over the `Storm Warning Seconds` before a storm the outdoor dust blends from the clear-weather values toward the storm values at `Warning Dust Fraction` of full strength (spawn attempts, wind speed, fleck alpha, lifetime, band size), eased, and the storm then ramps on from that level with no jump. The level comes from the client Atum provider's own `stormTime`. Atum counts that down on both sides but sends `PacketWeather` only when the state flips, never on join or dimension change, so a client that joined mid-countdown redrew a random value of its own. `AtumWeatherSync` (server, registered with the Atum handler) sends Atum's own `PacketWeather(isStorming, stormTime)` only to players in Atum: on login there, on entering it, on respawning there, and every `Warning Resync Seconds` (`aqtweaks_atum.cfg`, default 30, 0 = events only) while no storm is active; never while vanilla clean-weather time pins the countdown at 1 or 2 (the ramp also ignores those values). The wind heading stays the calm one during the warning; fog, sound and gameplay are untouched. **`/atumweather <sandstorm|clear|status> [seconds] [skipWarning]`** (OP level 2, replaces Atum's own command through `MixinAtumWeatherCommand`; `storm` stays an alias): `sandstorm` clears vanilla clean-weather time, then starts the configured `Storm Warning Seconds` countdown (the provider is set to clear with `stormTime` = the warning, the storm strength is reset and `PacketWeather` and `PacketStormStrength` go out at once so clients start the ramp), and when it runs out the storm starts with the duration given in `[seconds]` (carried on the provider so a singleplayer world change cannot leak it) or the usual looming duration; `skipWarning` (or `Enable Storm Warning` off) starts it at once. `clear [seconds]` ends it and sends the new state at once so a warning on clients stops. `status` prints the phase, strength and seconds left. The command refuses when Atum's own `SANDSTORM_ENABLED` is false.
 - **Looming Sandstorm Frequency (`MixinWorldProviderAtum`, `aqtweaks_atum.cfg`):**
   - Overrides Atum 2's sparse hardcoded countdown ($12,000 + \text{rand}(168,000)$ ticks, up to 2.5 hours) with configurable, frequent storm intervals.
   - Injects into `WorldProviderAtum.updateWeather()` right before weather packet dispatch.
-  - Configurable: `Enable Looming Sandstorms` (default `true`), `Storm Interval Min/Max Seconds` (default `360`–`1200`s, roughly once every 0.5 to 1.0 Minecraft days), and `Storm Duration Min/Max Seconds` (default `240`–`420`s).
+  - Configurable: `Enable Looming Sandstorms` (default `true`), `Storm Interval Min/Max Seconds` (default `840`–`2040`s clear, a full cycle of 18 to 40 minutes, one to two Minecraft days start to start), and `Storm Duration Min/Max Seconds` (default `240`–`360`s).
+
+## Atum sandstorm sand accumulation
+
+Server side, `atum/AtumSandHandler` (a `weather/LayerAccumulator`, the same build-up as the Aurorian snow, see [aurorian.md](aurorian.md)). While `stormStrength` is 0.25 or more, exposed ground in the loaded chunks within `Sand Accumulation Radius` (128) of any non-spectator player gains `atum:sand_layer` (Atum's Strange Sand layers): attempts per tick are chunks x `Sand Layers Per Chunk Per Second` (6) x strength squared / 20, capped at `Sand Max Changes Per Tick` (120). It replaces Atum's own weather sand, which walked every persistent chunk every tick even in clear weather (the `SANDSTORM_SAND_RARITY` guard comes first) and placed one layer per roll up to three layers and only above strength 0.9; `MixinWorldProviderAtum` redirects both reads of that setting to 0 while `Enable Sand Accumulation` is on.
+* **Depth:** up to `Max Sand Layers` (default 6, 1 to 16; 8 layers per block, a full block is topped by a new layer-1 block). Atum's collision is `(layers - 2) x 0.125`: layers 1 and 2 have none, 6 layers is 0.5 (still walked over), 7 is 0.625 and 8 is 0.75 (a jump; mobs treat them as walls).
+* **Smooth and shadowed:** a layer goes to the shallowest orthogonal neighbour when that one is `Sand Max Step` (2) or more layers shallower (up to 3 hops); the lee of walls, pyramids and dunes (upwind precipitation heights at 1 to 10 blocks against a flight line at `Sand Wind Shadow Angle`, 35 degrees, wind from `AtumWindHelper`) takes a layer about 35 percent of the time. Only air takes sand (`isAir`, never `isReplaceable`, which `BlockSandLayers` always answers true), so shrubs, deadwood, crops and torches are never replaced.
+* **Where:** oasis biomes (`Skip Oasis Biome`) and `limestone_cracked` (pyramid trap floors) never gain sand; Strange Sand and limestone gravel do (`Accumulate On Strange Sand`, Atum's rule skipped them). Entities are not skipped (no burial hazard; a player embedded at up to 0.75 collision steps or jumps out). Layers are set with flag 2.
+* **Permanent:** no erosion and no tracking. Nothing removes sand after a storm, so natural gradients and dunes outside storms are never touched; sand has no light melt (`BlockSandLayers` has no random tick) and drops nothing (`Items.AIR`), so it goes only by digging or by losing its support. Storms build on each other up to the cap.
 
 ## Atum pyramid plateau
 
@@ -147,30 +158,39 @@ Exact `@Config.Name` strings and code defaults, so the doc and the cfg cannot dr
 
 | Key | Default | Section | Note |
 | --- | --- | --- | --- |
+| Enable Sand Accumulation | `true` | Atum sand accumulation | Server: exposed ground gains Atum sand layers during a sandstorm; replaces Atum's own weather sand. |
+| Sand Layers Per Chunk Per Second | `6.0` | Atum sand accumulation | Build-up rate per loaded chunk at full strength (scales with strength squared). |
+| Sand Max Changes Per Tick | `120` | Atum sand accumulation | Hard cap on sand block changes per tick for the whole dimension. |
+| Sand Accumulation Radius | `128` | Atum sand accumulation | Loaded chunks within this many blocks of a player get sand (16 to 256). |
+| Max Sand Layers | `6` | Atum sand accumulation | Deepest a column gets (1 to 16); 6 layers is still walked over. |
+| Sand Max Step | `2` | Atum sand accumulation | Neighbouring columns differ by at most this many layers. |
+| Sand Wind Shadow | `true` | Atum sand accumulation | Sand builds more slowly in the lee of obstacles. |
+| Sand Wind Shadow Angle | `35.0` | Atum sand accumulation | Slant of the blowing sand in degrees (10 to 80). |
+| Accumulate On Strange Sand | `true` | Atum sand accumulation | Also build on Strange Sand and limestone gravel. |
+| Skip Oasis Biome | `true` | Atum sand accumulation | Oases stay clear. |
 | Enable Dynamic Wind Direction | `true` | AtumFog | If true, desert wind direction dynamically veers over time and all active particles follow the shifting wind in unison. |
 | Enable Sandstorm Gameplay Effects | `true` | AtumModuleConfig | If true, players exposed to the wind path of an Atum sandstorm experience physical and survival gameplay mechanics. |
-| Storm Interval Min Seconds | `360` | AtumModuleConfig | Minimum clear weather time between sandstorms in seconds. |
-| Storm Interval Max Seconds | `1200` | AtumModuleConfig | Maximum clear weather time between sandstorms in seconds. |
+| Storm Interval Min Seconds | `840` | AtumModuleConfig | Minimum clear weather time between sandstorms in seconds. |
+| Storm Interval Max Seconds | `2040` | AtumModuleConfig | Maximum clear weather time between sandstorms in seconds. |
 | Storm Duration Min Seconds | `240` | AtumModuleConfig | Minimum active sandstorm duration in seconds. |
-| Storm Duration Max Seconds | `420` | AtumModuleConfig | Maximum active sandstorm duration in seconds. |
+| Storm Duration Max Seconds | `360` | AtumModuleConfig | Maximum active sandstorm duration in seconds. |
 | Enable Wind Push | `true` | AtumModuleConfig | If true, unsheltered players in a sandstorm are physically pushed by the gale (tailwind boost, headwind resistance). |
 | Wind Push Force | `0.020` | AtumModuleConfig | Base physical velocity force applied to unsheltered players in a sandstorm. |
 | Enable Headwind Stamina Drain | `true` | AtumModuleConfig | If true, sprinting or fighting movement directly against the howling wind drains stamina (feathers) and increases exhaustion. |
 | Enable Stinging Grit Blindness | `true` | AtumModuleConfig | If true, looking directly into the blowing sandstorm without protective headgear causes stinging sand blindness and slowness. |
 | Grit Exposure Seconds Before Blindness | `3.0` | AtumModuleConfig | Seconds of continuous headwind eye exposure before stinging sand blindness triggers. |
 | Shelter Wind Shadow Distance | `6.5` | AtumModuleConfig | Distance in blocks upwind to raytrace for solid obstacles (dune crests, walls, cliffs) that block the wind and grant shelter. |
-| Enable Sand Inhalation Choking | `true` | AtumModuleConfig | If true, an unsheltered player in a sandstorm without protective headgear loses breath and takes choking damage when the air bar is empty. |
 | Enable Abrasive Sand Scour | `true` | AtumModuleConfig | If true, unsheltered entities in a sandstorm take periodic sand scour damage every 4 seconds. |
 | Enable Desert Storm Ambience | `true` | AtumModuleConfig | If true, an unsheltered player in a strong sandstorm occasionally hears a low cave-wind howl. |
-| Enable Baubles Goggles Protection | `true` | AtumModuleConfig | If true, goggles equipped in the Baubles head slot protect against sandstorm blindness and choking. |
+| Enable Baubles Goggles Protection | `true` | AtumModuleConfig | If true, eye-protection gear equipped in the Baubles head slot protects against sandstorm blindness. |
 | Scour Damage Exposed | `6.0` | AtumModuleConfig | Damage dealt every 4 seconds when unsheltered and missing any of the 4 armor slots (HEAD, CHEST, LEGS, FEET). |
 | Scour Damage Full Armor | `4.0` | AtumModuleConfig | Damage dealt every 4 seconds when unsheltered and wearing full standard armor across all 4 slots. |
 | Scour Damage Atum Armor | `2.0` | AtumModuleConfig | Damage dealt every 4 seconds when unsheltered and wearing full Atum or whitelisted resistant armor across all 4 slots. |
 | Enable Sandstorm Mob Effects | `true` | AtumModuleConfig | If true, unsheltered mobs in an Atum sandstorm experience physical wind push, slowness, and scour damage. |
 | Enable Armor Abrasion Wear | `true` | AtumModuleConfig | If true, sandstorms slowly degrade durability on unsheltered non-Atum, non-whitelisted armor. |
 | Abrasion Wear Interval Seconds | `10` | AtumModuleConfig | Seconds between durability wear ticks on unsheltered non-Atum armor. |
-| Protective Headgear Whitelist | `{atum:desert_helmet_iron, atum:desert_helmet_gold, atum:desert_helmet_diamond, atum:wanderer_helmet, atum:m...}` | AtumModuleConfig | Item registry names (wildcards supported) for helmets, veils, turbans, or goggles that protect from stinging sand grit blindness. |
-| Sandstorm Resistant Armor Whitelist | `{thaumcraft:goggles, thaumcraft:thaumium_robes_*, thaumcraft:fortress_*, bewitchment:besmirched_* }` | AtumModuleConfig | Item registry names (wildcards supported) for non-Atum armor that grants Tier 2 scour reduction (2.0 dmg) and resists durability abrasion wear. |
+| Eye Protection Gear Whitelist | `(list)` | HazardGearConfig (`eye_protection`) | Moved to `aqtweaks_hazard_gear.cfg`: item registry names (wildcards, optional `:meta`) protecting eyes in armor HEAD or Baubles HEAD slots against sandstorm blindness. |
+| Sandstorm Resistant Armor Whitelist | `(list, incl. thaumicaugmentation:thaumium_robes_*, etc.)` | HazardGearConfig (`atum`) | Moved to `aqtweaks_hazard_gear.cfg`: item registry names (wildcards, optional `:meta`) immune to sandstorm abrasion wear and qualifying for Tier 2 scour mitigation. |
 
 ## Do not regress
 

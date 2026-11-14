@@ -13,6 +13,7 @@
     "MixinChunkGeneratorAtum",
     "AccessorPyramidTemplate",
     "MixinMapGenRuin",
-    "MixinWorldProviderAtum"
+    "MixinWorldProviderAtum",
+    "MixinAtumWeatherCommand"
   ]
 }

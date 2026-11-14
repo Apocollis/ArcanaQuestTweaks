@@ -13,7 +13,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.audio.ISound;
 import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.init.SoundEvents;
-import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.SoundCategory;
 import net.minecraft.world.World;
@@ -29,10 +28,12 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import java.util.Random;
 
 /**
- * Client telegraph and presence of the Ley-Rupture: during the 30 s warning the ambient forest sounds fall silent
- * and a resonance hum builds, with glyph wisps and violet motes rising from the ground in the last third; during
- * the surge the particles scale with the exposure factor the server sent. The warning comes from the shared hazard
- * event, so a command-started rupture telegraphs exactly like a natural one.
+ * Client telegraph and presence of the Ley-Rupture: during the warning the ambient forest sounds fall silent, a
+ * resonance hum builds and columns of runes, wisps, sparks and dots begin to rise through the ground around the
+ * player from the very start, thickening as the surge nears; during the surge the particles scale with the exposure
+ * factor the server sent. The columns start at a spawn floor (24 blocks below the player, never above Y30), climb to
+ * Y50 to Y55 and pass through ordinary blocks, stopping only in sheltered structures. The warning comes from the
+ * shared hazard event, so a command-started rupture telegraphs exactly like a natural one.
  */
 @SideOnly(Side.CLIENT)
 public class LeyRuptureClient {
@@ -42,7 +43,7 @@ public class LeyRuptureClient {
 
     @SubscribeEvent
     public void onDisconnect(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
-        ClientLey.exposure = 0.0F;
+        ClientLey.clear();
         hum = null;
         ParticleLeyEruption.resetCounts();
     }
@@ -68,10 +69,14 @@ public class LeyRuptureClient {
         if (!c.enable) return;
         HazardState state = Hazards.state(world, LeyChannels.RUPTURE);
         float p = presence(state);
-        if (p <= 0.01F) return;
+        if (p <= 0.01F) {
+            if (ClientLey.shelterBoxes.length > 0) ClientLey.shelterBoxes = new int[0];
+            return;
+        }
 
         if (c.enableAudio) {
-            humScale = p * 0.5F;
+            // Audible from the first second of the warning, meeting the surge level at its end.
+            humScale = state.phase == HazardEvent.Phase.ACTIVE ? 0.5F : 0.18F + 0.32F * p;
             if (hum == null || hum.isDonePlaying() || !mc.getSoundHandler().isSoundPlaying(hum)) {
                 final float pitchBase = 1.0F;
                 hum = new HazardLoopSound(player, SoundEvents.BLOCK_PORTAL_AMBIENT, SoundCategory.AMBIENT,
@@ -82,10 +87,7 @@ public class LeyRuptureClient {
         if (!c.enableParticles) return;
 
         boolean active = state.phase == HazardEvent.Phase.ACTIVE;
-        boolean wisps = active
-                || state.event.ticksToStart(state.tick) <= 200L; // the last ~10 s of the warning
-        if (!wisps) return;
-        float scale = active ? Math.max(0.15F, ClientLey.exposure) : p * 0.6F;
+        float scale = active ? Math.max(0.15F, ClientLey.exposure) : 0.15F + 0.45F * p;
         spawnParticles(mc, world, player, c, active, scale);
     }
 
@@ -95,40 +97,36 @@ public class LeyRuptureClient {
     }
 
     /**
-     * Glyphs and motes spread over a wide square around the player (never on top of the camera), with the density
-     * per square block held at the old 32 by 32 level, plus vent plumes on a ring in the surge.
+     * Columns of runes (about 30 percent) and wisps, sparks and dots (about 70 percent) start at the spawn floor in a
+     * wide square around the player, about half of them within 18 blocks so the player is surrounded and not only
+     * ringed, with the density per square block held at the old 32 by 32 level; plus vent plumes in the surge. Every
+     * particle climbs from the floor to its own peak at Y50 to Y55. No ground scan is needed: the columns pass through
+     * the terrain, and none start inside a sheltered structure's footprint.
      */
     private void spawnParticles(Minecraft mc, World world, EntityPlayerSP player,
                                 ArcanaQuestTweaksConfig.LeyRupture c, boolean active, float scale) {
         double radius = c.particleRadius;
         double density = c.particleDensity;
         int cap = c.maxParticles;
-        int py = (int) Math.floor(player.posY);
+        int floorY = LeyEruptionShape.floorY(player.posY);
+        net.minecraft.util.math.BlockPos.MutableBlockPos pos = new net.minecraft.util.math.BlockPos.MutableBlockPos();
 
         if (active) {
             // Vents first: they keep a reserved share of the cap so the ground pass cannot starve the plumes.
             int vents = LeyEruptionShape.vents(scale, radius, density);
             for (int v = 0; v < vents; v++) {
                 if (!LeyEruptionShape.ventAllowed(ParticleLeyEruption.vent(), ParticleLeyEruption.active(), cap)) break;
-                double[] o = LeyEruptionShape.offset(rand, radius, LeyEruptionShape.VENT_KEEP_OUT);
+                double[] o = LeyEruptionShape.spreadOffset(rand, radius, LeyEruptionShape.VENT_KEEP_OUT);
                 double dist = Math.sqrt(o[0] * o[0] + o[1] * o[1]);
                 double x = player.posX + o[0];
                 double z = player.posZ + o[1];
-                double y = groundY(world, (int) Math.floor(x), py, (int) Math.floor(z), dist);
-                if (y < 0.0D) continue;
+                if (!spawnable(world, pos, x, floorY, z)) continue;
                 float dScale = LeyEruptionShape.distanceScale(dist, radius);
                 int bolts = 4 + rand.nextInt(4) + (dist > 24.0D ? 1 : 0);
                 for (int b = 0; b < bolts; b++) {
                     if (!LeyEruptionShape.ventAllowed(ParticleLeyEruption.vent(), ParticleLeyEruption.active(), cap)) break;
-                    boolean eruption = rand.nextFloat() < 0.70F;
-                    mc.effectRenderer.addEffect(new ParticleLeyEruption(world, x + (rand.nextDouble() - 0.5D) * 0.8D,
-                            y + 0.25D, z + (rand.nextDouble() - 0.5D) * 0.8D, eruption, true, true, dScale));
-                }
-                int sparks = 1 + rand.nextInt(2);
-                for (int k = 0; k < sparks; k++) {
-                    world.spawnParticle(EnumParticleTypes.CRIT_MAGIC, true, x, y + 0.4D, z,
-                            (rand.nextDouble() - 0.5D) * 0.4D, 0.3D + rand.nextDouble() * 0.5D,
-                            (rand.nextDouble() - 0.5D) * 0.4D);
+                    addColumn(mc, world, x + (rand.nextDouble() - 0.5D) * 0.8D, floorY, z + (rand.nextDouble() - 0.5D) * 0.8D,
+                            true, dScale);
                 }
             }
         }
@@ -136,62 +134,28 @@ public class LeyRuptureClient {
         int attempts = LeyEruptionShape.attempts(scale, active ? 36.0D : 14.0D, radius, density);
         for (int i = 0; i < attempts; i++) {
             if (!LeyEruptionShape.groundAllowed(ParticleLeyEruption.vent(), ParticleLeyEruption.active(), cap)) break;
-            double[] o = LeyEruptionShape.offset(rand, radius, LeyEruptionShape.WARNING_KEEP_OUT);
+            double[] o = LeyEruptionShape.spreadOffset(rand, radius, LeyEruptionShape.WARNING_KEEP_OUT);
             double dist = Math.sqrt(o[0] * o[0] + o[1] * o[1]);
             double x = player.posX + o[0];
             double z = player.posZ + o[1];
-            double y = groundY(world, (int) Math.floor(x), py, (int) Math.floor(z), dist);
-            if (y < 0.0D) continue;
-            float dScale = LeyEruptionShape.distanceScale(dist, radius);
-            if (active) {
-                float roll = rand.nextFloat();
-                if (roll < 0.35F) {
-                    mc.effectRenderer.addEffect(new ParticleLeyEruption(world, x, y + 0.25D, z, false, false, true, dScale));
-                } else if (roll < 0.70F) {
-                    mc.effectRenderer.addEffect(new ParticleLeyEruption(world, x, y + 0.25D, z, true, false, true, dScale));
-                } else {
-                    world.spawnParticle(EnumParticleTypes.SPELL_WITCH, true, x, y + 0.2D, z, 0.0D,
-                            0.30D + rand.nextDouble() * 0.16D, 0.0D);
-                }
-            } else {
-                mc.effectRenderer.addEffect(new ParticleLeyEruption(world, x, y + 0.25D, z, false, false, false, dScale));
-                if (rand.nextInt(2) == 0) {
-                    world.spawnParticle(EnumParticleTypes.SPELL_WITCH, true, x, y + 0.2D, z, 0.0D,
-                            0.26D + rand.nextDouble() * 0.12D, 0.0D);
-                }
-            }
+            if (!spawnable(world, pos, x, floorY, z)) continue;
+            addColumn(mc, world, x, floorY, z, false, LeyEruptionShape.distanceScale(dist, radius));
         }
     }
 
-    /**
-     * Standing surface for a spawn column, or -1. Near the player it scans around the player's height; beyond 16
-     * blocks hills and valleys differ too much for that, so the scan starts from the column's height map value and
-     * walks down past leaves to the first solid block with air above it.
-     */
-    private static double groundY(World world, int x, int nearY, int z, double dist) {
-        net.minecraft.util.math.BlockPos.MutableBlockPos pos = new net.minecraft.util.math.BlockPos.MutableBlockPos();
-        if (dist <= 16.0D) {
-            for (int y = nearY + 12; y >= nearY - 12; y--) {
-                pos.setPos(x, y, z);
-                if (!world.isBlockLoaded(pos)) return -1.0D;
-                if (world.getBlockState(pos).getMaterial().isSolid()) {
-                    pos.setPos(x, y + 1, z);
-                    return world.isAirBlock(pos) ? y + 1 : -1.0D;
-                }
-            }
-            return -1.0D;
-        }
-        pos.setPos(x, 64, z);
-        if (!world.isBlockLoaded(pos)) return -1.0D;
-        int top = world.getHeight(pos).getY();
-        for (int y = top; y >= Math.max(1, top - 40); y--) {
-            pos.setPos(x, y, z);
-            net.minecraft.block.state.IBlockState state = world.getBlockState(pos);
-            if (!state.getMaterial().isSolid() || state.getBlock().isLeaves(state, world, pos)) continue;
-            pos.setPos(x, y + 1, z);
-            return world.isAirBlock(pos) ? y + 1 : -1.0D;
-        }
-        return -1.0D;
+    /** The chunk must be loaded and the column outside every sheltered structure's footprint. */
+    private static boolean spawnable(World world, net.minecraft.util.math.BlockPos.MutableBlockPos pos, double x,
+                                     int floorY, double z) {
+        pos.setPos(x, floorY, z);
+        return world.isBlockLoaded(pos) && !ClientLey.inShelterFootprint(x, z);
+    }
+
+    private void addColumn(Minecraft mc, World world, double x, int floorY, double z, boolean vent, float dScale) {
+        boolean rune = LeyEruptionShape.isRune(rand);
+        double rise = LeyEruptionShape.riseSpeed(rand, rune);
+        double peak = LeyEruptionShape.peakY(rand);
+        mc.effectRenderer.addEffect(new ParticleLeyEruption(world, x, floorY + rand.nextDouble() * 0.5D, z, rune, vent,
+                dScale, peak, rise));
     }
 
     /** Forest crickets and ambient wildlife fall dead silent from the start of the warning. */

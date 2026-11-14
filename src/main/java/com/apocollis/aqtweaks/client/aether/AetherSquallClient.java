@@ -2,14 +2,12 @@ package com.apocollis.aqtweaks.client.aether;
 
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.aether.AetherChannels;
-import com.apocollis.aqtweaks.aether.AetherSquallGear;
 import com.apocollis.aqtweaks.aether.AetherWindHelper;
 import com.apocollis.aqtweaks.atum.AtumSounds;
 import com.apocollis.aqtweaks.aurorian.StormVisuals;
 import com.apocollis.aqtweaks.client.hazard.HazardLoopSound;
 import com.apocollis.aqtweaks.hazard.HazardState;
 import com.apocollis.aqtweaks.hazard.Hazards;
-import com.apocollis.aqtweaks.weather.GearTierRule;
 import com.apocollis.aqtweaks.weather.StormShelter;
 
 import net.minecraft.client.Minecraft;
@@ -68,16 +66,17 @@ public class AetherSquallClient {
             mc.getSoundHandler().playSound(sound);
         }
         if (ArcanaQuestTweaksConfig.AetherModuleConfig.squall.enableSquallParticles) {
-            wisps(world, player, wind, visual);
+            wisps(world, player, wind, visual, state.strength);
         }
         if (state.strength >= 0.05F) {
             push(player, world, wind, state.strength);
         }
     }
 
-    private void wisps(World world, EntityPlayerSP player, Vec3d wind, float scale) {
+    private void wisps(World world, EntityPlayerSP player, Vec3d wind, float scale, float strength) {
         int attempts = (int) (scale * 40.0F);
-        double speed = 0.5D + scale * 0.9D;
+        // The warning (strength 0) keeps its speed; the active squall doubles it at full strength.
+        double speed = (0.5D + scale * 0.9D) * (1.0D + strength);
         for (int i = 0; i < attempts; i++) {
             double along = rand.nextDouble() * 48.0D - 36.0D;
             double cross = (rand.nextDouble() - 0.5D) * 40.0D;
@@ -93,13 +92,9 @@ public class AetherSquallClient {
                 ArcanaQuestTweaksConfig.AetherModuleConfig.squall.shelterWindShadowDistance)) {
             return;
         }
-        boolean insulated = GearTierRule.allSlotsOnList(player, ArcanaQuestTweaksConfig.AetherModuleConfig.squall.insulatedGear);
-        boolean conductive = GearTierRule.anyOnList(player, ArcanaQuestTweaksConfig.AetherModuleConfig.squall.conductiveGear);
-        double force = ArcanaQuestTweaksConfig.AetherModuleConfig.squall.crosswindPushForce * strength
-                * AetherSquallGear.pushFactor(insulated, conductive);
-        if (player.isSneaking()) {
-            force *= ArcanaQuestTweaksConfig.AetherModuleConfig.squall.sneakAnchorFactor;
-        }
+        double force = ArcanaQuestTweaksConfig.AetherModuleConfig.squall.crosswindPushForce * strength;
+        force *= com.apocollis.aqtweaks.weather.WindResistanceGear.factor(player,
+                1.0D - ArcanaQuestTweaksConfig.AetherModuleConfig.squall.sneakAnchorFactor);
         player.motionX += wind.x * force;
         player.motionZ += wind.z * force;
         double max = ArcanaQuestTweaksConfig.AetherModuleConfig.squall.maxGustSpeed;

@@ -39,6 +39,9 @@ public class AshCloudManager {
 
     public static final DamageSource DAMAGE_ASH = new DamageSource("aqtweaks_ash").setDamageBypassesArmor();
 
+    /** The flood fill starts this many ticks before the storm does. */
+    private static final long PREFILL_TICKS = 40L;
+
     private final Random rand = new Random();
     private final List<AshCloud> clouds = new ArrayList<>();
     private final Map<UUID, Double> dose = new HashMap<>();
@@ -73,11 +76,22 @@ public class AshCloudManager {
             clearAll(world);
             spawned = false;
         }
-        if (state.phase == HazardEvent.Phase.ACTIVE && !spawned) {
+        // The clouds are created in the last seconds of the warning so their flood fill is finished when the storm
+        // starts; they stay silent and harmless (not armed) until then.
+        if (state.phase == HazardEvent.Phase.WARNING && !spawned && state.event != null
+                && state.event.start - now <= PREFILL_TICKS) {
             spawned = true;
-            spawnFor(world, state.event, now);
+            spawnFor(world, state.event, state.event.start, false);
         }
-        if (state.phase != HazardEvent.Phase.ACTIVE && !clouds.isEmpty()) {
+        if (state.phase == HazardEvent.Phase.ACTIVE) {
+            if (!spawned) {
+                spawned = true;
+                spawnFor(world, state.event, now, true);
+            } else {
+                arm(world, now);
+            }
+        }
+        if (state.phase == HazardEvent.Phase.CLEAR && !clouds.isEmpty()) {
             clearAll(world);
         }
         // Move, expire and start fills first (backwards, so a removal is safe), then share one cell budget among
@@ -95,14 +109,28 @@ public class AshCloudManager {
 
     // ---- spawning and drifting ----
 
-    private void spawnFor(WorldServer world, HazardEvent event, long now) {
+    /** Announces the clouds that were filled during the warning, the moment the storm starts. */
+    private void arm(WorldServer world, long now) {
+        for (AshCloud cloud : clouds) {
+            if (cloud.armed) continue;
+            cloud.armed = true;
+            cloud.lastSent = null;
+            if (!cloud.occupied.isEmpty()) {
+                double scale = cloud.scale(now);
+                broadcast(world, cloud, ArcanaQuestTweaksConfig.NetherModuleConfig.ashReachHorizontal * scale,
+                        ArcanaQuestTweaksConfig.NetherModuleConfig.ashReachVertical * scale, now);
+            }
+        }
+    }
+
+    private void spawnFor(WorldServer world, HazardEvent event, long startTick, boolean armed) {
         int cap = ArcanaQuestTweaksConfig.NetherModuleConfig.maxAshClouds;
         for (EntityPlayer player : world.playerEntities) {
             if (clouds.size() >= cap) break;
             if (player.isCreative() || player.isSpectator() || player.isDead) continue;
             if (insideAny(player)) continue;
             double angle = rand.nextDouble() * Math.PI * 2.0D;
-            double offset = 3.0D + rand.nextDouble() * 6.0D;
+            double offset = rand.nextDouble() * 4.0D;
             double cx = player.posX + Math.cos(angle) * offset;
             double cz = player.posZ + Math.sin(angle) * offset;
             double cy = player.posY + 1.0D;
@@ -110,7 +138,8 @@ public class AshCloudManager {
                 cx = player.posX;
                 cz = player.posZ;
             }
-            AshCloud cloud = new AshCloud(nextId++, cx, cy, cz, rand.nextDouble() * Math.PI * 2.0D, now, event.end);
+            AshCloud cloud = new AshCloud(nextId++, cx, cy, cz, rand.nextDouble() * Math.PI * 2.0D, startTick, event.end);
+            cloud.armed = armed;
             setVelocity(cloud);
             clouds.add(cloud);
             debug("ash cloud " + cloud.id + " spawned near " + player.getName());
@@ -204,6 +233,7 @@ public class AshCloudManager {
     }
 
     private void broadcast(WorldServer world, AshCloud cloud, double rh, double rv, long now) {
+        if (!cloud.armed) return;
         PacketAshCloud p = packetOf(cloud, rh, rv);
         if (p == null) return;
         if (cloud.lastSent != null && unchanged(cloud.lastSent, cloud.lastSentTick, p, now)) return;
@@ -235,6 +265,7 @@ public class AshCloudManager {
         if (world == null || player.dimension != -1) return;
         long now = world.getTotalWorldTime();
         for (AshCloud cloud : clouds) {
+            if (!cloud.armed) continue;
             double scale = cloud.scale(now);
             PacketAshCloud p = packetOf(cloud, ArcanaQuestTweaksConfig.NetherModuleConfig.ashReachHorizontal * scale,
                     ArcanaQuestTweaksConfig.NetherModuleConfig.ashReachVertical * scale);
@@ -250,6 +281,7 @@ public class AshCloudManager {
         int fz = (int) Math.floor(player.posZ);
         int ey = (int) Math.floor(player.posY + player.getEyeHeight());
         for (AshCloud cloud : clouds) {
+            if (!cloud.armed) continue;
             if (cloud.contains(fx, fy, fz) || cloud.contains(fx, ey, fz)) return true;
         }
         return false;
@@ -263,8 +295,9 @@ public class AshCloudManager {
             double current = dose.getOrDefault(id, 0.0D);
             if (!inside && current <= 0.0D && !debt.containsKey(id)) continue;
 
-            MoonfrostTier tier = GearTierRule.tierOf(player, ArcanaQuestTweaksConfig.NetherModuleConfig.witherWardEffect,
-                    ArcanaQuestTweaksConfig.NetherModuleConfig.ashProperGearWhitelist);
+            MoonfrostTier tier = GearTierRule.tierOf(player,
+                    ArcanaQuestTweaksConfig.HazardGearConfig.nether.witherWardEffect,
+                    ArcanaQuestTweaksConfig.HazardGearConfig.nether.ashProperGearWhitelist);
             double gain;
             switch (tier) {
                 case EXPOSED:
@@ -308,7 +341,7 @@ public class AshCloudManager {
         }
     }
 
-    /** Ash lung from the first second: the air bar drains, then drowning-type damage, mirroring Atum's choking. */
+    /** Ash lung from the first second: the air bar drains, then drowning-type damage. */
     private void ashLung(EntityPlayer player, boolean inside) {
         UUID id = player.getUniqueID();
         int d = debt.getOrDefault(id, 0);

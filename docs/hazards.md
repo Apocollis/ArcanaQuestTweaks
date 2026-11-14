@@ -34,9 +34,30 @@ One engine for every scheduled dimension hazard. The server decides each event, 
 | 1 | spout | The Nether | [nether.md](nether.md) |
 | 2 | ash | The Nether | [nether.md](nether.md) |
 | 3 | gust | The Aether | [aether.md](aether.md) |
-| 4 | lightning | The Aether (its warning window is the strike telegraph) | [aether.md](aether.md) |
+| 4 | lightning | The Aether (its warning window is the storm warning; each bolt has its own glow) | [aether.md](aether.md) |
 | 5 | rupture | The Twilight Forest | [twilightforest.md](twilightforest.md) |
 
-Packet ids after the hazard event (9): 10 `PacketSpoutTelegraph`, 11 `PacketAshCloud`, 12 `PacketAetherBoltTelegraph`, 13 `PacketLeyExposure`. The next free channel id is 6 and the next free packet id is 14.
+Packet ids after the hazard event (9): 10 `PacketSpoutTelegraph`, 11 `PacketAshCloud`, 12 `PacketAetherBoltTelegraph`, 13 `PacketLeyExposure` (exposure and, when changed, the nearby sheltered structure boxes), 14 `PacketSplashTelegraph`. The next free channel id is 6 and the next free packet id is 15.
 
-Tests: `HazardEventTest`, `HazardTimelineTest`.
+Tests: `HazardEventTest`, `HazardTimelineTest`, `WindResistanceGearTest`.
+
+## Shared hazard gear & wind resistance (`aqtweaks_hazard_gear.cfg`)
+
+All dimensional hazard gear whitelists and effect IDs are centralized in `config/arcanaquesttweaks/aqtweaks_hazard_gear.cfg` (`HazardGearConfig`) across seven categories: `wind`, `eye_protection`, `aether`, `atum`, `aurorian`, `nether`, and `twilightforest`. Patterns use glob wildcards (`weather/Wildcard.java`) with optional `:meta` suffixes (checked via `weather/GearTierRule.java`).
+
+* **Startup pattern audit (`weather/HazardGearAudit.java`):** runs on `FMLLoadCompleteEvent` against `ForgeRegistries.ITEMS.getKeys()` and logs `[hazard-gear] Unmatched pattern in <list>: <pattern>` (plus any invalid configured potion IDs) so stale or misspelled entries are surfaced immediately on boot.
+* **Shared wind-push resistance (`weather/WindResistanceGear.java`):** scales local client wind push additively across Aether Silver Squalls, Atum sandstorms, and Aurorian Moonfrost storms using live Elenai Dodge 2 iron-feather weight (before Armor Mastery, via `StaminaFeathers.getWeightBeforeMastery`, cached 10 ticks per player so weight-reducing enchantments still reduce wind resistance while Armor Mastery does not), **Wind Resistant** gear (proportional across the 4 armor slots, active both grounded and mid-air), **Anchoring Boots** (`FEET` slot, active only while `onGround`), and sneaking reduction (70% in Atum/Aurorian, `1.0 - Sneak Anchor Factor` = 75% in Aether), all **added together** and clamped to `[0.0, 1.0]` so combinations can reach 100% wind immunity. Config reloading invalidates the cache.
+
+| Category / Key | Default | Note |
+| --- | --- | --- |
+| `wind` / Enable Wind Gear | `true` | Master switch for weight, Wind Resistant gear, and Anchoring boots wind-push reduction. |
+| `wind` / Enable Weight Push Resistance | `true` | Scale wind-push resistance dynamically from Elenai Dodge 2 iron-feather weight before Armor Mastery. |
+| `wind` / Weight Reduction Threshold | `0.0` | Weight (half-feathers) below which weight grants no wind resistance. |
+| `wind` / Weight Full Reduction At | `20.0` | Weight (half-feathers) at which weight reaches Max Weight Push Reduction (20.0 = 10 iron feathers). |
+| `wind` / Max Weight Push Reduction | `0.50` | Maximum wind-push reduction from armor weight. |
+| `wind` / Wind Resistant Gear Whitelist | `(list)` | Aerodynamic armor across the 4 armor slots active both grounded and mid-air. |
+| `wind` / Wind Resistant Full Set Push Reduction | `0.40` | Full 4-piece Wind Resistant reduction (1/4 per piece). |
+| `wind` / Anchoring Boots Whitelist | `(list)` | Footwear in the FEET slot that resists wind push only while standing on solid ground. |
+| `wind` / Anchoring Grounded Push Reduction | `0.25` | Extra wind-push reduction granted by Anchoring Boots while `onGround`. |
+| `eye_protection` / Eye Protection Gear Whitelist | `(list)` | Goggles, eyewear, and sealed helmets checked across armor HEAD and Baubles HEAD slots against grit blindness. |
+

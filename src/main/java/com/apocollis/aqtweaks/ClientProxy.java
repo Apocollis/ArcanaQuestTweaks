@@ -57,6 +57,7 @@ public class ClientProxy extends CommonProxy {
         if (net.minecraftforge.fml.common.Loader.isModLoaded("aether_legacy")) {
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.client.aether.AetherSquallClient());
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.client.aether.AetherBoltEffects());
+            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.client.aether.AetherStormWarning());
         }
         if (net.minecraftforge.fml.common.Loader.isModLoaded("metallurgy")) {
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.client.paragon.ParagonTooltipHandler());

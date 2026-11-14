@@ -31,9 +31,12 @@ public final class AshCloud {
         this.endTick = endTick;
     }
 
-    /** 0.35..1: grows in over 15 s and shrinks over the last 20 s. */
+    /** True once the storm is active: an unarmed cloud was filled early (in the last seconds of the warning) and is not yet announced or harmful. */
+    public boolean armed;
+
+    /** 0.1..1: arrives at 85 percent reach and fills out over 3 s (the warning is the build-up), shrinks over the last 20 s. */
     public double scale(long now) {
-        double grow = Math.min(1.0D, 0.35D + 0.65D * (now - startTick) / 300.0D);
+        double grow = Math.min(1.0D, 0.85D + 0.15D * Math.max(0L, now - startTick) / 60.0D);
         double fade = Math.min(1.0D, (endTick - now) / 400.0D);
         return Math.max(0.1D, Math.min(grow, fade));
     }

@@ -4,6 +4,12 @@ package com.apocollis.aqtweaks.nether;
 public final class SpoutSitePicker {
     private SpoutSitePicker() {}
 
+    /** Minimum distance between two active spout sites. */
+    public static final double SEPARATION = 6.0D;
+
+    /** A site with this many of its 16 land samples is taken at once; a lower one is the fallback. */
+    public static final int GOOD_SCORE = 10;
+
     /** Horizontal distance from the player must be within [minDistance, range]. */
     public static boolean distanceOk(double dx, double dz, double minDistance, double range) {
         double d2 = dx * dx + dz * dz;

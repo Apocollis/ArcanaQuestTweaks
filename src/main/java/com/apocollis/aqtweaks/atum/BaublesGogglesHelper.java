@@ -24,7 +24,7 @@ public final class BaublesGogglesHelper {
             for (int i = 0; i < handler.getSlots(); i++) {
                 if (BaubleType.HEAD.hasSlot(i)) {
                     ItemStack stack = handler.getStackInSlot(i);
-                    if (!stack.isEmpty() && AtumStormGameplayHandler.isGoggles(stack)) {
+                    if (!stack.isEmpty() && AtumStormGameplayHandler.isEyeProtectionGear(stack)) {
                         return true;
                     }
                 }

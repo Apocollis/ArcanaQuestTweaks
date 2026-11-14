@@ -36,7 +36,7 @@ public final class NetherHazards {
                 ArcanaQuestTweaksConfig.NetherModuleConfig.ashIntervalMaxSeconds * 20L,
                 ArcanaQuestTweaksConfig.NetherModuleConfig.ashDurationMinSeconds * 20L,
                 ArcanaQuestTweaksConfig.NetherModuleConfig.ashDurationMaxSeconds * 20L,
-                0, 0, 0);
+                ArcanaQuestTweaksConfig.NetherModuleConfig.ashWarningSeconds * 20, 0, 0);
     }
 
     public static LavaSpoutHandler spouts;

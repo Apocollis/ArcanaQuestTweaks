@@ -155,7 +155,7 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `
 | `mixins.aqtweaks.mysticalworld.json` | false | RTG Mystical huts | Skip |
 | `mixins.aqtweaks.biomesoplenty.json` | false | RTG BOP water/quicksand village skip | Skip |
 | `mixins.aqtweaks.da.json` | false | RTG Dungeon Additions village overlap skip | Skip |
-| `mixins.aqtweaks.atum.json` | **true** when queued | Atum fog (client) and pyramid plateau. Queued only when `atum` is loaded | Not queued |
+| `mixins.aqtweaks.atum.json` | **true** when queued | Atum fog (client), pyramid plateau, `/atumweather` warning (`MixinAtumWeatherCommand`), the forced storm duration and the sand-loop switch (`MixinWorldProviderAtum`). Queued only when `atum` is loaded | Not queued |
 | `mixins.aqtweaks.aurorian.json` | false | The Aurorian: fixed moon phase and celestial angle (`MixinAurorianWorldProvider`). Queued only when `theaurorian` is loaded. The sky-light fix is `MixinWorldFixedSkylight` in the early json; `MixinEntityRendererFog` (main json) is now only the Nether ash fog | Not queued |
 | `mixins.aqtweaks.depthsupdate.json` | false | Depths: `MixinHeightManager` dimension-indexed `HeightCache` for `HeightManager.get(int)` and `isExtended(int)` | Skip |
 | `mixins.aqtweaks.gaia.json` | false | Grimoire of Gaia drop pierce + recast bolts/bombs + Deathword ranged | Skip |

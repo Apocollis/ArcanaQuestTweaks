@@ -84,9 +84,16 @@ public final class StaminaFeathers {
         return intWeight;
     }
 
-    public static int getWeight(EntityPlayer player) {
+    /**
+     * Returns the player's Elenai Dodge 2 iron-feather weight (in half-feathers) after Weight potion,
+     * Lightweight enchant, Endurance potion, and whole/half-feather rounding, but before Armor Mastery
+     * perk subtraction. Used by wind-push resistance (Armor Mastery ignores weight for dodging without
+     * actually making armor lighter).
+     */
+    public static int getWeightBeforeMastery(EntityPlayer player) {
+        if (player == null) return 0;
         if (player.isPotionActive(com.elenai.elenaidodge2.init.PotionInit.WEIGHT_EFFECT)) {
-            if (player.world.isRemote) {
+            if (player.world != null && player.world.isRemote) {
                 return com.elenai.elenaidodge2.util.ClientStorage.weight;
             }
             if (player instanceof EntityPlayerMP) {
@@ -105,7 +112,15 @@ public final class StaminaFeathers {
         if (!halfFeathers) {
             weight = (int) (Math.floor(weight / 2.0) * 2);
         }
+        return Math.max(0, weight);
+    }
 
+    public static int getWeight(EntityPlayer player) {
+        if (player.isPotionActive(com.elenai.elenaidodge2.init.PotionInit.WEIGHT_EFFECT)) {
+            return getWeightBeforeMastery(player);
+        }
+
+        int weight = getWeightBeforeMastery(player);
         if (ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.enableReskillable &&
             PerkAccess.has(player, ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.armorMasteryPerkId)) {
             int pieces = 0;

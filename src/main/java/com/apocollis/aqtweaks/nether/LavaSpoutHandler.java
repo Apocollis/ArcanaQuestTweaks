@@ -5,14 +5,17 @@ import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.hazard.HazardEvent;
 import com.apocollis.aqtweaks.hazard.HazardState;
 import com.apocollis.aqtweaks.hazard.Hazards;
+import com.apocollis.aqtweaks.network.PacketSplashTelegraph;
 import com.apocollis.aqtweaks.network.PacketSpoutTelegraph;
 
 import net.minecraft.block.BlockLiquid;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.SoundEvents;
+import net.minecraft.network.play.server.SPacketSoundEffect;
 import net.minecraft.potion.Potion;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.ResourceLocation;
@@ -39,9 +42,10 @@ import java.util.UUID;
 
 /**
  * Lava spouts in the Nether: clustered eruption events on the {@code spout} hazard channel. During the event
- * each player gets a few staggered eruptions; each picks a lava source near the player, telegraphs for 3 s,
- * then burns the column and throws a small patch of temporary flowing lava onto nearby ground, tracked in
- * {@link SplashQueue} and cleared after its lifetime.
+ * each player gets a run of staggered eruptions; each picks a lava source near the player (preferring shore),
+ * telegraphs for 3 s, bursts and burns the column, then warns where its thrown lava will land (the landing spots
+ * were chosen when the spout started) and, {@code Splash Warning Ticks} later, places small patches of temporary
+ * flowing lava there, tracked in {@link SplashQueue} and cleared after its lifetime.
  */
 public class LavaSpoutHandler {
 
@@ -54,10 +58,23 @@ public class LavaSpoutHandler {
     private static final class Pending {
         final BlockPos site;
         final long eruptAt;
+        final List<BlockPos> centres;
 
-        Pending(BlockPos site, long eruptAt) {
+        Pending(BlockPos site, long eruptAt, List<BlockPos> centres) {
             this.site = site;
             this.eruptAt = eruptAt;
+            this.centres = centres;
+        }
+    }
+
+    /** A burst spout's landing spots, warned about now and filled with lava at {@code placeAt}. */
+    private static final class Landing {
+        final List<BlockPos> centres;
+        final long placeAt;
+
+        Landing(List<BlockPos> centres, long placeAt) {
+            this.centres = centres;
+            this.placeAt = placeAt;
         }
     }
 
@@ -66,6 +83,7 @@ public class LavaSpoutHandler {
     private final Set<UUID> scheduled = new HashSet<>();
     private final Map<UUID, List<Long>> due = new HashMap<>();
     private final List<Pending> pending = new ArrayList<>();
+    private final List<Landing> landings = new ArrayList<>();
 
     public int activeSpouts() {
         return pending.size();
@@ -117,9 +135,19 @@ public class LavaSpoutHandler {
 
         pending.removeIf(p -> {
             if (now < p.eruptAt) return false;
-            erupt(world, p.site, queue, now);
+            erupt(world, p, now);
             return true;
         });
+
+        if (!landings.isEmpty()) {
+            landings.removeIf(l -> {
+                if (now < l.placeAt) return false;
+                for (BlockPos centre : l.centres) {
+                    placePatch(world, centre, queue, now);
+                }
+                return true;
+            });
+        }
     }
 
     @SubscribeEvent
@@ -151,7 +179,15 @@ public class LavaSpoutHandler {
             debug("no spout site found near " + player.getName());
             return;
         }
-        pending.add(new Pending(site, now + TELEGRAPH_TICKS));
+        double toward = Math.atan2(player.posZ - (site.getZ() + 0.5D), player.posX - (site.getX() + 0.5D));
+        List<BlockPos> centres = new ArrayList<>();
+        if (ArcanaQuestTweaksConfig.NetherModuleConfig.throwLava) {
+            for (int i = 0; i < ArcanaQuestTweaksConfig.NetherModuleConfig.splashesPerEruption; i++) {
+                BlockPos centre = findSplashCenter(world, site, toward, centres);
+                if (centre != null) centres.add(centre);
+            }
+        }
+        pending.add(new Pending(site, now + TELEGRAPH_TICKS, centres));
         ArcanaQuestTweaks.NETWORK.sendToAllAround(new PacketSpoutTelegraph(site.getX(), site.getY(), site.getZ(),
                 TELEGRAPH_TICKS), new NetworkRegistry.TargetPoint(world.provider.getDimension(),
                 site.getX() + 0.5D, site.getY(), site.getZ() + 0.5D, 128.0D));
@@ -165,6 +201,26 @@ public class LavaSpoutHandler {
                 && state.getValue(BlockLiquid.LEVEL) == 0;
     }
 
+    /** Number of the 16 sample points (8 directions at 4 and 8 blocks) that have solid land at lava level. */
+    private static int landScore(WorldServer world, int x, int y, int z) {
+        int score = 0;
+        for (int dir = 0; dir < 8; dir++) {
+            double a = dir * Math.PI / 4.0D;
+            for (int d = 4; d <= 8; d += 4) {
+                int sx = x + (int) Math.round(Math.cos(a) * d);
+                int sz = z + (int) Math.round(Math.sin(a) * d);
+                for (int dy = 0; dy <= 2; dy++) {
+                    IBlockState state = LoadedBlocks.peek(world, sx, y + dy, sz);
+                    if (state != null && state.getMaterial().isSolid() && !state.getMaterial().isLiquid()) {
+                        score++;
+                        break;
+                    }
+                }
+            }
+        }
+        return score;
+    }
+
     private BlockPos findSite(WorldServer world, EntityPlayer player) {
         int range = ArcanaQuestTweaksConfig.NetherModuleConfig.spoutRange;
         double minDist = ArcanaQuestTweaksConfig.NetherModuleConfig.spoutMinDistance;
@@ -176,6 +232,8 @@ public class LavaSpoutHandler {
             BlockPos s = pending.get(i).site;
             others[i] = new int[] {s.getX(), s.getY(), s.getZ()};
         }
+        BlockPos best = null;
+        int bestScore = -1;
         for (int probe = 0; probe < ArcanaQuestTweaksConfig.NetherModuleConfig.spoutProbes; probe++) {
             int dx = rand.nextInt(range * 2 + 1) - range;
             int dz = rand.nextInt(range * 2 + 1) - range;
@@ -188,18 +246,25 @@ public class LavaSpoutHandler {
                 if (!isLavaSource(state)) continue;
                 IBlockState above = LoadedBlocks.peek(world, x, y + 1, z);
                 if (above != null && above.getBlock() == Blocks.AIR
-                        && SpoutSitePicker.farFromOthers(x, y, z, others, 10.0D)) {
-                    return new BlockPos(x, y, z);
+                        && SpoutSitePicker.farFromOthers(x, y, z, others, SpoutSitePicker.SEPARATION)) {
+                    // Prefer a lava source with land around it, so the thrown lava reaches the bank.
+                    int score = landScore(world, x, y, z);
+                    if (score > bestScore) {
+                        bestScore = score;
+                        best = new BlockPos(x, y, z);
+                        if (score >= SpoutSitePicker.GOOD_SCORE) return best;
+                    }
                 }
                 break;
             }
         }
-        return null;
+        return best;
     }
 
     // ---- the eruption ----
 
-    private void erupt(WorldServer world, BlockPos site, SplashQueue queue, long now) {
+    private void erupt(WorldServer world, Pending p, long now) {
+        BlockPos site = p.site;
         world.playSound(null, site, SoundEvents.ENTITY_GENERIC_EXPLODE, SoundCategory.BLOCKS, 0.9F, 0.55F);
         double r = ArcanaQuestTweaksConfig.NetherModuleConfig.spoutColumnRadius;
         AxisAlignedBB column = new AxisAlignedBB(site.getX() + 0.5D - r, site.getY(), site.getZ() + 0.5D - r,
@@ -214,16 +279,49 @@ public class LavaSpoutHandler {
             entity.attackEntityFrom(DAMAGE_SPOUT, damage);
             entity.setFire(4);
         }
-        if (ArcanaQuestTweaksConfig.NetherModuleConfig.throwLava) {
-            for (int i = 0; i < ArcanaQuestTweaksConfig.NetherModuleConfig.splashesPerEruption; i++) {
-                placeSplash(world, site, queue, now);
+        if (!ArcanaQuestTweaksConfig.NetherModuleConfig.throwLava || p.centres.isEmpty()) return;
+
+        // The landing spots were chosen when the spout started; check they still hold, re-pick any that do not.
+        List<BlockPos> centres = new ArrayList<>(p.centres.size());
+        for (BlockPos centre : p.centres) {
+            if (centreOk(world, centre.getX(), centre.getY(), centre.getZ())) {
+                centres.add(centre);
+            } else {
+                BlockPos again = findSplashCenter(world, site, Double.NaN, centres);
+                if (again != null) centres.add(again);
+            }
+        }
+        if (centres.isEmpty()) return;
+        int warn = ArcanaQuestTweaksConfig.NetherModuleConfig.splashWarningTicks;
+        landings.add(new Landing(centres, now + warn));
+
+        int[] coords = new int[centres.size() * 3];
+        for (int i = 0; i < centres.size(); i++) {
+            coords[i * 3] = centres.get(i).getX();
+            coords[i * 3 + 1] = centres.get(i).getY();
+            coords[i * 3 + 2] = centres.get(i).getZ();
+        }
+        ArcanaQuestTweaks.NETWORK.sendToAllAround(new PacketSplashTelegraph(coords, warn),
+                new NetworkRegistry.TargetPoint(world.provider.getDimension(), site.getX() + 0.5D, site.getY(),
+                        site.getZ() + 0.5D, 128.0D));
+        // A player standing on a landing hears it even when looking elsewhere.
+        for (EntityPlayer player : world.playerEntities) {
+            if (!(player instanceof EntityPlayerMP) || player.isCreative() || player.isSpectator()) continue;
+            for (BlockPos centre : centres) {
+                double dx = player.posX - (centre.getX() + 0.5D);
+                double dz = player.posZ - (centre.getZ() + 0.5D);
+                if (dx * dx + dz * dz <= 9.0D && Math.abs(player.posY - centre.getY()) <= 3.0D) {
+                    ((EntityPlayerMP) player).connection.sendPacket(new SPacketSoundEffect(SoundEvents.ENTITY_GHAST_WARN,
+                            SoundCategory.HOSTILE, player.posX, player.posY, player.posZ, 0.8F, 1.6F));
+                    break;
+                }
             }
         }
     }
 
     public static boolean isFireProtected(EntityLivingBase entity) {
         if (entity.isImmuneToFire()) return true;
-        String name = ArcanaQuestTweaksConfig.NetherModuleConfig.fireResistanceEffect;
+        String name = ArcanaQuestTweaksConfig.HazardGearConfig.nether.fireResistanceEffect;
         if (name == null || name.trim().isEmpty()) return false;
         Potion potion = Potion.REGISTRY.getObject(new ResourceLocation(name.trim()));
         return potion != null && entity.isPotionActive(potion);
@@ -234,20 +332,40 @@ public class LavaSpoutHandler {
                 && !state.getMaterial().isLiquid();
     }
 
-    private void placeSplash(WorldServer world, BlockPos site, SplashQueue queue, long now) {
-        List<SplashPatch.Cell> patch = SplashPatch.cells(ArcanaQuestTweaksConfig.NetherModuleConfig.splashCenterLevel);
-        int cap = ArcanaQuestTweaksConfig.NetherModuleConfig.maxThrownLavaCells;
-        if (queue.size() + patch.size() > cap) {
-            debug("splash skipped: thrown lava cap reached");
-            return;
+    /** Y of the standing surface for a patch cell: air over a solid floor, within one block of {@code cy}. */
+    private static int cellY(WorldServer world, int x, int cy, int z) {
+        int[] order = {0, -1, 1};
+        for (int dy : order) {
+            int y = cy + dy;
+            IBlockState here = LoadedBlocks.peek(world, x, y, z);
+            IBlockState below = LoadedBlocks.peek(world, x, y - 1, z);
+            if (here != null && here.getBlock() == Blocks.AIR && solidFloor(below)) return y;
         }
-        for (int attempt = 0; attempt < 6; attempt++) {
-            double angle = rand.nextDouble() * Math.PI * 2.0D;
-            double dist = 5.0D + rand.nextDouble() * 3.0D;
+        return Integer.MIN_VALUE;
+    }
+
+    /** The centre needs a floor, and at least 3 of its 4 neighbours need one too. */
+    private static boolean centreOk(WorldServer world, int cx, int cy, int cz) {
+        IBlockState here = LoadedBlocks.peek(world, cx, cy, cz);
+        IBlockState below = LoadedBlocks.peek(world, cx, cy - 1, cz);
+        if (here == null || here.getBlock() != Blocks.AIR || !solidFloor(below)) return false;
+        int[][] around = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        int good = 0;
+        for (int[] d : around) {
+            if (cellY(world, cx + d[0], cy, cz + d[1]) != Integer.MIN_VALUE) good++;
+        }
+        return good >= 3;
+    }
+
+    /** Picks a landing spot for one splash, 3 to 12 blocks from the spout, or null if 12 tries find none. */
+    private BlockPos findSplashCenter(WorldServer world, BlockPos site, double toward, List<BlockPos> taken) {
+        for (int attempt = 0; attempt < 12; attempt++) {
+            double angle = SplashAim.angle(rand, toward);
+            double dist = SplashAim.distance(rand);
             int cx = site.getX() + (int) Math.round(Math.cos(angle) * dist);
             int cz = site.getZ() + (int) Math.round(Math.sin(angle) * dist);
             int cy = Integer.MIN_VALUE;
-            for (int y = site.getY() + 4; y >= site.getY() - 6; y--) {
+            for (int y = site.getY() + 10; y >= site.getY() - 8; y--) {
                 IBlockState here = LoadedBlocks.peek(world, cx, y, cz);
                 IBlockState below = LoadedBlocks.peek(world, cx, y - 1, cz);
                 if (here != null && here.getBlock() == Blocks.AIR && solidFloor(below)) {
@@ -255,38 +373,39 @@ public class LavaSpoutHandler {
                     break;
                 }
             }
-            if (cy == Integer.MIN_VALUE) continue;
-            String reject = checkArea(world, cx, cy, cz);
-            if (reject != null) {
-                debug("splash rejected at " + cx + "," + cy + "," + cz + ": " + reject);
-                continue;
+            if (cy == Integer.MIN_VALUE || !centreOk(world, cx, cy, cz)) continue;
+            boolean overlaps = false;
+            for (BlockPos other : taken) {
+                int ox = other.getX() - cx;
+                int oz = other.getZ() - cz;
+                if (ox * ox + oz * oz < 9) {
+                    overlaps = true;
+                    break;
+                }
             }
-            long expire = now + ArcanaQuestTweaksConfig.NetherModuleConfig.splashLifetimeSeconds * 20L;
-            for (SplashPatch.Cell cell : patch) {
-                BlockPos pos = new BlockPos(cx + cell.dx, cy, cz + cell.dz);
-                IBlockState here = LoadedBlocks.peek(world, pos.getX(), pos.getY(), pos.getZ());
-                if (here == null || here.getBlock() != Blocks.AIR) continue;
-                world.setBlockState(pos, Blocks.FLOWING_LAVA.getDefaultState().withProperty(BlockLiquid.LEVEL, cell.level), 2);
-                queue.add(pos, expire);
-            }
-            return;
-        }
-    }
-
-    /** Returns a reason to reject the area, or null when it is safe: no liquid, and no air without a floor. */
-    private static String checkArea(WorldServer world, int cx, int cy, int cz) {
-        for (int[] off : SplashPatch.safetyArea()) {
-            int x = cx + off[0];
-            int z = cz + off[1];
-            IBlockState here = LoadedBlocks.peek(world, x, cy, z);
-            if (here == null) return "unloaded";
-            if (here.getMaterial().isLiquid()) return "liquid";
-            if (here.getBlock() == Blocks.AIR) {
-                IBlockState below = LoadedBlocks.peek(world, x, cy - 1, z);
-                if (!solidFloor(below)) return "no floor";
-            }
+            if (!overlaps) return new BlockPos(cx, cy, cz);
         }
         return null;
+    }
+
+    /** Places the thrown lava of one landing, cell by cell on the local surface; cells with no floor are skipped. */
+    private void placePatch(WorldServer world, BlockPos centre, SplashQueue queue, long now) {
+        List<SplashPatch.Cell> patch = SplashPatch.cells(ArcanaQuestTweaksConfig.NetherModuleConfig.splashCenterLevel);
+        int cap = ArcanaQuestTweaksConfig.NetherModuleConfig.maxThrownLavaCells;
+        if (queue.size() + patch.size() > cap) {
+            debug("splash skipped: thrown lava cap reached");
+            return;
+        }
+        long expire = now + ArcanaQuestTweaksConfig.NetherModuleConfig.splashLifetimeSeconds * 20L;
+        for (SplashPatch.Cell cell : patch) {
+            int x = centre.getX() + cell.dx;
+            int z = centre.getZ() + cell.dz;
+            int y = cellY(world, x, centre.getY(), z);
+            if (y == Integer.MIN_VALUE) continue;
+            BlockPos pos = new BlockPos(x, y, z);
+            world.setBlockState(pos, Blocks.FLOWING_LAVA.getDefaultState().withProperty(BlockLiquid.LEVEL, cell.level), 2);
+            queue.add(pos, expire);
+        }
     }
 
     private static void debug(String message) {
@@ -300,5 +419,6 @@ public class LavaSpoutHandler {
         scheduled.clear();
         due.clear();
         pending.clear();
+        landings.clear();
     }
 }

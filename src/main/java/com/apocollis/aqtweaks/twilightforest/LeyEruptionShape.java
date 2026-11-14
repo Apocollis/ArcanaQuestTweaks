@@ -10,8 +10,11 @@ public final class LeyEruptionShape {
     public static final double VENT_SHARE = 0.40D;
     /** Reference area of the old spawn box, in blocks per side. */
     public static final double BASE_BOX = 32.0D;
-    public static final double WARNING_KEEP_OUT = 4.0D;
-    public static final double VENT_KEEP_OUT = 8.0D;
+    public static final double WARNING_KEEP_OUT = 3.0D;
+    public static final double VENT_KEEP_OUT = 4.5D;
+    /** Distance within which the near zone of the spread lies, and its share of the spawns. */
+    public static final double NEAR_MAX = 18.0D;
+    public static final double NEAR_SHARE = 0.47D;
 
     // ---- sprites (particles.png index = row * 16 + column) ----
 
@@ -28,6 +31,13 @@ public final class LeyEruptionShape {
         if (pick < 2) return 128 + r.nextInt(8);
         if (pick == 2) return 164 + r.nextInt(4);
         return 176 + r.nextInt(5);
+    }
+
+    /** Share of particles that are enchant runes (glyphs); the rest are wisps, sparks and dots. */
+    public static final double RUNE_SHARE = 0.30D;
+
+    public static boolean isRune(Random r) {
+        return r.nextDouble() < RUNE_SHARE;
     }
 
     // ---- colour: 70 percent violet, 30 percent emerald ----
@@ -80,6 +90,51 @@ public final class LeyEruptionShape {
         return 1.0F;
     }
 
+    // ---- height: a spawn floor, a steady rise to a random peak, a fade from Y50 ----
+
+    /** Blocks below the player the columns start, and the highest the floor may be (so a high player still sees Y30 up). */
+    public static final int SPAWN_BELOW = 24;
+    public static final int FLOOR_CEILING = 30;
+    /** The effect ends here; particles start fading and each dissolves at its own peak up to PEAK_MAX. */
+    public static final double FADE_START = 50.0D;
+    public static final double PEAK_MAX = 55.0D;
+
+    /** Y the columns start at: 24 below the player, never below 0 and never above 30. */
+    public static int floorY(double playerY) {
+        int y = (int) Math.floor(playerY) - SPAWN_BELOW;
+        return Math.max(0, Math.min(FLOOR_CEILING, y));
+    }
+
+    /** A particle's own peak, 50 to 55. */
+    public static double peakY(Random r) {
+        return FADE_START + r.nextDouble() * (PEAK_MAX - FADE_START);
+    }
+
+    /** Steady rise in blocks per tick: runes 0.42 to 0.62, the other shapes 0.50 to 0.78. */
+    public static double riseSpeed(Random r, boolean rune) {
+        return rune ? 0.42D + r.nextDouble() * 0.20D : 0.50D + r.nextDouble() * 0.28D;
+    }
+
+    /** Ticks to climb from {@code startY} to {@code peakY} at {@code rise} blocks per tick (at least 1). */
+    public static int maxAge(double startY, double peakY, double rise) {
+        if (rise <= 0.0D) return 1;
+        return Math.max(1, (int) Math.ceil((peakY - startY) / rise));
+    }
+
+    /** 1 up to Y50, then falling linearly to 0 at the particle's own peak. */
+    public static float taper(double y, double peakY) {
+        if (y <= FADE_START) return 1.0F;
+        if (y >= peakY) return 0.0F;
+        return (float) ((peakY - y) / (peakY - FADE_START));
+    }
+
+    /** Fade in over the first tenth of the life, then the height taper. 0..1. */
+    public static float alpha(int age, int maxAge, double y, double peakY) {
+        if (maxAge <= 0) return 0.0F;
+        float in = Math.min(1.0F, (float) age / Math.max(1.0F, maxAge * 0.10F));
+        return in * taper(y, peakY);
+    }
+
     // ---- spread ----
 
     /** Area factor against the old 32 by 32 box: holds the density per square block when the radius grows. */
@@ -123,6 +178,22 @@ public final class LeyEruptionShape {
             dz = dz / len * keepOut;
         }
         return new double[] {dx, dz};
+    }
+
+    /**
+     * Offset from the player with a near zone and an outer field: {@link #NEAR_SHARE} of the spawns land in the ring
+     * between {@code keepOut} and {@link #NEAR_MAX} blocks, the rest in the square of half-width {@code radius} outside
+     * that circle, so the player is surrounded by columns and not only a distant perimeter.
+     */
+    public static double[] spreadOffset(Random r, double radius, double keepOut) {
+        if (radius <= NEAR_MAX || r.nextDouble() < NEAR_SHARE) {
+            double maxR = Math.min(NEAR_MAX, radius);
+            double lo = Math.min(keepOut, maxR);
+            double rr = Math.sqrt(lo * lo + r.nextDouble() * (maxR * maxR - lo * lo));
+            double a = r.nextDouble() * Math.PI * 2.0D;
+            return new double[] {Math.cos(a) * rr, Math.sin(a) * rr};
+        }
+        return offset(r, radius, NEAR_MAX);
     }
 
     /** 1.0 within 8 blocks, growing linearly to 1.6 at the radius. Monotonic. */

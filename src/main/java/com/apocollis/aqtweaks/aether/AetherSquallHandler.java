@@ -3,6 +3,7 @@ package com.apocollis.aqtweaks.aether;
 import com.apocollis.aqtweaks.ArcanaQuestTweaks;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.hazard.HazardEvent;
+import com.apocollis.aqtweaks.aether.AetherSquallGear.GearClass;
 import com.apocollis.aqtweaks.hazard.HazardState;
 import com.apocollis.aqtweaks.hazard.Hazards;
 import com.apocollis.aqtweaks.network.PacketAetherBoltTelegraph;
@@ -27,14 +28,19 @@ import net.minecraftforge.fml.common.network.NetworkRegistry;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
+import java.util.UUID;
 
 /**
  * Server side of the Aether Silver Squalls. Gusts are pushed client-side (see {@code AetherSquallClient}); the
- * server adds the headwind cost. Lightning runs on its own hazard channel: when its warning window opens a
- * strike point is locked and telegraphed, and when the event starts the bolt lands as a non-destructive visual
- * plus damage and a short shock to everything inside {@link #STRIKE_RADIUS}.
+ * server adds the headwind cost. Lightning runs on its own hazard channel as a storm of strike salvos
+ * ({@link AetherLightningSchedule}): each salvo locks onto the exposed players around one target (by gear class, see
+ * {@link AetherSquallGear}), telegraphs every bolt for {@code Lightning Telegraph Ticks}, then lands a primary bolt on
+ * each marked spot followed by secondary bolts around it and, for conductive and channeling players, extra bolts
+ * that re-aim at where the player now stands. Every bolt is a non-destructive visual plus damage and a short shock to
+ * everything inside {@link #STRIKE_RADIUS}.
  */
 public class AetherSquallHandler {
 
@@ -45,12 +51,30 @@ public class AetherSquallHandler {
 
     private final Random rand = new Random();
     private long lightningEventId = Long.MIN_VALUE;
-    private BlockPos strikePos;
-    private long strikeAt = -1L;
-    private boolean struck;
+    private long[] waveStrikes = new long[0];
+    private int nextWave;
+    private final List<Bolt> bolts = new ArrayList<>();
+
+    /** One scheduled bolt. A retarget bolt has no position until its telegraph opens (it reads the player then). */
+    private static final class Bolt {
+        BlockPos pos;
+        long telegraphAt;
+        long strikeAt;
+        boolean telegraphed;
+        final boolean secondary;
+        final UUID follow;
+
+        Bolt(BlockPos pos, long telegraphAt, long strikeAt, boolean secondary, UUID follow) {
+            this.pos = pos;
+            this.telegraphAt = telegraphAt;
+            this.strikeAt = strikeAt;
+            this.secondary = secondary;
+            this.follow = follow;
+        }
+    }
 
     public boolean strikePending() {
-        return strikePos != null && !struck;
+        return !bolts.isEmpty() || nextWave < waveStrikes.length;
     }
 
     @SubscribeEvent
@@ -105,74 +129,146 @@ public class AetherSquallHandler {
 
     private void lightning(WorldServer world, long now) {
         HazardState state = Hazards.state(world, AetherChannels.LIGHTNING);
-        if (state.event == null) return;
-        if (state.event.id != lightningEventId) {
+        if (state.event != null && state.phase != HazardEvent.Phase.CLEAR && state.event.id != lightningEventId) {
             lightningEventId = state.event.id;
-            strikePos = null;
-            strikeAt = -1L;
-            struck = false;
+            int lo = ArcanaQuestTweaksConfig.AetherModuleConfig.squall.lightningWavesMin;
+            int hi = Math.max(lo, ArcanaQuestTweaksConfig.AetherModuleConfig.squall.lightningWavesMax);
+            int count = lo + rand.nextInt(hi - lo + 1);
+            waveStrikes = AetherLightningSchedule.planWaves(now, state.event.start, state.event.end,
+                    telegraphTicks(), count, rand);
+            nextWave = 0;
         }
-        if (strikePos == null && !struck && state.phase != HazardEvent.Phase.CLEAR) {
-            long telegraph = ArcanaQuestTweaksConfig.AetherModuleConfig.squall.lightningTelegraphTicks;
-            strikeAt = state.phase == HazardEvent.Phase.WARNING ? state.event.start : now + telegraph;
-            strikePos = pickTarget(world);
-            if (strikePos == null) {
-                struck = true; // nobody exposed: skip this strike
-                return;
-            }
-            int ticks = (int) Math.max(1L, strikeAt - now);
-            ArcanaQuestTweaks.NETWORK.sendToAllAround(
-                    new PacketAetherBoltTelegraph(strikePos.getX(), strikePos.getY(), strikePos.getZ(), ticks),
-                    new NetworkRegistry.TargetPoint(world.provider.getDimension(), strikePos.getX() + 0.5D,
-                            strikePos.getY(), strikePos.getZ() + 0.5D, 64.0D));
+        int telegraph = telegraphTicks();
+        while (nextWave < waveStrikes.length && now >= waveStrikes[nextWave] - telegraph) {
+            launchWave(world, now);
+            nextWave++;
         }
-        if (strikePos != null && !struck && now >= strikeAt) {
-            struck = true;
-            strike(world, strikePos);
-        }
+        runBolts(world, now);
+    }
+
+    private static int telegraphTicks() {
+        return Math.max(1, ArcanaQuestTweaksConfig.AetherModuleConfig.squall.lightningTelegraphTicks);
     }
 
     private static boolean exposedToSky(EntityPlayer player) {
         return player.world.canSeeSky(new BlockPos(player.posX, player.posY + player.getEyeHeight(), player.posZ));
     }
 
-    private BlockPos pickTarget(WorldServer world) {
+    private static GearClass gearClass(EntityPlayer player) {
+        ArcanaQuestTweaksConfig.AetherHazardGear gearCfg = ArcanaQuestTweaksConfig.HazardGearConfig.aether;
+        boolean insulated = GearTierRule.allSlotsOnList(player, gearCfg.insulatedGear);
+        boolean conductive = GearTierRule.anyOnListExcluding(player, gearCfg.conductiveGear,
+                gearCfg.insulatedGear, gearCfg.channelingGear);
+        boolean channeling = GearTierRule.allSlotsOnList(player, gearCfg.channelingGear);
+        return AetherSquallGear.classify(insulated, conductive, channeling);
+    }
+
+    /** One salvo: lock every exposed player around a weighted-random primary target, then queue their bolts. */
+    private void launchWave(WorldServer world, long now) {
+        ArcanaQuestTweaksConfig.AetherSquall c = ArcanaQuestTweaksConfig.AetherModuleConfig.squall;
         List<EntityPlayer> candidates = new ArrayList<>();
         List<Integer> weights = new ArrayList<>();
         int total = 0;
         for (EntityPlayer player : world.playerEntities) {
             if (player.isCreative() || player.isSpectator() || player.isDead || !exposedToSky(player)) continue;
-            boolean insulated = GearTierRule.allSlotsOnList(player, ArcanaQuestTweaksConfig.AetherModuleConfig.squall.insulatedGear);
-            boolean conductive = GearTierRule.anyOnList(player, ArcanaQuestTweaksConfig.AetherModuleConfig.squall.conductiveGear);
-            int w = AetherSquallGear.attractionWeight(insulated, conductive);
+            int w = AetherSquallGear.attractionWeight(gearClass(player));
             candidates.add(player);
             weights.add(w);
             total += w;
         }
-        if (candidates.isEmpty()) return null;
+        if (candidates.isEmpty()) return;
         int roll = rand.nextInt(total);
-        EntityPlayer chosen = candidates.get(0);
+        EntityPlayer primary = candidates.get(0);
         for (int i = 0; i < candidates.size(); i++) {
             roll -= weights.get(i);
             if (roll < 0) {
-                chosen = candidates.get(i);
+                primary = candidates.get(i);
                 break;
             }
         }
-        boolean insulated = GearTierRule.allSlotsOnList(chosen, ArcanaQuestTweaksConfig.AetherModuleConfig.squall.insulatedGear);
-        boolean conductive = GearTierRule.anyOnList(chosen, ArcanaQuestTweaksConfig.AetherModuleConfig.squall.conductiveGear);
-        double x = chosen.posX;
-        double z = chosen.posZ;
-        if (AetherSquallGear.locksOn(insulated, conductive)) {
-            x += (rand.nextDouble() - 0.5D) * 4.0D;
-            z += (rand.nextDouble() - 0.5D) * 4.0D;
-        } else {
+        // Everyone exposed within 32 blocks of the primary target is part of the salvo; conductive and channeling
+        // players are locked first, insulated players last.
+        List<EntityPlayer> group = new ArrayList<>();
+        for (EntityPlayer player : candidates) {
+            if (player == primary || player.getDistanceSq(primary) <= 1024.0D) group.add(player);
+        }
+        group.sort((a, b) -> Integer.compare(AetherSquallGear.priority(gearClass(a)),
+                AetherSquallGear.priority(gearClass(b))));
+
+        int telegraph = telegraphTicks();
+        long primaryStrike = now + telegraph;
+        for (EntityPlayer player : group) {
+            GearClass gear = gearClass(player);
+            BlockPos marked = markSpot(world, player, gear);
+            bolts.add(new Bolt(marked, now, primaryStrike, false, null));
+
+            int lo = c.lightningClusterMin;
+            int hi = Math.max(lo, c.lightningClusterMax);
+            int cluster = lo + rand.nextInt(hi - lo + 1);
+            for (int i = 0; i < cluster; i++) {
+                double angle = rand.nextDouble() * Math.PI * 2.0D;
+                double dist = 2.0D + rand.nextDouble() * Math.max(0.0D, c.lightningClusterRadius - 2.0D);
+                BlockPos at = groundNear(world, (int) Math.floor(marked.getX() + 0.5D + Math.cos(angle) * dist),
+                        marked.getY(), (int) Math.floor(marked.getZ() + 0.5D + Math.sin(angle) * dist));
+                long strike = primaryStrike + 20 + rand.nextInt(41);
+                bolts.add(new Bolt(at, strike - telegraph, strike, true, null));
+            }
+            if (AetherSquallGear.retargeted(gear)) {
+                for (int i = 0; i < c.lightningConductiveExtraBolts; i++) {
+                    long open = primaryStrike + 10 + rand.nextInt(16) + i * 20L;
+                    bolts.add(new Bolt(null, open, open + telegraph, false, player.getUniqueID()));
+                }
+            }
+        }
+    }
+
+    /** The ground spot to mark for a player: their own, or a few blocks off for a full insulated set. */
+    private BlockPos markSpot(WorldServer world, EntityPlayer player, GearClass gear) {
+        double x = player.posX;
+        double z = player.posZ;
+        if (!AetherSquallGear.locksOn(gear)) {
             double angle = rand.nextDouble() * Math.PI * 2.0D;
-            double dist = 6.0D + rand.nextDouble() * 8.0D;
+            double dist = AetherSquallGear.divertDistance(rand);
             x += Math.cos(angle) * dist;
             z += Math.sin(angle) * dist;
         }
-        return groundNear(world, (int) Math.floor(x), (int) Math.floor(chosen.posY), (int) Math.floor(z));
+        return groundNear(world, (int) Math.floor(x), (int) Math.floor(player.posY), (int) Math.floor(z));
+    }
+
+    private void broadcast(WorldServer world, BlockPos pos, int ticks) {
+        ArcanaQuestTweaks.NETWORK.sendToAllAround(
+                new PacketAetherBoltTelegraph(pos.getX(), pos.getY(), pos.getZ(), Math.max(1, ticks)),
+                new NetworkRegistry.TargetPoint(world.provider.getDimension(), pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D,
+                        64.0D));
+    }
+
+    /** Opens telegraphs and lands bolts that are due. Bolts already telegraphed still land after the storm ends. */
+    private void runBolts(WorldServer world, long now) {
+        if (bolts.isEmpty()) return;
+        int telegraph = telegraphTicks();
+        Iterator<Bolt> it = bolts.iterator();
+        while (it.hasNext()) {
+            Bolt bolt = it.next();
+            if (!bolt.telegraphed && now >= bolt.telegraphAt) {
+                if (bolt.follow != null) {
+                    EntityPlayer target = world.getPlayerEntityByUUID(bolt.follow);
+                    if (target == null || target.isDead || target.isCreative() || target.isSpectator()
+                            || !exposedToSky(target)) {
+                        it.remove();
+                        continue;
+                    }
+                    bolt.pos = groundNear(world, (int) Math.floor(target.posX), (int) Math.floor(target.posY),
+                            (int) Math.floor(target.posZ));
+                    bolt.strikeAt = now + telegraph;
+                }
+                bolt.telegraphed = true;
+                broadcast(world, bolt.pos, (int) Math.max(1L, bolt.strikeAt - now));
+            }
+            if (bolt.telegraphed && now >= bolt.strikeAt) {
+                strike(world, bolt.pos, bolt.secondary);
+                it.remove();
+            }
+        }
     }
 
     /** First standing surface at or below {@code y + 8} within 24 blocks down; falls back to the given Y. */
@@ -188,11 +284,12 @@ public class AetherSquallHandler {
         return new BlockPos(x, y, z);
     }
 
-    private void strike(WorldServer world, BlockPos pos) {
+    private void strike(WorldServer world, BlockPos pos, boolean secondary) {
         world.addWeatherEffect(new EntityLightningBolt(world, pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, true));
         AxisAlignedBB box = new AxisAlignedBB(pos.getX() + 0.5D - STRIKE_RADIUS, pos.getY() - 2.0D,
                 pos.getZ() + 0.5D - STRIKE_RADIUS, pos.getX() + 0.5D + STRIKE_RADIUS, pos.getY() + 4.0D,
                 pos.getZ() + 0.5D + STRIKE_RADIUS);
+        double factor = secondary ? ArcanaQuestTweaksConfig.AetherModuleConfig.squall.lightningSecondaryDamageFactor : 1.0D;
         for (EntityLivingBase entity : world.getEntitiesWithinAABB(EntityLivingBase.class, box)) {
             double dx = entity.posX - (pos.getX() + 0.5D);
             double dz = entity.posZ - (pos.getZ() + 0.5D);
@@ -201,20 +298,22 @@ public class AetherSquallHandler {
             if (entity instanceof EntityPlayer) {
                 EntityPlayer player = (EntityPlayer) entity;
                 if (player.isCreative() || player.isSpectator() || !exposedToSky(player)) continue;
-                insulated = GearTierRule.allSlotsOnList(player, ArcanaQuestTweaksConfig.AetherModuleConfig.squall.insulatedGear);
+                GearClass gear = gearClass(player);
+                if (AetherSquallGear.immuneToBolt(gear)) continue;
+                insulated = gear == GearClass.INSULATED;
             }
-            float damage = (float) AetherSquallGear.shockDamage(insulated,
+            float damage = (float) (factor * AetherSquallGear.shockDamage(insulated,
                     ArcanaQuestTweaksConfig.AetherModuleConfig.squall.lightningDamage,
-                    ArcanaQuestTweaksConfig.AetherModuleConfig.squall.lightningInsulatedDamage);
-            entity.attackEntityFrom(DAMAGE_LIGHTNING, damage);
-            entity.addPotionEffect(new PotionEffect(MobEffects.SLOWNESS, 40, 1, false, true));
+                    ArcanaQuestTweaksConfig.AetherModuleConfig.squall.lightningInsulatedDamage));
+            if (damage > 0.0F) entity.attackEntityFrom(DAMAGE_LIGHTNING, damage);
+            if (!secondary) entity.addPotionEffect(new PotionEffect(MobEffects.SLOWNESS, 40, 1, false, true));
         }
     }
 
-    /** Cancels a pending strike (the {@code clear} command). */
+    /** Cancels every pending salvo and bolt (the {@code clear} command). */
     public void reset() {
-        strikePos = null;
-        strikeAt = -1L;
-        struck = true;
+        bolts.clear();
+        waveStrikes = new long[0];
+        nextWave = 0;
     }
 }

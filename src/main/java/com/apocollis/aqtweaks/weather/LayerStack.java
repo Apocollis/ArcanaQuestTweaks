@@ -1,8 +1,8 @@
-package com.apocollis.aqtweaks.aurorian;
+package com.apocollis.aqtweaks.weather;
 
 /** Pure arithmetic of a column of stacked snow layer blocks (8 layers per block). No Minecraft types. */
-public final class SnowStack {
-    private SnowStack() {}
+public final class LayerStack {
+    private LayerStack() {}
 
     public static final int PER_BLOCK = 8;
 

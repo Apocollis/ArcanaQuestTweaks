@@ -59,10 +59,13 @@ public class LeyRuptureHandler {
     public VisBatteryTracker visBatteries;
 
     private final Random rand = new Random();
+    private final ShelterBoxes shelterBoxes = new ShelterBoxes();
     private final Map<UUID, Double> exposure = new HashMap<>();
     private final Map<UUID, Float> sent = new HashMap<>();
     private final Map<UUID, Long> exposedSince = new HashMap<>();
+    private final Set<UUID> surgeRollDone = new HashSet<>();
     private final Map<UUID, Long> nextHit = new HashMap<>();
+    private final Map<UUID, Long> nextExtra = new HashMap<>();
     private final Map<UUID, Integer> hazardWarp = new HashMap<>();
     private final Map<UUID, Integer> chargeWarp = new HashMap<>();
     private final Set<UUID> leyMobs = new HashSet<>();
@@ -95,7 +98,9 @@ public class LeyRuptureHandler {
             hazardWarp.clear();
             chargeWarp.clear();
             exposedSince.clear();
+            surgeRollDone.clear();
             nextHit.clear();
+            nextExtra.clear();
         }
         if (state.phase != HazardEvent.Phase.ACTIVE && !leyMobs.isEmpty()) {
             dissipateMobs(world);
@@ -129,23 +134,48 @@ public class LeyRuptureHandler {
             biome = LeyTerrain.biomeName(world, player.posX, player.posZ);
         }
         exposure.put(id, f);
-        sendExposure(player, state.phase == HazardEvent.Phase.ACTIVE ? (float) f : 0.0F);
+        // The warning shows the exposure too (vignette, particles); damage, scour and charging stay active-only below.
+        float shown = state.phase != HazardEvent.Phase.CLEAR ? (float) f : 0.0F;
+        sendExposure(player, shown);
+        if (state.phase != HazardEvent.Phase.CLEAR && !player.isDead) {
+            int[] boxes = shelterBoxes.refresh(world, player, now, (int) c.particleRadius + 16);
+            if (boxes != null) {
+                sent.put(id, shown);
+                ArcanaQuestTweaks.NETWORK.sendTo(new PacketLeyExposure(shown, boxes), player);
+            }
+        }
 
         if (state.phase != HazardEvent.Phase.ACTIVE || f <= 0.01D) {
             exposedSince.remove(id);
+            surgeRollDone.remove(id);
             return;
         }
         double intensity = LeyTerrain.intensity(biome);
-        boolean proper = GearTierRule.allSlotsOnList(player, c.properGear);
+        boolean proper = GearTierRule.allSlotsOnList(player,
+                ArcanaQuestTweaksConfig.HazardGearConfig.twilightforest.properGear);
         Long since = exposedSince.putIfAbsent(id, now);
         long exposedFor = since == null ? 0L : now - since;
+
+        if (c.enableSurgeUpdraft && !surgeRollDone.contains(id)
+                && SurgeExposureRoll.isDue(exposedFor, c.surgeExposureDelaySeconds)) {
+            surgeRollDone.add(id);
+            applySurgeUpdraft(player, c);
+        }
 
         // Hunger burn: every second once exposed.
         player.addExhaustion((float) (c.hungerBurn * f * intensity * (proper ? 0.4D : 1.0D)));
 
-        if (exposedFor >= c.graceTicks && now >= nextHit.getOrDefault(id, 0L)) {
-            nextHit.put(id, now + 80L);
-            scour(world, player, biome, f, intensity, proper);
+        if (exposedFor >= c.graceTicks) {
+            if (now >= nextHit.getOrDefault(id, 0L)) {
+                nextHit.put(id, now + c.scourIntervalSeconds * 20L);
+                scour(world, player, f, intensity, proper);
+            }
+            // Biome extras (potions, fire) and warp keep their own 4 second beat, so a long scour interval does not
+            // leave blindness and slowness active only a fraction of the time.
+            if (now >= nextExtra.getOrDefault(id, 0L)) {
+                nextExtra.put(id, now + 80L);
+                extras(world, player, biome, f);
+            }
         }
         if (c.enableCharging && f >= c.chargeMinExposure && now % (c.chargePulseSeconds * 20L) == 0L) {
             if (SurgeCharging.pulse(player, f, intensity)) {
@@ -157,13 +187,58 @@ public class LeyRuptureHandler {
         }
     }
 
-    private void scour(WorldServer world, EntityPlayerMP player, String biome, double f, double intensity,
-                       boolean proper) {
+    private void applySurgeUpdraft(EntityPlayerMP player, ArcanaQuestTweaksConfig.LeyRupture c) {
+        SurgeExposureRoll.Outcome outcome = SurgeExposureRoll.roll(
+                c.surgeWeightNone, c.surgeWeightFlight, c.surgeWeightLevitation, rand);
+        if (outcome == SurgeExposureRoll.Outcome.NONE) {
+            return;
+        }
+        if (outcome == SurgeExposureRoll.Outcome.FLIGHT) {
+            Potion flight = lookupPotion(c.surgeFlightEffect);
+            if (flight != null) {
+                applyIfShorter(player, flight, SurgeExposureRoll.durationTicks(c.surgeFlightDurationSeconds));
+            }
+            Potion slowFall = lookupPotion(c.surgeSlowfallEffect);
+            if (slowFall != null) {
+                applyIfShorter(player, slowFall,
+                        SurgeExposureRoll.slowFallTicks(c.surgeFlightDurationSeconds, c.surgeSlowfallExtraSeconds));
+            }
+            return;
+        }
+        applyIfShorter(player, MobEffects.LEVITATION, SurgeExposureRoll.durationTicks(c.surgeLevitationDurationSeconds));
+        Potion slowFall = lookupPotion(c.surgeSlowfallEffect);
+        if (slowFall != null) {
+            applyIfShorter(player, slowFall,
+                    SurgeExposureRoll.slowFallTicks(c.surgeLevitationDurationSeconds, c.surgeSlowfallExtraSeconds));
+        }
+    }
+
+    private static Potion lookupPotion(String id) {
+        if (id == null || id.trim().isEmpty()) return null;
+        return Potion.REGISTRY.getObject(new ResourceLocation(id.trim()));
+    }
+
+    private static void applyIfShorter(EntityPlayerMP player, Potion potion, int targetTicks) {
+        PotionEffect existing = player.getActivePotionEffect(potion);
+        boolean hasEffect = existing != null;
+        int remaining = hasEffect ? existing.getDuration() : 0;
+        if (SurgeExposureRoll.shouldApply(hasEffect, remaining, targetTicks)) {
+            player.addPotionEffect(new PotionEffect(potion, targetTicks, 0, false, true));
+        }
+    }
+
+    private void scour(WorldServer world, EntityPlayerMP player, double f, double intensity, boolean proper) {
         ArcanaQuestTweaksConfig.LeyRupture c = ArcanaQuestTweaksConfig.TwilightForestModuleConfig.ley;
         double damage = SurgeMath.scour(proper, c.scourUnprotected, c.scourProper, f, intensity);
         if (damage >= 0.25D) {
             player.attackEntityFrom(DAMAGE_LEY, (float) damage);
         }
+        world.spawnParticle(EnumParticleTypes.SPELL_WITCH, player.posX, player.posY + 0.2D, player.posZ, 12, 0.4D, 0.2D,
+                0.4D, 0.05D);
+    }
+
+    private void extras(WorldServer world, EntityPlayerMP player, String biome, double f) {
+        ArcanaQuestTweaksConfig.LeyRupture c = ArcanaQuestTweaksConfig.TwilightForestModuleConfig.ley;
         BiomeIntensity.Extra extra = LeyTerrain.extra(biome);
         if (extra != null) {
             applyExtra(world, player, extra);
@@ -171,8 +246,6 @@ public class LeyRuptureHandler {
         if (rand.nextDouble() < c.warpChance * f) {
             giveWarp(player, hazardWarp, 1, c.warpCapPerSurge);
         }
-        world.spawnParticle(EnumParticleTypes.SPELL_WITCH, player.posX, player.posY + 0.2D, player.posZ, 12, 0.4D, 0.2D,
-                0.4D, 0.05D);
     }
 
     private void applyExtra(WorldServer world, EntityPlayerMP player, BiomeIntensity.Extra extra) {
@@ -296,13 +369,23 @@ public class LeyRuptureHandler {
         exposure.remove(id);
         sent.remove(id);
         exposedSince.remove(id);
+        surgeRollDone.remove(id);
         nextHit.remove(id);
+        nextExtra.remove(id);
+        shelterBoxes.forget(id);
+    }
+
+    @SubscribeEvent
+    public void onWorldUnload(net.minecraftforge.event.world.WorldEvent.Unload event) {
+        if (!event.getWorld().isRemote && LeyChannels.isTf(event.getWorld())) shelterBoxes.clear();
     }
 
     /** Ends everything: used by the {@code clear} command. */
     public void reset(WorldServer world) {
         dissipateMobs(world);
         exposedSince.clear();
+        surgeRollDone.clear();
         nextHit.clear();
+        nextExtra.clear();
     }
 }

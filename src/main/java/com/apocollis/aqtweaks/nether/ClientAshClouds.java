@@ -81,6 +81,11 @@ public final class ClientAshClouds {
         }
     }
 
+    /** The cloud with this id, or null once it is gone. */
+    public static Cloud get(int id) {
+        return CLOUDS.get(id);
+    }
+
     public static List<Cloud> all() {
         return new ArrayList<>(CLOUDS.values());
     }

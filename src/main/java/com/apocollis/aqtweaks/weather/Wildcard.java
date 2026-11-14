@@ -49,4 +49,54 @@ public final class Wildcard {
         }
         return false;
     }
+
+    /**
+     * Matches an item registry name and metadata against {@code pattern}. Supports an optional trailing
+     * {@code :<meta>} (for example {@code bibliocraft:biblioglasses:0} or {@code botania:cosmetic:4});
+     * patterns without a numeric suffix match any metadata.
+     */
+    public static boolean matchesItem(String registryName, int meta, String pattern) {
+        if (registryName == null || pattern == null) return false;
+        int firstColon = pattern.indexOf(':');
+        int lastColon = pattern.lastIndexOf(':');
+        if (firstColon >= 0 && lastColon > firstColon && isDigits(pattern, lastColon + 1)) {
+            int wantedMeta;
+            try {
+                wantedMeta = Integer.parseInt(pattern.substring(lastColon + 1));
+            } catch (NumberFormatException e) {
+                return false;
+            }
+            if (meta != wantedMeta) return false;
+            return matches(registryName, pattern.substring(0, lastColon));
+        }
+        return matches(registryName, pattern);
+    }
+
+    /** Strips an optional trailing {@code :<meta>} suffix from an item pattern for registry-key auditing. */
+    public static String basePattern(String pattern) {
+        if (pattern == null) return null;
+        int firstColon = pattern.indexOf(':');
+        int lastColon = pattern.lastIndexOf(':');
+        if (firstColon >= 0 && lastColon > firstColon && isDigits(pattern, lastColon + 1)) {
+            return pattern.substring(0, lastColon);
+        }
+        return pattern;
+    }
+
+    public static boolean matchesAnyItem(String registryName, int meta, String[] patterns) {
+        if (patterns == null) return false;
+        for (String pattern : patterns) {
+            if (matchesItem(registryName, meta, pattern)) return true;
+        }
+        return false;
+    }
+
+    private static boolean isDigits(String s, int start) {
+        if (start >= s.length()) return false;
+        for (int i = start; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c < '0' || c > '9') return false;
+        }
+        return true;
+    }
 }

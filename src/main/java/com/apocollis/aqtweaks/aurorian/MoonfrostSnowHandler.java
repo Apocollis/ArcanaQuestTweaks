@@ -3,10 +3,10 @@ package com.apocollis.aqtweaks.aurorian;
 import com.apocollis.aqtweaks.ArcanaQuestTweaksConfig;
 import com.apocollis.aqtweaks.hazard.HazardEvent;
 import com.apocollis.aqtweaks.hazard.HazardState;
+import com.apocollis.aqtweaks.weather.LayerAccumulator;
+import com.apocollis.aqtweaks.weather.Wildcard;
 
-import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
-
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockSnow;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.player.EntityPlayer;
@@ -20,200 +20,138 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
-import net.minecraft.world.chunk.Chunk;
 import net.minecraftforge.common.util.FakePlayer;
-import net.minecraftforge.event.world.WorldEvent;
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-import net.minecraftforge.fml.common.gameevent.TickEvent;
+import net.minecraftforge.fml.common.registry.ForgeRegistries;
 
-import java.util.Random;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Set;
 
 /**
  * Snow that piles up while a Moonfrost storm rages, and the burial hazard that goes with it. Server side.
  *
  * <p>Like vanilla snowfall it samples the loaded chunks around players, but faster and up to 16 layers deep, and
  * smoothly: a layer meant for a column goes to a lower neighbour when it would leave the column more than
- * {@code Snow Max Step} layers deeper ({@link SnowLeveling}). It only ever places vanilla snow layers into air (never
+ * {@code Snow Max Step} layers deeper ({@link com.apocollis.aqtweaks.weather.LayerLeveling}). It only ever places vanilla snow layers into air (never
  * replacing a block), keeps no state, and leaves melting to vanilla ({@code BlockSnow} melts near bright light).
  */
-public class MoonfrostSnowHandler {
+public class MoonfrostSnowHandler extends LayerAccumulator {
 
     public static final DamageSource DAMAGE_SNOW_BURIAL = new DamageSource("aqtweaks_snow_burial").setDamageBypassesArmor();
     static final String NBT_DEBT = "AQTSnowAirDebt";
 
-    private final Random rand = new Random();
-    private final SnowRate.Carry carry = new SnowRate.Carry();
-    private long[] chunkKeys = new long[0];
-    private long keysBuiltAt = Long.MIN_VALUE;
-    private final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-    private final Long2IntOpenHashMap depthCache = new Long2IntOpenHashMap();
-    private final Long2IntOpenHashMap topCache = new Long2IntOpenHashMap();
-    private double windX;
-    private double windZ;
+    // ---- accumulation (the shared build-up in LayerAccumulator, with the snow specifics) ----
 
-    // ---- accumulation ----
+    @Override
+    protected boolean worldMatches(World world) {
+        return MoonfrostState.isAurorian(world);
+    }
 
-    @SubscribeEvent
-    public void onWorldTick(TickEvent.WorldTickEvent event) {
-        if (event.phase != TickEvent.Phase.END || event.world.isRemote || !(event.world instanceof WorldServer)) return;
-        if (!MoonfrostState.isAurorian(event.world)) return;
-        WorldServer world = (WorldServer) event.world;
-        if (!ArcanaQuestTweaksConfig.AurorianModuleConfig.enableSnowAccumulation || !MoonfrostState.enabled()) {
-            carry.reset();
-            return;
-        }
+    @Override
+    protected boolean enabled() {
+        return ArcanaQuestTweaksConfig.AurorianModuleConfig.enableSnowAccumulation && MoonfrostState.enabled();
+    }
+
+    @Override
+    protected float strength(WorldServer world) {
         HazardState state = MoonfrostState.get(world);
-        if (state.phase != HazardEvent.Phase.ACTIVE || state.strength < SnowRate.MIN_STRENGTH) {
-            carry.reset();
-            return;
-        }
-        long now = world.getTotalWorldTime();
-        if (keysBuiltAt == Long.MIN_VALUE || now - keysBuiltAt >= 20L) {
-            rebuildChunks(world);
-            keysBuiltAt = now;
-        }
-        if (chunkKeys.length == 0) return;
-
-        int maxChanges = ArcanaQuestTweaksConfig.AurorianModuleConfig.snowMaxChangesPerTick;
-        int attempts = carry.take(chunkKeys.length, ArcanaQuestTweaksConfig.AurorianModuleConfig.snowLayersPerChunkPerSecond,
-                state.strength);
-        attempts = Math.min(attempts, maxChanges * 3);
-        if (attempts <= 0) return;
-
-        Vec3d wind = AurorianWindHelper.getWindVector(world, true);
-        windX = wind.x;
-        windZ = wind.z;
-        int changes = 0;
-        for (int i = 0; i < attempts && changes < maxChanges; i++) {
-            long key = chunkKeys[rand.nextInt(chunkKeys.length)];
-            int cx = (int) key;
-            int cz = (int) (key >> 32);
-            if (world.getChunkProvider().getLoadedChunk(cx, cz) == null) continue;
-            int x = (cx << 4) + rand.nextInt(16);
-            int z = (cz << 4) + rand.nextInt(16);
-            if (placeOne(world, x, z)) changes++;
-        }
+        return state.phase == HazardEvent.Phase.ACTIVE ? state.strength : 0.0F;
     }
 
-    @SubscribeEvent
-    public void onWorldUnload(WorldEvent.Unload event) {
-        if (event.getWorld().isRemote || !MoonfrostState.isAurorian(event.getWorld())) return;
-        chunkKeys = new long[0];
-        keysBuiltAt = Long.MIN_VALUE;
-        carry.reset();
-        depthCache.clear();
-        topCache.clear();
+    @Override
+    protected double ratePerChunkPerSecond() {
+        return ArcanaQuestTweaksConfig.AurorianModuleConfig.snowLayersPerChunkPerSecond;
     }
 
-    /** The loaded chunks within the radius of any non-spectator player; a chunk near two players is listed once. */
-    private void rebuildChunks(WorldServer world) {
-        LongOpenHashSet set = new LongOpenHashSet();
-        int radius = ArcanaQuestTweaksConfig.AurorianModuleConfig.snowAccumulationRadius;
-        int rc = (radius >> 4) + 1;
-        double reach = radius + 11.0D;
-        for (EntityPlayer player : world.playerEntities) {
-            if (player.isSpectator() || player.isDead) continue;
-            int pcx = (int) Math.floor(player.posX) >> 4;
-            int pcz = (int) Math.floor(player.posZ) >> 4;
-            for (int dx = -rc; dx <= rc; dx++) {
-                for (int dz = -rc; dz <= rc; dz++) {
-                    int cx = pcx + dx;
-                    int cz = pcz + dz;
-                    double ox = cx * 16.0D + 8.0D - player.posX;
-                    double oz = cz * 16.0D + 8.0D - player.posZ;
-                    if (ox * ox + oz * oz > reach * reach) continue;
-                    if (world.getChunkProvider().getLoadedChunk(cx, cz) == null) continue;
-                    set.add(((long) cx & 0xFFFFFFFFL) | ((long) cz << 32));
+    @Override
+    protected int maxChangesPerTick() {
+        return ArcanaQuestTweaksConfig.AurorianModuleConfig.snowMaxChangesPerTick;
+    }
+
+    @Override
+    protected int radius() {
+        return ArcanaQuestTweaksConfig.AurorianModuleConfig.snowAccumulationRadius;
+    }
+
+    @Override
+    protected int cap() {
+        return ArcanaQuestTweaksConfig.AurorianModuleConfig.maxSnowLayers;
+    }
+
+    @Override
+    protected int step() {
+        return ArcanaQuestTweaksConfig.AurorianModuleConfig.snowMaxStep;
+    }
+
+    @Override
+    protected boolean windShadow() {
+        return ArcanaQuestTweaksConfig.AurorianModuleConfig.snowWindShadow;
+    }
+
+    @Override
+    protected double shadowAngle() {
+        return ArcanaQuestTweaksConfig.AurorianModuleConfig.snowFallAngle;
+    }
+
+    @Override
+    protected Vec3d wind(WorldServer world) {
+        return AurorianWindHelper.getWindVector(world, true);
+    }
+
+    @Override
+    protected boolean isLayerBlock(IBlockState state) {
+        return state.getBlock() == Blocks.SNOW_LAYER;
+    }
+
+    @Override
+    protected int layersOf(IBlockState state) {
+        return state.getValue(BlockSnow.LAYERS);
+    }
+
+    @Override
+    protected IBlockState withLayers(IBlockState state, int layers) {
+        return state.withProperty(BlockSnow.LAYERS, layers);
+    }
+
+    @Override
+    protected IBlockState firstLayer() {
+        return Blocks.SNOW_LAYER.getDefaultState();
+    }
+
+    @Override
+    protected boolean canPlaceLayer(WorldServer world, BlockPos pos) {
+        return Blocks.SNOW_LAYER.canPlaceBlockAt(world, pos);
+    }
+
+    // ---- replaceable plants ----
+
+    private static Set<Block> replaceable;
+    private static String[] replaceableFor;
+
+    /** Air, or (when enabled) one of the listed wild ground plants. */
+    @Override
+    protected boolean canStartLayerIn(IBlockState state, WorldServer world, BlockPos pos) {
+        Block block = state.getBlock();
+        if (block.isAir(state, world, pos)) return true;
+        if (!ArcanaQuestTweaksConfig.AurorianModuleConfig.snowReplacesPlants) return false;
+        return replaceableBlocks().contains(block);
+    }
+
+    /** The listed blocks, resolved once per config array (a config sync replaces the array object). */
+    private static Set<Block> replaceableBlocks() {
+        String[] patterns = ArcanaQuestTweaksConfig.AurorianModuleConfig.snowReplaceablePlants;
+        if (replaceable == null || replaceableFor != patterns) {
+            Set<Block> set = Collections.newSetFromMap(new IdentityHashMap<>());
+            for (Block block : ForgeRegistries.BLOCKS) {
+                if (block.getRegistryName() != null
+                        && Wildcard.matchesAny(block.getRegistryName().toString(), patterns)) {
+                    set.add(block);
                 }
             }
+            replaceable = set;
+            replaceableFor = patterns;
         }
-        chunkKeys = set.toLongArray();
-    }
-
-    /**
-     * Reads a column: its snow depth in layers (a full 8 layer block continues the stack upward), caching the Y where
-     * the next layer would go. -1 when the column cannot hold snow (unloaded, roofed, water, a plant or any
-     * non-air block at the surface, or no valid base).
-     */
-    private int readColumn(WorldServer world, long col) {
-        if (depthCache.containsKey(col)) return depthCache.get(col);
-        int x = SnowLeveling.unpackX(col);
-        int z = SnowLeveling.unpackZ(col);
-        int depth = -1;
-        int topY = -1;
-        Chunk chunk = world.getChunkProvider().getLoadedChunk(x >> 4, z >> 4);
-        if (chunk != null) {
-            int y = chunk.getPrecipitationHeight(new BlockPos(x, 0, z)).getY();
-            int d = 0;
-            while (y >= 1 && y < 255) {
-                IBlockState st = chunk.getBlockState(x, y, z);
-                if (st.getBlock() == Blocks.SNOW_LAYER) {
-                    int layers = st.getValue(BlockSnow.LAYERS);
-                    d += layers;
-                    if (layers >= 8) {
-                        y++;
-                        continue;
-                    }
-                    depth = d;
-                    topY = y;
-                    break;
-                }
-                // Only air takes snow: tall grass, flowers, crops, water, torches and other blocks are never replaced.
-                pos.setPos(x, y, z);
-                if (st.getBlock().isAir(st, world, pos) && Blocks.SNOW_LAYER.canPlaceBlockAt(world, pos)) {
-                    depth = d;
-                    topY = y;
-                }
-                break;
-            }
-        }
-        depthCache.put(col, depth);
-        topCache.put(col, topY);
-        return depth;
-    }
-
-    private boolean placeOne(WorldServer world, int x, int z) {
-        depthCache.clear();
-        topCache.clear();
-        long start = SnowLeveling.pack(x, z);
-        int d0 = readColumn(world, start);
-        if (d0 < 0) return false;
-
-        if (ArcanaQuestTweaksConfig.AurorianModuleConfig.snowWindShadow) {
-            int surfaceY = topCache.get(start);
-            boolean shadow = SnowShadow.inShadow(surfaceY, ArcanaQuestTweaksConfig.AurorianModuleConfig.snowFallAngle, dist -> {
-                int ux = x - (int) Math.round(windX * dist);
-                int uz = z - (int) Math.round(windZ * dist);
-                Chunk c = world.getChunkProvider().getLoadedChunk(ux >> 4, uz >> 4);
-                return c == null ? -1 : c.getPrecipitationHeight(new BlockPos(ux, 0, uz)).getY();
-            });
-            // In the lee a layer only lands about a third of the time: slower, not never.
-            if (shadow && rand.nextFloat() > 0.35F) return false;
-        }
-
-        long target = SnowLeveling.walk(start, c -> readColumn(world, c),
-                ArcanaQuestTweaksConfig.AurorianModuleConfig.snowMaxStep,
-                ArcanaQuestTweaksConfig.AurorianModuleConfig.maxSnowLayers, SnowLeveling.MAX_HOPS);
-        if (target == SnowLeveling.NONE) return false;
-
-        int tx = SnowLeveling.unpackX(target);
-        int tz = SnowLeveling.unpackZ(target);
-        int ty = topCache.get(target);
-        if (ty < 1) return false;
-        pos.setPos(tx, ty, tz);
-        IBlockState cur = world.getBlockState(pos);
-        IBlockState next;
-        if (cur.getBlock() == Blocks.SNOW_LAYER) {
-            int layers = cur.getValue(BlockSnow.LAYERS);
-            if (layers >= 8) return false;
-            next = cur.withProperty(BlockSnow.LAYERS, layers + 1);
-        } else if (cur.getBlock().isAir(cur, world, pos)) {
-            next = Blocks.SNOW_LAYER.getDefaultState();
-        } else {
-            return false;
-        }
-        // Flag 2: tell the clients, no neighbour cascade. Entities are not skipped, so a still player can be buried.
-        return world.setBlockState(pos, next, 2);
+        return replaceable;
     }
 
     // ---- burial ----
