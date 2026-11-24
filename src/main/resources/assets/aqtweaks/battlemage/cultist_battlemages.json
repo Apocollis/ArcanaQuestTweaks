@@ -1,0 +1,562 @@
+{
+  "schemaVersion": 4,
+  "_comment": "Crimson Battlemage library (plan 20261113-2124, sections 17 to 19). schemaVersion 3: an older copy in the config folder is backed up to .bak and replaced by this file. Four entities: aqtweaks:cultist_battlemage (tier 1), cultist_master_battlemage (tier 2), cultist_swarm_mage and cultist_bombardier_mage (variants). `ai` is the global tuning; each tier and each variant may carry its own `ai` overrides. A tier rolls its loadout from `loadout` (fixed foci, one focus per slot, plus wildcards, within the complexity budget, at most maxHeavy foci at complexity >= heavyComplexity); a variant either carries `fixedLoadout` as is or has its own `loadout`. Equipment entries are an item id or {item, nbt (SNBT), enchantments by registry id}. cooldownTicks null = natural cooldown max(5,(complexity/5)*(complexity/4)).",
+  "ai": {
+    "decisionIntervalTicks": 2,
+    "idealRange": {
+      "min": 8.0,
+      "max": 14.0
+    },
+    "globalCastGapTicks": 24,
+    "strafe": {
+      "flipMinTicks": 20,
+      "flipMaxTicks": 50,
+      "step": 3.0
+    },
+    "leadShots": true,
+    "repositionIntervalTicks": 10,
+    "giveUpTicks": 200,
+    "aoeMinRange": 14.0,
+    "followRange": 40.0,
+    "moveSpeed": 1.0,
+    "startupDelayTicks": 40,
+    "projectileSpeed": 1.5,
+    "maxLeadTicks": 8,
+    "castBudget": { "enabled": true, "max": 100.0, "regenPerSecond": 10.0, "costPerComplexity": 1.0, "holdBelowFraction": 0.25, "resumeFraction": 0.6 },
+    "upkeep": { "intervalTicks": 20, "radius": 48.0, "desiredActiveSpellBats": 0 },
+    "melee": { "triggerRange": 3.0, "reach": 2.5, "attackIntervalTicks": 14, "burstMin": 2, "burstMax": 3, "burstMaxTicks": 60, "burstCooldownTicks": 100, "retreatTicks": 30, "closeInChance": 0.6, "closeInMaxRange": 14.0, "strikeBlinkChance": 0.5, "strikeBlinkMaxRange": 24.0, "strikeInWindowTicks": 10, "strikeOutWindowTicks": 10 },
+    "stun": { "durationScale": 0.5, "immunityTicks": 80 },
+    "phases": { "empoweredBelow": 0.66, "desperateBelow": 0.33, "empoweredCooldownScale": 0.75, "desperateCooldownScale": 0.6, "empoweredRegenScale": 1.25, "desperateRegenScale": 1.5, "empoweredExtraBats": 1, "desperateExtraBats": 1, "desperateBlinkCooldownTicks": 60, "desperateHealRegenFactor": 0.6, "resetRange": 48.0, "resetAfterTicks": 600 },
+    "blink": { "cooldownTicks": 80, "repositionIntervalTicks": 200, "repositionChance": 0.4, "samples": 16, "maxTravel": 24.0, "allyMinDistance": 1.0, "allyMaxDistance": 2.0, "bandMinDistance": 8.0, "bandMaxDistance": 14.0, "cloudAvoidMargin": 0.75, "enemyCloudCost": 6.0 },
+    "close": { "meleeMin": 1, "meleeMax": 2, "maxTicks": 160 },
+    "shield": { "rechargeIntervalTicks": 40, "breakWaitTicks": 40, "startFull": true, "brokenBandBonus": 3.0, "resumeFraction": 0.5, "staggerTicks": 10, "staggerDamageFraction": 0.15 },
+    "healBudget": { "max": 4, "regenTicks": 100, "healHpFraction": 0.65, "retreatHpFraction": 0.5, "retreatResumeFraction": 0.75, "retreatMaxTicks": 160, "retreatCooldownTicks": 200 },
+    "defense": { "surgeLowHealthFraction": 0.10, "peelRange": 3.0, "peelCooldownTicks": 80, "sidestepCooldownTicks": 30, "sidestepRange": 12.0, "sidestepImpulse": 0.55, "awayHpFraction": 0.30, "awayCloseRange": 4.0, "awayPressureTicks": 30, "awayKnockBackWindowTicks": 100, "awayBandMinDistance": 10.0, "awayBandMaxDistance": 18.0, "blinkAfterMeleeChance": 0.5, "noLosBlinkTicks": 60, "targetRepickTicks": 20 },
+    "rift": { "enabled": true, "maxThickness": 12, "cooldownMinTicks": 300, "cooldownMaxTicks": 400, "maxHolesPerCast": 24, "detourFactor": 2.5, "pathProbeIntervalTicks": 20, "holeDurationTicks": 120 },
+    "unstick": { "suffocationTicks": 3, "emergencyRadius": 16.0 },
+    "healAllyHpFraction": 0.6,
+    "healAllyRange": 16.0,
+    "healAllyCastDistance": 2.5,
+    "healAllyCooldownTicks": 60, "healAllyBudgetMax": 5, "healAllyBudgetRegenTicks": 100,
+    "volleyGapTicks": 64,
+    "volleyPauseTicks": 180,
+    "volleyMaxTicks": 300
+  },
+  "tiers": [
+    {
+      "tier": 1,
+      "health": 80.0,
+      "armor": 1.0,
+      "shieldMax": 16.0,
+      "focusPower": 1.25,
+      "ai": { "globalCastGapTicks": 40, "startupDelayTicks": 40, "castBudget": { "regenPerSecond": 5.5, "resumeFraction": 0.65 } },
+      "drops": [
+        { "item": "ordinarycoins:coingold", "chance": 1.0, "min": 2, "max": 4 },
+        { "item": "crimsonrevelations:crimson_fabric", "chance": 1.0, "min": 1, "max": 3 },
+        { "item": "crimsonrevelations:crimson_plate", "chance": 1.0, "min": 1, "max": 2 },
+        { "item": "thaumcraft:void_seed", "chance": 0.44, "min": 1, "max": 1 },
+        { "item": "sccraftingrunes:itemraremat", "chance": 1.0, "min": 1, "max": 2 },
+        { "item": "sccraftingrunes:itemlegendarymat", "chance": 0.75, "min": 1, "max": 1 },
+        { "item": "lootchests:loot_crate", "meta": 3, "chance": 1.0, "min": 1, "max": 1 },
+        { "item": "aqtweaks:spatial_rift_tear", "chance": 1.0, "min": 1, "max": 1 }
+      ],
+      "baubleDrops": [
+        { "item": "crimsonrevelations:runic_ring", "nbt": "{\"TC.RUNIC\": 5b}", "weight": 5 },
+        { "item": "crimsonrevelations:runic_amulet", "nbt": "{\"TC.RUNIC\": 8b}", "weight": 3 }
+      ],
+      "loadout": { "fixed": ["heal_self", "knock_back", "blink", "rift"], "slots": ["bolt", "projectile", "summon", "aoe"], "wildcards": 0, "complexityBudget": 160, "complexityBias": 0.0, "maxPerRole": 2, "dimensionWeightBonus": 3.0, "heavyComplexity": 50, "maxHeavy": 2 },
+      "stage1Foci": [ "heal_self", "knock_back", "blink", "rift", "curse_bat", "entropic_cloud", "flux_bolt", "frost" ],
+      "equipment": {
+        "head": {
+          "item": "crimsonrevelations:crimson_paladin_helmet",
+          "nbt": "{color: 8399402, aqtweaks: {QualityBase: {Name: \"quality.mindful.name\", Color: \"dark_aqua\", Slots: [\"head\"], AttributeModifiers: [{Name: \"qualitytools\", Amount: 0.5, Operation: 0, UUIDMost: 4244887993046810630L, UUIDLeast: -6469714233780925621L, AttributeName: \"generic.armor\"}, {Name: \"qualitytools\", Amount: 1.0, Operation: 0, UUIDMost: 7364316429839319649L, UUIDLeast: -4895734444907810656L, AttributeName: \"potioncore.magicShielding\"}]}}, Quality: {Name: \"quality.mindful.name\", Color: \"dark_aqua\", Slots: [\"head\"], AttributeModifiers: [{Name: \"qualitytools\", AttributeName: \"generic.armor\", Operation: 0, UUIDMost: 4244887993046810630L, UUIDLeast: -6469714233780925621L, Amount: 0.5}, {Name: \"qualitytools\", AttributeName: \"potioncore.magicShielding\", Operation: 0, UUIDMost: 7364316429839319649L, UUIDLeast: -4895734444907810656L, Amount: 1.0}]}}"
+        },
+        "chest": {
+          "item": "crimsonrevelations:crimson_paladin_chestplate",
+          "nbt": "{color: 8399402, aqtweaks: {QualityBase: {Name: \"quality.elite.name\", Color: \"dark_aqua\", Slots: [\"chest\"], AttributeModifiers: [{Name: \"qualitytools\", Amount: 0.5, Operation: 0, UUIDMost: 1955072441640963068L, UUIDLeast: -7580540517488478088L, AttributeName: \"generic.armor\"}, {Name: \"qualitytools\", Amount: 0.5, Operation: 0, UUIDMost: 4827639821838077103L, UUIDLeast: -8215769057675570996L, AttributeName: \"generic.knockbackResistance\"}]}}, Quality: {Name: \"quality.elite.name\", Color: \"dark_aqua\", Slots: [\"chest\"], AttributeModifiers: [{Name: \"qualitytools\", AttributeName: \"generic.armor\", Operation: 0, UUIDMost: 1955072441640963068L, UUIDLeast: -7580540517488478088L, Amount: 0.5}, {Name: \"qualitytools\", AttributeName: \"generic.knockbackResistance\", Operation: 0, UUIDMost: 4827639821838077103L, UUIDLeast: -8215769057675570996L, Amount: 0.5}]}}"
+        },
+        "legs": {
+          "item": "crimsonrevelations:crimson_paladin_leggings",
+          "nbt": "{color: 8399402, aqtweaks: {QualityBase: {Name: \"quality.elite.name\", Color: \"dark_aqua\", Slots: [\"legs\"], AttributeModifiers: [{Name: \"qualitytools\", Amount: 0.5, Operation: 0, UUIDMost: -4490934500674549668L, UUIDLeast: -7077414623358655802L, AttributeName: \"potioncore.jumpHeight\"}, {Name: \"qualitytools\", Amount: 0.5, Operation: 0, UUIDMost: -900467581146676032L, UUIDLeast: -4696923955724175144L, AttributeName: \"generic.armor\"}]}}, Quality: {Name: \"quality.elite.name\", Color: \"dark_aqua\", Slots: [\"legs\"], AttributeModifiers: [{Name: \"qualitytools\", AttributeName: \"potioncore.jumpHeight\", Operation: 0, UUIDMost: -4490934500674549668L, UUIDLeast: -7077414623358655802L, Amount: 0.5}, {Name: \"qualitytools\", AttributeName: \"generic.armor\", Operation: 0, UUIDMost: -900467581146676032L, UUIDLeast: -4696923955724175144L, Amount: 0.5}]}}"
+        },
+        "feet": {
+          "item": "thaumcraft:crimson_boots",
+          "nbt": "{aqtweaks: {QualityBase: {Name: \"quality.nimble.name\", Color: \"dark_aqua\", Slots: [\"feet\"], AttributeModifiers: [{Name: \"qualitytools\", Amount: 0.5, Operation: 0, UUIDMost: 2596364573636838174L, UUIDLeast: -6528939034553620502L, AttributeName: \"potioncore.stepHeight\"}, {Name: \"qualitytools\", Amount: 0.10000000149011612, Operation: 2, UUIDMost: 2795766963423760143L, UUIDLeast: -5480219521280673267L, AttributeName: \"generic.movementSpeed\"}]}}, Quality: {Name: \"quality.nimble.name\", Color: \"dark_aqua\", Slots: [\"feet\"], AttributeModifiers: [{Name: \"qualitytools\", AttributeName: \"potioncore.stepHeight\", Operation: 0, UUIDMost: 2596364573636838174L, UUIDLeast: -6528939034553620502L, Amount: 0.5}, {Name: \"qualitytools\", AttributeName: \"generic.movementSpeed\", Operation: 2, UUIDMost: 2795766963423760143L, UUIDLeast: -5480219521280673267L, Amount: 0.10000000149011612}]}}"
+        },
+        "mainhand": {
+          "item": "thaumcraft:crimson_blade",
+          "nbt": "{RepairCost: 31, Quality: {Name: \"quality.serrated.name\", Color: \"dark_aqua\", Slots: [\"mainhand\"], AttributeModifiers: [{Name: \"qualitytools\", Amount: 0.10000000149011612, Operation: 2, UUIDMost: -3017526169523696582L, UUIDLeast: -6243067798547517123L, AttributeName: \"generic.attackSpeed\"}, {Name: \"qualitytools\", Amount: 0.15000000596046448, Operation: 2, UUIDMost: 4690232788874446676L, UUIDLeast: -5459240225038461429L, AttributeName: \"generic.attackDamage\"}]}, display: {Name: \"Crimson Battlemage's Blade\"}, aqtweaks: {QualityBase: {Name: \"quality.serrated.name\", Color: \"dark_aqua\", Slots: [\"mainhand\"], AttributeModifiers: [{Name: \"qualitytools\", AttributeName: \"generic.attackSpeed\", Operation: 2, UUIDMost: -3017526169523696582L, UUIDLeast: -6243067798547517123L, Amount: 0.10000000149011612}, {Name: \"qualitytools\", AttributeName: \"generic.attackDamage\", Operation: 2, UUIDMost: 4690232788874446676L, UUIDLeast: -5459240225038461429L, Amount: 0.15000000596046448}]}}}",
+          "enchantments": [ { "id": "msmlegacy:scorn", "lvl": 1 }, { "id": "spectral_edge:spectral_edge", "lvl": 3 }, { "id": "msmlegacy:decay", "lvl": 1 }, { "id": "msmlegacy:frozen_aspect", "lvl": 1 }, { "id": "msmlegacy:keen_edge", "lvl": 3 } ]
+        },
+        "offhand": {
+          "item": "thaumcraft:caster_basic",
+          "nbt": "{aqtweaks: {QualityBase: {Name: \"quality.mystical.name\", Color: \"dark_aqua\", Slots: [\"mainhand\", \"offhand\"], AttributeModifiers: [{Name: \"qualitytools\", Amount: 0.10000000149011612, Operation: 2, UUIDMost: -3900166539141429305L, UUIDLeast: -5496097649419064919L, AttributeName: \"potioncore.magicDamage\"}]}}, Quality: {Name: \"quality.mystical.name\", Color: \"dark_aqua\", Slots: [\"mainhand\", \"offhand\"], AttributeModifiers: [{Name: \"qualitytools\", AttributeName: \"potioncore.magicDamage\", Operation: 2, UUIDMost: -3900166539141429305L, UUIDLeast: -5496097649419064919L, Amount: 0.10000000149011612}]}}"
+        }
+      }
+    },
+    {
+      "tier": 2,
+      "health": 120.0,
+      "armor": 3.0,
+      "shieldMax": 28.0,
+      "focusPower": 1.5,
+      "ai": { "globalCastGapTicks": 30, "startupDelayTicks": 30, "castBudget": { "regenPerSecond": 8.0, "resumeFraction": 0.65 } },
+      "drops": [
+        { "item": "ordinarycoins:coingold", "chance": 1.0, "min": 4, "max": 8 },
+        { "item": "crimsonrevelations:crimson_fabric", "chance": 1.0, "min": 2, "max": 4 },
+        { "item": "crimsonrevelations:crimson_plate", "chance": 1.0, "min": 1, "max": 3 },
+        { "item": "thaumcraft:void_seed", "chance": 0.75, "min": 1, "max": 1 },
+        { "item": "sccraftingrunes:itemraremat", "chance": 1.0, "min": 2, "max": 3 },
+        { "item": "sccraftingrunes:itemlegendarymat", "chance": 1.0, "min": 1, "max": 1 },
+        { "item": "lootchests:loot_crate", "meta": 3, "chance": 1.0, "min": 1, "max": 1 },
+        { "item": "aqtweaks:spatial_rift_tear", "chance": 1.0, "min": 1, "max": 1 }
+      ],
+      "baubleDrops": [
+        { "item": "crimsonrevelations:runic_ring", "nbt": "{\"TC.RUNIC\": 5b}", "weight": 5 },
+        { "item": "crimsonrevelations:runic_amulet", "nbt": "{\"TC.RUNIC\": 8b}", "weight": 3 },
+        { "item": "crimsonrevelations:runic_girdle", "nbt": "{\"TC.RUNIC\": 10b}", "weight": 2 }
+      ],
+      "loadout": { "fixed": ["heal_self", "knock_back", "blink", "rift"], "slots": ["bolt", "projectile", "summon", "aoe"], "wildcards": 2, "complexityBudget": 250, "complexityBias": 0.0, "maxPerRole": 2, "dimensionWeightBonus": 3.0, "heavyComplexity": 50, "maxHeavy": 3, "minHeavyArea": 1, "minHeavyOther": 1, "swarmChance": 0.2, "swarmId": "spell_bat_swarm" },
+      "stage1Foci": [ "heal_self", "knock_back", "blink", "rift", "spell_bat_swarm", "tempest", "prismatic_bolt", "shock", "nethers_wrath", "enervate" ],
+      "equipment": {
+        "head": {
+          "item": "crimsonrevelations:crimson_paladin_helmet",
+          "nbt": "{color: 8399402, aqtweaks: {QualityBase: {Name: \"quality.mindful.name\", Color: \"dark_aqua\", Slots: [\"head\"], AttributeModifiers: [{Name: \"qualitytools\", Amount: 0.5, Operation: 0, UUIDMost: 4244887993046810630L, UUIDLeast: -6469714233780925621L, AttributeName: \"generic.armor\"}, {Name: \"qualitytools\", Amount: 1.0, Operation: 0, UUIDMost: 7364316429839319649L, UUIDLeast: -4895734444907810656L, AttributeName: \"potioncore.magicShielding\"}]}}, Quality: {Name: \"quality.mindful.name\", Color: \"dark_aqua\", Slots: [\"head\"], AttributeModifiers: [{Name: \"qualitytools\", AttributeName: \"generic.armor\", Operation: 0, UUIDMost: 4244887993046810630L, UUIDLeast: -6469714233780925621L, Amount: 0.5}, {Name: \"qualitytools\", AttributeName: \"potioncore.magicShielding\", Operation: 0, UUIDMost: 7364316429839319649L, UUIDLeast: -4895734444907810656L, Amount: 1.0}]}}"
+        },
+        "chest": {
+          "item": "crimsonrevelations:crimson_paladin_chestplate",
+          "nbt": "{color: 8399402, aqtweaks: {QualityBase: {Name: \"quality.elite.name\", Color: \"dark_aqua\", Slots: [\"chest\"], AttributeModifiers: [{Name: \"qualitytools\", Amount: 0.5, Operation: 0, UUIDMost: 1955072441640963068L, UUIDLeast: -7580540517488478088L, AttributeName: \"generic.armor\"}, {Name: \"qualitytools\", Amount: 0.5, Operation: 0, UUIDMost: 4827639821838077103L, UUIDLeast: -8215769057675570996L, AttributeName: \"generic.knockbackResistance\"}]}}, Quality: {Name: \"quality.elite.name\", Color: \"dark_aqua\", Slots: [\"chest\"], AttributeModifiers: [{Name: \"qualitytools\", AttributeName: \"generic.armor\", Operation: 0, UUIDMost: 1955072441640963068L, UUIDLeast: -7580540517488478088L, Amount: 0.5}, {Name: \"qualitytools\", AttributeName: \"generic.knockbackResistance\", Operation: 0, UUIDMost: 4827639821838077103L, UUIDLeast: -8215769057675570996L, Amount: 0.5}]}}"
+        },
+        "legs": {
+          "item": "crimsonrevelations:crimson_paladin_leggings",
+          "nbt": "{color: 8399402, aqtweaks: {QualityBase: {Name: \"quality.elite.name\", Color: \"dark_aqua\", Slots: [\"legs\"], AttributeModifiers: [{Name: \"qualitytools\", Amount: 0.5, Operation: 0, UUIDMost: -4490934500674549668L, UUIDLeast: -7077414623358655802L, AttributeName: \"potioncore.jumpHeight\"}, {Name: \"qualitytools\", Amount: 0.5, Operation: 0, UUIDMost: -900467581146676032L, UUIDLeast: -4696923955724175144L, AttributeName: \"generic.armor\"}]}}, Quality: {Name: \"quality.elite.name\", Color: \"dark_aqua\", Slots: [\"legs\"], AttributeModifiers: [{Name: \"qualitytools\", AttributeName: \"potioncore.jumpHeight\", Operation: 0, UUIDMost: -4490934500674549668L, UUIDLeast: -7077414623358655802L, Amount: 0.5}, {Name: \"qualitytools\", AttributeName: \"generic.armor\", Operation: 0, UUIDMost: -900467581146676032L, UUIDLeast: -4696923955724175144L, Amount: 0.5}]}}"
+        },
+        "feet": {
+          "item": "thaumcraft:crimson_boots",
+          "nbt": "{aqtweaks: {QualityBase: {Name: \"quality.nimble.name\", Color: \"dark_aqua\", Slots: [\"feet\"], AttributeModifiers: [{Name: \"qualitytools\", Amount: 0.5, Operation: 0, UUIDMost: 2596364573636838174L, UUIDLeast: -6528939034553620502L, AttributeName: \"potioncore.stepHeight\"}, {Name: \"qualitytools\", Amount: 0.10000000149011612, Operation: 2, UUIDMost: 2795766963423760143L, UUIDLeast: -5480219521280673267L, AttributeName: \"generic.movementSpeed\"}]}}, Quality: {Name: \"quality.nimble.name\", Color: \"dark_aqua\", Slots: [\"feet\"], AttributeModifiers: [{Name: \"qualitytools\", AttributeName: \"potioncore.stepHeight\", Operation: 0, UUIDMost: 2596364573636838174L, UUIDLeast: -6528939034553620502L, Amount: 0.5}, {Name: \"qualitytools\", AttributeName: \"generic.movementSpeed\", Operation: 2, UUIDMost: 2795766963423760143L, UUIDLeast: -5480219521280673267L, Amount: 0.10000000149011612}]}}"
+        },
+        "mainhand": {
+          "item": "thaumcraft:crimson_blade",
+          "nbt": "{RepairCost: 31, Quality: {Name: \"quality.serrated.name\", Color: \"dark_aqua\", Slots: [\"mainhand\"], AttributeModifiers: [{Name: \"qualitytools\", Amount: 0.10000000149011612, Operation: 2, UUIDMost: -3017526169523696582L, UUIDLeast: -6243067798547517123L, AttributeName: \"generic.attackSpeed\"}, {Name: \"qualitytools\", Amount: 0.15000000596046448, Operation: 2, UUIDMost: 4690232788874446676L, UUIDLeast: -5459240225038461429L, AttributeName: \"generic.attackDamage\"}]}, display: {Name: \"Crimson Battlemage's Blade\"}, aqtweaks: {QualityBase: {Name: \"quality.serrated.name\", Color: \"dark_aqua\", Slots: [\"mainhand\"], AttributeModifiers: [{Name: \"qualitytools\", AttributeName: \"generic.attackSpeed\", Operation: 2, UUIDMost: -3017526169523696582L, UUIDLeast: -6243067798547517123L, Amount: 0.10000000149011612}, {Name: \"qualitytools\", AttributeName: \"generic.attackDamage\", Operation: 2, UUIDMost: 4690232788874446676L, UUIDLeast: -5459240225038461429L, Amount: 0.15000000596046448}]}}}",
+          "enchantments": [ { "id": "msmlegacy:scorn", "lvl": 1 }, { "id": "spectral_edge:spectral_edge", "lvl": 3 }, { "id": "msmlegacy:decay", "lvl": 1 }, { "id": "msmlegacy:frozen_aspect", "lvl": 1 }, { "id": "msmlegacy:keen_edge", "lvl": 3 } ]
+        },
+        "offhand": {
+          "item": "thaumcraft:caster_basic",
+          "nbt": "{aqtweaks: {QualityBase: {Name: \"quality.mystical.name\", Color: \"dark_aqua\", Slots: [\"mainhand\", \"offhand\"], AttributeModifiers: [{Name: \"qualitytools\", Amount: 0.10000000149011612, Operation: 2, UUIDMost: -3900166539141429305L, UUIDLeast: -5496097649419064919L, AttributeName: \"potioncore.magicDamage\"}]}}, Quality: {Name: \"quality.mystical.name\", Color: \"dark_aqua\", Slots: [\"mainhand\", \"offhand\"], AttributeModifiers: [{Name: \"qualitytools\", AttributeName: \"potioncore.magicDamage\", Operation: 2, UUIDMost: -3900166539141429305L, UUIDLeast: -5496097649419064919L, Amount: 0.10000000149011612}]}}"
+        }
+      }
+    }
+  ],
+  "variants": [
+    {
+      "id": "swarm_mage",
+      "tier": 1,
+      "fixedLoadout": ["heal_self", "knock_back", "blink", "rift", "curse_bat", "spell_bat_swarm", "healing_aura", "flux_bolt", "prismatic_bolt"],
+      "weights": { "bolt": 2.0, "bolt_heavy": 2.0 },
+      "ai": {
+        "cloudGuardRange": 3.5,
+        "cloudGuardNearRange": 6.0,
+        "cloudGuardCastTicks": 20,
+        "cloudGuardMeleeMin": 1,
+        "cloudGuardMeleeMax": 2,
+        "cloudGuardCooldownTicks": 30,
+        "cloudGuardCloseTicks": 20
+      },
+      "escort": [
+        { "entity": "thaumcraft:cultistknight", "count": 2 },
+        { "entity": "thaumcraft:cultistcleric", "count": 1 },
+        { "entity": "crimsonrevelations:cultist_archer", "count": 1 }
+      ]
+    },
+    {
+      "id": "bombardier_mage",
+      "tier": 2,
+      "fixedLoadout": ["heal_self", "knock_back", "blink", "rift", "entropic_cloud", "fire_and_ice", "tempest", "sands_of_atum", "aurorian_winds"],
+      "ai": {
+        "aoeMinRange": 6.0,
+        "castBudget": { "enabled": false },
+        "globalCastGapTicks": 60,
+        "volleyGapTicks": 64,
+        "volleyPauseTicks": 180,
+        "volleyMaxTicks": 300
+      }
+    }
+  ],
+  "foci": [
+    {
+      "id": "heal_self",
+      "minTier": 1,
+      "role": "heal_self",
+      "slot": "fixed",
+      "complexity": 20,
+      "baseWeight": 1.0,
+      "dimensions": [],
+      "minRange": 0,
+      "maxRange": 0,
+      "requireLos": false,
+      "tags": {
+        "followUp": []
+      },
+      "cooldownTicks": null,
+      "nbt": "<thaumcraft:focus_2>.withTag({display: {Name: \"Heal Self\"}, package: {index: 0, power: 1.0 as float, complexity: 20, nodes: [{type: \"MEDIUM\", key: \"ROOT\"}, {type: \"EFFECT\", key: \"thaumcraft.HEAL\", \"setting.power\": 5}]}, color: -2228219, srt: -1733616132})"
+    },
+    {
+      "id": "healing_aura",
+      "minTier": 1,
+      "role": "heal_ally",
+      "slot": "none",
+      "complexity": 25,
+      "baseWeight": 1.0,
+      "dimensions": [],
+      "minRange": 0,
+      "maxRange": 0,
+      "requireLos": false,
+      "tags": {
+        "followUp": []
+      },
+      "cooldownTicks": null,
+      "nbt": "<thaumcraft:focus_2>.withTag({display: {Name: \"Healing Aura\"}, package: {index: 0, power: 1.0 as float, complexity: 25, nodes: [{type: \"MEDIUM\", key: \"ROOT\"}, {type: \"MEDIUM\", key: \"thaumcraft.CLOUD\", \"setting.duration\": 5, \"setting.radius\": 2}, {type: \"EFFECT\", key: \"thaumcraft.HEAL\", \"setting.power\": 4}]}, color: -2228219, srt: 55556474})"
+    },
+    {
+      "id": "flame",
+      "minTier": 1,
+      "role": "ranged_primary",
+      "slot": "projectile",
+      "complexity": 25,
+      "baseWeight": 1.0,
+      "dimensions": [],
+      "minRange": 3,
+      "maxRange": 24,
+      "requireLos": true,
+      "tags": {
+        "opener": "fire",
+        "followUp": []
+      },
+      "cooldownTicks": null,
+      "nbt": "<thaumcraft:focus_2>.withTag({display: {Name: \"Flame\"}, package: {index: 0, power: 1.0 as float, complexity: 25, nodes: [{type: \"MEDIUM\", key: \"ROOT\"}, {type: \"MEDIUM\", key: \"thaumcraft.PROJECTILE\", \"setting.speed\": 5, \"setting.option\": 2}, {type: \"EFFECT\", key: \"thaumcraft.FIRE\", \"setting.duration\": 4, \"setting.power\": 5}]}, color: -42495, srt: 1385643827})"
+    },
+    {
+      "id": "frost",
+      "minTier": 1,
+      "role": "ranged_primary",
+      "slot": "projectile",
+      "complexity": 25,
+      "baseWeight": 1.0,
+      "dimensions": [],
+      "minRange": 3,
+      "maxRange": 24,
+      "requireLos": true,
+      "tags": {
+        "opener": "slow",
+        "followUp": []
+      },
+      "cooldownTicks": null,
+      "nbt": "<thaumcraft:focus_2>.withTag({display: {Name: \"Frost\"}, package: {index: 0, power: 1.0 as float, complexity: 25, nodes: [{type: \"MEDIUM\", key: \"ROOT\"}, {type: \"MEDIUM\", key: \"thaumcraft.PROJECTILE\", \"setting.speed\": 5, \"setting.option\": 2}, {type: \"EFFECT\", key: \"thaumcraft.FROST\", \"setting.duration\": 4, \"setting.power\": 5}]}, color: -1966081, srt: 260625321})"
+    },
+    {
+      "id": "shock",
+      "minTier": 1,
+      "role": "ranged_primary",
+      "slot": "projectile",
+      "complexity": 25,
+      "baseWeight": 1.0,
+      "dimensions": [],
+      "minRange": 3,
+      "maxRange": 24,
+      "requireLos": true,
+      "tags": {
+        "opener": "stun",
+        "followUp": []
+      },
+      "cooldownTicks": null,
+      "nbt": "<thaumcraft:focus_2>.withTag({display: {Name: \"Shock\"}, package: {index: 0, power: 1.0 as float, complexity: 25, nodes: [{type: \"MEDIUM\", key: \"ROOT\"}, {type: \"MEDIUM\", key: \"thaumcraft.PROJECTILE\", \"setting.speed\": 5, \"setting.option\": 2}, {type: \"EFFECT\", key: \"focus.aqtweaks.shock\", \"setting.duration\": 4, \"setting.power\": 5}]}, color: -7856, srt: -3209799})"
+    },
+    {
+      "id": "flux_bolt",
+      "minTier": 1,
+      "role": "bolt",
+      "slot": "bolt",
+      "complexity": 20,
+      "baseWeight": 1.0,
+      "dimensions": [],
+      "minRange": 2,
+      "maxRange": 16,
+      "requireLos": true,
+      "tags": {
+        "followUp": []
+      },
+      "cooldownTicks": null,
+      "nbt": "<thaumcraft:focus_2>.withTag({display: {Name: \"Flux Bolt\"}, package: {index: 0, power: 1.0 as float, complexity: 20, nodes: [{type: \"MEDIUM\", key: \"ROOT\"}, {type: \"MEDIUM\", key: \"thaumcraft.BOLT\"}, {type: \"EFFECT\", key: \"thaumcraft.FLUX\", \"setting.power\": 5}]}, color: -8388480, srt: -615439553})"
+    },
+    {
+      "id": "prismatic_bolt",
+      "minTier": 1,
+      "role": "bolt_heavy",
+      "slot": "bolt",
+      "complexity": 50,
+      "baseWeight": 1.0,
+      "dimensions": [],
+      "minRange": 2,
+      "maxRange": 16,
+      "requireLos": true,
+      "tags": {
+        "followUp": [
+          "stunned",
+          "slowed",
+          "wet"
+        ]
+      },
+      "cooldownTicks": null,
+      "windupTicks": 0,
+      "nbt": "<thaumcraft:focus_3>.withTag({display: {Name: \"Prismatic Bolt\"}, package: {index: 0, power: 1.0 as float, complexity: 50, nodes: [{type: \"MEDIUM\", key: \"ROOT\"}, {type: \"MEDIUM\", key: \"thaumcraft.BOLT\"}, {type: \"MOD\", key: \"thaumcraft.SPLITTARGET\", packages: {packages: [{index: 0, power: 1.0 as float, complexity: 0, nodes: [{type: \"EFFECT\", key: \"focus.aqtweaks.shock\", \"setting.duration\": 2, \"setting.power\": 5}]}, {index: 0, power: 1.0 as float, complexity: 0, nodes: [{type: \"MOD\", key: \"thaumcraft.SPLITTARGET\", packages: {packages: [{index: 0, power: 1.0 as float, complexity: 0, nodes: [{type: \"EFFECT\", key: \"thaumcraft.FROST\", \"setting.duration\": 2, \"setting.power\": 5}]}, {index: 0, power: 1.0 as float, complexity: 0, nodes: [{type: \"EFFECT\", key: \"thaumcraft.FIRE\", \"setting.duration\": 1, \"setting.power\": 5}]}]}}]}]}}]}, color: -672144, srt: -395355490})"
+    },
+    {
+      "id": "aethers_bolt",
+      "minTier": 2,
+      "role": "bolt_heavy",
+      "slot": "bolt",
+      "complexity": 50,
+      "baseWeight": 1.0,
+      "dimensions": [
+        4
+      ],
+      "minRange": 2,
+      "maxRange": 16,
+      "requireLos": true,
+      "tags": {
+        "followUp": [
+          "stunned",
+          "slowed",
+          "wet"
+        ]
+      },
+      "cooldownTicks": null,
+      "windupTicks": 0,
+      "nbt": "<thaumcraft:focus_3>.withTag({display: {Name: \"Aether's Bolt\"}, package: {index: 0, power: 1.0 as float, complexity: 50, nodes: [{type: \"MEDIUM\", key: \"ROOT\"}, {type: \"MEDIUM\", key: \"thaumcraft.BOLT\"}, {type: \"MOD\", key: \"thaumcraft.SPLITTARGET\", packages: {packages: [{index: 0, power: 1.0 as float, complexity: 0, nodes: [{type: \"EFFECT\", key: \"focus.aqtweaks.shock\", \"setting.duration\": 5, \"setting.power\": 5}]}, {index: 0, power: 1.0 as float, complexity: 0, nodes: [{type: \"MOD\", key: \"thaumcraft.SPLITTARGET\", packages: {packages: [{index: 0, power: 1.0 as float, complexity: 0, nodes: [{type: \"EFFECT\", key: \"thaumcraft.FROST\", \"setting.duration\": 2, \"setting.power\": 4}]}, {index: 0, power: 1.0 as float, complexity: 0, nodes: [{type: \"EFFECT\", key: \"thaumcraft.AIR\", \"setting.power\": 5}]}]}}]}]}}]}, color: -658023, srt: -395355490})"
+    },
+    {
+      "id": "nethers_wrath",
+      "minTier": 2,
+      "role": "ranged_heavy",
+      "slot": "projectile",
+      "complexity": 50,
+      "baseWeight": 1.0,
+      "dimensions": [
+        -1
+      ],
+      "minRange": 3,
+      "maxRange": 24,
+      "requireLos": true,
+      "tags": {
+        "followUp": [
+          "stunned",
+          "slowed",
+          "burning"
+        ]
+      },
+      "cooldownTicks": null,
+      "windupTicks": 0,
+      "nbt": "<thaumcraft:focus_3>.withTag({display: {Name: \"Nether's Wrath\"}, package: {index: 0, power: 1.0 as float, complexity: 50, nodes: [{type: \"MEDIUM\", key: \"ROOT\"}, {type: \"MEDIUM\", key: \"thaumcraft.PROJECTILE\", \"setting.speed\": 5, \"setting.option\": 2}, {type: \"MOD\", key: \"thaumcraft.SPLITTARGET\", packages: {packages: [{index: 0, power: 1.0 as float, complexity: 0, nodes: [{type: \"EFFECT\", key: \"thaumcraft.FIRE\", \"setting.duration\": 2, \"setting.power\": 4}]}, {index: 0, power: 1.0 as float, complexity: 0, nodes: [{type: \"MOD\", key: \"thaumcraft.SPLITTARGET\", packages: {packages: [{index: 0, power: 1.0 as float, complexity: 0, nodes: [{type: \"EFFECT\", key: \"thaumcraft.FLUX\", \"setting.power\": 5}]}, {index: 0, power: 1.0 as float, complexity: 0, nodes: [{type: \"EFFECT\", key: \"thaumcraft.CURSE\", \"setting.duration\": 1, \"setting.power\": 1}]}]}}]}]}}]}, color: -6087124, srt: -988773745})"
+    },
+    {
+      "id": "enervate",
+      "minTier": 2,
+      "role": "debuff",
+      "slot": "bolt",
+      "complexity": 35,
+      "baseWeight": 1.0,
+      "dimensions": [],
+      "minRange": 2,
+      "maxRange": 16,
+      "requireLos": true,
+      "tags": {
+        "opener": "curse",
+        "followUp": []
+      },
+      "cooldownTicks": null,
+      "nbt": "<thaumicaugmentation:focus_ancient>.withTag({display: {Name: \"Enervate\"}, package: {index: 0, power: 1.0 as float, complexity: 35, nodes: [{type: \"MEDIUM\", key: \"ROOT\"}, {type: \"MEDIUM\", key: \"thaumcraft.BOLT\"}, {type: \"MOD\", key: \"thaumcraft.SPLITTARGET\", packages: {packages: [{index: 0, power: 1.0 as float, complexity: 0, nodes: [{type: \"EFFECT\", key: \"thaumcraft.CURSE\", \"setting.duration\": 5, \"setting.power\": 2}]}, {index: 0, power: 1.0 as float, complexity: 0, nodes: [{type: \"EFFECT\", key: \"thaumcraft.FLUX\", \"setting.power\": 5}]}]}}]}, color: -9109438, srt: -395355490})"
+    },
+    {
+      "id": "knock_back",
+      "minTier": 1,
+      "role": "peel",
+      "slot": "fixed",
+      "complexity": 17,
+      "baseWeight": 1.0,
+      "dimensions": [],
+      "minRange": 0,
+      "maxRange": 3,
+      "requireLos": true,
+      "tags": {
+        "followUp": []
+      },
+      "cooldownTicks": null,
+      "nbt": "<thaumcraft:focus_2>.withTag({display: {Name: \"Knock Back\"}, package: {index: 0, power: 1.0 as float, complexity: 17, nodes: [{type: \"MEDIUM\", key: \"ROOT\"}, {type: \"MEDIUM\", key: \"thaumcraft.TOUCH\"}, {type: \"EFFECT\", key: \"focus.crimsonrevelations.punch\", \"setting.knockback\": 5}]}, color: -419835, srt: 1504699464})"
+    },
+    {
+      "id": "curse_bat",
+      "minTier": 1,
+      "role": "summon_upkeep",
+      "slot": "summon",
+      "complexity": 25,
+      "baseWeight": 1.0,
+      "dimensions": [],
+      "minRange": 0,
+      "maxRange": 48,
+      "requireLos": false,
+      "tags": {
+        "followUp": []
+      },
+      "cooldownTicks": null,
+      "nbt": "<thaumcraft:focus_2>.withTag({display: {Name: \"Curse Bat\"}, package: {index: 0, power: 1.0 as float, complexity: 25, nodes: [{type: \"MEDIUM\", key: \"ROOT\"}, {type: \"MEDIUM\", key: \"thaumcraft.SPELLBAT\", \"setting.target\": 0}, {type: \"EFFECT\", key: \"thaumcraft.CURSE\", \"setting.duration\": 8, \"setting.power\": 3}]}, color: -9830395, srt: -1824929780})"
+    },
+    {
+      "id": "spell_bat_swarm",
+      "summonCount": 5,
+      "minTier": 1,
+      "role": "summon_upkeep",
+      "slot": "summon",
+      "complexity": 50,
+      "baseWeight": 1.0,
+      "dimensions": [],
+      "minRange": 0,
+      "maxRange": 48,
+      "requireLos": false,
+      "tags": {
+        "followUp": []
+      },
+      "cooldownTicks": null,
+      "nbt": "<thaumcraft:focus_3>.withTag({display: {Name: \"Spell Bat Swarm\"}, package: {index: 0, power: 1.0 as float, complexity: 50, nodes: [{type: \"MEDIUM\", key: \"ROOT\"}, {type: \"MOD\", key: \"thaumcraft.SPLITTRAJECTORY\", packages: {packages: [{index: 0, power: 1.0 as float, complexity: 0, nodes: [{type: \"MOD\", key: \"thaumcraft.SCATTER\", \"setting.forks\": 2, \"setting.cone\": 10}, {type: \"MEDIUM\", key: \"thaumcraft.SPELLBAT\", \"setting.target\": 0}, {type: \"EFFECT\", key: \"focus.crimsonrevelations.hex\", \"setting.duration\": 3, \"setting.power\": 2, \"setting.nightshade\": 0}]}, {index: 0, power: 1.0 as float, complexity: 0, nodes: [{type: \"MOD\", key: \"thaumcraft.SCATTER\", \"setting.forks\": 3, \"setting.cone\": 10}, {type: \"MEDIUM\", key: \"thaumcraft.SPELLBAT\", \"setting.target\": 0}, {type: \"EFFECT\", key: \"thaumcraft.FLUX\", \"setting.power\": 2}]}]}}]}, color: -11175340, srt: 64104432})"
+    },
+    {
+      "id": "entropic_cloud",
+      "minTier": 1,
+      "role": "aoe",
+      "slot": "aoe",
+      "complexity": 50,
+      "baseWeight": 1.0,
+      "dimensions": [],
+      "minRange": 14,
+      "maxRange": 30,
+      "requireLos": false,
+      "tags": {
+        "followUp": []
+      },
+      "cooldownTicks": null,
+      "windupTicks": 0,
+      "nbt": "<thaumcraft:focus_3>.withTag({display: {Name: \"Entropic Cloud\"}, package: {index: 0, power: 1.0 as float, complexity: 50, nodes: [{type: \"MEDIUM\", key: \"ROOT\"}, {type: \"MEDIUM\", key: \"thaumcraft.PROJECTILE\", \"setting.speed\": 1, \"setting.option\": 2}, {type: \"MEDIUM\", key: \"thaumcraft.CLOUD\", \"setting.duration\": 18, \"setting.radius\": 3}, {type: \"MOD\", key: \"thaumcraft.SPLITTARGET\", packages: {packages: [{index: 0, power: 1.0 as float, complexity: 0, nodes: [{type: \"EFFECT\", key: \"thaumcraft.FLUX\", \"setting.power\": 5}]}, {index: 0, power: 1.0 as float, complexity: 0, nodes: [{type: \"EFFECT\", key: \"thaumcraft.CURSE\", \"setting.duration\": 3, \"setting.power\": 2}]}]}}]}, color: -9109438, srt: 1852935047})"
+    },
+    {
+      "id": "fire_and_ice",
+      "minTier": 1,
+      "role": "aoe",
+      "slot": "aoe",
+      "complexity": 50,
+      "baseWeight": 1.0,
+      "dimensions": [],
+      "minRange": 14,
+      "maxRange": 30,
+      "requireLos": false,
+      "tags": {
+        "followUp": []
+      },
+      "cooldownTicks": null,
+      "windupTicks": 0,
+      "nbt": "<thaumcraft:focus_3>.withTag({display: {Name: \"Fire and Ice\"}, package: {index: 0, power: 1.0 as float, complexity: 50, nodes: [{type: \"MEDIUM\", key: \"ROOT\"}, {type: \"MEDIUM\", key: \"thaumcraft.PROJECTILE\", \"setting.speed\": 1, \"setting.option\": 2}, {type: \"MEDIUM\", key: \"thaumcraft.CLOUD\", \"setting.duration\": 18, \"setting.radius\": 3}, {type: \"MOD\", key: \"thaumcraft.SPLITTARGET\", packages: {packages: [{index: 0, power: 1.0 as float, complexity: 0, nodes: [{type: \"EFFECT\", key: \"thaumcraft.FIRE\", \"setting.duration\": 2, \"setting.power\": 5}]}, {index: 0, power: 1.0 as float, complexity: 0, nodes: [{type: \"EFFECT\", key: \"thaumcraft.FROST\", \"setting.duration\": 2, \"setting.power\": 5}]}]}}]}, color: -1004416, srt: 1852935047})"
+    },
+    {
+      "id": "tempest",
+      "minTier": 1,
+      "role": "aoe",
+      "slot": "aoe",
+      "complexity": 50,
+      "baseWeight": 1.0,
+      "dimensions": [],
+      "minRange": 14,
+      "maxRange": 30,
+      "requireLos": false,
+      "tags": {
+        "followUp": []
+      },
+      "cooldownTicks": null,
+      "windupTicks": 0,
+      "nbt": "<thaumcraft:focus_3>.withTag({display: {Name: \"Tempest\"}, package: {index: 0, power: 1.0 as float, complexity: 50, nodes: [{type: \"MEDIUM\", key: \"ROOT\"}, {type: \"MEDIUM\", key: \"thaumcraft.PROJECTILE\", \"setting.speed\": 1, \"setting.option\": 2}, {type: \"MEDIUM\", key: \"thaumcraft.CLOUD\", \"setting.duration\": 14, \"setting.radius\": 3}, {type: \"MOD\", key: \"thaumcraft.SPLITTARGET\", packages: {packages: [{index: 0, power: 1.0 as float, complexity: 0, nodes: [{type: \"EFFECT\", key: \"focus.aqtweaks.shock\", \"setting.duration\": 4, \"setting.power\": 5}]}, {index: 0, power: 1.0 as float, complexity: 0, nodes: [{type: \"EFFECT\", key: \"focus.thaumicaugmentation.water\", \"setting.power\": 4}]}]}}]}, color: -6432090, srt: 2120962059})"
+    },
+    {
+      "id": "sands_of_atum",
+      "minTier": 2,
+      "role": "aoe",
+      "slot": "aoe",
+      "complexity": 50,
+      "baseWeight": 1.0,
+      "dimensions": [
+        17
+      ],
+      "minRange": 14,
+      "maxRange": 30,
+      "requireLos": false,
+      "tags": {
+        "followUp": []
+      },
+      "cooldownTicks": null,
+      "windupTicks": 0,
+      "nbt": "<thaumcraft:focus_3>.withTag({display: {Name: \"Sands of Atum\"}, package: {index: 0, power: 1.0 as float, complexity: 50, nodes: [{type: \"MEDIUM\", key: \"ROOT\"}, {type: \"MEDIUM\", key: \"thaumcraft.PROJECTILE\", \"setting.speed\": 1, \"setting.option\": 2}, {type: \"MEDIUM\", key: \"thaumcraft.CLOUD\", \"setting.duration\": 19, \"setting.radius\": 3}, {type: \"MOD\", key: \"thaumcraft.SPLITTARGET\", packages: {packages: [{index: 0, power: 1.0 as float, complexity: 0, nodes: [{type: \"EFFECT\", key: \"thaumcraft.EARTH\", \"setting.power\": 5}]}, {index: 0, power: 1.0 as float, complexity: 0, nodes: [{type: \"EFFECT\", key: \"thaumcraft.FIRE\", \"setting.duration\": 1, \"setting.power\": 4}]}]}}]}, color: -5600000, srt: 1785928294})"
+    },
+    {
+      "id": "aurorian_winds",
+      "minTier": 2,
+      "role": "aoe",
+      "slot": "aoe",
+      "complexity": 50,
+      "baseWeight": 0.3,
+      "dimensions": [
+        424
+      ],
+      "minRange": 14,
+      "maxRange": 30,
+      "requireLos": false,
+      "tags": {
+        "followUp": []
+      },
+      "cooldownTicks": null,
+      "windupTicks": 0,
+      "nbt": "<thaumcraft:focus_3>.withTag({display: {Name: \"Aurorian Winds\"}, package: {index: 0, power: 1.0 as float, complexity: 50, nodes: [{type: \"MEDIUM\", key: \"ROOT\"}, {type: \"MEDIUM\", key: \"thaumcraft.PROJECTILE\", \"setting.speed\": 1, \"setting.option\": 2}, {type: \"MOD\", key: \"thaumcraft.SCATTER\", \"setting.forks\": 10, \"setting.cone\": 360}, {type: \"MEDIUM\", key: \"thaumcraft.CLOUD\", \"setting.duration\": 19, \"setting.radius\": 3}, {type: \"MOD\", key: \"thaumcraft.SPLITTARGET\", packages: {packages: [{index: 0, power: 1.0 as float, complexity: 0, nodes: [{type: \"EFFECT\", key: \"thaumcraft.FROST\", \"setting.duration\": 2, \"setting.power\": 5}]}, {index: 0, power: 1.0 as float, complexity: 0, nodes: [{type: \"EFFECT\", key: \"focus.crimsonrevelations.hex\", \"setting.duration\": 2, \"setting.power\": 2, \"setting.nightshade\": 0}]}]}}]}, color: -7996780, srt: -1598508423})"
+    },
+    {
+      "id": "rift",
+      "minTier": 1,
+      "role": "rift",
+      "slot": "fixed",
+      "complexity": 18,
+      "baseWeight": 1.0,
+      "dimensions": [],
+      "minRange": 0,
+      "maxRange": 12,
+      "requireLos": false,
+      "tags": {
+        "followUp": []
+      },
+      "performed": true,
+      "cooldownTicks": null,
+      "nbt": "<thaumicaugmentation:focus_ancient>.withTag({display: {Name: \"Rift\"}, package: {index: 0, power: 1.0 as float, complexity: 18, nodes: [{type: \"MEDIUM\", key: \"ROOT\"}, {type: \"MEDIUM\", key: \"thaumcraft.TOUCH\"}, {type: \"EFFECT\", key: \"thaumcraft.RIFT\", \"setting.duration\": 10, \"setting.depth\": 32}]}, color: -13692571, srt: -618567160})"
+    },
+    {
+      "id": "blink",
+      "minTier": 1,
+      "role": "blink",
+      "slot": "fixed",
+      "complexity": 15,
+      "baseWeight": 1.0,
+      "dimensions": [],
+      "minRange": 0,
+      "maxRange": 20,
+      "requireLos": false,
+      "tags": {
+        "followUp": []
+      },
+      "performed": true,
+      "cooldownTicks": null,
+      "nbt": "<thaumicaugmentation:focus_ancient>.withTag({display: {Name: \"Blink\"}, package: {index: 0, power: 1.0 as float, complexity: 15, nodes: [{type: \"MEDIUM\", key: \"ROOT\"}, {type: \"MEDIUM\", key: \"thaumcraft.BOLT\"}, {type: \"EFFECT\", key: \"focus.thaumicwonders.blink\"}]}, color: -9173388, srt: 1678006947})"
+    }
+  ]
+}

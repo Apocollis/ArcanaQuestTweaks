@@ -19,8 +19,8 @@ import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 
 /**
  * Insight, Vigor and Fortitude while {@code aqtweaks:homestead} is active.
- * Vigor's applied delta is {@code AQTVigorDelta} on entity data, not the persisted tag.
- * One reconcile writes the difference, so a tier change does not stack on Elenai's integer.
+ * Vigor is the interval {@link #vigorInterval}; {@code StaminaRegenPace} caps every refill state at it (no flat
+ * modifier of its own any more). {@code AQTVigorDelta} is only read to undo a delta an older build applied.
  */
 public final class RestedBonuses {
 
@@ -63,19 +63,15 @@ public final class RestedBonuses {
         if (player.world == null || player.world.isRemote) return;
         EntityPlayerMP mp = (EntityPlayerMP) player;
         NBTTagCompound data = player.getEntityData();
-        int target = vigorDelta(player);
-        int applied = data.getInteger(VIGOR_DELTA);
-        int diff = target - applied;
-        if (diff > 0) {
-            FeathersHelper.decreaseRegenModifier(mp, diff);
-        } else if (diff < 0) {
-            FeathersHelper.increaseRegenModifier(mp, -diff);
+        // Vigor is no longer a flat modifier of its own: StaminaRegenPace caps every pace at the Rested interval.
+        // Undo a delta an older build applied, once.
+        int legacy = data.getInteger(VIGOR_DELTA);
+        if (legacy != 0) {
+            FeathersHelper.increaseRegenModifier(mp, legacy);
+            data.removeTag(VIGOR_DELTA);
+            LOGGER.info("[AQ-STAMINA] Removed legacy Vigor delta {} for {}", legacy, player.getName());
         }
-        if (diff != 0) {
-            data.setInteger(VIGOR_DELTA, target);
-            LOGGER.info("[AQ-STAMINA] Vigor delta {} -> {} for {} at world time {}",
-                    applied, target, player.getName(), player.world.getTotalWorldTime());
-        }
+        com.apocollis.aqtweaks.stamina.StaminaRegenPace.refresh(mp);
         int tier = restedTier(player);
         if (data.getInteger(FORTITUDE_TIER) != tier) {
             int previous = data.getInteger(FORTITUDE_TIER);
@@ -119,13 +115,6 @@ public final class RestedBonuses {
         PotionEffect effect = player.getActivePotionEffect(PotionHomestead.INSTANCE);
         if (effect == null) return 0;
         return effect.getAmplifier() + 1;
-    }
-
-    private static int vigorDelta(EntityPlayer player) {
-        int tier = restedTier(player);
-        if (tier <= 0) return 0;
-        int interval = vigorInterval(player);
-        return Math.max(0, ComfortSystemHandler.VIGOR_BASE_INTERVAL - interval);
     }
 
     @SubscribeEvent

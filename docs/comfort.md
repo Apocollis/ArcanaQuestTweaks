@@ -1,6 +1,6 @@
 # Comfort module (1.10)
 
-Last updated: 2026-11-01.
+Last updated: 2026-11-20. Player homes (cached whole-build scoring) added.
 
 JSON (two files under `config/arcanaquesttweaks/`):
 
@@ -40,7 +40,7 @@ Category caps stay. Repeats of one family decay. Penalties **do not** have a glo
 
 Server only. Furnishings scan on `TickEvent.PlayerTickEvent` **END**, every **600 ticks** (30s), staggered by `(ticksExisted + entityId) % 600`. Bonuses, penalties, the rest pose and the ladder refresh every **40 ticks** in a home context (cached scan has entry furniture, or Rested is active). A cached scan older than **1200 ticks** is refreshed first. Eating and waking refresh immediately. Entry is checked on the 2s pass (the cached scan can be up to 30s old), and also on eating and waking. Hurt, attack, lost furniture, or score below I end the **resting** state at once and do **not** remove Rested. Clarity is removed at once.
 
-1. If NBT `AQTComfortResting` is false: player must pass `isPlayerResting`; not be inside the hurt or attack cooldown; the scan must include a block in `entry_require_categories` (default hearth / bedding / seating); **effective** score ≥ Rested I → set tag, granted band **I**, stamp `AQTComfortBandSince`, apply I.
+1. If NBT `AQTComfortResting` is false: player must pass `isPlayerResting`; not be inside the hurt or attack cooldown; the scan must include a block in `entry_require_categories` (default hearth / bedding / seating); **effective** score ≥ Rested I → set tag, starting granted band `max(1, min(RestedBonuses.restedTier(player), eval.scoreBand))` (preserves lingering Rested tier up to the current score band), stamp `AQTComfortBandSince`, apply that tier.
 2. If already resting: **do not** require sneak/sleep/still. Below I, or no required furniture in range → clear the tag and the ladder NBT. Do **not** remove Rested. Remove Clarity. A configured potion entry counts down; a `learning` entry is removed only when the granted band becomes II or III.
 3. Granted band promotes **one step** after `promote_ticks_2` or `promote_ticks_3` (default 1200 / 60s) while the score still supports the next band. Demote **immediately** while resting if the score cannot support the granted band.
 4. `LivingHurtEvent` on a player (amount **> 0**) ends the resting state and stamps `AQTComfortHurtAt`. Re-entry is blocked for `damage_cooldown_ticks` (default **600** / 30s). Amount 0 does nothing. Missing tag is eligible (do not treat `0` as a stamp).
@@ -55,11 +55,11 @@ Server only. Furnishings scan on `TickEvent.PlayerTickEvent` **END**, every **60
 
 ## Scoring
 
-Scan **25×5×25** (3,125 cells) from the player position: horizontal radius **±12 inclusive**, **dy -2..+2**. Skip unloaded blocks. Look up each block’s registry id in `COZY_BLOCKS`.
+Scan **25×5×25** (3,125 cells) from the player position: horizontal radius **±12 inclusive**, **dy -2..+2**. Skip unloaded blocks. Look up each block’s registry id in `COZY_BLOCKS`. This is the scan outside any registered home. Inside a home the whole home is scored instead, see [Player homes](#player-homes).
 
 Pets: `EntityTameable` in a ±16 box around the player **block** (`getPosition()`, inclusive +1 on the far edge). Count if `isTamed()` and `ownerId` equals the player. Each pet adds `pet_comfort_value` under category `pets`.
 
-Per category: group by family, sort weight descending, then sum `weight × decay^index` for the top **N** (`category_limits`, default 1 if missing). Default decay is 0.6. `decay_overrides` can set a category (structure 0.5, pets 1.0). Same block id in two categories cannot happen; last apply wins if the JSON repeats an id. The shell tag (roof, wall, window, floor) is taken on this scan. It changes which structure blocks share a decay group. It does not reject a room.
+Per category: group by family, sort weight descending, then sum `weight × decay^index` for the top **N** (`category_limits`, default 1 if missing). Default decay is 0.6. `repeat_decay_overrides` can set a category (structure 0.5, pets 1.0). Same block id in two categories cannot happen; last apply wins if the JSON repeats an id. The shell tag (roof, wall, window, floor) is taken on this scan. It changes which structure blocks share a decay group. It does not reject a room.
 
 Then add **all** active `bonuses.effects` amounts and the sitting or lying bonus. Then subtract formula penalties plus **all** active `penalties.effects` (no global cap):
 
@@ -83,7 +83,7 @@ Thresholds are floats in JSON. A **new** file uses 24 / 48 / 66. A file that alr
 | II | 60s at I while score ≥ II | 10 min, +20%, 20 ticks, +2 / +2 | Clarity, +3 warp |
 | III | 60s at II while score ≥ III | 15 min, +30%, 15 ticks, +3 / +3 | Clarity, +6 warp |
 
-Rested duration is held full while resting and then counts down. Vigor uses `FeathersHelper.decreaseRegenModifier` by 5 / 10 / 15 against base 30, tracked in entity NBT `AQTVigorDelta` (not the persisted tag). On the Comfort tab hover box, this is displayed as the time required to restore 10 full feathers: `Vigor: restores 10 feathers in Xs (base 30s)` (25s for Tier I, 20s for Tier II, 15s for Tier III). Fortitude health is the potion attribute (`+2` half-hearts times amplifier + 1). Fortitude stamina is `MaxFeathersEvent.addMaximum` and does not refill. On a tier change `reconcile` pushes the new maximum with `StaminaMaxSync.sync` (lowers current feathers if above it, then `PacketTemperatureMax`), never `FeathersHelper.syncMaxFeathers`, which resends the full Elenai config packet and disconnected the player mid-game ([stamina.md](stamina.md)). Insight multiplies XP orbs and keeps the fraction in `AQTInsightXpCarry`. Native potion lists ship empty. A `rested.potions_*` row is refreshed while that band is held and then counts down.
+Rested duration is held full while resting and then counts down. Vigor is the interval 25 / 20 / 15 ticks per half-feather (base 30). It is not a flat modifier any more: `StaminaRegenPace` caps every refill state (Resting 10, Moving 20, Active 30) at that interval, see [stamina.md](stamina.md#regen-pace). `AQTVigorDelta` is only read once to undo a delta an older build applied. On the Comfort tab hover box, this is displayed as the time required to restore 10 full feathers: `Vigor: restores 10 feathers in Xs (base 30s)` (25s for Tier I, 20s for Tier II, 15s for Tier III). Fortitude health is the potion attribute (`+2` half-hearts times amplifier + 1). Fortitude stamina is `MaxFeathersEvent.addMaximum` and does not refill. On a tier change `reconcile` pushes the new maximum with `StaminaMaxSync.sync` (lowers current feathers if above it, then `PacketTemperatureMax`), never `FeathersHelper.syncMaxFeathers`, which resends the full Elenai config packet and disconnected the player mid-game ([stamina.md](stamina.md)). Insight multiplies XP orbs and keeps the fraction in `AQTInsightXpCarry`. Native potion lists ship empty. A `rested.potions_*` row is refreshed while that band is held and then counts down.
 
 All `PotionEffect`s use ambient **true**, particles **false**. No regen, saturation, or SD thermals from Rested. Milk does not clear Rested. Death does. The placement burst is a world particle, not a potion particle.
 
@@ -103,7 +103,7 @@ Non-OP denied. Console without a player errors.
 
 ### Warp cleanse math
 
-Only if `thaumcraft` is loaded **and** the player is resting (Clarity would be showing). Progress is persisted NBT `WarpCleansingProgress`. Each **600-tick** scan adds **2 / 3 / 6** (granted I / II / III). The 40-tick pass does not add progress. If the counter is **≥ 12**, reduce 1 temporary warp (`ThaumcraftHelper` type **1**) if any, `syncWarp`, and set the counter to **0** (remainder discarded; a firing with 0 temp warp still spends the bar). Sleep credit: `applyAcceleratedWarpCleanse` is unchanged. Losing the resting state does **not** clear the counter and does remove Clarity. Stored values **> 12** are treated as 0 once.
+Only if `thaumcraft` is loaded **and** the player is resting (Clarity would be showing). Progress is persisted NBT `WarpCleansingProgress`. Each **600-tick** scan adds **2 / 3 / 6** (granted I / II / III). The 40-tick pass does not add progress. If the counter is **≥ 12**, reduce 1 temporary warp (`ThaumcraftHelper` type **1**) if any, `syncWarp`, and set the counter to **0** (remainder discarded; a firing with 0 temp warp still spends the bar). During Somnia sleep, `applyAcceleratedWarpCleanse` converts Case B `uncoveredTicks` (`>= 600`) at `(uncoveredTicks * perScan) / 600` (using granted band I/II/III, or evaluated score band if not currently resting), carries remainder `% 12` forward on `WarpCleansingProgress`, or resets remainder to `0` if temporary warp reached 0 (`cleared < due`). Losing the resting state does **not** clear the counter and does remove Clarity. Stored values **> 12** are treated as 0 once.
 
 Time to 1 temp warp at the 30s interval:
 
@@ -131,10 +131,43 @@ Both files load in `ComfortConfigLoader.load` from preInit. `/aqcomfort reload` 
   "threshold_homestead_1": 24.0,
   "threshold_homestead_2": 48.0,
   "threshold_homestead_3": 66.0,
-  "promote_ticks": 1200,
+  "promote_ticks_2": 1200,
+  "promote_ticks_3": 1200,
+  "scan_radius": 12,
+  "scan_dy": 2,
+  "repeat_decay": 0.6,
+  "repeat_decay_overrides": { "structure": 0.5, "pets": 1.0 },
+  "band_min_categories": null,
+  "band_require_2": [],
+  "band_require_3": [],
+  "structure_decay_key": "role_family",
+  "non_shell_weight": 1.0,
+  "unlisted_structure_weight": 0.25,
+  "structure_stairs_weight": 1.0,
+  "natural_blocks": [],
+  "families": {},
+  "vigor_base_interval": 30,
   "damage_cooldown_ticks": 600,
   "attack_cooldown_ticks": 300,
   "entry_require_categories": ["hearth", "bedding", "seating"],
+  "rest_bonus": {
+    "enabled": true,
+    "sitting": 3.0,
+    "lying": 5.0,
+    "grace_ticks": 600,
+    "ignore_vehicles": []
+  },
+  "clarity": {
+    "require_temp_warp": false,
+    "duration_ticks": 900
+  },
+  "rested": {
+    "duration_1": 6000, "duration_2": 12000, "duration_3": 18000,
+    "insight_1": 0.10, "insight_2": 0.20, "insight_3": 0.30,
+    "vigor_1": 25, "vigor_2": 20, "vigor_3": 15,
+    "stamina_1": 2, "stamina_2": 4, "stamina_3": 6,
+    "potions_1": [], "potions_2": [], "potions_3": []
+  },
   "penalties": {
     "enabled": true,
     "temperature": {
@@ -169,13 +202,27 @@ Both files load in `ComfortConfigLoader.load` from preInit. `/aqcomfort reload` 
 }
 ```
 
-The four formula penalties are their own objects under `penalties`. A missing object uses the defaults below; `penalties.enabled` false skips all of them.
+The four formula penalties are their own objects under `penalties`. A missing object uses the defaults below; `penalties.enabled` false skips all of them. Player-home settings (`home_*`) are listed under [Player homes](#player-homes).
 
 | Object | Key | Default | Meaning |
 | --- | --- | --- | --- |
+| (root) | `pet_comfort_value` | 3.0 | Cozy value per owned tamed pet (`±16` box) |
+| (root) | `threshold_homestead_1` / `2` / `3` | 24.0 / 48.0 / 66.0 | Minimum effective score per band (existing files keep their stored keys) |
+| (root) | `promote_ticks_2` / `promote_ticks_3` | 1200 / 1200 | Resting ticks needed to promote I→II and II→III |
+| (root) | `scan_radius` / `scan_dy` | 12 / 2 | Outside-home scan box (`25×5×25`) |
+| (root) | `repeat_decay` | 0.6 | Geometric repeat multiplier per family inside a category |
+| (root) | `repeat_decay_overrides` | `{"structure": 0.5, "pets": 1.0}` | Per-category repeat decay override |
+| (root) | `band_min_categories` / `band_require_2` / `band_require_3` | `null` / `[]` / `[]` | Optional category count and required categories for bands II/III |
+| (root) | `structure_decay_key` | `"role_family"` | Shell/family grouping mode for `structure` category repeats |
+| (root) | `non_shell_weight` / `unlisted_structure_weight` / `structure_stairs_weight` | 1.0 / 0.25 / 1.0 | Shell-ray discount and fallback weights for structure blocks |
+| (root) | `natural_blocks` / `families` | `[]` / `{}` | Unlisted natural exclusions and custom block family groups |
+| (root) | `vigor_base_interval` | 30 | Baseline Elenai regen ticks used to calculate Vigor reductions and tooltips |
 | (root) | `damage_cooldown_ticks` | 600 | After amount > 0 hurt, skip resting **entry** this many ticks |
 | (root) | `attack_cooldown_ticks` | 300 | After `AttackEntityEvent`, skip resting **entry** this many ticks |
 | (root) | `entry_require_categories` | `hearth`, `bedding`, `seating` | Scan must include a cozy block in one of these; empty list = no furniture gate |
+| `rest_bonus` | `enabled` / `sitting` / `lying` / `grace_ticks` / `ignore_vehicles` | true / 3.0 / 5.0 / 600 / `[]` | Rest pose bonus when riding/sitting or sleeping; lingers `grace_ticks` |
+| `clarity` | `require_temp_warp` / `duration_ticks` | false / 900 | Hearthside indicator gate and duration |
+| `rested` | `duration_1/2/3`, `insight_1/2/3`, `vigor_1/2/3`, `stamina_1/2/3`, `potions_1/2/3` | 6000/12000/18000; 0.10/0.20/0.30; 25/20/15; 2/4/6; `[]` | Per-tier Rested duration, XP bonus, Vigor target interval, Fortitude half-feathers, and extra potions |
 | `penalties.temperature` | `enabled` | true | Off = body temp never costs |
 | `penalties.temperature` | `comfort_min` / `comfort_max` | 11 / 14 | Free band |
 | `penalties.temperature` | `per_point_outside` | 1.5 | Per body-temp point past the band |
@@ -253,16 +300,67 @@ The four formula penalties are their own objects under `penalties`. A missing ob
 
 Missing pack blocks simply never match; they do not crash.
 
+## Player homes
+
+The 25×5×25 scan only sees two blocks above and below the player, so a multi-storey build loses its other floors. A **home** is a cached region: the connected interior of a build, any number of floors, scored once and reused. Code in `comfort/home/`.
+
+**Establish.** Automatic. Sleeping in a bed (wake) or setting spawn at a bed (`PlayerSetSpawnEvent`) registers a home anchored on that bed for that player. Setting spawn anywhere else, or clearing it, removes their home. One home per player. `/aqhome rescan` and `/aqhome info` are the OP tools.
+
+**Region.** A sliced flood fill (`HomeFiller`, pure) from the cells beside the bed through every passable cell: air, plants, torches, ladders and the like. Doors, fence gates and trapdoors are **portals** (see Doors below), whatever their open or closed state. Stairs and slabs are solid but a staircase's headroom connects the floors. The solid blocks touching the region (walls, floors, roof and furnishings) are kept as the **boundary** with a roof / wall / floor role (glass counts as window) so the structure decay key works as before. The fill stops at `home_max_cells` (4000), at an unloaded block, or with no open cell beside the bed; then the region is a **box** around the bed (`home_fallback_radius` 12 horizontally, 6 down and 8 up). The fill never loads a chunk and runs `home_fill_cells_per_tick` (400) cells per tick.
+
+**Doors (portals).** Every door, fence gate and trapdoor the fill reaches is judged once, by the cell on its far side, in three layers. The state of the door (open or closed) never matters, so an exterior door left open does not leak the fill into the world, and a closed interior door does not split the house.
+1. **Open sky:** in a dimension with skylight, if the far cell is rain-exposed (nothing that blocks movement or liquid above it; glass and leaves count as cover) the door leads outside.
+2. **Rays:** rays go from the far cell through passable cells, `home_door_ray_range` (16) blocks. Rays pointing back at the door, and into the floor unless the portal is a hatch going down, are skipped (they are always blocked), so 11 of the 26 directions are tested for a door in a wall. A ray escapes when it covers the full range or reaches open sky. If at least `home_door_exterior_fraction` (0.70) escape, the door leads outside.
+3. **Sub-fill:** everything else (the clear-interior share of `home_door_interior_fraction` 0.30 and below, and the ambiguous middle) is confirmed by a speculative flood from the far cell with a budget of `home_door_probe_cells` (800), counted inside `home_max_cells`. If it closes within the budget its cells and walls join the home along with the door cell; if it runs out, hits the cell cap, reaches an unloaded block or joins known outside space, the door is a wall and nothing it found is kept. Nested doors inside a sub-fill use the same test and share what is left of the budget. A rebuild judges at most `home_max_doors` (24) doors; later ones count as outside. A two-high door is one verdict. A door entered along its panel or whose far side is solid is just a wall from that side.
+Known limits: a doorless archway or open wall to the outdoors still leaks (box fallback); a hall larger than the budget behind a door reads as outside; a tunnel that closes within the budget is interior. `/aqhome info` prints how the doors were judged.
+
+**Cache.** Only the bed anchor is saved (`HomeSavedData`, one global `aqtweaks_homes` file: owner UUID, last-known name, dimension, bed, hearthkeeper flag). The region is rebuilt the first time a player comes within `home_trigger_range` (24) of the bed after a restart. The cozy furnishing list of a region version is cached on the area and shared by everyone resting in it; each player's pets are added per scan.
+
+**Occupancy.** A player is in a home when their feet block or the block above is a region cell (box: inside the bounds). Cost is a bounds test and a binary search. When the player enters, leaves or the home version changes, the 40-tick state pass rescans at once instead of waiting for the 30s scan.
+
+**Scoring inside a home.** Every furnishing in the region and its boundary counts at its full value, up to the unchanged category limits and decay. Entry furniture anywhere in the home satisfies the entry gate. Thresholds are unchanged. The score is the cached home **plus the live scan**: the 25×5×25 scan (with shell rays) still runs around the player on its 30 s cadence, and every block it finds that the home does not already hold (interior cell, boundary block, or inside a box, compared by block position) is added, so garden, farm, pond and decoration just outside the walls still count. Category limits and decay apply to the merged list. Outside every home the live scan runs alone, exactly as before.
+
+**Stairs as structure.** A block that is not listed under `categories.structure` counts as a structure piece at `unlisted_structure_weight` (0.25) unless it is natural (ores, stone and the like). Any `BlockStairs` instance (vanilla and modded) not listed explicitly counts at `structure_stairs_weight` (default 1.0; 0 turns the rule off and stairs fall back to the unlisted weight). It uses the same role (roof, wall, floor, window) and `role_family` decay as other structure blocks and the same structure limit (8), in homes and in the live scan.
+
+**Invalidation.** `BlockEvent.PlaceEvent`, `BreakEvent` and `ExplosionEvent.Detonate` mark a home dirty when the position is inside its bounds widened by one (box: exact bounds). A dirty home rebuilds on the next touch at most every `home_rebuild_cooldown_ticks` (100). While someone is near, a home also rebuilds every `home_recheck_minutes` (10), which catches pistons and other mods. During a rebuild the old region keeps answering. A rebuild that finds the bed gone drops the home.
+
+**Shared homes.** A second player whose bed is inside a ready filled region joins that area and shares its region and cache. A second bed inside a region that finishes later is merged in. Box homes are never joined.
+
+**Structure record.** `HomeRegistry.structureAt(world, pos)` returns a structure-shaped record: id, type `home`, display name from `home_name_format` (`%s's Home`), owner UUID, owner last-known name (refreshed at login and on sleep), dimension, bounds, `hearthkeeper`, `box`. It is the one lookup for a later title display and for spawn rules. The Hearthkeeper perk keeps the record's `hearthkeeper` flag current through `HomeRegistry.setHearthkeeper(uuid, bool)`, see [Hearthkeeper hooks](#hearthkeeper-hooks-homesteader-class-perk).
+
+**`structure:home` for other mods.** Two mixins answer the name `Home` (case-insensitive) from the registry:
+- `MixinChunkProviderServerHome` (early json) on `ChunkProviderServer.isInsideStructure(world, name, pos)`. Vanilla's structure test, used by Music Triggers' structure trigger.
+- `MixinStructureCacheHome` (`mixins.aqtweaks.incontrol.json`) on `mcjty.tools.cache.StructureCache.isInStructure`. In Control's `structure` rule does **not** use vanilla's test: it reads the world's saved `MapGenStructureData` per structure name. Verified in `mcjtytools-1.12-0.0.21` (`libs/`); the DEVBOX `mods` folder has no mcjtytools jar by filename (it may be nested in the In Control jar, which has no `mcjty/tools` classes either), so confirm in game that an In Control `structure: home` rule matches.
+
+**Settings** (`aqtweaks_comfort_settings.json`, all optional): `home_enabled` true, `home_max_cells` 4000, `home_fill_cells_per_tick` 400, `home_recheck_minutes` 10, `home_rebuild_cooldown_ticks` 100, `home_fallback_radius` 12, `home_fallback_down` 6, `home_fallback_up` 8, `home_trigger_range` 24, `home_name_format` `%s's Home`, `home_door_ray_range` 16, `home_door_exterior_fraction` 0.70, `home_door_interior_fraction` 0.30, `home_door_probe_cells` 800, `home_max_doors` 24; and, top level for stairs, `structure_stairs_weight` 1.0.
+
+**`/aqhome`** (OP 2): `info` (the home you stand in, else your own: owners, mode enclosed or box and why, cells, boundary count, bounds, version, age, dirty, how the doors were judged), `rescan` (rebuild now, ignores the cooldown), `list`. `/aqcomfort` still prints the score.
+
+### Hearthkeeper hooks (Homesteader class perk)
+
+The starter-class perk Hearthkeeper (`aqtweaks:hearthkeeper`, Building; see [reskillable.md](reskillable.md)) adds to the Comfort score and to Rested. Server side, `comfort/HearthkeeperHooks.java` (pure numbers in `HearthkeeperMath`):
+
+- **Open Hearth, in `finishEval`:** `bonusTotal` gets `HearthkeeperHooks.scoreBonus(player, cozy.score)`. A player who is not a Homesteader gets `Open Hearth Visitor Bonus` (8) when any other player holding the perk is within `Open Hearth Range` (16 blocks, same dimension; spectators and the dead do not count). A Homesteader gets a diminishing bonus for the other players near them: 6, 4, 3, 2, then 1 each, capped at 15. A Homesteader does not also get the visitor bonus. It only adds score; the entry rules (furniture, rest pose, combat cooldown) are untouched.
+- **Home box, same call:** inside a home area (the cached region from [Player homes](#player-homes)) whose `HomeRecord.hearthkeeper` flag is set, anyone resting gets `Home Box Score Bonus` (15%) of their cozy score added. It works while the owner is offline because the flag is stored with the record.
+- **Carry the Warmth, in `applyComfortBenefits`:** the Rested duration refreshed while resting in such a home is `Carry the Warmth Extra` (0.5) longer. While resting the duration is held at that value and it counts down once the player stops, so the extra time shows as a longer lingering Rested (chosen over scaling the countdown: no per-tick work).
+- **Flag at establish:** a new home record reads the flag from the owner's perk the moment it is created (`HomeRegistry.establish`), so a Homesteader who sets a new bed has the home box straight away.
+- **Flag upkeep:** the comfort state pass (every 40 ticks) calls `HearthkeeperHooks.syncFlag`, which sets the owner's record flag from `PerkAccess` (covers login, sleeping in the bed and the perk being granted, within about two seconds).
+- Numbers: `aqtweaks_reskillable.cfg`, Starter Home Perks.
+
 ## Files
 
 - `comfort/ComfortSystemHandler.java` — 30s furnishing scan, 2s state pass, decay, shell tag, lingering Rested, Clarity, hot springs
 - `comfort/ComfortFamilies.java` — family id and `/aqcomfort families`
 - `comfort/ShellSampler.java` — roof / wall / window / floor tag
+- `comfort/HearthkeeperHooks.java`, `HearthkeeperMath.java` — Hearthkeeper perk bonuses
+- `comfort/StructureWeights.java` — pure weight of an unlisted structure block (stairs use `structure_stairs_weight`, others `unlisted_structure_weight`)
 - `comfort/RestedBonuses.java` — Insight, Vigor, Fortitude
 - `comfort/PotionHomestead.java`, `comfort/PotionClarity.java`
 - `comfort/ComfortFeedback.java` and `PacketComfortStatus`, `PacketComfortCatalog`, `PacketComfortPlaced`
 - `comfort/ComfortHud.java`, `ComfortTooltips.java`, `ComfortToast.java`, `ComfortToggleButton.java`, `ComfortClientState.java` — client only
 - `comfort/CommandAqComfort.java` — `/aqcomfort`, `reload`, `families`
+- `comfort/home/` — `HomeRegion` (cell set, bounds), `HomeFiller` (sliced flood fill), `HomeRegistry`, `HomeArea`, `HomeRecord`, `HomeStructure`, `HomeSavedData`, `HomeEvents`, `HomeConfig`, `HomeNames`, `WorldProbe`, `PortalStats`, `CommandAqHome` (`/aqhome`)
+- `mixin/MixinChunkProviderServerHome.java` (early json), `mixin/incontrol/MixinStructureCacheHome.java` — answer `structure:Home`
 - `comfort/ComfortSettings.java`, `ComfortBlocks.java`, `ComfortConfigLoader.java`
 - `assets/aqtweaks/lang/en_us.lang`
 - `assets/aqtweaks/textures/gui/homestead_icon.png`, `clarity_icon.png` (placeholder copy)
@@ -290,8 +388,10 @@ Exact `@Config.Name` strings and code defaults, so the doc and the cfg cannot dr
 - Entry requires the loose rest pose **and** entry furniture. Continuing rest allows walking while that furniture stays in the scan.
 - Hurt amount > 0, attack, lost furniture, and score below I end the resting state and do **not** remove Rested. Amount 0 does nothing.
 - `isRiding()` is the entry sit check. The score bonus rejects living mounts, boats and minecarts.
-- `AQTVigorDelta` stays on `getEntityData()`, not the persisted tag. One reconcile writes the difference. Do not call `FeathersHelper.getRegenModifier` on the server.
+- `AQTVigorDelta` is legacy: `reconcile` removes it once. Vigor itself is applied by `StaminaRegenPace`. Do not call `FeathersHelper.getRegenModifier` on the server.
 - Shell rays run on the furnishing scan, not the 40-tick pass.
+- A home never loads a chunk and never fills more than `home_fill_cells_per_tick` cells in a tick. Outside every home the old scan is unchanged; do not make the home region a roof gate or lower the category caps.
+- Only the bed anchor is saved. Do not persist regions.
 - Rested, Insight, Vigor and Fortitude show on the Comfort tab hover box (`ComfortTooltips.tabLines`), read from the player's Rested effect and the last comfort packet. When in a comfort area (`ComfortClientState.present`), it also shows the complete Comfort score breakdown: effective score vs tier thresholds, the Cozy + Bonus - Penalty formula, promotion timer, gating warnings (missing furniture, combat cooldowns), cozy furnishings breakdown by category (with capped score and counted/limit), active bonuses (sitting and potion bonuses), and active penalties (temperature, thirst, hunger, health, negative potions). The Hearthside line shows while resting at home with Thaumcraft loaded as `* Hearthside: At Home (Cleansing warp - <rate>)` (1 warp per 3 min for Tier I, 1 warp per 2 min for Tier II, 1 warp per min for Tier III). Do not hover-box the vanilla effect column: its row order is not under our control (other mods load `InventoryEffectRenderer` first, so a mixin there cannot apply).
 
 ## Out of scope unless asked

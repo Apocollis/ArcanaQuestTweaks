@@ -1,0 +1,63 @@
+{
+  "entries": [
+    {
+      "key": "AQ_FOCUS_SHOCK",
+      "name": "research.AQ_FOCUS_SHOCK.title",
+      "icons": [
+        "focus:focus.aqtweaks.shock"
+      ],
+      "category": "AUROMANCY",
+      "location": [
+        1,
+        2
+      ],
+      "parents": [
+        "FOCUSELEMENTAL"
+      ],
+      "stages": [
+        {
+          "text": "research.AQ_FOCUS_SHOCK.stage.1",
+          "required_knowledge": [
+            "THEORY;AUROMANCY;1"
+          ],
+          "required_research": [
+            "!potentia"
+          ]
+        },
+        {
+          "text": "research.AQ_FOCUS_SHOCK.stage.2"
+        }
+      ]
+    },
+    {
+      "key": "AQ_FOCUS_AEGIS",
+      "name": "research.AQ_FOCUS_AEGIS.title",
+      "icons": [
+        "focus:focus.aqtweaks.aegis"
+      ],
+      "category": "AUROMANCY",
+      "location": [
+        -1,
+        7
+      ],
+      "parents": [
+        "FOCUSHEAL",
+        "RUNICSHIELDING"
+      ],
+      "stages": [
+        {
+          "text": "research.AQ_FOCUS_AEGIS.stage.1",
+          "required_knowledge": [
+            "THEORY;AUROMANCY;1"
+          ],
+          "required_research": [
+            "!praemunio"
+          ]
+        },
+        {
+          "text": "research.AQ_FOCUS_AEGIS.stage.2"
+        }
+      ]
+    }
+  ]
+}

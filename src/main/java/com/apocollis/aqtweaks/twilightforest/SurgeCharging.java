@@ -20,12 +20,23 @@ import java.util.List;
 public final class SurgeCharging {
     private SurgeCharging() {}
 
+    private static ArcanaQuestTweaksConfig.LeyRupture cfg() {
+        return ArcanaQuestTweaksConfig.TwilightForestModuleConfig.ley;
+    }
+
+    /** Fraction of a Vis Battery level each player has gathered for their held batteries (in memory). */
+    private static final java.util.Map<java.util.UUID, Double> HELD_CARRY = new java.util.HashMap<>();
+
+    public static void forget(java.util.UUID id) {
+        HELD_CARRY.remove(id);
+    }
+
     private static final class Embers {
         static boolean charge(ItemStack stack, double percent, double exposure, double intensity) {
             teamroots.embers.api.power.IEmberCapability cap = stack.getCapability(
                     teamroots.embers.api.capabilities.EmbersCapabilities.EMBER_CAPABILITY, null);
             if (cap == null || cap.getEmberCapacity() <= 0.0D || cap.getEmber() >= cap.getEmberCapacity()) return false;
-            double amount = SurgeMath.chargeAmount(cap.getEmberCapacity(), percent, exposure, intensity);
+            double amount = SurgeMath.flat(cfg().emberPerCycle, exposure, intensity);
             if (amount <= 0.0D) return false;
             return cap.addAmount(amount, true) > 0.0D;
         }
@@ -37,7 +48,7 @@ public final class SurgeCharging {
             vazkii.botania.api.mana.IManaItem item = (vazkii.botania.api.mana.IManaItem) stack.getItem();
             int max = item.getMaxMana(stack);
             if (max <= 0 || item.getMana(stack) >= max) return false;
-            int amount = (int) Math.round(SurgeMath.chargeAmount(max, percent, exposure, intensity));
+            int amount = (int) Math.round(SurgeMath.flat(cfg().manaPerCycle, exposure, intensity));
             if (amount <= 0) return false;
             item.addMana(stack, Math.min(amount, max - item.getMana(stack)));
             return true;
@@ -53,7 +64,7 @@ public final class SurgeCharging {
             if (max <= 0) return false;
             int have = thaumcraft.api.items.RechargeHelper.getCharge(stack);
             if (have >= max) return false;
-            int amount = (int) Math.round(SurgeMath.chargeAmount(max, percent, exposure, intensity));
+            int amount = (int) Math.round(SurgeMath.flat(cfg().visPerCycle, exposure, intensity));
             amount = Math.min(amount, max - have);
             if (amount <= 0) return false;
             thaumcraft.api.items.RechargeHelper.rechargeItemBlindly(stack, player, amount);
@@ -88,10 +99,46 @@ public final class SurgeCharging {
             float max = battery.getMaxVis();
             float vis = battery.getVis();
             if (max <= 0.0F || vis >= max) return false;
-            double amount = SurgeMath.chargeAmount(max, percent, exposure, intensity);
+            double amount = SurgeMath.flat(cfg().visPerCycle, exposure, intensity);
             if (amount <= 0.0D) return false;
             battery.setVis((float) Math.min((double) max, vis + amount));
             return true;
+        }
+    }
+
+    /** Held portable Vis Batteries (item damage 0 to 10 is the charge): same rate as placed ones, same flux per level. */
+    private static final class HeldBatteries {
+        static boolean charge(EntityPlayer player, double exposure, double intensity) {
+            ArcanaQuestTweaksConfig.LeyRupture c = cfg();
+            if (!c.chargeVisBatteries || c.batteryLevelsPerCycle <= 0.0D
+                    || !ArcanaQuestTweaksConfig.ThaumcraftConfig.portableVisBatteryCharge) return false;
+            net.minecraft.item.Item item = net.minecraft.item.Item.getItemFromBlock(thaumcraft.api.blocks.BlocksTC.visBattery);
+            double add = SurgeMath.flat(c.batteryLevelsPerCycle, exposure, intensity);
+            double carry = HELD_CARRY.getOrDefault(player.getUniqueID(), 0.0D) + add;
+            int whole = (int) Math.floor(carry);
+            boolean any = false;
+            float flux = 0.0F;
+            if (whole > 0) {
+                java.util.List<ItemStack> all = new ArrayList<>(player.inventory.mainInventory);
+                all.addAll(player.inventory.offHandInventory);
+                for (ItemStack stack : all) {
+                    if (stack.isEmpty() || stack.getItem() != item) continue;
+                    int have = stack.getMetadata();
+                    int levels = Math.min(whole, 10 - have);
+                    if (levels <= 0) continue;
+                    stack.setItemDamage(have + levels);
+                    flux += (float) (c.batteryFluxPerLevel * levels * stack.getCount());
+                    any = true;
+                }
+                carry -= whole;
+            }
+            if (any) {
+                if (flux > 0.0F) {
+                    thaumcraft.api.aura.AuraHelper.polluteAura(player.world, player.getPosition(), flux, false);
+                }
+            }
+            if (carry > 0.0D) HELD_CARRY.put(player.getUniqueID(), carry); else HELD_CARRY.remove(player.getUniqueID());
+            return any;
         }
     }
 
@@ -110,7 +157,7 @@ public final class SurgeCharging {
 
     /** One charging pulse over the player's inventory, offhand, worn armor and Baubles. True if any item gained charge. */
     public static boolean pulse(EntityPlayer player, double exposure, double intensity) {
-        double percent = ArcanaQuestTweaksConfig.TwilightForestModuleConfig.ley.chargePercent;
+        double percent = 0.0D;
         boolean embers = Loader.isModLoaded("embers");
         boolean botania = Loader.isModLoaded("botania");
         boolean thaumcraft = Loader.isModLoaded("thaumcraft");
@@ -123,6 +170,9 @@ public final class SurgeCharging {
                 intensity);
         any |= scan(player.inventory.armorInventory, player, embers, botania, thaumcraft, augments, percent, exposure,
                 intensity);
+        if (thaumcraft) {
+            any |= HeldBatteries.charge(player, exposure, intensity);
+        }
         if (Loader.isModLoaded("baubles")) {
             for (ItemStack stack : Baubles.stacks(player)) {
                 any |= chargeOne(stack, player, embers, botania, thaumcraft, augments, percent, exposure, intensity);

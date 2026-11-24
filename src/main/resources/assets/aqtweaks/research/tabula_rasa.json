@@ -1,0 +1,22 @@
+{
+  "entries": [
+    {
+      "key": "AQ_TABULA_RASA",
+      "name": "research.AQ_TABULA_RASA.title",
+      "icons": [ "aqtweaks:tabula_rasa" ],
+      "category": "ALCHEMY",
+      "location": [ -3, -6 ],
+      "parents": [ "SANESOAP", "INFUSION" ],
+      "stages": [
+        {
+          "text": "research.AQ_TABULA_RASA.stage.1",
+          "required_knowledge": [ "THEORY;ALCHEMY;1", "THEORY;INFUSION;1" ]
+        },
+        {
+          "text": "research.AQ_TABULA_RASA.stage.2",
+          "recipes": [ "aqtweaks:tabula_rasa" ]
+        }
+      ]
+    }
+  ]
+}

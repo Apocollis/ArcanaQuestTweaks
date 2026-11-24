@@ -25,6 +25,11 @@ public final class SurgeExposureRoll {
         return delaySeconds > 0 && exposedTicks >= delaySeconds * 20L;
     }
 
+    /** The roll repeats every delay: the next one is due once exposure reaches (rollsDone + 1) delays. */
+    public static boolean isDue(long exposedTicks, int delaySeconds, int rollsDone) {
+        return delaySeconds > 0 && exposedTicks >= (rollsDone + 1L) * delaySeconds * 20L;
+    }
+
     public static Outcome roll(int weightNone, int weightFlight, int weightLevitation, Random rand) {
         int wn = Math.max(0, weightNone);
         int wf = Math.max(0, weightFlight);

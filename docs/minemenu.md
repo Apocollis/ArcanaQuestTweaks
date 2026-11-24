@@ -30,7 +30,7 @@ Overlays that never set `currentScreen` and never call `displayGuiScreen` are un
 
 ### Off-thread screen changes
 
-Somnia's wake packet (`ClientProxy.handleWakePacket`) calls `Minecraft.displayGuiScreen(null)` on the network thread. The cursor grab does not take effect off the client thread while `inGameHasFocus` is already set, so the camera froze after waking until a click or Escape. `MixinMinecraftMouseGrab.aqtweaks$marshalToClientThread` cancels any `displayGuiScreen` made off the client thread and queues it with `addScheduledTask`, so the re-grab above runs on the right thread.
+Somnia's wake packet (ClientProxy.handleWakePacket) calls `Minecraft.displayGuiScreen(null)` on the network thread. The cursor grab does not take effect off the client thread while `inGameHasFocus` is already set, so the camera froze after waking until a click or Escape. `MixinMinecraftMouseGrab.aqtweaks$marshalToClientThread` cancels any `displayGuiScreen` made off the client thread and queues it with `addScheduledTask`, so the re-grab above runs on the right thread.
 
 ## Files
 

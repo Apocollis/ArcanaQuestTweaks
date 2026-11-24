@@ -132,6 +132,7 @@ public class SimpleDifficultyModule {
     @SubscribeEvent
     public void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase != TickEvent.Phase.START) return;
+        if (com.apocollis.aqtweaks.starter.StarterLockdown.isLocked(event.player)) return;
         EntityPlayer player = event.player;
         if (player == null || player.world.isRemote || player instanceof FakePlayer) return;
         if (!(player instanceof EntityPlayerMP playerMP)) return;

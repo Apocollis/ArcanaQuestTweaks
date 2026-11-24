@@ -8,7 +8,7 @@ Config: `config/arcanaquesttweaks/aqtweaks_client.cfg`. Client-only. No `@Mod` p
 
 HUD and tooltip presentation that is not stamina spend. Do **not** change Elenai feather or thirst icons. Do **not** mixin Metallurgy. Skip `metallurgy:` items so Reforged’s own shift stats are not doubled.
 
-Comfort messages (the Rested panel, action bar, toast and placement particles) are `Comfort Messages` in this cfg, with the panel anchor and the inventory-tab offsets beside it. The panel is 37 px tall and defaults to **bottom-left** (`Panel Anchor`: `bottom-left`, `bottom-right`, `top-center`, `top-left`, `top-right`, `center-right`; the old `top` and `center` mean top-center and `bottom` means bottom-right), top edge at `H - 39`, below the lowest chat line and left of the hearts. Lines: title and score, a 3 px bar, `Next`, then `Held back by` last. It is hidden while the chat input is open. The toggle is a 32x28 tab on the left inventory frame under the last Reskillable tab, icon centered at `x + 10, y + 5`. The jar carries a neutral `tab_left.png`; the Stoneborn tab is a pack resource (`resources/aqtweaks/textures/gui/tab_left.png`). Hovering the Rested row shows Insight, Vigor and Fortitude and the time left; hovering the Hearthside row shows the warp rate and the room breakdown. Both rows are pinned to the top of the effect column. Tooltips stay on when messages are off.
+Comfort messages (the Rested panel, action bar, toast and placement particles) are `Comfort Messages` in this cfg, with the panel anchor and the inventory-tab offsets beside it. The panel is 37 px tall and defaults to **bottom-left** (`Panel Anchor`: `bottom-left`, `bottom-right`, `top-center`, `top-left`, `top-right`, `center-right`; the old `top` and `center` mean top-center and `bottom` means bottom-right), top edge at `H - 39`, below the lowest chat line and left of the hearts. Lines: title and score, a 3 px bar, `Next`, then `Held back by` last. It is hidden while the chat input is open. The toggle is a 32x28 tab on the left inventory frame under the last Reskillable tab, icon centered at `x + 10, y + 5`. The jar carries a neutral `tab_left.png`; the Stoneborn tab is a pack resource (`resources/aqtweaks/textures/gui/tab_left.png`). The Patchouli guidebook tab sits in the slot above it ([patchouli.md](patchouli.md)). Hovering the Rested row shows Insight, Vigor and Fortitude and the time left; hovering the Hearthside row shows the warp rate and the room breakdown. Both rows are pinned to the top of the effect column. Tooltips stay on when messages are off.
 
 ## How the parents work
 
@@ -48,6 +48,27 @@ When false: stock right-side RTL. Missing jar → json skipped.
 
 Always visible (Metallurgy’s own items stay shift-gated by Metallurgy). Swords and hoes are skipped unless they expose those tool classes.
 
+## Hotbar side
+
+Right of the hotbar, nearest first: the vanilla **offhand slot**, Spartan Weaponry's **quiver** slot, then Smart HUD's item slots. This keeps the left strip free for the Rested panel. Each element takes room only while it is on screen, so an empty offhand or a missing quiver lets the next one sit closer to the hotbar. Behaviour is `Hotbar Side` in `aqtweaks_client.cfg`; `Offhand Slot Side = left` turns all of it off.
+
+- **Offhand:** `hud.MixinGuiIngameOffhandSide` (early json, client) redirects `getPrimaryHand()` in `GuiIngame.renderHotbar` to LEFT, so vanilla draws the slot at `centre + 91` for any main hand. Vanilla draws it only when the offhand holds an item.
+- **Quiver:** `spartanweaponry.MixinHudQuiverAmmo` redirects `HudQuiverAmmo.getAlignedX/Y` in `render`: `x = centre + 91 + offhand reserve`, `y = height - Quiver Bottom Offset` (22, level with the hotbar). The quiver HUD's own alignment and offsets in `spartanweaponry.cfg` are ignored while the option is `right`, not edited. It draws only for a non-empty quiver stack with NBT and a non-spectator (`EventHandlerClient.getActiveQuiverStack`).
+- **Smart HUD:** `smarthud.MixinSmartHudSlotRenderer` redirects both `getPrimaryHand` calls in `SlotRenderer.draw` to RIGHT and adds `HotbarSideLayout.smartHudShift()` (offhand reserve plus quiver reserve) to the centre local (index 7), so slots, counts and Smart HUD's attack indicator move out together. Targets are SRG (`func_184591_cq`).
+- **Smart HUD wrap:** when the offhand slot and quiver leave fewer than `Smart HUD` slots' worth of room before the screen edge, an `@Inject` at HEAD of `draw(Pre)` cancels Smart HUD's single row and `client/SmartHudRows` draws it (a copy of Smart HUD 2.1.1's slot drawing): row 1 holds as many slots as fit, in the stock place; row 2 holds the rest one frame height (22 px) above, right-aligned to row 1's right end. If everything fits, or `Smart HUD Wrap = false`, Smart HUD's own pass runs. Smart HUD's attack indicator (off by default) stays beyond row 1's stock width and can run off screen when wrapping.
+- **Stoneborn look:** Smart HUD draws its frames from `smarthud:textures/hud/elements.png`, which neither Stoneborn pack styled. `scripts/generate_smarthud_stoneborn.py` cuts the hotbar's start cap, end cap and two middle pieces from Stoneborn's `widgets.png` into that sheet's layout (both style rows) and writes it into `Stoneborn-ArcanaQuest-Additions.zip` (`assets/smarthud/textures/hud/elements.png`); a copy is in `scripts/icon_sources/smarthud_elements_stoneborn.png`. It restyles the stock row and `SmartHudRows` alike, and is not in the jar, so it applies only with that pack on.
+- **Layout:** `client/HotbarSideLayout` holds the rule (reserves: offhand 29 px while the offhand has an item, quiver 24 px while it shows); `client/SpartanQuiverProbe` mirrors Spartan's draw condition and is only called when `spartanweaponry` is loaded.
+- Other HUD elements are not in this strip: Ember Caster gauge and impetus bar (top-left while Thaumcraft `dialBottom=false`), Botania Tiara bar (centre-right, above the hunger row), Dodge Ring bar (under the crosshair).
+
+| Setting (`Hotbar Side`) | Default | Meaning |
+| --- | --- | --- |
+| Offhand Slot Side | `right` | `left` restores vanilla and leaves the quiver and Smart HUD to their own configs |
+| Offhand Reserve | 29 | Pixels the offhand slot takes while it holds an item |
+| Quiver Reserve | 24 | Pixels the quiver slot takes (frame plus gap) while it shows |
+| Quiver Bottom Offset | 22 | Pixels from the screen bottom up to the quiver frame's top |
+| Smart HUD Wrap | `true` | Draw Smart HUD's slots that do not fit as a second row above (below) |
+| Smart HUD Max Slots | 8 | Slot cap while wrapping, replacing Smart HUD's own `slotLimit` (5); with wrap on, `SmartHudRows` draws every Smart HUD row |
+
 ## Client relight sweep
 
 Light reaches the client only inside chunk data, or when the client runs its own check for a block change it receives. Emitters the server lit after it had sent the chunk, or whose client check was skipped because the 17-block area around them was not loaded yet, stayed dark on the client until a torch placed nearby forced a check (F3 light reads low there). Vanilla's own sweep for dark emitters (`Chunk.enqueueRelightChecks`) runs on the server world only.
@@ -76,6 +97,8 @@ Light reaches the client only inside chunk data, or when the client runs its own
 | `mixin/atum/MixinAtumClientEvents.java` | Late mixin canceling Atum's yellow EXP fog and 2D screen-space `renderSand` storm overlay |
 | `mixin/MixinGuiCreateWorld.java` | Sets default world type on Create New World |
 | `mixin/toughnessbar/MixinEventHandlerClient.java` | Optional Toughness Bar overlay |
+| `client/HotbarSideLayout.java`, `client/SpartanQuiverProbe.java`, `client/SmartHudRows.java` | Hotbar-side layout rule and the quiver-showing probe ([Hotbar side](#hotbar-side)) |
+| `mixin/hud/MixinGuiIngameOffhandSide.java`, `mixin/spartanweaponry/MixinHudQuiverAmmo.java`, `mixin/smarthud/MixinSmartHudSlotRenderer.java` | Offhand to the right, quiver after it, Smart HUD after both |
 
 ## Live config
 

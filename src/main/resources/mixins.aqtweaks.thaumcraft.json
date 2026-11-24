@@ -8,15 +8,27 @@
   "mixins": [
     "MixinFocusEffectExecute",
     "MixinFocusEffectHeal",
+    "MixinFocusEffectBlockPlacement",
+    "MixinTileResearchTable",
     "MixinCasterManager",
     "MixinWarpEvents",
     "MixinItemCaster",
     "MixinToolEvents",
     "MixinTileCrucible",
     "MixinTileInfernalFurnace",
-    "MixinBlockVisBattery"
+    "MixinBlockVisBattery",
+    "MixinFocusMediumTouch",
+    "MixinEntityUtilsFriendly",
+    "MixinEntityFocusProjectileSeek",
+    "MixinEntitySpellBatTarget",
+    "MixinEntityFocusCloud",
+    "MixinFocusEngineOverchannel",
+    "MixinPlayerEventsRunicRecharge"
   ],
   "client": [
-    "MixinRunicShieldingHudHandler"
+    "MixinRunicShieldingHudHandler",
+    "MixinMantleExtraHeartRunicShield",
+    "MixinOverloadedArmorBarRunic",
+    "MixinOverloadedLavaCharmRunic"
   ]
 }

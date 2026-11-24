@@ -1,5 +1,8 @@
 package com.apocollis.aqtweaks.comfort;
 
+import com.apocollis.aqtweaks.comfort.home.HomeArea;
+import com.apocollis.aqtweaks.comfort.home.HomeRegion;
+import com.apocollis.aqtweaks.comfort.home.HomeRegistry;
 import com.apocollis.aqtweaks.simpledifficulty.SimpleDifficultyHelper;
 import com.apocollis.aqtweaks.thaumcraft.ThaumcraftHelper;
 import java.util.ArrayList;
@@ -13,6 +16,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import net.minecraft.block.Block;
+import net.minecraft.block.BlockStairs;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.Entity;
@@ -108,6 +112,7 @@ public class ComfortSystemHandler {
     static String STRUCTURE_DECAY_KEY = "role_family";
     static float NON_SHELL_WEIGHT = 1.0f;
     static float UNLISTED_STRUCTURE_WEIGHT = 0.25f;
+    static float STRUCTURE_STAIRS_WEIGHT = 1.0f;
     static int VIGOR_BASE_INTERVAL = 30;
     static ComfortSettings.RestBonus REST_BONUS = new ComfortSettings.RestBonus();
     static ComfortSettings.ClarityConfig CLARITY = new ComfortSettings.ClarityConfig();
@@ -127,6 +132,7 @@ public class ComfortSystemHandler {
     @SubscribeEvent
     public void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
+        if (com.apocollis.aqtweaks.starter.StarterLockdown.isLocked(event.player)) return;
         EntityPlayer player = event.player;
         if (player == null || player instanceof FakePlayer) return;
         World world = player.world;
@@ -137,11 +143,15 @@ public class ComfortSystemHandler {
         boolean scanTick = phase % CHECK_INTERVAL_TICKS == 0;
         boolean stateTick = phase % STATE_INTERVAL_TICKS == 0;
         if (!scanTick && !stateTick) return;
+        if (stateTick) {
+            HomeRegistry.touch(player);
+            HearthkeeperHooks.syncFlag(player);
+        }
 
         CachedScan cache = SCANS.get(player.getUniqueID());
         boolean stale = isStale(player, cache);
         boolean home = isHome(player, cache);
-        if (scanTick || (stateTick && home && stale)) {
+        if (scanTick || (stateTick && ((home && stale) || homeChanged(player, cache)))) {
             cache = scanFurnishings(player);
             home = isHome(player, cache);
         }
@@ -272,7 +282,17 @@ public class ComfortSystemHandler {
     private static boolean isStale(EntityPlayer player, CachedScan cache) {
         if (cache == null || player.world == null) return true;
         if (cache.dimension != player.world.provider.getDimension()) return true;
+        if (homeChanged(player, cache)) return true;
         return player.world.getTotalWorldTime() - cache.time > SCAN_STALE_TICKS;
+    }
+
+    /** Entering, leaving or changing a cached home swaps which scan applies. */
+    private static boolean homeChanged(EntityPlayer player, CachedScan cache) {
+        if (cache == null) return false;
+        HomeArea home = HomeRegistry.areaAtPlayer(player);
+        UUID homeId = home == null ? null : home.id();
+        int homeVersion = home == null ? 0 : home.version();
+        return !java.util.Objects.equals(homeId, cache.homeId) || homeVersion != cache.homeVersion;
     }
 
     private static boolean isHome(EntityPlayer player, CachedScan cache) {
@@ -442,14 +462,84 @@ public class ComfortSystemHandler {
     }
 
     private static CachedScan scanFurnishings(EntityPlayer player) {
-        CozyScan scan = calculateCozyScan(player);
+        // Inside a cached home the whole home counts (every floor); anywhere else the 25x5x25 scan runs.
+        HomeArea home = HomeRegistry.areaAtPlayer(player);
+        CozyScan scan = home != null ? homeScan(player, home) : calculateCozyScan(player);
         World world = player.world;
         CachedScan cached = new CachedScan(
                 scan,
                 world == null ? 0L : world.getTotalWorldTime(),
-                world == null ? 0 : world.provider.getDimension());
+                world == null ? 0 : world.provider.getDimension(),
+                home == null ? null : home.id(),
+                home == null ? 0 : home.version());
         SCANS.put(player.getUniqueID(), cached);
         return cached;
+    }
+
+    /** Furnishing list of one home version; shared by everyone resting in the home. */
+    private static final class HomePieces {
+        final Map<String, List<Piece>> pieces;
+        final boolean entry;
+
+        HomePieces(Map<String, List<Piece>> pieces, boolean entry) {
+            this.pieces = pieces;
+            this.entry = entry;
+        }
+    }
+
+    private static CozyScan homeScan(EntityPlayer player, HomeArea home) {
+        World world = player.world;
+        HomePieces cached = (HomePieces) home.scoreCache(home.version());
+        if (cached == null) {
+            cached = collectHome(world, home.region());
+            home.putScoreCache(home.version(), cached);
+        }
+        // The shared list is never changed: copy it, then add what only this player's scan sees.
+        Map<String, List<Piece>> pieces = new HashMap<>();
+        for (Map.Entry<String, List<Piece>> entry : cached.pieces.entrySet()) {
+            pieces.put(entry.getKey(), new ArrayList<>(entry.getValue()));
+        }
+        // Union with the live scan: garden, farm, pond and outdoor decoration beside the home still count.
+        // Blocks the home already holds (interior, walls, floors, roof, furnishings) are skipped by position.
+        boolean entry = cached.entry;
+        if (scanAround(player, home.region(), pieces)) {
+            entry = true;
+        }
+        // Pets belong to the resting player, so they are added per scan.
+        addPets(player, world, player.getPosition(), pieces);
+        return aggregate(pieces, entry);
+    }
+
+    private static HomePieces collectHome(World world, HomeRegion region) {
+        Map<String, List<Piece>> pieces = new HashMap<>();
+        boolean entry = ENTRY_REQUIRE_CATEGORIES.isEmpty();
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        if (region.isBox()) {
+            for (int x = region.minX(); x <= region.maxX(); x++) {
+                for (int z = region.minZ(); z <= region.maxZ(); z++) {
+                    for (int y = region.minY(); y <= region.maxY(); y++) {
+                        cursor.setPos(x, y, z);
+                        if (!world.isBlockLoaded(cursor)) continue;
+                        if (addPiece(world, cursor, null, (byte) 0, pieces)) entry = true;
+                    }
+                }
+            }
+        } else {
+            for (long cell : region.cells()) {
+                cursor.setPos(HomeRegion.unpackX(cell), HomeRegion.unpackY(cell), HomeRegion.unpackZ(cell));
+                if (!world.isBlockLoaded(cursor)) continue;
+                if (addPiece(world, cursor, null, (byte) 0, pieces)) entry = true;
+            }
+            long[] boundary = region.boundary();
+            byte[] roles = region.boundaryRoles();
+            for (int i = 0; i < boundary.length; i++) {
+                long p = boundary[i];
+                cursor.setPos(HomeRegion.unpackX(p), HomeRegion.unpackY(p), HomeRegion.unpackZ(p));
+                if (!world.isBlockLoaded(cursor)) continue;
+                if (addPiece(world, cursor, null, roles[i], pieces)) entry = true;
+            }
+        }
+        return new HomePieces(pieces, entry);
     }
 
     private static CozyScan calculateCozyScan(EntityPlayer player) {
@@ -459,6 +549,23 @@ public class ComfortSystemHandler {
         BlockPos center = player.getPosition();
         Map<String, List<Piece>> pieces = new HashMap<>();
         boolean hasEntryFurniture = ENTRY_REQUIRE_CATEGORIES.isEmpty();
+        if (scanAround(player, null, pieces)) {
+            hasEntryFurniture = true;
+        }
+        addPets(player, world, center, pieces);
+        return aggregate(pieces, hasEntryFurniture);
+    }
+
+    /**
+     * The live 25x5x25 scan around the player, with its ray-tagged roles. Blocks that {@code home} already holds
+     * are skipped, so a home plus this scan never counts a block twice. {@code home} is null outside a home.
+     *
+     * @return true when a scanned block is a cozy block of an entry-furniture category
+     */
+    private static boolean scanAround(EntityPlayer player, HomeRegion home, Map<String, List<Piece>> pieces) {
+        World world = player.world;
+        BlockPos center = player.getPosition();
+        boolean entry = false;
         Map<Long, Byte> shell = ShellSampler.sample(player);
         int radius = Math.max(1, Math.min(16, SCAN_RADIUS));
         int dy = Math.max(0, Math.min(4, SCAN_DY));
@@ -467,45 +574,71 @@ public class ComfortSystemHandler {
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
                 for (int y = -dy; y <= dy; y++) {
-                    cursor.setPos(center.getX() + dx, center.getY() + y, center.getZ() + dz);
+                    int bx = center.getX() + dx;
+                    int by = center.getY() + y;
+                    int bz = center.getZ() + dz;
+                    if (home != null && home.holds(bx, by, bz)) continue;
+                    cursor.setPos(bx, by, bz);
                     if (!world.isBlockLoaded(cursor)) continue;
-                    IBlockState state = world.getBlockState(cursor);
-                    Material material = state.getMaterial();
-                    if (material == Material.AIR || material.isLiquid()) continue;
-                    Block block = state.getBlock();
-                    ResourceLocation registryName = block.getRegistryName();
-                    if (registryName == null) continue;
-                    String id = registryName.toString();
-                    CozyConfig config = cozyFor(block);
-                    float weight;
-                    String category;
-                    if (config != null) {
-                        weight = config.weight;
-                        category = config.category;
-                    } else if (isNatural(id) || UNLISTED_STRUCTURE_WEIGHT <= 0.0f) {
-                        continue;
-                    } else {
-                        weight = UNLISTED_STRUCTURE_WEIGHT;
-                        category = "structure";
-                    }
-                    byte role = 0;
-                    if ("structure".equals(category)) {
-                        Byte tagged = shell.get(cursor.toLong());
-                        role = tagged == null ? 0 : tagged.byteValue();
-                        if (role == 0) {
-                            weight *= NON_SHELL_WEIGHT;
-                        }
-                    }
-                    if (weight == 0.0f) continue;
-                    pieces.computeIfAbsent(category, k -> new ArrayList<>())
-                            .add(new Piece(id, ComfortFamilies.family(id), weight, role));
-                    if (!hasEntryFurniture && ENTRY_REQUIRE_CATEGORIES.contains(category)) {
-                        hasEntryFurniture = true;
+                    if (addPiece(world, cursor, shell, (byte) 0, pieces)) {
+                        entry = true;
                     }
                 }
             }
         }
+        return entry;
+    }
 
+    /**
+     * Classifies the block at {@code cursor} and adds it to {@code pieces}. {@code shell} is the player's ray
+     * tags (old scan); when null, {@code fixedRole} is the role a home region recorded for the block.
+     *
+     * @return true when the block is a cozy block of an entry-furniture category
+     */
+    private static boolean addPiece(World world, BlockPos.MutableBlockPos cursor, Map<Long, Byte> shell,
+            byte fixedRole, Map<String, List<Piece>> pieces) {
+        IBlockState state = world.getBlockState(cursor);
+        Material material = state.getMaterial();
+        if (material == Material.AIR || material.isLiquid()) return false;
+        Block block = state.getBlock();
+        ResourceLocation registryName = block.getRegistryName();
+        if (registryName == null) return false;
+        String id = registryName.toString();
+        CozyConfig config = cozyFor(block);
+        float weight;
+        String category;
+        if (config != null) {
+            weight = config.weight;
+            category = config.category;
+        } else {
+            // Not listed: any solid block is a weak structure piece; stairs (vanilla or modded) get their own
+            // weight so a starter house roofed in stairs scores a roof.
+            boolean stairs = block instanceof BlockStairs;
+            weight = StructureWeights.unlisted(stairs, STRUCTURE_STAIRS_WEIGHT, UNLISTED_STRUCTURE_WEIGHT);
+            if (weight <= 0.0f || (!stairs && isNatural(id))) {
+                return false;
+            }
+            category = "structure";
+        }
+        byte role = 0;
+        if ("structure".equals(category)) {
+            if (shell != null) {
+                Byte tagged = shell.get(cursor.toLong());
+                role = tagged == null ? 0 : tagged.byteValue();
+            } else {
+                role = fixedRole != 0 && ShellSampler.isGlass(state) ? ShellSampler.WINDOW : fixedRole;
+            }
+            if (role == 0) {
+                weight *= NON_SHELL_WEIGHT;
+            }
+        }
+        if (weight == 0.0f) return false;
+        pieces.computeIfAbsent(category, k -> new ArrayList<>())
+                .add(new Piece(id, ComfortFamilies.family(id), weight, role));
+        return ENTRY_REQUIRE_CATEGORIES.contains(category);
+    }
+
+    private static void addPets(EntityPlayer player, World world, BlockPos center, Map<String, List<Piece>> pieces) {
         AxisAlignedBB searchBox = petSearchBox(center);
         for (EntityTameable pet : world.getEntitiesWithinAABB(EntityTameable.class, searchBox)) {
             if (pet.isTamed() && pet.getOwnerId() != null && pet.getOwnerId().equals(player.getUniqueID())) {
@@ -513,7 +646,10 @@ public class ComfortSystemHandler {
                         .add(new Piece("pet", "pet", PET_COMFORT_VALUE, (byte) 0));
             }
         }
+    }
 
+    /** Category caps, repeat decay and totals over the collected pieces. */
+    private static CozyScan aggregate(Map<String, List<Piece>> pieces, boolean hasEntryFurniture) {
         float total = 0.0f;
         Map<String, Float> capped = new LinkedHashMap<>();
         Map<String, Integer> seen = new LinkedHashMap<>();
@@ -622,6 +758,7 @@ public class ComfortSystemHandler {
         for (ComfortSettings.PotionModifier modifier : activeBonuses) {
             bonusTotal += modifier.amount;
         }
+        bonusTotal += HearthkeeperHooks.scoreBonus(player, cozy.score);
         boolean heat = false;
         float temp = 0.0f;
         if (PENALTIES_ENABLED) {
@@ -805,6 +942,7 @@ public class ComfortSystemHandler {
         // An earned tier is never lowered by the ladder; it keeps topping up at its own strength while resting.
         int effectAmp = Math.max(amplifier, held);
         int duration = effectAmp >= 2 ? RESTED.duration_3 : effectAmp == 1 ? RESTED.duration_2 : RESTED.duration_1;
+        duration = HearthkeeperHooks.restedDuration(player, duration);
         if (duration < 1) duration = 1;
         boolean upgrade = current != null && held < amplifier;
         RestedBonuses.beginReplace();
@@ -1069,11 +1207,15 @@ public class ComfortSystemHandler {
         final CozyScan scan;
         final long time;
         final int dimension;
+        final UUID homeId;
+        final int homeVersion;
 
-        CachedScan(CozyScan scan, long time, int dimension) {
+        CachedScan(CozyScan scan, long time, int dimension, UUID homeId, int homeVersion) {
             this.scan = scan;
             this.time = time;
             this.dimension = dimension;
+            this.homeId = homeId;
+            this.homeVersion = homeVersion;
         }
     }
 

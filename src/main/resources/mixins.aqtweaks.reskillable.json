@@ -1,0 +1,12 @@
+{
+  "required": false,
+  "package": "com.apocollis.aqtweaks.mixin.reskillable",
+  "target": "@env(DEFAULT)",
+  "compatibilityLevel": "JAVA_8",
+  "client": [
+    "MixinGuiSkillInfo"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

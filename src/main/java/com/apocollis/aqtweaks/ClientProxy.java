@@ -22,9 +22,21 @@ public class ClientProxy extends CommonProxy {
         RenderingRegistry.registerEntityRenderingHandler(
                 com.apocollis.aqtweaks.somnia.EntityBedSeat.class,
                 com.apocollis.aqtweaks.somnia.client.RenderBedSeat::new);
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("somnia")) {
+            net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(
+                    new com.apocollis.aqtweaks.somnia.client.RestMessageHandler());
+        }
         if (net.minecraftforge.fml.common.Loader.isModLoaded("grimoireofgaia")
                 && com.apocollis.aqtweaks.ArcanaQuestTweaksConfig.GrimoireOfGaiaConfig.enableDeepDwarf) {
             com.apocollis.aqtweaks.gaia.client.GaiaDeepDwarfClient.preInit();
+        }
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("thaumcraft")
+                && com.apocollis.aqtweaks.ArcanaQuestTweaksConfig.BattlemageConfig.enableBattlemage) {
+            com.apocollis.aqtweaks.thaumcraft.battlemage.client.BattlemageClient.preInit();
+        }
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("geckolib3")
+                && net.minecraftforge.fml.common.Loader.isModLoaded("thaumcraft")) {
+            com.apocollis.aqtweaks.additions.client.NamelessBossClient.preInit();
         }
     }
 
@@ -39,6 +51,9 @@ public class ClientProxy extends CommonProxy {
             BaublesMenuClient.register();
         }
         MinecraftForge.EVENT_BUS.register(new DepthsFogHandler());
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("travelerstitles")) {
+            com.apocollis.aqtweaks.titles.TravelersTitlesStructureHook.register();
+        }
         if (net.minecraftforge.fml.common.Loader.isModLoaded("atum")) {
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.client.atum.AtumFogHandler());
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.client.atum.AtumOutdoorDustEmitter());
@@ -63,6 +78,11 @@ public class ClientProxy extends CommonProxy {
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.client.paragon.ParagonTooltipHandler());
         }
         if (net.minecraftforge.fml.common.Loader.isModLoaded("thaumcraft")
+                && com.apocollis.aqtweaks.ArcanaQuestTweaksConfig.ThaumAdditionsConfig.enableAegisFocus) {
+            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.thaumadditions.client.AegisClientState());
+            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.thaumadditions.client.AegisShieldRenderer());
+        }
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("thaumcraft")
                 && net.minecraftforge.fml.common.Loader.isModLoaded("botania")) {
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.client.manarepair.ManaRepairTooltipHandler());
         }
@@ -77,5 +97,12 @@ public class ClientProxy extends CommonProxy {
         MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.comfort.ComfortHud());
         MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.comfort.ComfortTooltips());
         MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.comfort.ComfortToggleButton());
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("reskillable")) {
+            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.reskillable.client.PerkToggleClient());
+        }
+        if (net.minecraftforge.fml.common.Loader.isModLoaded("patchouli")) {
+            // After the Comfort tab so it is already in the button list when this one picks a slot.
+            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.patchouli.PatchouliInventoryTabHandler());
+        }
     }
 }

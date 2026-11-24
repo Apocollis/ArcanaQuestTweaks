@@ -41,6 +41,8 @@ public class LeyRuptureBacklash {
         if (!c.enable || !c.enableBacklash || handler == null || !LeyChannels.isTf(player.world)) return false;
         if (!handler.active(player)) return false;
         if (ArcaneItemClassifier.reason(stack) == null) return false;
+        // A Thaumcraft caster pays per cast through the overchannel hook (plan 6.13), not on the click.
+        if (c.enableOverchannel && ArcaneItemClassifier.isCaster(stack)) return false;
         double exposure = handler.exposureOf(player);
         if (exposure <= 0.01D) return false;
         int last = cooldown.getOrDefault(player.getUniqueID(), -1000);
@@ -58,9 +60,6 @@ public class LeyRuptureBacklash {
                 0.3D, 0.2D);
         world.playSound(null, player.posX, player.posY, player.posZ, SoundEvents.BLOCK_FIRE_EXTINGUISH,
                 SoundCategory.PLAYERS, 0.7F, 1.6F);
-        if (ArcaneItemClassifier.isCaster(stack) && c.backlashWarp > 0) {
-            handler.giveBacklashWarp(player, c.backlashWarp);
-        }
         return true;
     }
 

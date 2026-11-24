@@ -199,7 +199,7 @@ Same `UpperTunnelNetwork` as -Y upper worms. Overworld only (`dimension == 0`).
 | Name | Default | Live? | Meaning |
 | --- | --- | --- | --- |
 | Enable Depths Module | true | yes | Master. Off: fill/carve/fog/sky/CoFH/RC/BC hooks that check it skip. **Exception:** Depths `ICaveGenerator.sample` y&lt;0 is still redirected off. |
-| Minimum World Y Elevation | -64 | — | **Pinned.** Bedrock floor and ray/CoFH clamp read the constant; not a tunable knob |
+| Minimum World Y Elevation | (-64, pinned) | — | **Pinned.** Bedrock floor and ray/CoFH clamp read the constant; not a tunable knob |
 | Better Depths Caves | true | yes | AQTweaks primer carve + BC mouths + chunk seam. Off: those skip; Depths still has no -Y samples |
 | Enable Quark Speleothems | true | yes | Lower-cavern primer Quark clusters. Off or Quark missing: skip; cave shape unchanged |
 | Enable HeightManager Cache | true | yes | Dimension-indexed array lookup for `HeightManager.get(int)` and `isExtended(int)` |

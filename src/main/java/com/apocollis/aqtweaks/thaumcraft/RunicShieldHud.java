@@ -28,6 +28,8 @@ public final class RunicShieldHud {
     private static final int ICON = 8;
     private static final float TEX = 0.00390625F;
 
+    private static final org.apache.logging.log4j.Logger LOG = org.apache.logging.log4j.LogManager.getLogger("aqtweaks");
+    private static long lastDebug;
     private static boolean active;
     private static int screenWidth;
     private static int screenHeight;
@@ -45,10 +47,57 @@ public final class RunicShieldHud {
     /** Absorption reported to {@code GuiIngameForge.renderHealth}. Zero hides the gold hearts. */
     public static float absorptionForHealth(EntityPlayer player) {
         active = replacing(player);
+        debug(player, "renderHealth");
         if (active) {
             return 0F;
         }
         return player.getAbsorptionAmount();
+    }
+
+    /**
+     * Absorption for HUD code that reserves rows from the raw value (Overloaded Armor Bar). Runic charge drawn on
+     * the health row takes no row, so only rune rows past the first and surplus gold rows are reported, 20 per row.
+     */
+    public static float absorptionForLayout(EntityPlayer player) {
+        if (player == null) {
+            return 0F;
+        }
+        if (!replacing(player)) {
+            return player.getAbsorptionAmount();
+        }
+        return extraRows(player.getAbsorptionAmount(), cap(player)) * 20F;
+    }
+
+    /**
+     * What Overloaded Armor Bar should read as absorption: nothing while our runic HUD replaces the hearts, because it
+     * clamps the value to one row (its own "Override for Armor shift" option is off) and so cannot leave room for more
+     * than one extra row. The room is taken instead by {@link #armorBarShift}.
+     */
+    public static float absorptionForArmorBar(EntityPlayer player) {
+        if (player == null) {
+            return 0F;
+        }
+        return replacing(player) ? 0F : player.getAbsorptionAmount();
+    }
+
+    /** Pixels the armor bar must move up to clear every extra rune and gold row we draw above the hearts. */
+    public static int armorBarShift(EntityPlayer player) {
+        if (player == null || !replacing(player)) {
+            return 0;
+        }
+        return extraRows(player.getAbsorptionAmount(), cap(player)) * ROW;
+    }
+
+    /** Rows above the health row: rune rows past the first 10 icons, plus gold rows for absorption over the cap. */
+    static int extraRows(float absorption, int cap) {
+        float shield = Math.min(absorption, cap);
+        float surplus = Math.max(0F, absorption - cap);
+        int icons = shield > 0F ? MathHelper.ceil(shield) : 0;
+        int extraRuneRows = icons > ROW ? MathHelper.ceil(icons / (float) ROW) - 1 : 0;
+        int goldPool = MathHelper.ceil(surplus);
+        int goldHearts = goldPool > 0 ? MathHelper.ceil(goldPool / 2F) : 0;
+        int goldRows = goldHearts > 0 ? MathHelper.ceil(goldHearts / (float) ROW) : 0;
+        return extraRuneRows + goldRows;
     }
 
     public static boolean skipTweakerOverlay() {
@@ -56,6 +105,9 @@ public final class RunicShieldHud {
     }
 
     public static void draw() {
+        if (debugEnabled() && Minecraft.getMinecraft().player != null) {
+            debug(Minecraft.getMinecraft().player, active ? "draw(active)" : "draw(inactive)");
+        }
         if (!active) {
             return;
         }
@@ -126,7 +178,56 @@ public final class RunicShieldHud {
         GlStateManager.color(1F, 1F, 1F, 1F);
         mc.getTextureManager().bindTexture(Gui.ICONS);
         GlStateManager.disableBlend();
-        GuiIngameForge.left_height += (extraRuneRows + goldRows) * ROW;
+        GuiIngameForge.left_height += extraRows(absorption, cap) * ROW;
+    }
+
+    /**
+     * Diagnostic log, off by default. Enable with client config {@code Runic HUD Debug}.
+     * Prints at most once per 5 seconds.
+     */
+    private static boolean debugEnabled() {
+        return com.apocollis.aqtweaks.ArcanaQuestTweaksConfig.ClientModuleConfig.runicHud.debug;
+    }
+
+    private static void debug(EntityPlayer player, String where) {
+        if (!debugEnabled() || player == null) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now - lastDebug < 5000L) {
+            return;
+        }
+        lastDebug = now;
+        StringBuilder sb = new StringBuilder("[aqtweaks runic HUD] ").append(where);
+        sb.append(" absorption=").append(player.getAbsorptionAmount());
+        sb.append(" overhaul=").append(RunicShieldingHandler.ENABLE_NEW_RUNIC_SHIELDING);
+        int armor = 0;
+        for (int slot = 0; slot < 4; slot++) {
+            int c = PlayerEvents.getRunicCharge(player.inventory.armorInventory.get(slot));
+            armor += c;
+            if (c != 0) {
+                sb.append(" armor[").append(slot).append("]=").append(c);
+            }
+        }
+        int bauble = 0;
+        IInventory baubles = BaublesApi.getBaubles(player);
+        if (baubles == null) {
+            sb.append(" baubles=null");
+        } else {
+            for (int slot = 0; slot < baubles.getSizeInventory(); slot++) {
+                net.minecraft.item.ItemStack s = baubles.getStackInSlot(slot);
+                int c = PlayerEvents.getRunicCharge(s);
+                bauble += c;
+                if (!s.isEmpty()) {
+                    sb.append(" bauble[").append(slot).append("]=").append(s.getItem().getRegistryName()).append(':').append(c);
+                }
+            }
+        }
+        int cap = RunicShieldingCalculateEvent.fire(player, armor + bauble);
+        sb.append(" armorSum=").append(armor).append(" baubleSum=").append(bauble)
+                .append(" cap=").append(cap).append(" active=").append(active)
+                .append(" gnetum=").append(net.minecraftforge.fml.common.Loader.isModLoaded("gnetum"));
+        LOG.info(sb.toString());
     }
 
     private static void drawRune(int pixelX, int pixelY, int index, int ticks) {

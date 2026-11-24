@@ -53,6 +53,10 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Configure mining/block breaking stamina consumption")
         public static final Mining mining = new Mining();
 
+        @Config.Name("Regen Pace")
+        @Config.Comment("State-based stamina refill: Resting, Moving and Active intervals on top of Elenai's regeneration (plan 20261122-0610).")
+        public static final RegenPace regenPace = new RegenPace();
+
         @Config.Name("Reskillable Integration")
         @Config.Comment("Configure Reskillable integration settings")
         public static final Reskillable reskillable = new Reskillable();
@@ -90,6 +94,82 @@ public class ArcanaQuestTweaksConfig {
         public int jumpThreshold = 1;
     }
 
+    /** State-based stamina refill pace (plan 20261122-0610). Intervals are ticks per half-feather. */
+    public static class RegenPace {
+        @Config.Name("Enable State Regen")
+        @Config.Comment("Off restores Elenai's flat rate (Replenishment then also does nothing special).")
+        public boolean enable = true;
+
+        @Config.Name("Resting Interval")
+        @Config.Comment("Ticks per half-feather while resting: standing still or sneaking for the settle time, no item use.")
+        @Config.RangeInt(min = 1, max = 600)
+        public int restingInterval = 10;
+
+        @Config.Name("Moving Interval")
+        @Config.Comment("Ticks per half-feather while moving or doing light actions (item use, eating, shield hold).")
+        @Config.RangeInt(min = 1, max = 600)
+        public int movingInterval = 20;
+
+        @Config.Name("Active Interval")
+        @Config.Comment("Ticks per half-feather during strenuous activity (sprint, climb, glide, swim, grapple, bow hold, mining, melee). Normally Elenai's own rate (30).")
+        @Config.RangeInt(min = 1, max = 600)
+        public int activeInterval = 30;
+
+        @Config.Name("Active Linger Ticks")
+        @Config.Comment("Active-to-Moving delay after the last strenuous action (15 = 0.75 s).")
+        @Config.RangeInt(min = 0, max = 200)
+        public int activeLingerTicks = 15;
+
+        @Config.Name("Combo Base Grace Ticks")
+        @Config.Comment("Melee keeps the player Active for this plus the weapon's attack period after a swing. 20 is the Dynamic Sword Skills level-0 grace; rank is deliberately not included.")
+        @Config.RangeInt(min = 0, max = 200)
+        public int comboBaseGraceTicks = 20;
+
+        @Config.Name("Rest Settle Ticks")
+        @Config.Comment("Ticks of stillness (or sneaking) after the Active cooldown before Resting starts.")
+        @Config.RangeInt(min = 0, max = 200)
+        public int restSettleTicks = 15;
+
+        @Config.Name("Rest Speed Threshold")
+        @Config.Comment("Horizontal speed squared (blocks per tick, squared) below which the player counts as still.")
+        @Config.RangeDouble(min = 0.0D, max = 0.1D)
+        public double restSpeedThreshold = 0.003D;
+
+        @Config.Name("Item Use Linger Ticks")
+        @Config.Comment("Right-click item use (and eating, drinking) blocks Resting for this long.")
+        @Config.RangeInt(min = 0, max = 200)
+        public int itemUseLingerTicks = 20;
+
+        @Config.Name("Mining Counts As Active")
+        public boolean miningActive = true;
+
+        @Config.Name("Grapple Counts As Active")
+        public boolean grappleActive = true;
+
+        @Config.Name("Melee Swing Counts As Active")
+        @Config.Comment("Only the player's own attack; taking damage never counts.")
+        public boolean meleeActive = true;
+
+        @Config.Name("Shield Hold Counts As")
+        @Config.Comment("MOVING (default, never Resting), ACTIVE, or RESTING_ALLOWED (a held shield may still reach Resting).")
+        public String shieldHold = "MOVING";
+
+        @Config.Name("Replenishment Active Interval")
+        @Config.Comment("Active-state interval at Replenishment amplifier 0. 0 disables the potion's pace effect. Elenai's own regen modifier from the potion is always cancelled.")
+        @Config.RangeInt(min = 0, max = 600)
+        public int replenishmentInterval = 15;
+
+        @Config.Name("Replenishment Step Per Level")
+        @Config.Comment("Ticks taken off the interval for each further amplifier.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int replenishmentStep = 5;
+
+        @Config.Name("Replenishment Minimum Interval")
+        @Config.Comment("Floor for the interval. Keeps a high amplifier from reaching instant (0 ticks).")
+        @Config.RangeInt(min = 1, max = 100)
+        public int replenishmentMinimum = 5;
+    }
+
     public static class Sprinting {
         @Config.Name("Enable Sprint Stamina Cost")
         @Config.Comment("Does sprinting consume stamina?")
@@ -122,12 +202,12 @@ public class ArcanaQuestTweaksConfig {
         public int bowDrawCost = 2;
 
         @Config.Name("Bow Hold Tick Interval")
-        @Config.Comment("Ticks between feather consumption while holding a bow fully drawn (20 ticks = 1 second)")
+        @Config.Comment("Ticks between feather consumption while a bow is drawn or held (20 ticks = 1 second). Billed once per interval from the start of the draw.")
         @Config.RangeInt(min = 1)
         public int bowHoldInterval = 20;
 
         @Config.Name("Bow Hold Cost")
-        @Config.Comment("Stamina cost (in half-feathers) consumed per hold interval")
+        @Config.Comment("Stamina cost (in half-feathers) consumed per hold interval. Also the throwing-weapon hold cost.")
         @Config.RangeInt(min = 0)
         public int bowHoldCost = 1;
     }
@@ -239,7 +319,7 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Light Weapons Cost")
         @Config.Comment("Feather cost (in half-feathers) for light weapons")
         @Config.RangeInt(min = 0)
-        public int lightCost = 1;
+        public int lightCost = 2;
 
         @Config.Name("Light Weapons Damage Multiplier")
         @Config.Comment("Damage multiplier applied if attacking without enough feathers")
@@ -253,7 +333,7 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Medium Weapons Cost")
         @Config.Comment("Feather cost (in half-feathers) for medium weapons")
         @Config.RangeInt(min = 0)
-        public int mediumCost = 2;
+        public int mediumCost = 3;
 
         @Config.Name("Medium Weapons Damage Multiplier")
         @Config.Comment("Damage multiplier applied if attacking without enough feathers")
@@ -372,23 +452,37 @@ public class ArcanaQuestTweaksConfig {
 
     public static class Mining {
         @Config.Name("Enable Mining Stamina Cost")
-        @Config.Comment("Does breaking blocks consume stamina?")
+        @Config.Comment("Does breaking blocks consume stamina? Real blocks are billed by how long you keep digging; plants break for a flat cost.")
         public boolean enableMiningCost = true;
 
-        @Config.Name("Ore/Obsidian Break Cost")
-        @Config.Comment("Stamina cost (in half-feathers) for breaking ores and obsidian")
-        @Config.RangeInt(min = 0)
-        public int oreCost = 2;
+        @Config.Name("Mine Hold Interval Ticks")
+        @Config.Comment("Digging a block (hardness above 0) bills Mine Hold Cost at the start of each interval of this many ticks, the first at the moment you start hitting. The timer runs across consecutive blocks, so faster tools cost less in total.")
+        @Config.RangeInt(min = 1, max = 400)
+        public int holdIntervalTicks = 15;
 
-        @Config.Name("Default Block Break Cost")
-        @Config.Comment("Stamina cost (in half-feathers) for breaking any other block")
-        @Config.RangeInt(min = 0)
-        public int defaultCost = 1;
+        @Config.Name("Mine Hold Cost")
+        @Config.Comment("Stamina (in half-feathers) billed at the start of each hold interval.")
+        @Config.RangeInt(min = 0, max = 20)
+        public int holdCost = 1;
+
+        @Config.Name("Mine Session Gap Ticks")
+        @Config.Comment("A new session (with its start payment) begins when more than this many ticks passed since the last dig activity. Longer than the 5 tick delay between two blocks.")
+        @Config.RangeInt(min = 1, max = 100)
+        public int sessionGapTicks = 10;
+
+        @Config.Name("Plant Break Cost")
+        @Config.Comment("Flat stamina (in half-feathers) for breaking a block of hardness 0 (grass, flowers, crops, saplings, torches). The Forager perk makes plants free.")
+        @Config.RangeInt(min = 0, max = 20)
+        public int plantBreakCost = 1;
+
+        @Config.Name("Forager Free Blocks")
+        @Config.Comment("Extra registry names (wildcards allowed, for example 'rustic:*') that the Forager perk treats as plants, for modded plants the built-in test misses.")
+        public String[] foragerFreeBlocks = new String[0];
 
         @Config.Name("Mining Fatigue Feather Threshold")
-        @Config.Comment("Number of regular feathers (in half-feathers, e.g. 4 = 2 full feathers) at or below which Mining Fatigue III is applied")
+        @Config.Comment("Usable stamina (in half-feathers, after the armor weight floor and counting Feathers-potion absorption) at or below which Mining Fatigue III is applied. 3 = a feather and a half.")
         @Config.RangeInt(min = 0)
-        public int miningFatigueThreshold = 4;
+        public int miningFatigueThreshold = 3;
     }
 
     public static class Reskillable {
@@ -409,21 +503,34 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Registry ID of the Mining Efficiency perk (defaults to aqtweaks:mining_efficiency)")
         public String miningEfficiencyPerkId = "aqtweaks:mining_efficiency";
 
-        @Config.Name("Mining Efficiency Reduction")
-        @Config.Comment("Stamina cost reduction (in half-feathers) applied to mining actions")
-        @Config.RangeInt(min = 0, max = 20)
-        public int miningEfficiencyReduction = 1;
+        @Config.Name("Mining Efficiency Interval Ticks")
+        @Config.Comment("With Mining Efficiency, non-forage blocks bill every this many ticks instead of Mine Hold Interval Ticks (20 = 25% less drain than the 15-tick base).")
+        @Config.RangeInt(min = 1, max = 400)
+        public int miningEfficiencyIntervalTicks = 20;
 
         @Config.Name("Gathering Efficiency Perk ID")
         public String gatheringEfficiencyPerkId = "aqtweaks:gathering_efficiency";
 
-        @Config.Name("Gathering Efficiency Reduction")
-        @Config.Comment("Subtracted from forage BreakEvent stamina only (logs, leaves, gravel, flowers, mushrooms, tall grass). Not ore, not shear, not fish.")
-        @Config.RangeInt(min = 0, max = 20)
-        public int gatheringEfficiencyReduction = 1;
+        @Config.Name("Gathering Efficiency Interval Ticks")
+        @Config.Comment("With Gathering Efficiency, forage blocks (logs, leaves, gravel, mushrooms, trees) bill every this many ticks instead of Mine Hold Interval Ticks (20 = 25% less drain than the 15-tick base). Plants keep their flat cost; only Forager changes that.")
+        @Config.RangeInt(min = 1, max = 400)
+        public int gatheringEfficiencyIntervalTicks = 20;
 
         @Config.Name("Melee Efficiency Perk ID")
         public String meleeEfficiencyPerkId = "aqtweaks:melee_efficiency";
+
+        @Config.Name("Weapon Tempo Perk ID")
+        public String weaponTempoPerkId = "aqtweaks:weapon_tempo";
+
+        @Config.Name("Weapon Tempo Free Hit Interval")
+        @Config.Comment("While locked on in a DSS combo, every Nth combo hit (3, 6, 9, 12 at 3) costs no stamina.")
+        @Config.RangeInt(min = 2, max = 10)
+        public int weaponTempoInterval = 3;
+
+        @Config.Name("Weapon Tempo Bonus Chance Per Level")
+        @Config.Comment("Every other combo hit from the 3rd on has this chance times the Basic Technique level (1 to 10) to be free too (0.05 = 50% at level 10). 0 turns the rolls off.")
+        @Config.RangeDouble(min = 0.0D, max = 0.1D)
+        public double weaponTempoChancePerLevel = 0.05D;
 
         @Config.Name("Melee Efficiency Reduction")
         @Config.Comment("Subtracted from light/medium/heavy melee costs (half-feathers). Floor 0.")
@@ -477,13 +584,13 @@ public class ArcanaQuestTweaksConfig {
         @Config.RangeInt(min = 0, max = 20)
         public int expertClimberReduction = 1;
 
-        @Config.Name("Cardio Master Perk ID")
-        public String cardioMasterPerkId = "aqtweaks:cardio_master";
+        @Config.Name("Marathon Runner Perk ID")
+        @Config.Comment("Sprinting and jumping refill as Moving (not Active); plain walking refills at the Resting rate. See the regen pace category.")
+        public String marathonRunnerPerkId = "aqtweaks:marathon_runner";
 
-        @Config.Name("Cardio Master Reduction")
-        @Config.Comment("Subtracted from jump and sprint costs (half-feathers). Floor 0.")
-        @Config.RangeInt(min = 0, max = 20)
-        public int cardioMasterReduction = 1;
+        @Config.Name("Cardio Master Perk ID")
+        @Config.Comment("Active counts as Moving for stamina refill (the Active interval becomes the Moving interval).")
+        public String cardioMasterPerkId = "aqtweaks:cardio_master";
 
         @Config.Name("Evasion Perk ID")
         public String evasionPerkId = "aqtweaks:evasion";
@@ -637,6 +744,31 @@ public class ArcanaQuestTweaksConfig {
         public int ledgeClimbLandPauseTicks = 8;
     }
 
+    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_titles")
+    public static class StructureTitlesConfig {
+        @Config.Name("Structure Titles Enabled")
+        @Config.Comment("The server tells each client which structure the player is in (a player home, a Roguelike dungeon, a village, a mineshaft and so on) so Traveler's Titles can show it. Inert without Traveler's Titles on the client.")
+        public static boolean enabled = true;
+
+        @Config.Name("Structure Titles Interval Ticks")
+        @Config.Comment("How often each player's structure is checked, in ticks. 20 is one second. Checks are staggered per player.")
+        @Config.RangeInt(min = 5, max = 200)
+        public static int intervalTicks = 20;
+
+        @Config.Name("Structure Titles Repeat Cooldown Ticks")
+        @Config.Comment("Entering the same structure again within this many ticks of its last title does not show a second title. 200 is 10 seconds.")
+        @Config.RangeInt(min = 0, max = 12000)
+        public static int repeatCooldownTicks = 200;
+
+        @Config.Name("Structure Titles Extra Names")
+        @Config.Comment({
+            "Extra structure names asked through vanilla's structure test (the names /locate takes), one per entry.",
+            "Built in: RoguelikeDungeon, Village, Mineshaft, Mansion, Stronghold, Monument, Fortress, EndCity, Igloo, Desert_Pyramid, Jungle_Pyramid, Swamp_Hut, Temple. A player home (Home) is always checked first.",
+            "Add a lang entry aqtweaks.structure.<name in lower case> for a readable title; without one the name is prettified."
+        })
+        public static String[] extraNames = new String[0];
+    }
+
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_client", category = "")
     public static class ClientModuleConfig {
         @Config.Name("HUD")
@@ -662,6 +794,65 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Comfort")
         @Config.Comment("Rested panel and messages. Tooltips stay available when messages are off.")
         public static final Comfort comfort = new Comfort();
+
+        @Config.Name("Runic HUD")
+        @Config.Comment("Thaumcraft runic shield rune overlay diagnostics.")
+        public static final RunicHud runicHud = new RunicHud();
+
+        public static class RunicHud {
+            @Config.Name("Runic HUD Debug")
+            @Config.Comment("Logs the client runic cap, per-slot charge and overlay state once every 5 seconds ([aqtweaks runic HUD]). Diagnostic only.")
+            public boolean debug = false;
+        }
+
+        @Config.Name("Structure Titles")
+        @Config.Comment("Traveler's Titles structure titles (needs Traveler's Titles). Server side options are in aqtweaks_titles.")
+        public static final StructureTitlesClient structureTitles = new StructureTitlesClient();
+
+        public static class StructureTitlesClient {
+            @Config.Name("Structure Title Y Offset")
+            @Config.Comment("Added to Traveler's Titles' biome title Y offset. 0 puts a structure title exactly where the biome title it replaces would be.")
+            @Config.RangeDouble(min = -500.0D, max = 500.0D)
+            public double yOffset = 0.0D;
+
+            @Config.Name("Show Owner Name On Homes")
+            @Config.Comment("A player home shows as \"<owner>'s Home\". Off shows plain \"Home\".")
+            public boolean showOwnerNameOnHomes = true;
+        }
+
+        @Config.Name("Hotbar Side")
+        @Config.Comment("Right of the hotbar, nearest first: the offhand slot, the Spartan Weaponry quiver, then Smart HUD's item slots. Each takes room only while it is on screen.")
+        public static final HotbarSide hotbarSide = new HotbarSide();
+
+        public static class HotbarSide {
+            @Config.Name("Offhand Slot Side")
+            @Config.Comment("right puts the offhand slot, the quiver and Smart HUD's slots in order on the right of the hotbar (any main hand), keeping the left free for the Rested panel. left restores vanilla and leaves the quiver and Smart HUD where their own configs put them.")
+            public String offhandSide = "right";
+
+            @Config.Name("Offhand Reserve")
+            @Config.Comment("GUI pixels the offhand slot takes beside the hotbar while the offhand holds an item.")
+            @Config.RangeInt(min = 0, max = 100)
+            public int offhandReserve = 29;
+
+            @Config.Name("Quiver Reserve")
+            @Config.Comment("GUI pixels the quiver slot takes (frame plus gap) while the quiver HUD is showing.")
+            @Config.RangeInt(min = 0, max = 100)
+            public int quiverReserve = 24;
+
+            @Config.Name("Quiver Bottom Offset")
+            @Config.Comment("GUI pixels from the bottom of the screen up to the top of the quiver frame. 22 puts it level with the hotbar slots.")
+            @Config.RangeInt(min = 0, max = 100)
+            public int quiverBottomOffset = 22;
+
+            @Config.Name("Smart HUD Wrap")
+            @Config.Comment("When the offhand slot and quiver leave too little room for all of Smart HUD's slots, draw the rest as a second row above, right-aligned. false keeps one row that runs off the screen edge. Only with Offhand Slot Side = right.")
+            public boolean smartHudWrap = true;
+
+            @Config.Name("Smart HUD Max Slots")
+            @Config.Comment("Most Smart HUD slots shown while Smart HUD Wrap is on, replacing Smart HUD's own slot limit (5). Slots past the first row go on the second row, so keep this at most twice what fits in a row.")
+            @Config.RangeInt(min = 1, max = 16)
+            public int smartHudMaxSlots = 8;
+        }
 
         public static String getDefaultWorldType() {
             return worldCreation.defaultWorldType;
@@ -1260,6 +1451,290 @@ public class ArcanaQuestTweaksConfig {
         public static boolean enableDeepDwarf = true;
     }
 
+    /** Dynamic Sword Skills follows weapon speed; combo window, combo bonus and heavy armor bypass (plan 20261122-0327). */
+    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_dss")
+    public static class DssWeaponConfig {
+        @Config.Name("Enforce Weapon Attack Speed")
+        @Config.Comment("Lock-on and combo attacks wait for the weapon's own attack cooldown, so no weapon swings faster than its attack speed. Does not touch DSS skills, lock-on or special attacks.")
+        public static boolean enforceWeaponSpeed = true;
+
+        @Config.Name("Attack Ready Threshold")
+        @Config.Comment("Cooldown charge (0.5 to 1.0) needed before a lock-on swing. 0.9 forgives a click a few ticks early; 1.0 is strict.")
+        @Config.RangeDouble(min = 0.5D, max = 1.0D)
+        public static double attackReadyThreshold = 0.9D;
+
+        @Config.Name("Scale Combo Window By Attack Speed")
+        @Config.Comment("Adds the weapon's attack period (20 / attack speed ticks) to the DSS combo timer, so slow weapons keep the same grace after their cooldown refills.")
+        public static boolean scaleComboWindow = true;
+
+        @Config.Name("Scale Combo Bonus By Weapon Category")
+        @Config.Comment("Multiplies DSS's flat combo bonus (+1 damage per hit already landed) by the weapon category of the stamina module (light, medium, heavy).")
+        public static boolean scaleComboBonus = true;
+
+        @Config.Name("Combo Bonus Multiplier Light")
+        @Config.RangeDouble(min = 0.0D, max = 10.0D)
+        public static double comboBonusLight = 1.0D;
+
+        @Config.Name("Combo Bonus Multiplier Medium")
+        @Config.RangeDouble(min = 0.0D, max = 10.0D)
+        public static double comboBonusMedium = 1.6D;
+
+        @Config.Name("Combo Bonus Multiplier Heavy")
+        @Config.RangeDouble(min = 0.0D, max = 10.0D)
+        public static double comboBonusHeavy = 3.0D;
+
+        @Config.Name("Combo Bonus Multiplier Unclassified")
+        @Config.Comment("Weapons the stamina module does not class as a weapon.")
+        @Config.RangeDouble(min = 0.0D, max = 10.0D)
+        public static double comboBonusUnclassified = 1.0D;
+
+        @Config.Name("Enable Armor Bypass")
+        @Config.Comment("Direct melee hits by a player ignore a share of the target's armor reduction, by weapon category.")
+        public static boolean enableArmorBypass = true;
+
+        @Config.Name("Armor Bypass Light")
+        @Config.RangeDouble(min = 0.0D, max = 1.0D)
+        public static double armorBypassLight = 0.0D;
+
+        @Config.Name("Armor Bypass Medium")
+        @Config.RangeDouble(min = 0.0D, max = 1.0D)
+        public static double armorBypassMedium = 0.10D;
+
+        @Config.Name("Armor Bypass Heavy")
+        @Config.RangeDouble(min = 0.0D, max = 1.0D)
+        public static double armorBypassHeavy = 0.25D;
+    }
+
+    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_thaumadditions")
+    public static class ThaumAdditionsConfig {
+        @Config.Name("Enable Shock Focus")
+        @Config.RequiresMcRestart
+        @Config.Comment("Registers the Shock focus effect (Potentia lightning) and its Auromancy research. Restart after change.")
+        public static boolean enableShockFocus = true;
+
+        @Config.Name("Shock Base Damage Offset")
+        @Config.Comment("Shock damage is (offset + power) * focus power, power 1 to 5. Thaumcraft's Frost uses an offset of 3.")
+        @Config.RangeInt(min = 0, max = 20)
+        public static int baseDamageOffset = 3;
+
+        @Config.Name("Shock Wet Damage Multiplier")
+        @Config.Comment("Damage multiplier against a wet target (in water, or in rain when Rain Counts As Wet is on).")
+        @Config.RangeDouble(min = 1.0D, max = 5.0D)
+        public static double wetDamageMultiplier = 1.5D;
+
+        @Config.Name("Shock Rain Counts As Wet")
+        @Config.Comment("A target standing in rain counts as wet, not only one in water.")
+        public static boolean rainCountsAsWet = true;
+
+        @Config.Name("Shock Chain Jumps")
+        @Config.Comment("How many extra targets the bolt can jump to after the first. 0 turns the chain off.")
+        @Config.RangeInt(min = 0, max = 8)
+        public static int chainJumps = 2;
+
+        @Config.Name("Shock Chain Radius")
+        @Config.Comment("Blocks a jump can reach from the current target.")
+        @Config.RangeDouble(min = 0.5D, max = 16.0D)
+        public static double chainRadius = 4.0D;
+
+        @Config.Name("Shock Wet Chain Radius")
+        @Config.Comment("Blocks a jump can reach when both the current target and the next one are wet (water conducts).")
+        @Config.RangeDouble(min = 0.5D, max = 32.0D)
+        public static double wetChainRadius = 8.0D;
+
+        @Config.Name("Shock Chain Falloff")
+        @Config.Comment("Each jump deals this fraction of the previous hit before the wet bonus (0.6: 60% then 36% of the first hit).")
+        @Config.RangeDouble(min = 0.0D, max = 1.0D)
+        public static double chainFalloff = 0.6D;
+
+        @Config.Name("Shock Stun Base Ticks")
+        @Config.Comment("Stun length (no attacks or item use, Slowness I speed) at duration 1.")
+        @Config.RangeInt(min = 0, max = 200)
+        public static int stunBaseTicks = 5;
+
+        @Config.Name("Shock Stun Ticks Per Level")
+        @Config.Comment("Extra stun ticks for each duration level above 1 (5 and 5 give 5, 10, 15, 20, 25 at levels 1 to 5).")
+        @Config.RangeInt(min = 0, max = 100)
+        public static int stunTicksPerLevel = 5;
+
+        @Config.Name("Shock Stuns Wet Chained Targets")
+        @Config.Comment("Chained targets that are wet are stunned too. The first target is always stunned.")
+        public static boolean stunWetChained = true;
+
+        @Config.Name("Shock Charges Creepers")
+        @Config.Comment("A creeper hit by Shock becomes powered, as if struck by lightning, with no extra damage.")
+        public static boolean chargeCreepers = true;
+
+        @Config.Name("Shock Sound Volume")
+        @Config.Comment("Volume scale for the Shock cast zap and hit crackle. 0 is silent.")
+        @Config.RangeDouble(min = 0.0D, max = 2.0D)
+        public static double soundVolume = 1.0D;
+
+        @Config.Name("Enable Aegis Focus")
+        @Config.RequiresMcRestart
+        @Config.Comment("Registers the Aegis focus effect (a held, directional shield with a breakable damage pool) and its Auromancy research. Restart after change.")
+        public static boolean enableAegisFocus = true;
+
+        @Config.Name("Aegis Pool Per Level")
+        @Config.Comment("Damage the Aegis shield can take per power level before it breaks (5 gives 5, 10, 15, 20, 25 at levels 1 to 5).")
+        @Config.RangeInt(min = 1, max = 5)
+        public static int aegisPoolPerLevel = 5;
+
+        @Config.Name("Aegis Max Pool")
+        @Config.Comment("Hard ceiling on the Aegis damage pool, whatever the level. Thaumic Augmentation's Void Shield goes up to 75.")
+        @Config.RangeInt(min = 5, max = 25)
+        public static int aegisMaxPool = 25;
+
+        @Config.Name("Aegis Vis Per Interval")
+        @Config.Comment("Vis billed at the start of every interval while the shield is held. The raise itself pays the first interval (the focus's own cost is this value times 5 in complexity), so every raise costs this much.")
+        @Config.RangeDouble(min = 0.0D, max = 20.0D)
+        public static double aegisVisPerInterval = 2.0D;
+
+        @Config.Name("Aegis Interval Ticks")
+        @Config.Comment("Ticks between vis bills while the shield is held (20 = once a second).")
+        @Config.RangeInt(min = 5, max = 200)
+        public static int aegisIntervalTicks = 20;
+
+        @Config.Name("Aegis Raise Delay Ticks")
+        @Config.Comment("Ticks after raising before Aegis blocks. Vanilla shields use 5; the pack's Responsive Shields mod sets 0.")
+        @Config.RangeInt(min = 0, max = 20)
+        public static int aegisRaiseDelayTicks = 0;
+
+        @Config.Name("Aegis Break Lockout Ticks")
+        @Config.Comment("After the shield breaks, focuses containing Aegis cannot be cast for this long (100 = 5 seconds). Other foci are unaffected.")
+        @Config.RangeInt(min = 0, max = 1200)
+        public static int aegisBreakLockoutTicks = 100;
+
+        @Config.Name("Aegis Sound Volume")
+        @Config.Comment("Volume scale for the Aegis raise, block and break sounds. 0 is silent.")
+        @Config.RangeDouble(min = 0.0D, max = 2.0D)
+        public static double aegisSoundVolume = 1.0D;
+
+        @Config.Name("Aegis Uses Stamina Shield Cost")
+        @Config.Comment("When true, a raised Aegis also pays the stamina shield-hold cost. Default false: it already pays vis.")
+        public static boolean aegisUsesStaminaShieldCost = false;
+    }
+
+    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_battlemage")
+    public static class BattlemageConfig {
+        @Config.Name("Enable Cultist Battlemage")
+        @Config.RequiresMcRestart
+        @Config.Comment("Registers the caster minibosses aqtweaks:cultist_battlemage (Tier 1), cultist_master_battlemage (Tier 2), cultist_swarm_mage and cultist_bombardier_mage. Requires Thaumcraft. Restart after change.")
+        public static boolean enableBattlemage = true;
+
+        @Config.Name("Battlemage Focus Damage Scale")
+        @Config.Comment("Multiplies the power of every focus the Battlemage casts. 1.0 is the authored focus.")
+        @Config.RangeDouble(min = 0.0D, max = 10.0D)
+        public static double focusDamageScale = 1.0D;
+
+        @Config.Name("Battlemage Focus Cooldown Scale")
+        @Config.Comment("Multiplies every focus cooldown (natural cooldown max(5, (complexity/5)*(complexity/4)) ticks). Below 1 casts faster.")
+        @Config.RangeDouble(min = 0.05D, max = 10.0D)
+        public static double focusCooldownScale = 1.0D;
+
+        @Config.Name("Battlemage Seek Players Only")
+        @Config.Comment({
+            "A Battlemage's Seek Hostiles projectiles, hostile Spell Bats and hostile clouds affect players only,",
+            "ignoring the server PvP flag. Off restores stock Thaumcraft behavior for Battlemage spells."
+        })
+        public static boolean seekPlayersOnly = true;
+
+        @Config.Name("Battlemage Seek Priority")
+        @Config.Comment("Which player a Battlemage projectile or Spell Bat takes first: ATTACK_TARGET (the mob's current target), NEAREST or LOWEST_HEALTH.")
+        public static String seekPriority = "ATTACK_TARGET";
+
+        @Config.Name("Battlemage Touch Reach")
+        @Config.Comment("Reach in blocks for a Touch focus (Knock Back) cast by a mob. Bolt keeps Thaumcraft's fixed 16 blocks.")
+        @Config.RangeDouble(min = 1.0D, max = 8.0D)
+        public static double touchReach = 3.0D;
+
+        @Config.Name("Battlemage Melee Damage Scale")
+        @Config.Comment("Multiplies the Battlemage's melee damage (the main-hand weapon's attributes already supply the base). 1.0 leaves it alone.")
+        @Config.RangeDouble(min = 0.0D, max = 10.0D)
+        public static double meleeDamageScale = 1.0D;
+
+        @Config.Name("Battlemage Soul Sight Potion Fallback")
+        @Config.Comment({
+            "Gives each Battlemage the dynamicstealth:soulsight potion at spawn. Off by default: the preferred way is to list",
+            "aqtweaks:cultist_battlemage, cultist_master_battlemage, cultist_swarm_mage and cultist_bombardier_mage under 'Natural Soul Sight' in config/dynamicstealth/1.12.2.116+.cfg (no icon, no per-spawn work).",
+            "Turn this on only if the pack does not carry that line."
+        })
+        public static boolean soulSightPotion = false;
+
+        @Config.Name("Battlemage Shield Enabled")
+        @Config.Comment("Battlemages carry a faked runic shield (vanilla absorption: 16 points Tier 1, 28 Tier 2) that recharges and shows the player's rune burst on a hit. Off removes the shield.")
+        public static boolean shieldEnabled = true;
+
+        @Config.Name("Battlemage Shield Drains Aura")
+        @Config.Comment("Each recharged shield point costs 1 vis from the chunk aura, as a player's runic shield does. Off by default: the mob pays nothing.")
+        public static boolean shieldDrainsAura = false;
+
+        @Config.Name("Battlemage Blink Enabled")
+        @Config.Comment("Allows every Battlemage teleport (defensive, reposition, toward an ally). The stuck-in-a-wall escape is not affected.")
+        public static boolean blinkEnabled = true;
+
+        @Config.Name("Battlemage Rift Enabled")
+        @Config.Comment("Allows the Battlemage to tunnel through a wall with a Rift (to escape, or to reach a player behind a wall).")
+        public static boolean riftEnabled = true;
+
+        @Config.Name("Allow Real Rift Holes")
+        @Config.Comment("The Battlemage's Rift opens real temporary Thaumcraft holes (they close after a few seconds; a player still inside is stuck in the wall). Off: no block changes, the mage only teleports through.")
+        public static boolean allowRealHoles = true;
+
+        @Config.Name("Allow Mob Focus Block Placement")
+        @Config.Comment("Fire and Frost foci cast by a Battlemage place fire, ice or snow blocks on the ground. Off by default so the mage cannot set the world alight; the damage still applies.")
+        public static boolean allowMobFocusBlockPlacement = false;
+
+        @Config.Name("Battlemage Max Move Speed")
+        @Config.Comment("The most a Battlemage can move across the ground, in blocks per second. 4.3 is a player walking, 5.6 a player sprinting. Blinks, knockback and dodge hops are not limited. 0 turns the limit off.")
+        @Config.RangeDouble(min = 0.0D, max = 30.0D)
+        public static double maxMoveSpeed = 4.3D;
+
+        @Config.Name("Battlemage Boss Bar")
+        @Config.Comment("A boss bar for each Battlemage near a player (name and health; it changes colour per phase).")
+        public static boolean bossBar = true;
+
+        @Config.Name("Battlemage Cast Damage Cap Fraction")
+        @Config.Comment("A single hit from a Battlemage (a focus effect or its blade) cannot take more than this share of the target's maximum health. 0 turns the cap off.")
+        @Config.RangeDouble(min = 0.0D, max = 1.0D)
+        public static double castDamageCapFraction = 0.0D;
+
+        @Config.Name("Battlemage Drops")
+        @Config.Comment("The loot table, gear, bauble and focus drops of a player-killed Battlemage (plan 13). Off drops nothing of our own.")
+        public static boolean drops = true;
+
+        @Config.Name("Table Looting Chance Per Level")
+        @Config.Comment("Looting adds this to each chance roll of the loot table (and 1 to its maximum count) per level.")
+        @Config.RangeDouble(min = 0.0D, max = 1.0D)
+        public static double tableLootingChance = 0.05D;
+
+        @Config.Name("Gear Extra Chance Per Looting")
+        @Config.Comment("Chance per Looting level for one extra worn piece (at most 2 distinct pieces).")
+        @Config.RangeDouble(min = 0.0D, max = 1.0D)
+        public static double gearExtraChancePerLooting = 0.15D;
+
+        @Config.Name("Bauble Extra Chance Per Looting")
+        @Config.RangeDouble(min = 0.0D, max = 1.0D)
+        public static double baubleExtraChancePerLooting = 0.15D;
+
+        @Config.Name("Fixed Focus Drop Weight")
+        @Config.Comment("Drop weight of the fixed-slot foci (Heal Self, Knock Back, Blink, Rift and the like).")
+        @Config.RangeDouble(min = 0.0D, max = 100.0D)
+        public static double fixedFocusDropWeight = 1.0D;
+
+        @Config.Name("Rolled Focus Drop Weight")
+        @Config.RangeDouble(min = 0.0D, max = 100.0D)
+        public static double rolledFocusDropWeight = 3.0D;
+
+        @Config.Name("High Tier Focus Drop Weight")
+        @Config.Comment("Drop weight of the Tier 2 only foci.")
+        @Config.RangeDouble(min = 0.0D, max = 100.0D)
+        public static double highTierFocusDropWeight = 5.0D;
+
+        @Config.Name("Battlemage Debug Log")
+        @Config.Comment("Logs the loaded loadout and each cast to the server log.")
+        public static boolean debug = false;
+    }
+
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_thaumcraft")
     public static class ThaumcraftConfig {
         @Config.Name("Enable Sleep Warp Cleansing")
@@ -1386,6 +1861,14 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Inclusive min Y for the upper underground band. Y below this is the deep band.")
         @Config.RangeInt(min = -256, max = 256)
         public static int exposureUndergroundYMin = -20;
+
+        @Config.Name("Underground Exposure Max Light")
+        @Config.Comment({
+            "Underground exposure (both Y bands) only counts while the light at the player's head is at or below this.",
+            "Combined block and sky light, as mob spawning uses. 15 turns the darkness gate off."
+        })
+        @Config.RangeInt(min = 0, max = 15)
+        public static int exposureUndergroundMaxLight = 6;
 
         @Config.Name("Underground Exposure Warp")
         @Config.Comment("Temporary warp G for the upper underground band (Y Min through Y Max).")
@@ -2470,6 +2953,29 @@ public class ArcanaQuestTweaksConfig {
         };
     }
 
+    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_patchouli", category = "")
+    public static class PatchouliModuleConfig {
+        @Config.Name("Inventory Tab")
+        @Config.Comment("Patchouli's inventory guidebook button as a left-side tab (client only).")
+        public static final PatchouliInventoryTab inventoryTab = new PatchouliInventoryTab();
+    }
+
+    public static class PatchouliInventoryTab {
+        @Config.Name("Move Inventory Button To Sidebar")
+        @Config.Comment("Replace Patchouli's small inventory book button with a 32x28 tab on the left of the inventory (between the Skills tab and the Comfort tab). False keeps Patchouli's own button.")
+        public boolean moveInventoryButtonToSidebar = true;
+
+        @Config.Name("Inventory Tab Offset X")
+        @Config.Comment("Pixels added to the tab's X position (negative moves it left).")
+        @Config.RangeInt(min = -200, max = 200)
+        public int tabOffsetX = 0;
+
+        @Config.Name("Inventory Tab Offset Y")
+        @Config.Comment("Pixels added to the tab's Y position (negative moves it up).")
+        @Config.RangeInt(min = -200, max = 200)
+        public int tabOffsetY = 0;
+    }
+
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_spawning", category = "")
     public static class SpawningModuleConfig {
         @Config.Name("General")
@@ -2665,6 +3171,180 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Respite")
         @Config.Comment("Lethal-save effect knobs. Layout/cost stay under Perks.")
         public static final ReskillableRespite respite = new ReskillableRespite();
+
+        @Config.Name("Starter Combat Perks")
+        @Config.Comment("Effect knobs for the Warrior, Archer, Scout and Miner class perks (Riposte, Steady Draw, Fleetfoot, Vein Rhythm). Layout stays under Perks.")
+        public static final ReskillableStarterCombatPerks starterCombat = new ReskillableStarterCombatPerks();
+
+        @Config.Name("Starter Scholar Perks")
+        @Config.Comment("Effect knobs for the Scholar class perk Studious (three research cards and Steady Focus). Layout stays under Perks.")
+        public static final ReskillableStarterScholarPerks starterScholar = new ReskillableStarterScholarPerks();
+
+        @Config.Name("Starter Home Perks")
+        @Config.Comment("Effect knobs for the Homesteader class perk Hearthkeeper (Open Hearth, the home box, Carry the Warmth). Layout stays under Perks.")
+        public static final ReskillableStarterHomePerks starterHome = new ReskillableStarterHomePerks();
+    }
+
+    /** Studious effect numbers (starter-class plan 13 and 13.8). */
+    public static class ReskillableStarterScholarPerks {
+        @Config.Name("Studious Extra Choice")
+        @Config.Comment("A Scholar's theory starts with a few rounds that offer 3 cards instead of 2 (Thaumcraft bonusDraws).")
+        public boolean extraChoice = true;
+
+        @Config.Name("Studious Extra Choice Rounds")
+        @Config.Comment("How many rounds of a theory offer the third card when Studious Extra Choice is on.")
+        @Config.RangeInt(min = 0, max = 20)
+        public int extraChoiceRounds = 3;
+
+        @Config.Name("Eureka Lead Threshold")
+        @Config.Comment("Eureka is offered once the leading category has at least this much progress.")
+        @Config.RangeInt(min = 1, max = 200)
+        public int eurekaLeadThreshold = 30;
+
+        @Config.Name("Eureka Bonus")
+        @Config.Comment("Progress Eureka adds to the leading category. A normal Study card adds 15 to 25.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int eurekaBonus = 15;
+
+        @Config.Name("Eureka Inspiration Cost")
+        @Config.Comment("Inspiration Eureka costs. A normal card costs 1, so 0 is the refund of 1. Negative values give inspiration.")
+        @Config.RangeInt(min = -3, max = 3)
+        public int eurekaInspirationCost = 0;
+
+        @Config.Name("Cross-Reference Bonus")
+        @Config.Comment("Progress Cross-Reference adds to each category that already has progress.")
+        @Config.RangeInt(min = 0, max = 50)
+        public int crossReferenceBonus = 5;
+
+        @Config.Name("Cross-Reference Max Categories")
+        @Config.RangeInt(min = 1, max = 8)
+        public int crossReferenceMaxCategories = 4;
+
+        @Config.Name("Cross-Reference Min Categories")
+        @Config.Comment("Cross-Reference is offered once at least this many categories carry progress.")
+        @Config.RangeInt(min = 1, max = 8)
+        public int crossReferenceMinCategories = 2;
+
+        @Config.Name("Cross-Reference Inspiration Cost")
+        @Config.RangeInt(min = -3, max = 3)
+        public int crossReferenceInspirationCost = 1;
+
+        @Config.Name("Second Opinion Extra Draws")
+        @Config.Comment("Rounds that offer 3 cards, added to the theory when Second Opinion is played.")
+        @Config.RangeInt(min = 0, max = 10)
+        public int secondOpinionExtraDraws = 1;
+
+        @Config.Name("Second Opinion Progress")
+        @Config.Comment("Progress Second Opinion adds to the leading category.")
+        @Config.RangeInt(min = 0, max = 50)
+        public int secondOpinionProgress = 5;
+
+        @Config.Name("Second Opinion Inspiration Cost")
+        @Config.RangeInt(min = -3, max = 3)
+        public int secondOpinionInspirationCost = 0;
+
+        @Config.Name("Steady Focus Cooldown Reduction")
+        @Config.Comment("The Scholar's focus cooldowns are this much shorter (0.25 is 25% shorter). 0 turns it off.")
+        @Config.RangeDouble(min = 0.0D, max = 0.9D)
+        public double steadyFocusCooldownReduction = 0.25D;
+    }
+
+    /** Hearthkeeper effect numbers (starter-class plan 13.6). */
+    public static class ReskillableStarterHomePerks {
+        @Config.Name("Open Hearth Range")
+        @Config.Comment("Blocks around the Homesteader (same dimension) that count as nearby. 0 turns Open Hearth off.")
+        @Config.RangeDouble(min = 0.0D, max = 64.0D)
+        public double openHearthRange = 16.0D;
+
+        @Config.Name("Open Hearth Visitor Bonus")
+        @Config.Comment("Comfort score added for every other player (not a Homesteader) near a Homesteader.")
+        @Config.RangeDouble(min = 0.0D, max = 100.0D)
+        public double visitorBonus = 8.0D;
+
+        @Config.Name("Open Hearth Keeper Curve")
+        @Config.Comment("The Homesteader's own bonus for company: the first other player nearby adds the first number, the second the second, and so on.")
+        public double[] keeperCurve = {6.0D, 4.0D, 3.0D, 2.0D};
+
+        @Config.Name("Open Hearth Keeper Tail")
+        @Config.Comment("Bonus for each further player after the curve runs out.")
+        @Config.RangeDouble(min = 0.0D, max = 100.0D)
+        public double keeperTail = 1.0D;
+
+        @Config.Name("Open Hearth Keeper Cap")
+        @Config.Comment("The most the Homesteader's company bonus can reach. 0 or less means no cap.")
+        @Config.RangeDouble(min = 0.0D, max = 200.0D)
+        public double keeperCap = 15.0D;
+
+        @Config.Name("Home Box Score Bonus")
+        @Config.Comment("Anyone resting inside a Homesteader's home (the cached home area anchored on their bed, even while they are offline) gets this share of their cozy score on top. 0.15 is +15%.")
+        @Config.RangeDouble(min = 0.0D, max = 2.0D)
+        public double homeBoxScoreBonus = 0.15D;
+
+        @Config.Name("Carry the Warmth Extra")
+        @Config.Comment("Rested lasts this much longer after resting inside a Homesteader's home. 0.5 is half again as long. 0 turns it off.")
+        @Config.RangeDouble(min = 0.0D, max = 4.0D)
+        public double carryTheWarmthExtra = 0.5D;
+    }
+
+    /** Class-perk effect numbers (plan 13). Cell, enable flag and parent skill live in {@link ReskillablePerks}. */
+    public static class ReskillableStarterCombatPerks {
+        @Config.Name("Riposte Parry Window Ticks")
+        @Config.Comment("A hit counts as a parry when the shield was raised at most this many ticks before it.")
+        @Config.RangeInt(min = 1, max = 40)
+        public int riposteWindowTicks = 10;
+
+        @Config.Name("Riposte Stagger Ticks")
+        @Config.Comment("Stun applied to the attacker on a parry. 10 = half a second. 0 disables the stagger.")
+        @Config.RangeInt(min = 0, max = 200)
+        public int riposteStaggerTicks = 10;
+
+        @Config.Name("Riposte Free Parry Block")
+        @Config.Comment("A parried block costs no shield stamina.")
+        public boolean riposteFreeBlock = true;
+
+        @Config.Name("Steady Draw Full Draw Ticks")
+        @Config.Comment("Bow draw time at which the hold cost starts. Raise for modded bows that draw slower.")
+        @Config.RangeInt(min = 1, max = 200)
+        public int steadyDrawFullTicks = 20;
+
+        @Config.Name("Steady Draw Arrow Return Chance")
+        @Config.Comment("Chance 0..1 that an arrow which hit an entity is returned as an item at the target's feet.")
+        @Config.RangeDouble(min = 0.0D, max = 1.0D)
+        public double steadyDrawReturnChance = 0.75D;
+
+        @Config.Name("Fleetfoot Sneak Speed Restore")
+        @Config.Comment("Fraction of the vanilla sneak slowdown given back while sneaking (0.5 = half of the penalty).")
+        @Config.RangeDouble(min = 0.0D, max = 1.0D)
+        public double fleetfootSneakRestore = 0.5D;
+
+        @Config.Name("Fleetfoot Light Weapon Sprint Bonus")
+        @Config.Comment("Sprint speed bonus (fraction) while holding a LIGHT weapon or an empty hand.")
+        @Config.RangeDouble(min = 0.0D, max = 1.0D)
+        public double fleetfootSprintBonus = 0.10D;
+
+        @Config.Name("Fleetfoot Free Sprint Ticks")
+        @Config.Comment("Stamina-free ticks at the start of each sprint. 60 = 3 seconds.")
+        @Config.RangeInt(min = 0, max = 400)
+        public int fleetfootFreeSprintTicks = 60;
+
+        @Config.Name("Fleetfoot Free Sprint Rearm Ticks")
+        @Config.Comment("The free sprint start only applies after this many ticks of not sprinting, so stop-start sprinting cannot chain it.")
+        @Config.RangeInt(min = 0, max = 400)
+        public int fleetfootFreeSprintRearmTicks = 40;
+
+        @Config.Name("Vein Rhythm Window Ticks")
+        @Config.Comment("Breaks closer together than this keep the stacks. 40 = 2 seconds.")
+        @Config.RangeInt(min = 1, max = 400)
+        public int veinRhythmWindowTicks = 40;
+
+        @Config.Name("Vein Rhythm Max Stacks")
+        @Config.RangeInt(min = 1, max = 20)
+        public int veinRhythmMaxStacks = 5;
+
+        @Config.Name("Vein Rhythm Bonus Per Stack")
+        @Config.Comment("Break speed bonus per stack (0.04 = 4%).")
+        @Config.RangeDouble(min = 0.0D, max = 1.0D)
+        public double veinRhythmBonusPerStack = 0.04D;
     }
 
     public static class ReskillablePerks {
@@ -2688,9 +3368,13 @@ public class ArcanaQuestTweaksConfig {
         public ReskillablePerkLayout expertClimber = new ReskillablePerkLayout(
                 1, 2, 3, "reskillable:agility", "reskillable:agility|20");
 
+        @Config.Name("Marathon Runner")
+        public ReskillablePerkLayout marathonRunner = new ReskillablePerkLayout(
+                3, 3, 3, "reskillable:agility", "reskillable:agility|16");
+
         @Config.Name("Cardio Master")
         public ReskillablePerkLayout cardioMaster = new ReskillablePerkLayout(
-                3, 3, 3, "reskillable:agility", "reskillable:agility|20");
+                4, 3, 4, "reskillable:agility", "reskillable:agility|24", "trait|aqtweaks:marathon_runner");
 
         @Config.Name("Mining Expert")
         public ReskillablePerkLayout miningExpert = new ReskillablePerkLayout(
@@ -2714,7 +3398,7 @@ public class ArcanaQuestTweaksConfig {
 
         @Config.Name("Mining Efficiency")
         public ReskillablePerkLayout miningEfficiency = new ReskillablePerkLayout(
-                2, 3, 3, "reskillable:mining", "reskillable:mining|16");
+                2, 3, 3, "reskillable:mining", "reskillable:mining|8");
 
         @Config.Name("Precision Shot")
         public ReskillablePerkLayout precisionShot = new ReskillablePerkLayout(
@@ -2726,7 +3410,7 @@ public class ArcanaQuestTweaksConfig {
 
         @Config.Name("Gathering Efficiency")
         public ReskillablePerkLayout gatheringEfficiency = new ReskillablePerkLayout(
-                2, 3, 2, "reskillable:gathering", "reskillable:gathering|12");
+                2, 3, 2, "reskillable:gathering", "reskillable:gathering|8");
 
         @Config.Name("Bountiful Harvest")
         public ReskillablePerkLayout bountifulHarvest = new ReskillablePerkLayout(
@@ -2892,6 +3576,14 @@ public class ArcanaQuestTweaksConfig {
         public ReskillablePerkLayout lumberjack = new ReskillablePerkLayout(
                 4, 2, 3, "reskillable:gathering", "reskillable:gathering|16");
 
+        @Config.Name("Heartwood")
+        public ReskillablePerkLayout heartwood = new ReskillablePerkLayout(
+                3, 2, 3, "reskillable:gathering", "reskillable:gathering|16");
+
+        @Config.Name("Forager")
+        public ReskillablePerkLayout forager = new ReskillablePerkLayout(
+                1, 1, 1, "reskillable:farming", "reskillable:farming|4");
+
         @Config.Name("Reforester")
         public ReskillablePerkLayout reforester = new ReskillablePerkLayout(
                 1, 2, 2, "reskillable:gathering", "reskillable:gathering|12");
@@ -2923,6 +3615,10 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Seed Harvester")
         public ReskillablePerkLayout seedHarvester = new ReskillablePerkLayout(
                 0, 1, 2, "reskillable:farming", "reskillable:farming|12");
+
+        @Config.Name("Weapon Tempo")
+        public ReskillablePerkLayout weaponTempo = new ReskillablePerkLayout(
+                3, 2, 4, "reskillable:attack", "reskillable:attack|24", "trait|aqtweaks:melee_efficiency");
 
         @Config.Name("Finisher")
         public ReskillablePerkLayout finisher = new ReskillablePerkLayout(
@@ -2979,6 +3675,32 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Slow Fall")
         public ReskillablePerkLayout slowFall = new ReskillablePerkLayout(
                 4, 1, 3, "reskillable:agility", "reskillable:agility|12");
+
+        // Starter class perks (ClassPerkSupport): free, unobtainable otherwise. Cost and requirements are forced; only
+        // the cell, parent skill and enable flag matter. Cells chosen free of every Tweaks and stock perk (2026-11-18).
+        @Config.Name("Riposte")
+        public ReskillablePerkLayout riposte = new ReskillablePerkLayout(
+                1, 1, 0, "reskillable:defense");
+
+        @Config.Name("Steady Draw")
+        public ReskillablePerkLayout steadyDraw = new ReskillablePerkLayout(
+                4, 2, 0, "reskillable:attack");
+
+        @Config.Name("Fleetfoot")
+        public ReskillablePerkLayout fleetfoot = new ReskillablePerkLayout(
+                2, 3, 0, "reskillable:agility");
+
+        @Config.Name("Vein Rhythm")
+        public ReskillablePerkLayout veinRhythm = new ReskillablePerkLayout(
+                2, 2, 0, "reskillable:mining");
+
+        @Config.Name("Studious")
+        public ReskillablePerkLayout studious = new ReskillablePerkLayout(
+                1, 3, 0, "reskillable:magic");
+
+        @Config.Name("Hearthkeeper")
+        public ReskillablePerkLayout hearthkeeper = new ReskillablePerkLayout(
+                1, 1, 0, "reskillable:building");
     }
 
     public static class ReskillableRespite {
@@ -3012,6 +3734,19 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Enable Reskillable Bonuses")
         @Config.Comment("If false, no per-level attributes, harvest extras, magic multiply, or EB building bonuses.")
         public boolean enable = true;
+
+        @Config.Name("Toggleable Perks")
+        @Config.Comment("Unlocked perks the player can switch on and off by left-clicking them in the Reskillable skill screen (the choice survives death and relog; refunding the perk resets it to on). Only aqtweaks: perks whose effect Tweaks implements work; other ids are ignored with a warning. If you remove a perk here, also remove 'Can be toggled on and off.' from its description in en_us.lang.")
+        public String[] toggleablePerks = {
+                "aqtweaks:dark_vision",
+                "aqtweaks:tunnel_sense",
+                "aqtweaks:power_attack",
+                "aqtweaks:respite",
+                "aqtweaks:low_profile",
+                "aqtweaks:taunt",
+                "aqtweaks:full_font",
+                "aqtweaks:sower"
+        };
     }
 
     public static class ReskillableAttack {
@@ -3078,6 +3813,16 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Chance of +1 forage / extra wool / extra fish. 0.00625 → 10% at 16, 20% at 32. Not ores, not crops.")
         @Config.RangeDouble(min = 0.0, max = 1.0)
         public double extraDropChancePerLevel = 0.00625;
+
+        @Config.Name("Heartwood Chance Per Level")
+        @Config.Comment("Heartwood: chance of one extra log per harvested log = Gathering level x this (0.02 -> 32% at 16, 64% at 32).")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public double heartwoodChancePerLevel = 0.02;
+
+        @Config.Name("Lumberjack Speed Multiplier")
+        @Config.Comment("Lumberjack: logs break this many times faster (2.0 = half the time), also for whole trees felled by Tree Chopper.")
+        @Config.RangeDouble(min = 1.0, max = 10.0)
+        public double lumberjackSpeedMultiplier = 2.0;
 
         @Config.Name("Reforester Chance Per Level")
         @Config.Comment("Reforester: chance per broken leaf of a sapling = Gathering level x this, capped at 1. 0.03 -> 36% at 12, 96% at 32. Ignored when Reforester Guaranteed is on.")
@@ -3700,6 +4445,11 @@ public class ArcanaQuestTweaksConfig {
         @Config.RangeDouble(min = 0.0D, max = 40.0D)
         public double lightningInsulatedDamage = 2.0D;
 
+        @Config.Name("Lightning Stun Ticks")
+        @Config.Comment("A primary bolt also stuns what it hits for this many ticks (no attacks or item use, Slowness I speed), on top of the Slowness. 0 turns the stun off. Secondary bolts never stun.")
+        @Config.RangeInt(min = 0, max = 200)
+        public int lightningStunTicks = 20;
+
         @Config.Name("Enable Squall Particles")
         @Config.Comment("Client: cloud wisps along the gust and the lightning telegraph effects.")
         public boolean enableSquallParticles = true;
@@ -3738,16 +4488,16 @@ public class ArcanaQuestTweaksConfig {
 
         @Config.Name("Unprotected Magic Scour Damage")
         @Config.RangeDouble(min = 0.0D, max = 40.0D)
-        public double scourUnprotected = 3.0D;
+        public double scourUnprotected = 5.0D;
 
         @Config.Name("Proper Gear Magic Scour Damage")
         @Config.RangeDouble(min = 0.0D, max = 40.0D)
-        public double scourProper = 1.0D;
+        public double scourProper = 3.0D;
 
         @Config.Name("Scour Interval Seconds")
         @Config.Comment("Seconds between scour hits while exposed (the damage above is per hit, scaled by exposure and biome intensity). Biome extras, fire and warp have their own 4 second timer.")
         @Config.RangeInt(min = 1, max = 60)
-        public int scourIntervalSeconds = 8;
+        public int scourIntervalSeconds = 4;
 
         @Config.Name("Fade Height Blocks")
         @Config.Comment("The effect fades linearly to nothing this many blocks above the reference point.")
@@ -3762,22 +4512,12 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Exposure Grace Ticks")
         @Config.Comment("Delay before the first scour hit after a player becomes exposed.")
         @Config.RangeInt(min = 0, max = 400)
-        public int graceTicks = 40;
+        public int graceTicks = 80;
 
         @Config.Name("Hunger Burn")
         @Config.Comment("Exhaustion added each second at full exposure (proper gear takes 40%).")
         @Config.RangeDouble(min = 0.0D, max = 10.0D)
         public double hungerBurn = 0.25D;
-
-        @Config.Name("Warp Chance")
-        @Config.Comment("Chance per scour hit to absorb 1 temporary warp (Thaumcraft).")
-        @Config.RangeDouble(min = 0.0D, max = 1.0D)
-        public double warpChance = 0.25D;
-
-        @Config.Name("Warp Cap Per Surge")
-        @Config.Comment("Most temporary warp the hazard itself (hits and backlash) gives one player in one surge.")
-        @Config.RangeInt(min = 0, max = 20)
-        public int warpCapPerSurge = 1;
 
         @Config.Name("Enable Surge Exposure Updraft")
         @Config.Comment("After continuous outdoor surge exposure, roll once per exposure for a weighted updraft outcome (none, Flight + Slowfall, or Levitation + Slowfall).")
@@ -3791,17 +4531,17 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Surge Updraft Weight None")
         @Config.Comment("Relative weight for no additional effect when the updraft roll triggers.")
         @Config.RangeInt(min = 0, max = 100)
-        public int surgeWeightNone = 1;
+        public int surgeWeightNone = 0;
 
         @Config.Name("Surge Updraft Weight Flight")
         @Config.Comment("Relative weight for granting Flight + Slowfall when the updraft roll triggers.")
         @Config.RangeInt(min = 0, max = 100)
-        public int surgeWeightFlight = 2;
+        public int surgeWeightFlight = 1;
 
         @Config.Name("Surge Updraft Weight Levitation")
         @Config.Comment("Relative weight for granting Levitation + Slowfall when the updraft roll triggers.")
         @Config.RangeInt(min = 0, max = 100)
-        public int surgeWeightLevitation = 2;
+        public int surgeWeightLevitation = 1;
 
         @Config.Name("Surge Flight Duration Seconds")
         @Config.Comment("Duration in seconds of the Flight effect granted by the updraft roll.")
@@ -3830,7 +4570,8 @@ public class ArcanaQuestTweaksConfig {
         @Config.Comment("Twilight Forest feature names whose structure bounds shelter a player.")
         public String[] shelterFeatures = new String[] {
                 "LICH_TOWER", "KNIGHT_STRONGHOLD", "LABYRINTH", "DARK_TOWER", "ICE_TOWER", "FINAL_CASTLE",
-                "MUSHROOM_TOWER", "WORLD_TREE"
+                "MUSHROOM_TOWER", "WORLD_TREE", "HEDGE_MAZE", "NAGA_COURTYARD", "DRUID_GROVE", "HYDRA_LAIR", "YETI_CAVE",
+                "TROLL_CAVE", "FLOATING_RUINS", "QUEST_ISLAND", "QUEST_GROVE"
         };
 
         @Config.Name("Enable Spell Backlash")
@@ -3842,7 +4583,7 @@ public class ArcanaQuestTweaksConfig {
         public double backlashDamage = 3.0D;
 
         @Config.Name("Backlash Warp")
-        @Config.Comment("Temporary warp for a Thaumcraft caster's backlash (counts against Warp Cap Per Surge).")
+        @Config.Comment("Temporary warp for each overchanneled Thaumcraft cast (no per-surge cap; players only).")
         @Config.RangeInt(min = 0, max = 10)
         public int backlashWarp = 1;
 
@@ -3852,6 +4593,35 @@ public class ArcanaQuestTweaksConfig {
 
         @Config.Name("Backlash Cancels Use")
         public boolean backlashCancelsUse = false;
+
+        @Config.Name("Enable Overchannel")
+        @Config.Comment("While exposed in an active surge, focus casts have their power multiplied but cost backlash damage and temporary warp (Aegis costs warp only).")
+        public boolean enableOverchannel = true;
+
+        @Config.Name("Overchannel Power Multiplier")
+        @Config.RangeDouble(min = 1.0D, max = 10.0D)
+        public double overchannelMultiplier = 2.0D;
+
+        @Config.Name("Overchannel Applies To Mobs")
+        @Config.Comment("Mob casters (Battlemages) are overchanneled too and take the backlash damage, never warp.")
+        public boolean overchannelMobs = true;
+
+        @Config.Name("Overchannel Channel Interval Min Ticks")
+        @Config.Comment("Aegis hold: ticks between warp payments while the shield stays raised in a surge (a fresh value between min and max each payment).")
+        @Config.RangeInt(min = 1, max = 400)
+        public int overchannelChannelMinTicks = 20;
+
+        @Config.Name("Overchannel Channel Interval Max Ticks")
+        @Config.RangeInt(min = 1, max = 400)
+        public int overchannelChannelMaxTicks = 30;
+
+        @Config.Name("Surge Stops Shield Recharge")
+        @Config.Comment("While exposed in an active surge a player's runic shield does not recharge (Thaumcraft's refill is skipped).")
+        public boolean surgeStopsShieldRecharge = true;
+
+        @Config.Name("Surge Stops Mob Shield Recharge")
+        @Config.Comment("The same for Battlemage shields.")
+        public boolean surgeStopsMobShieldRecharge = true;
 
         @Config.Name("Magic Item Patterns")
         @Config.Comment("Registry names (wildcards supported) of magic items besides Thaumcraft casters and Botania mana-using items.")
@@ -3893,29 +4663,39 @@ public class ArcanaQuestTweaksConfig {
         @Config.RangeDouble(min = 0.0D, max = 1.0D)
         public double chargeMinExposure = 0.25D;
 
-        @Config.Name("Charge Pulse Seconds")
-        @Config.RangeInt(min = 1, max = 60)
-        public int chargePulseSeconds = 10;
+        @Config.Name("Mana Per Cycle")
+        @Config.Comment("Mana added to each carried Botania mana item every charge cycle (one scour interval) at full exposure. About 45 cycles per surge.")
+        @Config.RangeInt(min = 0, max = 10000000)
+        public int manaPerCycle = 5500;
 
-        @Config.Name("Charge Percent Per Pulse")
-        @Config.RangeDouble(min = 0.0D, max = 100.0D)
-        public double chargePercent = 6.0D;
+        @Config.Name("Ember Per Cycle")
+        @Config.Comment("Ember added to each carried Embers item every charge cycle at full exposure.")
+        @Config.RangeDouble(min = 0.0D, max = 1000000.0D)
+        public double emberPerCycle = 50.0D;
 
-        @Config.Name("Charge Warp")
-        @Config.RangeInt(min = 0, max = 10)
-        public int chargeWarp = 1;
+        @Config.Name("Vis Per Cycle")
+        @Config.Comment("Charge added to each Thaumcraft rechargeable item and each Thaumic Augmentation vis augment every charge cycle at full exposure.")
+        @Config.RangeInt(min = 0, max = 1000)
+        public int visPerCycle = 8;
 
-        @Config.Name("Charge Warp Cap Per Surge")
-        @Config.RangeInt(min = 0, max = 100)
-        public int chargeWarpCap = 12;
+        @Config.Name("Warp Temp Cycles")
+        @Config.Comment("Exposed cycles per 1 temporary warp (the buildup meter). Each cycle spent out of the surge takes 1 back off.")
+        @Config.RangeInt(min = 1, max = 1000)
+        public int warpTempCycles = 4;
+
+        @Config.Name("Warp Normal Cycles")
+        @Config.Comment("Exposed cycles per 1 normal (sticky) warp.")
+        @Config.RangeInt(min = 1, max = 1000)
+        public int warpNormalCycles = 40;
 
         @Config.Name("Charge Vis Batteries")
         @Config.Comment("Thaumcraft Vis Batteries placed in an exposed spot gain charge during a surge.")
         public boolean chargeVisBatteries = true;
 
-        @Config.Name("Battery Levels Per Pulse")
-        @Config.RangeInt(min = 0, max = 10)
-        public int batteryLevelsPerPulse = 1;
+        @Config.Name("Battery Levels Per Cycle")
+        @Config.Comment("Vis Battery levels (placed and held) gained per charge cycle at full exposure; 0.25 is one level per four cycles.")
+        @Config.RangeDouble(min = 0.0D, max = 10.0D)
+        public double batteryLevelsPerCycle = 0.25D;
 
         @Config.Name("Battery Flux Per Level")
         @Config.Comment("Flux added to the chunk aura for each charge level added to a battery.")
@@ -4038,11 +4818,23 @@ public class ArcanaQuestTweaksConfig {
         public int gravititeFloatDurability = 4;
     }
 
-    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_weapon", category = "")
-    public static class InfinityBladeModuleConfig {
-        @Config.Name("General")
+    @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_additions", category = "")
+    public static class AdditionsModuleConfig {
+        @Config.Name("Infinity Blade")
         @Config.Comment("Infinity Blade weapon settings.")
-        public static final InfinityBladeGeneral general = new InfinityBladeGeneral();
+        public static final InfinityBladeGeneral infinityBlade = new InfinityBladeGeneral();
+
+        @Config.Name("Nameless Vessel")
+        @Config.Comment("Stage 1 boss settings for The Nameless Vessel (aqtweaks:nameless_vessel).")
+        public static final NamelessVesselConfig namelessVessel = new NamelessVesselConfig();
+
+        @Config.Name("Nameless One")
+        @Config.Comment("Stage 2 boss settings for The Nameless One (aqtweaks:nameless_one).")
+        public static final NamelessOneConfig namelessOne = new NamelessOneConfig();
+
+        @Config.Name("Drops & Spawning")
+        @Config.Comment("Loot and transition settings for additions bosses.")
+        public static final AdditionsDropsConfig drops = new AdditionsDropsConfig();
     }
 
     public static class InfinityBladeGeneral {
@@ -4068,6 +4860,135 @@ public class ArcanaQuestTweaksConfig {
         @Config.Name("Enable Default Recipe")
         @Config.Comment("When true, registers a placeholder shaped recipe (8 Nether Stars around a Diamond Sword). Off by default: the real crafting method is undecided, so define the recipe with CraftTweaker or JSON instead. Needs a restart. [default: false]")
         public boolean enableDefaultRecipe = false;
+    }
+
+    public static class NamelessVesselConfig {
+        @Config.Name("Enable Nameless Vessel")
+        @Config.Comment("Register The Nameless Vessel (Stage 1) when SauriaLib 3 and Thaumcraft are loaded. Requires a restart. [default: true]")
+        @Config.RequiresMcRestart
+        public boolean enable = true;
+
+        @Config.Name("Max Health")
+        @Config.Comment("Maximum health of The Nameless Vessel. [default: 450.0]")
+        @Config.RangeDouble(min = 10.0D, max = 100000.0D)
+        public double maxHealth = 450.0D;
+
+        @Config.Name("Armor")
+        @Config.Comment("Armor points of The Nameless Vessel. [default: 8.0]")
+        @Config.RangeDouble(min = 0.0D, max = 100.0D)
+        public double armor = 8.0D;
+
+        @Config.Name("Armor Toughness")
+        @Config.Comment("Armor toughness of The Nameless Vessel. [default: 4.0]")
+        @Config.RangeDouble(min = 0.0D, max = 100.0D)
+        public double armorToughness = 4.0D;
+
+        @Config.Name("Knockback Resistance")
+        @Config.Comment("Knockback resistance of The Nameless Vessel (0.0 to 1.0). [default: 0.85]")
+        @Config.RangeDouble(min = 0.0D, max = 1.0D)
+        public double knockbackResistance = 0.85D;
+
+        @Config.Name("Melee Attack Damage")
+        @Config.Comment("Base melee claw swipe damage of The Nameless Vessel. [default: 12.0]")
+        @Config.RangeDouble(min = 1.0D, max = 10000.0D)
+        public double attackDamage = 12.0D;
+
+        @Config.Name("Movement Speed")
+        @Config.Comment("Hovering glide movement speed of The Nameless Vessel. [default: 0.35]")
+        @Config.RangeDouble(min = 0.05D, max = 2.0D)
+        public double moveSpeed = 0.35D;
+
+        @Config.Name("Follow Range")
+        @Config.Comment("Target detection and tracking range in blocks. [default: 48.0]")
+        @Config.RangeDouble(min = 8.0D, max = 128.0D)
+        public double followRange = 48.0D;
+
+        @Config.Name("Single Hit Damage Cap")
+        @Config.Comment("Maximum damage The Nameless Vessel can take from a single hit before eruption. [default: 100.0]")
+        @Config.RangeDouble(min = 1.0D, max = 100000.0D)
+        public double damageCap = 100.0D;
+
+        @Config.Name("Eruption Transition Ticks")
+        @Config.Comment("Duration in ticks of the Stage 1 -> Stage 2 eruption sequence (30 ticks = 1.5s). [default: 30]")
+        @Config.RangeInt(min = 10, max = 200)
+        public int eruptionTicks = 30;
+    }
+
+    public static class NamelessOneConfig {
+        @Config.Name("Enable Nameless One")
+        @Config.Comment("Register The Nameless One (Stage 2) when SauriaLib 3 and Thaumcraft are loaded. Requires a restart. [default: true]")
+        @Config.RequiresMcRestart
+        public boolean enable = true;
+
+        @Config.Name("Max Health")
+        @Config.Comment("Maximum health of The Nameless One. [default: 1200.0]")
+        @Config.RangeDouble(min = 10.0D, max = 100000.0D)
+        public double maxHealth = 1200.0D;
+
+        @Config.Name("Armor")
+        @Config.Comment("Armor points of The Nameless One. [default: 12.0]")
+        @Config.RangeDouble(min = 0.0D, max = 100.0D)
+        public double armor = 12.0D;
+
+        @Config.Name("Armor Toughness")
+        @Config.Comment("Armor toughness of The Nameless One. [default: 8.0]")
+        @Config.RangeDouble(min = 0.0D, max = 100.0D)
+        public double armorToughness = 8.0D;
+
+        @Config.Name("Knockback Resistance")
+        @Config.Comment("Knockback resistance of The Nameless One (0.0 to 1.0). [default: 1.0]")
+        @Config.RangeDouble(min = 0.0D, max = 1.0D)
+        public double knockbackResistance = 1.0D;
+
+        @Config.Name("Melee Attack Damage")
+        @Config.Comment("Base melee claw swipe damage of The Nameless One. [default: 18.0]")
+        @Config.RangeDouble(min = 1.0D, max = 10000.0D)
+        public double attackDamage = 18.0D;
+
+        @Config.Name("Movement Speed")
+        @Config.Comment("Hovering glide movement speed of The Nameless One. [default: 0.40]")
+        @Config.RangeDouble(min = 0.05D, max = 2.0D)
+        public double moveSpeed = 0.40D;
+
+        @Config.Name("Follow Range")
+        @Config.Comment("Target detection and tracking range in blocks. [default: 64.0]")
+        @Config.RangeDouble(min = 8.0D, max = 128.0D)
+        public double followRange = 64.0D;
+
+        @Config.Name("Single Hit Damage Cap")
+        @Config.Comment("Maximum damage The Nameless One can take from a single hit. [default: 150.0]")
+        @Config.RangeDouble(min = 1.0D, max = 100000.0D)
+        public double damageCap = 150.0D;
+
+        @Config.Name("Void Aegis Absorption")
+        @Config.Comment("Absorption HP granted per Void Aegis activation (Phase E). [default: 100.0]")
+        @Config.RangeDouble(min = 0.0D, max = 10000.0D)
+        public double voidAegisAbsorption = 100.0D;
+
+        @Config.Name("Stagger Slump Damage Multiplier")
+        @Config.Comment("Damage multiplier applied only while The Nameless One is in the held slump portion of its stagger animation (ticks 9-59 / 2.5s). [default: 1.5]")
+        @Config.RangeDouble(min = 1.0D, max = 5.0D)
+        public double staggerDamageMultiplier = 1.5D;
+
+        @Config.Name("Spawn Invulnerability Ticks")
+        @Config.Comment("Ticks of invulnerability while emerging from The Nameless Vessel (44 ticks = 2.2s animation). [default: 40]")
+        @Config.RangeInt(min = 0, max = 200)
+        public int spawnInvulnTicks = 40;
+
+        @Config.Name("Death Sequence Ticks")
+        @Config.Comment("Duration in ticks of the 3-beat death sequence before entity removal (90 ticks = 4.5s). [default: 90]")
+        @Config.RangeInt(min = 20, max = 400)
+        public int deathTicks = 90;
+    }
+
+    public static class AdditionsDropsConfig {
+        @Config.Name("Spawn Stage 2 On Vessel Defeat")
+        @Config.Comment("When true, defeating The Nameless Vessel triggers its 1.5s eruption and spawns The Nameless One at its position. [default: true]")
+        public boolean spawnStage2OnVesselDefeat = true;
+
+        @Config.Name("Nameless One Drop Items")
+        @Config.Comment("Optional list of guaranteed item drops when The Nameless One dies (format: modid:item[:meta][*count], e.g. thaumcraft:primordial_pearl*1). Empty by default.")
+        public String[] namelessOneDrops = new String[0];
     }
 
     @Config(modid = ArcanaQuestTweaks.MODID, name = "arcanaquesttweaks/aqtweaks_rarity", category = "")

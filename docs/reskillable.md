@@ -102,6 +102,7 @@ Register in **preInit** (`ReskillablePerkRegistry`). CAD `getTraitConfig` still 
 | Id | Skill | Default cell | Cost | Req |
 | --- | --- | --- | --- | --- |
 | `aqtweaks:melee_efficiency` | attack | 2,2 | 3 | attack 16, agility 12 |
+| `aqtweaks:weapon_tempo` | attack | 3,2 | 4 | attack 24, trait Melee Efficiency |
 | `aqtweaks:ranged_efficiency` | attack | 2,3 | 3 | attack 16, agility 12 |
 | `aqtweaks:power_attack` | attack | 2,1 | 2 | attack 12 |
 | `aqtweaks:shield_efficiency` | defense | 2,2 | 2 | defense 12 |
@@ -110,7 +111,8 @@ Register in **preInit** (`ReskillablePerkRegistry`). CAD `getTraitConfig` still 
 | `aqtweaks:adrenaline` | agility | 2,1 | 3 | agility 16, defense 12 |
 | `aqtweaks:evasion` | agility | 3,2 | 3 | agility 16 |
 | `aqtweaks:expert_climber` | agility | 1,2 | 3 | agility 20 |
-| `aqtweaks:cardio_master` | agility | 3,3 | 3 | agility 20 |
+| `aqtweaks:marathon_runner` | agility | 3,3 | 3 | agility 16 |
+| `aqtweaks:cardio_master` | agility | 4,3 | 4 | agility 24, `trait|aqtweaks:marathon_runner` |
 | `aqtweaks:mining_efficiency` | mining | 2,3 | 3 | mining 16 |
 | `aqtweaks:mining_expert` | mining | 3,3 | 4 | mining 24 |
 | `aqtweaks:precision_shot` | attack | 3,3 | 2 | attack 12, agility 16 |
@@ -118,6 +120,8 @@ Register in **preInit** (`ReskillablePerkRegistry`). CAD `getTraitConfig` still 
 | `aqtweaks:gathering_efficiency` | gathering | 2,3 | 2 | gathering 12 |
 | `aqtweaks:herd_abundance` | gathering | 2,2 | 3 | gathering 16, farming 12 |
 | `aqtweaks:water_collector` | gathering | 3,1 | 3 | gathering 16 |
+| `aqtweaks:heartwood` | gathering | 3,2 | 3 | gathering 16 |
+| `aqtweaks:forager` | farming | 1,1 | 1 | farming 4 |
 | `aqtweaks:bountiful_harvest` | farming | 2,2 | 3 | farming 16 |
 | `aqtweaks:rancher` | farming | 2,1 | 3 | farming 16, gathering 12 |
 | `aqtweaks:iron_gut` | farming | 2,3 | 2 | farming 12 |
@@ -144,6 +148,12 @@ Register in **preInit** (`ReskillablePerkRegistry`). CAD `getTraitConfig` still 
 | `aqtweaks:artificer` | magic | 0,0 | 3 | magic 20, not the other schools |
 | `aqtweaks:live_spark` | magic | 1,0 | 1 | Artificer |
 | `aqtweaks:cinder_ward` | magic | 2,0 | 1 | Artificer |
+| `aqtweaks:riposte` | defense | 1,1 | 0 (class perk) | not buyable |
+| `aqtweaks:steady_draw` | attack | 4,2 | 0 (class perk) | not buyable |
+| `aqtweaks:fleetfoot` | agility | 2,3 | 0 (class perk) | not buyable |
+| `aqtweaks:vein_rhythm` | mining | 2,2 | 0 (class perk) | not buyable |
+| `aqtweaks:studious` | magic | 1,3 | 0 (class perk) | not buyable |
+| `aqtweaks:hearthkeeper` | building | 1,1 | 0 (class perk) | not buyable |
 
 CAD stock costs are stamped on the same LOWEST pass. Hillwalker is **4**. Drop Guarantee stays **4**. Elenai dodge is **2**. Safe Port is **2** at magic 12, agility 12, defense 12. Golden Osmosis is **2** at magic 8, with mining, gathering, and attack still at 6.
 
@@ -151,7 +161,12 @@ Precision Shot: full-draw `ItemBow` (`ArrowLooseEvent` charge ≥ 20) stamps the
 
 Herbalist: always +1 on listed block namespaces. Bountiful Harvest: always +1 mature food crops; not melon/pumpkin; not Herbalist namespaces.
 
-Gathering Efficiency: −1 forage `BreakEvent` stamina only.
+Mining Efficiency: non-forage blocks bill stamina every `Mining Efficiency Interval Ticks` (20) instead of every 15, 25% less.
+
+Gathering Efficiency: forage blocks (logs, leaves, gravel, mushrooms) bill stamina every `Gathering Efficiency Interval Ticks` (20) instead of every 15, 25% less (hold billing, see [stamina.md](stamina.md)).
+
+Forager: plant blocks (`ForagerBlocks.isPlant`: bushes, plantables, plant or vine material, grown pumpkins and melons, `Forager Free Blocks`) cost no stamina; without it a hardness 0 block costs the flat `Plant Break Cost` (1). Heartwood: the extra-log roll that Lumberjack had (gathering x 0.02 per log). Lumberjack: `LumberjackSpeed` multiplies the log break speed at LOWEST priority on both sides (the client decides when a dig is finished; Tree Chopper sets original speed divided by the log count, so a tree digs in half the time).
+
 
 Rancher: tended Animania (`handFed` or `interacted`) within 16 of the perk player get one extra clock step per living tick, applied as 20 steps once per second. Gestation stops at 1 so Animania can birth on its own step to 0. Dry stops at -1. Wool and hen lay stop at 0. Age and drink recovery have no Tweaks floor. Mating AI delay is unchanged. No extra milk bucket.
 
@@ -189,7 +204,8 @@ Drop spikes use `skillLevel × 0.02`, one extra item. The forage and farming dri
 | `motherlode` | mining | 3 | mining 16 |
 | `lithomancy` | mining | 3 | mining 16, magic 12 |
 | `stone_cleaver` | mining | 4 | mining 20 |
-| `lumberjack` | gathering | 3 | gathering 16 (+1 log, gathering x 2% per log; also on Tree Chopper trees) |
+| `lumberjack` | gathering | 3 | gathering 16 (logs break `Lumberjack Speed Multiplier` (2.0) times faster, both sides, also Tree Chopper trees; the extra-log roll moved to Heartwood on 2026-11-20) |
+| `heartwood` | gathering | 3 | gathering 16 (+1 log, gathering x `Heartwood Chance Per Level` (0.02) per log; also on Tree Chopper trees) |
 | `reforester` | gathering | 2 | gathering 12 (sapling chance per leaf = gathering x `Reforester Chance Per Level`, default 0.03; `Reforester Guaranteed` restores one per leaf; `Reforester Max Per Tree` default 64) |
 | `sifter` | gathering | 2 | gathering 8 |
 | `wood_splitter` | gathering | 4 | gathering 20 |
@@ -240,6 +256,68 @@ Mining Expert: `PlayerEvent.HarvestCheck` client+server. Pickaxe tool class, blo
 
 Lang: `reskillable.unlock.aqtweaks.<path>` / `.desc`. Icons: `aqtweaks:textures/unlockables/<path>.png` (no leftover slash-square placeholders). Adrenaline / Evasion / Respite cooldown HUD uses the same PNG as the trait.
 
+## Perk toggling
+
+Some perks can be switched on and off by the player. Left-click (no Shift) an **unlocked** toggleable perk in Reskillable's skill screen (`GuiSkillInfo`): the perk stops working (a dark tile with "OFF", and the tooltip says Disabled); click again to switch it back on. Shift+Left-click refund and Right-click back are unchanged. The perks stay unlocked, so Reskillable's own `trait|` prerequisites still count them. Refunding a perk resets it to on. There is no command or keybind.
+
+- **Which perks:** `Toggleable Perks` in `aqtweaks_reskillable.cfg` (General). Default: Dark Vision and Tunnel Sense (Mining), Power Attack (Attack), Respite, Low Profile and Taunt (Defense), Full Font (Magic), Sower (Farming). Their descriptions end with "Can be toggled on and off." (static lang text: edit it too if you change the list). Only `aqtweaks:` perks whose effect Tweaks implements through `PerkAccess` work; other ids are ignored. Perks Reskillable implements itself (the `stamp(...)` ones) cannot be toggled.
+- **Enforcement:** `PerkAccess.has` (and so `PerkAccess.on` and `StaminaPerks.unlocked`) returns false for a toggleable perk the player switched off. `PerkAccess.unlocked` ignores the toggle (used by the toggle packet and the unlock check).
+- **State:** `PerkToggleState` stores the disabled ids in the player's persisted NBT (`AQTDisabledPerks`, survives death, relog and dimension change). The client keeps a mirror of the **local player's** list (`PacketSyncPerkToggles`, cleared on disconnect); other players read as enabled on your client. `Dark Vision` is client-side, which is why the mirror exists.
+- **Packets:** 21 `PacketTogglePerk` (server; validated: toggleable, unlocked, not spectator), 22 `PacketSyncPerkToggles` (client; sent on login, respawn, dimension change, after a toggle, after a refund clears the flag).
+- **Code:** `reskillable/ToggleablePerks`, `PerkToggleState`, `PerkToggleEvents` (also clears the flag on `LockUnlockableEvent.Post` and re-applies attribute perks after a toggle), `reskillable/client/PerkToggleClient`, `mixin/reskillable/MixinGuiSkillInfo` (`mixins.aqtweaks.reskillable.json`: click hook on SRG `func_73864_a`, icon overlay by redirecting the icon draw in `drawUnlockable`, status line by redirecting `RenderHelper.renderTooltip` in `makeUnlockableTooltip`).
+- **Verify:** unlock Tunnel Sense, left-click it in the Mining screen: tile shows OFF, tooltip says Disabled, hostiles no longer ping; relog and die: still off; Shift+Left-click refund and re-buy: on again; a non-toggleable perk ignores the click.
+
+## Starter class perks
+
+Six class-exclusive perks, one per starter class (`.plans/archive/20261103-1255-starter-class-selection-gui.md` sections 12.9 and 13). A class grants its perk with `PlayerSkillInfo.unlock`, which does not check requirements.
+
+**Exclusivity (`ClassPerkSupport`).** `ClassPerkSupport.register(registry, path, layout)` registers an `AqtweaksTrait` with cost 0 and one requirement, `adv|aqtweaks:class_only` (`ReskillableAPI` registers the `adv` prefix; an unknown advancement is never achieved and its tooltip prints an empty name, so the skill screen shows the perk locked and unbuyable). `LockUnlockableEvent.Pre` is cancelled for these perks, so nobody can give one back. A LOWEST registry pass stamps cost 0 and the requirement again in case Reskillable's own config pass rewrote them. `/reskillable resetskill` and `resetall` still clear them (`respec`); the starter module's `/aqclass regrant` restores them. Only the cell, parent skill and `Enable` come from `aqtweaks_reskillable.cfg` Perks; cost and requirements are forced.
+
+| Perk | Class / skill | Effect | Notes |
+| --- | --- | --- | --- |
+| Riposte | Warrior / Defense | A shield raised at most `Riposte Parry Window Ticks` (10) before a hit parries it: the attacker is Stunned `Riposte Stagger Ticks` (10), the shield hold timer restarts (next stamina charge is a full interval away) and a sound/particle plays. | Vanilla and modded shields through `LivingAttackEvent` (the same frontal test as vanilla `canBlockDamageSource`, melee attackers only for the stagger); Aegis through `AegisBlockEvent` (Aegis is never billed, so only the stagger applies). One parry per 10 ticks. |
+| Steady Draw | Archer / Attack | Drawing a bow costs no stamina; the hold cost starts only after `Steady Draw Full Draw Ticks` (20) at the normal (Ranged Efficiency) interval; `Steady Draw Arrow Return Chance` (0.75) of arrows that hit a living entity drop as an arrow item at its feet. | Arrow return needs pickup status ALLOWED (Infinity arrows are creative-only in vanilla) and a vanilla `EntityTippedArrow`; tipped arrows come back as plain arrows. Hooks: `StaminaModule.onItemUseStart` / `onItemUseTick`, `ProjectileImpactEvent.Arrow`. |
+| Fleetfoot | Scout / Agility | Sneaking gives back `Fleetfoot Sneak Speed Restore` (0.5) of the vanilla sneak slowdown; sprint speed +`Fleetfoot Light Weapon Sprint Bonus` (10%) with a LIGHT weapon or empty hand (`StaminaModule.getWeaponType`); the first `Fleetfoot Free Sprint Ticks` (60) of a sprint run cost no stamina. | Two movement-speed modifiers (operation 2, not saved), checked every 5 ticks. The free start re-arms after `Fleetfoot Free Sprint Rearm Ticks` (40) of not sprinting, so stop-start sprinting cannot chain it. Cardio Master still lowers the per-spend cost after the free window; Adrenaline and Evasion do not read the sprint modifier. |
+| Vein Rhythm | Miner / Mining | Each pickaxe-class break of stone or ore within `Vein Rhythm Window Ticks` (40) of the last adds a stack (max 5), each +4% break speed; the stacks fade after the window. | Server-side break speed (`PlayerEvent.BreakSpeed`) with a per-player counter removed on logout. The client's own mining animation does not know the stacks. |
+| Studious | Scholar / Magic | Three Scholar-only theorycrafting cards, delivered by a virtual research aid, plus **Steady Focus**: focus cooldowns `Steady Focus Cooldown Reduction` (0.25) shorter. | Cards in `thaumcraft/studious/`. See Studious below. |
+| Hearthkeeper | Homesteader / Building | **Open Hearth**: other players within `Open Hearth Range` (16) of the Homesteader get +`Open Hearth Visitor Bonus` (8) comfort, and the Homesteader gets a diminishing company bonus (6, 4, 3, 2, then 1 each, cap 15). **Home box**: anyone resting in the Homesteader's home gets +`Home Box Score Bonus` (15%) of their cozy score, and **Carry the Warmth** (Rested lasts +50%). | Comfort hooks in `comfort/HearthkeeperHooks.java`. See [comfort.md](comfort.md). |
+
+Effect numbers: `aqtweaks_reskillable.cfg` Starter Combat Perks, Starter Scholar Perks and Starter Home Perks.
+
+### Starter perk keys (`aqtweaks_reskillable.cfg`)
+
+| Category | Key | Default | Use |
+| --- | --- | --- | --- |
+| Starter Combat Perks | Riposte Parry Window Ticks | 10 | A hit is a parry when the shield was raised at most this long before it |
+| | Riposte Stagger Ticks | 10 | Stun on the attacker after a parry (0 disables) |
+| | Riposte Free Parry Block | true | A parried block costs no shield stamina |
+| | Steady Draw Full Draw Ticks | 20 | Bow draw time where the hold cost starts |
+| | Steady Draw Arrow Return Chance | 0.75 | Chance a hit arrow is returned as an item |
+| | Fleetfoot Sneak Speed Restore | 0.5 | Share of the vanilla sneak slowdown given back |
+| | Fleetfoot Light Weapon Sprint Bonus | 0.10 | Sprint speed bonus with a LIGHT weapon or empty hand |
+| | Fleetfoot Free Sprint Ticks / Rearm Ticks | 60 / 40 | Stamina-free start of each sprint; idle time before it re-arms |
+| | Vein Rhythm Window Ticks / Max Stacks / Bonus Per Stack | 40 / 5 / 0.04 | Mining stack window, cap and break-speed bonus per stack |
+| Starter Scholar Perks | Studious Extra Choice / Rounds | true / 3 | The first rounds of a theory offer 3 cards |
+| | Eureka Lead Threshold / Bonus / Inspiration Cost | 30 / 15 / 0 | When Eureka is offered, the progress it adds and its inspiration cost |
+| | Cross-Reference Min Categories | 2 | Categories with progress needed before it is offered |
+| | Cross-Reference Max Categories | 4 | The most categories it spreads over |
+| | Cross-Reference Bonus | 5 | Progress added to each such category |
+| | Cross-Reference Inspiration Cost | 1 | Inspiration it costs |
+| | Second Opinion Extra Draws | 1 | Extra 3-card rounds added to the theory |
+| | Second Opinion Progress | 5 | Progress added to the leading category |
+| | Second Opinion Inspiration Cost | 0 | Inspiration it costs |
+| | Steady Focus Cooldown Reduction | 0.25 | The Scholar's focus cooldowns are this much shorter |
+| Starter Home Perks | Open Hearth Range / Visitor Bonus | 16 / 8 | Blocks and comfort score for other players near a Homesteader |
+| | Open Hearth Keeper Curve | 6, 4, 3, 2 | The Homesteader's own diminishing company bonus: first other player, second, and so on |
+| | Open Hearth Keeper Tail | 1 | Bonus for each further player after the curve |
+| | Open Hearth Keeper Cap | 15 | The most the company bonus can reach (0 or less = no cap) |
+| | Home Box Score Bonus | 0.15 | Share of cozy score added for anyone resting in a Homesteader's home |
+| | Carry the Warmth Extra | 0.5 | Rested lasts this much longer in that home |
+
+**Studious (Scholar).** `StudiousModule.init` registers one virtual aid (`StudiousAid`, keyed by class name like every Thaumcraft aid; its aid object is a string, so `checkSurroundingAids` can never match it) and three cards (`TheorycraftManager.registerCard`, each `isAidOnly` and each refusing in `initialize` unless the player has the perk). `MixinTileResearchTable` adds the aid key to a Scholar's `startNewTheory` set, which also gives the stock +1 starting inspiration, and queues `Studious Extra Choice Rounds` (3) rounds that offer three cards instead of two. Thaumcraft draws an aid card on about a quarter of picks, once each per theory. Cards: **Eureka** (offered once one category has `Eureka Lead Threshold` (30) progress: +`Eureka Bonus` (15) to the leading category, costs `Eureka Inspiration Cost` (0), a refund of the usual 1); **Cross-Reference** (once at least 2 categories have progress: +5 to each, up to 4, costs 1); **Second Opinion** (free: +5 to the leading category and `Second Opinion Extra Draws` (1) more three-card rounds). Marginalia (book consumption) was dropped. **Steady Focus**: `MixinCasterManager` scales the tick argument of `CasterManager.setCooldown` for a player with the perk, on both sides; Thaumcraft Fix, Thaumic Tweaker and Thaumic Speedup were checked and do not touch that method.
+
+**Deviation from the plan.** Thaumcraft marks the picked card selected right after `activate`, so Second Opinion cannot redraw the current set from inside the card; it widens the next draw instead. `ResearchTableData.placedCards` is never incremented by Thaumcraft, so Eureka reads the category totals only.
+
 ## Files
 
 - `reskillable/ReskillablePerkRegistry.java`, `AqtweaksTrait.java`, `ReskillablePerkLayout.java`
@@ -251,6 +329,9 @@ Lang: `reskillable.unlock.aqtweaks.<path>` / `.desc`. Icons: `aqtweaks:textures/
 - `reskillable/EffortlessBuildingHooks.java` — mixin bridge; direct `ReskillableBonuses.addBuildingPlaceReach` / `addBuildingMaxBlocks` behind `isModLoaded("reskillable")`
 - `animania/AnimaniaModule.java`, `AnimaniaFarmClocks.java`, `AnimaniaFarmProducts.java`
 - `thaumcraft/ThaumcraftPerkHooks.java`
+- `thaumcraft/studious/` — `StudiousModule` (registration, perk test), `StudiousAid`, `CardEureka`, `CardCrossReference`, `CardSecondOpinion`, `StudiousMath` (pure), `StudiousHooks` (Steady Focus)
+- `mixin/thaumcraft/MixinTileResearchTable.java` (Studious aid and extra choice), `MixinCasterManager.java` (`setCooldown` for Steady Focus)
+- `comfort/HearthkeeperHooks.java`, `HearthkeeperMath.java` — Hearthkeeper (see [comfort.md](comfort.md))
 - `simpledifficulty/SimpleDifficultyModule.java`
 - `mixin/effortlessbuilding/MixinReachHelper.java`, `MixinModeSettingsManager.java`, `MixinModifierSettingsManager.java`
 - `mixin/thaumcraft/MixinCasterManager.java`, `MixinWarpEvents.java`, `MixinItemCaster.java`
@@ -261,7 +342,9 @@ Lang: `reskillable.unlock.aqtweaks.<path>` / `.desc`. Icons: `aqtweaks:textures/
 - `reskillable/MagicSchoolPresence.java`, `MagicSchoolEffects.java`, `MagicSchoolBotania.java`, `MagicSchoolFoundry.java`
 - `reskillable/RecipeStitchPoppet.java`, `StitchRecipeEvents.java`
 - `thaumcraft/WarpRitualWrapper.java` — Cold Iron Mind halves wrapped ritual warp
-- `mixin/botania/MixinManaItemHandler.java`, `MixinSubTileGenerating.java` — `mixins.aqtweaks.botania.json`
+- `mixin/botania/MixinManaItemHandler.java`, `MixinSubTileGenerating.java`, `MixinLensDamage.java` — `mixins.aqtweaks.botania.json`
+- `mixin/explosion/MixinExplosionBurstOwner.java` — early json; credits a Botania mana burst's shooter for Explosive and Storm lens blasts
+- **Mana burst damage credit:** Botania's Damage lens hit with `DamageSource.MAGIC`, which has no attacker, so a mana blaster never aggroed villagers, golems or mobs and kills gave the player no credit. `MixinLensDamage` redirects its `attackEntityFrom` to `causeIndirectMagicDamage(burst, shooter)` (same magic, armour-bypassing damage) when the burst has a shooter. The blaster's burst never records one (its constructor uses the world-only `EntityThrowable` constructor, so vanilla `getThrower()` is null), so `MixinEntityManaBurstShooter` implements `botania.BurstShooter` on `EntityManaBurst` and stores the player in the player constructor; both attribution mixins read that. `MixinExplosionBurstOwner` makes `Explosion.getExplosivePlacedBy()` return the shooter when the exploder is an `EntityManaBurst` (matched by class name, no Botania import in the early json), so Explosive and Storm lens blasts are credited too; the shooter still takes their own blast. Terra Sword beams, magic missiles, pixies and the other Botania weapons already credit the player. Spreaders (no shooter) are unchanged
 - `mixin/bewitchment/MixinMagicPower.java`, `MixinTileEntityWitchesAltar.java`, `MixinUtilPoppet.java`
 - `mixin/astral/MixinActiveCraftingTask.java`, `MixinAbstractAltarRecipe.java`
 - `mixin/embers/MixinEmberInventoryUtil.java`, `MixinTileEntityStamper.java`, `MixinTileEntityMixerBottom.java`, `MixinTileEntityFurnaceBottom.java` — `mixins.aqtweaks.embers.json`
@@ -360,3 +443,5 @@ Exact `@Config.Name` strings and code defaults, so the doc and the cfg cannot dr
 
 - Recipe/item gating (Recipe Stages / Game Stages / CrT)
 - Shipping Universal Tweaks Armor Curve in this jar
+
+Weapon Tempo: `StaminaPerks.tempoFree` (called first in `StaminaModule.onAttackEntity`) reads the live DSS combo through `DssComboTempo` (imports DSS types; only used when `dynamicswordskills` is loaded). The attack about to land is combo hit `numHits + 1`; hits 1 and 2 are never free; hit N is free when `N % Weapon Tempo Free Hit Interval == 0` (3, 6, 9, 12) or, on the other hits, with chance `Weapon Tempo Bonus Chance Per Level` (0.05) x Basic Technique level (`SwordBasic`, max 10), rolled once with the player RNG. A free hit pays nothing, skips Power Attack and cannot take the empty-stamina penalty. No lock-on, no combo (timed out, finished, damage tolerance) means no effect. Expected free share of a full combo at 5% per level: 33% at level 1, 40% at level 4, 49% at level 7, 58% at level 10. Icons `melee_efficiency.png` (vanilla iron sword + feather) and `weapon_tempo.png` (iron sword + five gold ticks) come from `scripts/generate_efficiency_icons.py` and `scripts/icon_sources/`. Attack-tree cells used: (0,1) (1,1) (2,1) (4,1) (2,2) (3,2) (4,2) (1,3) (2,3) (3,3) (4,3).

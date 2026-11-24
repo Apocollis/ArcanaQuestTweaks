@@ -1,6 +1,6 @@
-# Spawning module (1.9)
+# Spawning module (1.10)
 
-Last updated: 2026-09-18. `MixinStructureCache` RETURN on `parseStructureData` is `cancellable = true` (Mixin 0.8 `setReturnValue`). Cage `MixinMobSpawnerBaseLogic` is in `mixins.aqtweaks.early.json`.
+Last updated: 2026-11-20. `MixinStructureCache` RETURN on `parseStructureData` is `cancellable = true` (Mixin 0.8 `setReturnValue`); `MixinInControlSpawnRules` in `mixins.aqtweaks.incontrol.json` intercepts In Control's `spawn.json` check/join handlers when `Spawn Rules Decide` is enabled. Cage `MixinMobSpawnerBaseLogic` is in `mixins.aqtweaks.early.json`.
 
 Config: `config/arcanaquesttweaks/aqtweaks_spawning.cfg`. Pack lists: `config/arcanaquest/mob_overworldspawntype.json`, `mob_structurespawns.json`, `mob_spawnparties.json`, `mob_tier.json`, and `mob_spawnrules.cfg` (Tweaks does **not** ship or write these files). Always registered. Vanilla spawner mixins in **required** `mixins.aqtweaks.json`. Compile-hard InControl `1.12-3.10.4` (`after:incontrol`) plus nested McJtyTools `StructureCache`.
 
@@ -67,7 +67,7 @@ Keys are the `@SerializedName` values on `SpawnParties`:
 
 **Structure cache:** optional `mixins.aqtweaks.incontrol.json` `MixinStructureCache` on `parseStructureData` RETURN (`cancellable = true` — Mixin 0.8 `setReturnValue` cancels). Helper `StructureCacheHooks.expandedChunks` unions origin + every feature/child `BB` into a cached `LongOpenHashSet` and the mixin `setReturnValue`s it. Do not `@Overwrite` parse. Do not late-mixin `World` / `WorldServer`.
 
-**Pack fill:** `MixinWorldEntitySpawner` only. ThreadLocal entry via Redirect of `getSpawnListEntryForTypeAt` while `findChunksForSpawning` runs. Redirect `spawnEntity`: after success, `SpawnPackFiller` extras then `SpawnParties`. Redirect `getMaxSpawnPackSize` → **1** when fill applies. Recursion guard while filling (`filling` also blocks companion parties from stacking).
+**Pack fill:** `MixinWorldEntitySpawner` only. ThreadLocal entry via Redirect of `getSpawnListEntryForTypeAt` while `findChunksForSpawning` runs. Redirect `spawnEntity`: after success, `SpawnPackFiller` extras then `SpawnParties`. `SpawnPackFiller.placeNearby` scans `dy = -yRange..yRange` inside each of `Max Extra Attempts` (24) to locate valid ground. Redirect `getMaxSpawnPackSize` → **1** when fill applies. Recursion guard while filling (`filling` also blocks companion parties from stacking).
 
 **Hostile cap:** Redirect `EnumCreatureType.getMaxNumberOfCreature()` in the same mixin. MONSTER → cfg (default 200). Other types stay vanilla 10 / 15 / 5. Do **not** call `getMaxNumberOfCreature()` from that redirect (recursion). Cage spawners and TC portals unused.
 
@@ -87,9 +87,15 @@ Replaces In Control's `potentialspawn.json` rule loop with the same rows built i
 
 **Query.** `PotentialSpawnIndex.handle` (the `ForgeEventHandlers.onPotentialSpawns` HEAD hook) calls `PotentialSpawnTable.apply` first. One hash lookup on (dimension, biome registry id, creature type) returns the rows that can apply; then, in In Control's own order of checks, `maxheight` (`pos.getY() <= max`), water (`getBlockState(pos.down())` is `minecraft:water`), `StructureCache.isInStructure`, and In Control's per-player count (`RuleCache.getCount(world, class) < limit * getValidPlayers(world)`, the same numbers `maxcount ... perplayer` uses). All rows are checked before any entry is added, so a failure leaves the list untouched and In Control's rules handle the query. Entity classes are resolved on the first query (after the registry is complete) with `PotentialSpawnRule.fixEntityId`; a mob that cannot be found leaves its row out, as In Control does. When the table applies, In Control's `potentialspawn.json` is not run unless `Potential Spawn Table Keeps In Control Rules` is on (hand-written rules; keep the generated rules out of the file or every mob is added twice).
 
-**Commands** (`/aqspawntable`, permission 2): no argument = state; `reload` = read the pack files again; `verify` = compare the table with `config/incontrol/potentialspawn.json` for every dimension, biome (all registered) and creature type, comparing what each side adds or removes together with the position tests; the full report goes to the log and `config/arcanaquesttweaks/potentialspawn_verify.txt`; it also lists fields the table does not implement (any rule using `mintime`, `seesky`, `gamestage`, ... shows as different); `dump` = write the table as `config/arcanaquesttweaks/potentialspawn_from_table.json`.
+**Commands** (`/aqspawntable`, permission 2): `(none)` = state; `reload` = reload potential-spawn table and rule files; `verify` = compare the potential-spawn table against `config/incontrol/potentialspawn.json` across every dimension/biome/creature type (`config/arcanaquesttweaks/potentialspawn_verify.txt`); `dump` = write `config/arcanaquesttweaks/potentialspawn_from_table.json`; `check` = validate `spawn_conditions.json`, `spawn_modifiers.json`, and `spawn_gear.json`; `convert` = convert `config/incontrol/spawn.json` into `config/arcanaquesttweaks/converted/` with `convert_report.txt`; `shadow [reset]` = inspect or reset `spawn_shadow.txt` condition/modifier/gear diffs; `trace on|off|all|mobs <ids>|now|file` = toggle live spawn tracing, change watched mob IDs, flush a summary immediately, or print `spawn_trace.log` stats.
 
-**Not done yet** (next step, `spawn.json`): spawn gating and modifiers still run in In Control. The table only replaces `potentialspawn.json`. Mob ids in the file are compared as written; In Control's legacy id fixer is applied only when the table resolves classes.
+## Spawn rules, shadow comparison & Stage 6 takeover (`spawning/rules/`)
+
+Tweaks replaces In Control's `spawn.json` with three rule files under the pack directory (`spawn_conditions.json`, `spawn_modifiers.json`, `spawn_gear.json`; see [spawn-tables-format.md](spawn-tables-format.md) and [spawning-rollout.md](spawning-rollout.md)):
+
+- **Shadow mode (`Shadow Spawn Conditions`):** `ConditionShadow` + `RuleShadow` run after In Control's handlers to compare what `ConditionTable`, `ModifierTable`, and `GearTable` would decide against In Control's real outcomes (snapshotting mob stats, potions, and gear before In Control joins, paused automatically while `Spawn Rules Decide` is on).
+- **Stage 6 takeover (`Spawn Rules Decide`):** when enabled and all three rule files load cleanly, `SpawnRuleDecider` + `SpawnRuleApplier` take over conditions, stats/potions/angry modifiers, and gear loadouts in one switch (stamping `"aqtweaks:spawnrules"` once and skipping `"incontrol:onjoinaction"`). `MixinInControlSpawnRules` (`mixins.aqtweaks.incontrol.json`) skips In Control's `spawn.json` check/join handlers; potential spawns, `loot.json`, experience, and summon-aid rules stay untouched.
+- **Spawn trace (`SpawnTrace`, `SpawnTraceHandler`):** writes detailed per-event decisions, shadow diffs, and 60s tallies to `config/arcanaquesttweaks/spawn_trace.log` (rolls at 8 MB to `spawn_trace.old.log`), and auto-escalates up to 50 mismatching mob IDs to full line-by-line tracing.
 
 ## Live config (`aqtweaks_spawning.cfg`)
 
@@ -98,6 +104,11 @@ Replaces In Control's `potentialspawn.json` rule loop with the same rows built i
 | Enable Spawning Module | true | yes |
 | Index In Control Potential Spawn Rules | true | yes |
 | Shadow Spawn Conditions | false | yes (rows reload with `/aqspawntable reload`) |
+| Spawn Rules Decide | `false` | yes (requires all three rule files valid) |
+| Spawn Trace | `false` | yes (or `/aqspawntable trace on` until restart) |
+| Spawn Trace All Mobs | `true` | yes |
+| Spawn Trace Mobs | `(default: minecraft:squid, minecraft:vindication_illager, grimoireofgaia:goblin_feral, thaumcraft:cultistknight, thaumcraft:cultistcleric, crimsonrevelations:cultist_archer)` | yes |
+| Spawn Trace Summary Seconds | `60` | yes (`0` disables summaries) |
 | Use Potential Spawn Table | false | yes (rows reload on Tweaks cfg change or `/aqspawntable reload`) |
 | Potential Spawn Table Directory | `arcanaquest` | reload |
 | Potential Spawn Table Keeps In Control Rules | false | yes |
@@ -136,16 +147,19 @@ JSON layer / parties / structure files: edit needs **restart** (or a Tweaks cfg 
 | `spawning/SpawnGroupCounts.java` | Pack tier id → group min/max |
 | `spawning/SpawnGroupSizes.java` | Overrides + tier range + roll target + findChunks cap |
 | `spawning/SpawnPackContext.java` | ThreadLocal pack entry |
-| `spawning/SpawnPackFiller.java` | Extra placements; InControl min-distance |
+| `spawning/SpawnPackFiller.java` | Extra placements (`dy = -yRange..yRange`); InControl min-distance |
 | `spawning/SpawnParties.java` | Mixed groups from pack JSON |
 | `spawning/CageSpawnerHooks.java` | Cage fail-path delay (HEAD/RETURN) |
 | `spawning/PotentialSpawnTable.java` | Table lookup + position tests at `PotentialSpawns`; class resolution; reload |
-| `spawning/CommandAqSpawnTable.java` | `/aqspawntable` info, reload, verify, dump |
-| `spawning/ConditionShadow.java`, `spawning/LiveQuery.java` | Run `spawn_conditions.json` beside In Control after its handlers and count the differences; `LiveQuery` reads the game the way In Control does |
-| `spawning/rules/*` | Plain Java: `RuleScanner` (rules with line numbers), `RuleSchema` (keys and values), `RuleFileLoader`, `RuleFiles` (check a pack), `SpawnJsonConverter` (spawn.json to the three files), `ConditionTable`/`ConditionRow`/`SpawnQuery` (the evaluator); format in `spawn-tables-format.md`; tests in `src/test` |
-| `spawning/table/*` | Plain Java (no Minecraft types): `SpawnTableSources` (reads the pack files), `SpawnTableBuilder`, `SpawnRuleSpec`, `PotentialSpawnVerifier`, `LenientJson`; unit-tested in `src/test` |
+| `spawning/CommandAqSpawnTable.java` | `/aqspawntable` subcommands (`reload`, `verify`, `dump`, `check`, `convert`, `shadow`, `trace`) |
+| `spawning/ConditionShadow.java`, `spawning/RuleShadow.java`, `spawning/LiveQuery.java` | Compare `spawn_conditions.json`, `spawn_modifiers.json`, and `spawn_gear.json` against In Control (snapshots pre-join stats/potions/gear) |
+| `spawning/SpawnRuleDecider.java`, `spawning/SpawnRuleApplier.java`, `spawning/SpawnRuleTables.java` | Stage 6 rule evaluator and applier (`"aqtweaks:spawnrules"` tag, skips `"incontrol:onjoinaction"`) |
+| `spawning/SpawnTrace.java`, `spawning/SpawnTraceHandler.java` | Live `spawn_trace.log` writer (8 MB rollover), 60s summaries, auto-escalation |
+| `spawning/rules/*` | Plain Java: `RuleScanner`, `RuleSchema`, `RuleFileLoader`, `RuleFiles`, `SpawnJsonConverter`, `ConditionTable`/`ConditionRow`, `ModifierTable`/`ModifierPlan`, `GearTable`, `SpawnQuery`, `Decision` ([spawn-tables-format.md](spawn-tables-format.md)) |
+| `spawning/table/*` | Plain Java (no Minecraft types): `SpawnTableSources`, `SpawnTableBuilder`, `SpawnRuleSpec`, `PotentialSpawnVerifier`, `LenientJson`; unit-tested in `src/test` |
 | `mixin/MixinWorldEntitySpawner.java` | Capture entry, fill pack, pack-size 1, hostile cap. Do **not** mixin `WorldServer`. |
-| `mixin/incontrol/MixinStructureCache.java` | RETURN inject (`cancellable = true`): memoized BB expand. `mixins.aqtweaks.incontrol.json` |
+| `mixin/incontrol/MixinStructureCache.java`, `MixinStructureCacheHome.java` | RETURN inject (`cancellable = true`): memoized BB expand & player home queries (`mixins.aqtweaks.incontrol.json`) |
+| `mixin/incontrol/MixinInControlSpawnRules.java` | Skips In Control `spawn.json` check/join handlers when `Spawn Rules Decide` is enabled (`mixins.aqtweaks.incontrol.json`) |
 | `mixin/MixinMobSpawnerBaseLogic.java` | Cage `updateSpawner` fail delay. Remap true. `mixins.aqtweaks.early.json` |
 | `spawning/IndexedSpawnRule.java`, `mixin/incontrol/MixinPotentialSpawnRuleIndex.java` | Mixed into In Control's `PotentialSpawnRule`: remembers each rule's dimension, biomes and creature type so `PotentialSpawnIndex` can skip rules that cannot match (null = unrestricted or unreadable, kept) |
 | `mixin/incontrol/MixinInControlPotentialSpawns.java` | Runs In Control's potential-spawn rules through `PotentialSpawnIndex` instead of all of them |

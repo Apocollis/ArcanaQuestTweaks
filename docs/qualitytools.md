@@ -1,6 +1,6 @@
 # Quality Tools module (1.9)
 
-Last updated: 2026-09-29. Vanilla loot/durability mixins in `mixins.aqtweaks.early.json`.
+Last updated: 2026-11-20. Vanilla loot/durability mixins in `mixins.aqtweaks.early.json`.
 
 Loot stamp, wear/Broken overlays, Dawnstone rune upgrades. Tweaks cfg: `config/arcanaquesttweaks/aqtweaks_qualitytools.cfg`. Mixins: vanilla loot/durability in **`mixins.aqtweaks.early.json`** (jar `MixinConfigs`; pack ships QT). QT + Embers targets in optional `mixins.aqtweaks.qualitytools.json`. Soft `@Mod` `after:qualitytools` (not `required-after`). Embers already `after:`.
 
@@ -71,6 +71,10 @@ JEI: a few example bottoms (iron sword/pick/chestplate). Missing rune item → t
 **Reforge (`true`)**  
 Kept live color → QualityBase; `gray` / `dark_gray` / `normal` → clear QualityBase.
 
+## Quality on mobs
+
+Quality Tools writes its `Quality.AttributeModifiers` onto a stack but its living-update handler only applies them to players, so a mob wearing a Quality item would get the bare item. The Crimson Battlemage family wears Quality gear (the NBT carries the live `Quality` compound and the `aqtweaks.QualityBase` stash exactly as `/ct hand` prints them), so `thaumcraft/battlemage/GearAttributes.applyQuality` reads each worn stack's `Quality.AttributeModifiers` and applies them to the mob's attribute map: an attribute the mob does not have (attack speed, PotionCore's magic shielding, jump height, step height, magic damage unless PotionCore registers them) is skipped and logged once, and a modifier whose UUID is already present is never stacked. See [cultist-battlemage.md](cultist-battlemage.md).
+
 ## Files
 
 | Piece | Role |
@@ -78,7 +82,7 @@ Kept live color → QualityBase; `gray` / `dark_gray` / `normal` → clear Quali
 | `qualitytools/QualityToolsModule.java` | Bus: container open, entity join; postInit anvil recipes if `embers` |
 | `qualitytools/QualityNbt.java` | QualityBase / wear-flag / color apply |
 | `qualitytools/QualityStamp.java` | First-gen stamp + pre-damage |
-| `qualitytools/QualityDurability.java` | Wear / break / 75% restore; Salvage skip |
+| `qualitytools/QualityDurability.java` | Wear / break / restore (`>51%` restores `QualityBase`, `26–51%` Broken→`gray` wear); Salvage skip |
 | `qualitytools/QualityRuneAnvilRecipe.java` | Dawnstone recipes (Embers import only here + register) |
 | `mixin/MixinTileEntityLockableLoot.java` | `fillWithLoot` stamp when loot actually generated. `mixins.aqtweaks.early.json` |
 | `mixin/MixinItemStackQualityDurability.java` | `attemptDamageItem` + `setItemDamage`. `mixins.aqtweaks.early.json` |
@@ -103,6 +107,7 @@ Vanilla durability/loot mixins FQCN into `QualityStamp` / `QualityDurability` (c
 | `general` / `Wear Chance Ceiling` | double | 0.50 | Maximum p when Wear Chance > 0 |
 | `general` / `Wear Durability Ref` | int | 250 | Hardness term: ref / (max/2). Vanilla iron tool max |
 | `general` / `Wear Check Interval Ticks` | int | 40 | Minimum ticks between wear rolls on one stack |
+| `general` / `Trace Wear` | bool | false | Info-logs one `quality-wear ...` line per durability check (`latest.log` spam; debug only) |
 | `general` / `Common Rune` | string | `sccraftingrunes:itemcommonmat` | red→white, white→yellow, yellow reroll; `common_mat` alias |
 | `general` / `Uncommon Rune` | string | `sccraftingrunes:itemuncommonmat` | yellow→green, green reroll; `uncommon_mat` alias |
 | `general` / `Rare Rune` | string | `sccraftingrunes:itemraremat` | green→dark_aqua (blue), dark_aqua (blue) reroll; `rare_mat` alias |

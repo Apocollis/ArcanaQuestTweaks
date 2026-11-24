@@ -7,9 +7,12 @@
   "compatibilityLevel": "JAVA_21",
   "client": [
     "MixinMinecraftMouseGrab",
-    "thaumcraft.MixinGuiIngameForgeRunicShield"
+    "thaumcraft.MixinGuiIngameForgeRunicShield",
+    "hud.MixinGuiIngameOffhandSide",
+    "somnia.MixinNetHandlerPlayClientBedSeat"
   ],
   "mixins": [
+    "explosion.MixinExplosionBurstOwner",
     "MixinWorldRiftLight",
     "MixinWorldFixedSkylight",
     "MixinWorldCheckLight",
@@ -25,6 +28,9 @@
     "MixinItemStackDurability",
     "MixinItemStackRarity",
     "MixinItemRarity",
-    "MixinBlockCropsSeed"
+    "MixinBlockCropsSeed",
+    "MixinEntityCreeperPowered",
+    "MixinChunkProviderServerHome",
+    "MixinPlayerInteractionManagerMining"
   ]
 }

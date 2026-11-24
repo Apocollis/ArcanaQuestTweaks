@@ -1,18 +1,39 @@
 # Stamina module (1.9)
 
-Last updated: 2026-09-28.
+Last updated: 2026-11-20.
 
 Config: `config/arcanaquesttweaks/aqtweaks_stamina.cfg`. Compile against **Elenai Dodge 2 Extended** (`ElenaiDodge2Extended-1.12.2-1.1.3.jar`). Forge modid is still `elenaidodge2`.
 
-This is the tweak layer over Elenai’s feather pool. Elenai owns regen, dodge, weight lists, absorption, and HUD. Tweaks **spends and gates** feathers for mobility, combat, and tools. Costs in cfg are **half-feathers** (Elenai’s unit). `20` ticks = 1 second.
+This is the tweak layer over Elenai’s feather pool. Elenai owns the regen timer, dodge, weight lists, absorption, and HUD. Tweaks **spends and gates** feathers for mobility, combat, and tools. Costs in cfg are **half-feathers** (Elenai’s unit). `20` ticks = 1 second.
 
 Creative and spectator players are skipped everywhere. Spectator is not billed; creative `hasEnoughStamina` is always true.
+
+## Regen pace
+
+Elenai counts regeneration on the **client**: a timer resets to `Regeneration Rate + regenModifier` (30 + modifier by default, ticks per half-feather), then the client adds a feather and tells the server. `StaminaRegenPace` sets the server-side modifier so the interval follows what the player is doing. Costs are unchanged. Elenai's own `Regeneration Rate` stays 30 (its config says to change it only at full feathers).
+
+| State | Interval | When |
+| --- | --- | --- |
+| Resting | 10 | Standing still or sneaking for `Rest Settle Ticks` (15) after the Active cooldown, with no item use in the last 20 ticks and no raised shield |
+| Moving | 20 | Anything in between: walking, jumping, right-click item use, eating and drinking, a raised shield |
+| Active | 30 | Sprint, climb (ladder, vine, rope, ledge), glide, swim, grapple, bow or throw hold, mining hold, melee swing |
+
+- **Order:** Active, then Moving, then Resting. After the last Active action the player stays Active for `Active Linger Ticks` (15); the settle time for Resting counts from the end of that. A melee swing keeps Active for `Combo Base Grace Ticks` (20, the DSS level-0 grace; rank is not included) plus the weapon's attack period (`DssWeaponBalance.attackPeriodTicks`). Taking damage never counts.
+- **Rested (Comfort):** the Vigor interval (25 / 20 / 15) caps every state: `min(state interval, Vigor)`. Rested no longer applies its own modifier; `RestedBonuses` only undoes a delta an older build wrote (`AQTVigorDelta`).
+- **Replenishment (Elenai potion):** `MixinReplenishmentPotion` cancels the potion's own modifier. While active, only the Active state is capped at `Replenishment Active Interval` (15) minus `Replenishment Step Per Level` (5) per amplifier, floor `Replenishment Minimum Interval` (5): amplifier 0 / I / II = 15 / 10 / 5, higher stays at 5.
+- **Marathon Runner:** sprinting and jumping are Moving, not Active (never worse than Active would be with Replenishment); plain walking on the ground refills at the Resting rate. Sprint stays 1 per second, so net sprint stamina is 0. Sprint and jump costs are not reduced.
+- **Cardio Master:** Active uses the Moving interval (`min(Active, Moving)`). Needs Marathon Runner.
+- **Moonfrost** keeps its own additive slowdown. Hypothermia and hyperthermia do not touch regen (they cap max stamina).
+- **Thirst-on-regen** is unchanged per feather; a full refill costs the same thirst in less time.
+- A faster state applies at once (the clamp mixin); a slower one applies from the next feather.
+- Config: `aqtweaks_stamina.cfg` category `Regen Pace` (`Enable State Regen`, the three intervals, linger, settle, speed threshold, item use linger, Combo Base Grace, Mining / Grapple / Melee Counts As Active, `Shield Hold Counts As` MOVING / ACTIVE / RESTING_ALLOWED, the three Replenishment values).
+- Tests: `StaminaRegenMathTest`.
 
 ## Locked intent
 
 Spend Elenai feathers for jump, sprint, melee, bow, throwing, climb, ledge mantle, shield, mine, glider, grapple, and DSS skills. Gate those actions when the pool cannot pay. Do **not** replace Elenai regen, dodge, or the feather icon sheet. Do **not** post `SpendFeatherEvent`. The layered HUD keeps Extended’s one row; Tweaks only replaces the red and brown tints (see HUD).
 
-Optional parents: Grapple motor Ember, Open Glider undeploy, Reskillable stamina perks (ids in stamina cfg; Tweaks **registers** Melee/Ranged/Shield/Adrenaline/Climber/Cardio/Evasion/Power Attack/Armor Mastery/Mining Efficiency), Simple Difficulty thirst on feather regen and hypothermia / hyperthermia feather drain.
+Optional parents: Grapple motor Ember, Open Glider undeploy, Reskillable stamina perks (`Melee`, `Ranged`, `Shield`, `Adrenaline`, `Climber`, `Marathon Runner`, `Cardio Master`, `Evasion`, `Power Attack`, `Armor Mastery`, `Mining Efficiency`, `Gathering Efficiency`, `Forager`, `Heartwood`, `Lumberjack`), starter class perks (`Riposte`, `Steady Draw`, `Fleetfoot`, `Vein Rhythm`), Spice of Life: Carrot Edition (`mixins.aqtweaks.solcarrot.json`), and Simple Difficulty thirst on feather regen and hypothermia / hyperthermia feather drain.
 
 ## Hard constraints
 
@@ -44,6 +65,25 @@ Portable Ember via `EmberInventoryUtil.getEmberTotal` / `removeEmber` (jar in ha
 ### Dynamic Sword Skills
 
 `SkillActive.trigger(World, EntityPlayer, boolean)` returns whether the skill started. Stock skills also call `addExhaustion`. Tweaks gates HEAD, spends RETURN if true, optionally no-ops exhaustion.
+
+DSS swing speed, combo window, combo bonus and armor bypass (plan `20261122-0327`, config `aqtweaks_dss.cfg`, `DssWeaponConfig`): DSS's own limiter is a flat tick count (`dss.config.server.general.baseSwingSpeed`, 0 in this pack), so lock-on swings had no weapon speed. `MixinDSSClientEvents` (client) cancels `DSSClientEvents.performComboAttack` at HEAD until `getCooledAttackStrength(0)` reaches `Attack Ready Threshold` (0.9). Skills, lock-on and special attacks are unaffected, and `DSSPlayerInfo.canAttack` is left alone because `SwordBeam.canUse` reads it. `MixinCombo` (`Combo.add` RETURN) sets `comboTimer = timeLimit + attack period ticks` (`20 / attack speed`, DSS's own grace is `20 + 2 x level`), so slow weapons keep combos; the client copy built from `UpdateComboPacket` still ticks the old timer, so the HUD may end a combo early (display only). `MixinDSSCombatEvents` redirects the single `LivingHurtEvent.setAmount` in `DSSCombatEvents.onHurt` (DSS adds +1 damage per combo hit already landed, before armor) and scales that bonus by `DssWeaponBalance.comboBonusMultiplier`: weapon category from `StaminaModule.getWeaponType` of the main hand, defaults light 1.0, medium 1.6, heavy 3.0, unclassified 1.0 (tuned so perked light, medium and heavy tie at about 17.5 damage per second on iron Spartan weapons; see the plan). `HeavyArmorBypass` (common handler, registered after `StaminaModule`): for direct player melee hits `LivingHurtEvent` at LOWEST measures the armor-only loss (`CombatRules.getDamageAfterAbsorb`, target armor and toughness) and `LivingDamageEvent` at LOWEST adds back the share by category (heavy 0.25, medium 0.10, light 0). Config: `Enforce Weapon Attack Speed`, `Attack Ready Threshold`, `Scale Combo Window By Attack Speed`, `Scale Combo Bonus By Weapon Category`, `Combo Bonus Multiplier Light/Medium/Heavy/Unclassified`, `Enable Armor Bypass`, `Armor Bypass Light/Medium/Heavy`.
+
+`aqtweaks_dss.cfg` settings:
+
+| Setting | Default | Notes |
+| --- | --- | --- |
+| Enforce Weapon Attack Speed | true | Lock-on swings wait for the weapon cooldown |
+| Attack Ready Threshold | 0.9 | 0.5 to 1.0 |
+| Scale Combo Window By Attack Speed | true | Adds the weapon attack period to the combo timer |
+| Scale Combo Bonus By Weapon Category | true | |
+| Combo Bonus Multiplier Light | 1.0 | |
+| Combo Bonus Multiplier Medium | 1.6 | |
+| Combo Bonus Multiplier Heavy | 3.0 | |
+| Combo Bonus Multiplier Unclassified | 1.0 | Items the stamina module does not class as weapons |
+| Enable Armor Bypass | true | |
+| Armor Bypass Light | 0.0 | Share of armor reduction ignored |
+| Armor Bypass Medium | 0.10 | |
+| Armor Bypass Heavy | 0.25 | |
 
 Skills GUI key (`keys[KEY_SKILLS_GUI]`, default P) is handled in `DSSKeyHandler.onKeyPressed` via `Keyboard.getEventKey()`, not `KeyBinding.isPressed()`. Key code 0 is unbound. LWJGL character events also use key 0, so an unbound bind matches space. `MixinDSSKeyHandler` cancels `onKeyPressed` for key 0. A non-zero skills key sets a flag and DSS sends `OpenGuiPacket(0)`. Tweaks polls `isPressed()` on the client tick and sends the same packet only when that flag is clear (MineMenu sets `pressTime` without a matching event key). Do not call `Keyboard.isKeyDown`. Client command `/dssgui` sends the same packet.
 
@@ -96,26 +136,36 @@ Elenai stores no maximum: `Utils.getMaxDodges(player)` posts a `MaxFeathersEvent
 
 `StaminaMaxSync.sync(EntityPlayerMP)` is the one mid-game way to push a changed maximum: `getMaxDodges`, lower current feathers with `FeathersHelper.decreaseFeathers` if above it (a spend: paid from absorption first, can be cancelled by a `SpendFeatherEvent` listener, does nothing in creative or spectator), then message 4 `PacketTemperatureMax`. It never raises current feathers. Do **not** call `FeathersHelper.syncMaxFeathers` mid-game: it ends with `Utils.updateClientConfig`, the full `CUpdateConfigMessage` with the armor weight list (blank at join because of the join window above, full mid-game), which overflows on this pack and disconnects the player with "A fatal error has occurred, this connection is terminated". Callers: Rested tier change (`RestedBonuses.reconcile`, Fortitude), the temperature module (non-lethal paths; the `penalty >= getBaseDodges()` branches keep their own `PacketTemperatureMax(0)`), and the SolCarrot milestone listener.
 
-SolCarrot: the bonus is only read when Elenai asks for the maximum, so `StaminaModule.onFoodFinished` (`LivingEntityUseItemEvent.Finish`, `LOW`) compares `SolCarrotHelper.milestonesAchieved` with entity data `AQTSolCarrotMilestones` and calls `StaminaMaxSync.sync` when it changed. SolCarrot updates its list on AppleCore `FoodEvent.FoodEaten`, inside `ItemFood.onItemUseFinish`, before Forge posts `Finish`. If a milestone was earned (`now > old`) and the player already had `AQTSolCarrotMilestones` stored, `onFoodFinished` immediately fills the newly unlocked stamina feather socket (`FeathersHelper.increaseFeathers(player, min(now * 2, 20) - min(old * 2, 20))`) so the unlocked feather starts full instead of empty. On login and respawn `StaminaModule` also records the readable count in `AQTSolCarrotMilestones` (syncing only if a stored count differs), so a milestone gained earlier has a stored value without waiting for the next meal; Elenai's join recompute already sent the bonus in the maximum. An unreadable SolCarrot read returns `SolCarrotHelper.UNREADABLE` (-1, logged once), not 0: `onMaxFeathers` then uses the stored `AQTSolCarrotMilestones` count instead of dropping the bonus, and the listener does nothing. A real 0 lowers the maximum.
-
-In `config/solcarrot.cfg`, `I:"Minimum Food Value"=0` ensures all foods (even 0-hunger drinks/teas) count toward milestone progression.
-
-Food Book cleanliness: `mixins.aqtweaks.solcarrot.json` (late client mixin, gated on `solcarrot`):
-- `MixinGuiFoodBook`: removes `ConfigInfoPage` at RETURN of `initPages`, so foods are not partitioned by nutrition level and the book progresses directly from stats to the food lists.
-- `MixinFoodItemStacks`: filters JEI-blacklisted items from `FoodItemStacks.getAllFoods()` at RETURN using `mezz.jei.Internal.getHelpers().getIngredientBlacklist()`, hiding disabled pack items from the food book.
-
 `network/ChannelErrorLogger` (installed from `FMLLoadCompleteEvent` on every registered channel, both sides) logs any exception raised while decoding or handling a mod packet, with the channel name, and passes it on unchanged. Forge reports such a failure as the "fatal error" disconnect and the pack never wrote the matching line. Search the log for `Exception on network channel`. `RestedBonuses.reconcile` also writes `[AQ-STAMINA]` lines for a Vigor delta change or a Fortitude tier change (tier, max, feathers after the clamp, world time); remove them once the cause of the disconnect is confirmed fixed.
+
+### SOL Carrot (milestones & Food Book)
+
+- **Milestone sockets (`SolCarrotHelper`, `StaminaModule`):** `MaxFeathersEvent` adds `+min(milestones * 2, 20)` half-feathers capped at room. Because Elenai only evaluates `MaxFeathersEvent` on demand, `StaminaModule.onFoodFinished` (`LivingEntityUseItemEvent.Finish`, `EventPriority.LOW`, after AppleCore `FoodEvent.FoodEaten` inside `ItemFood.onItemUseFinish`) compares `SolCarrotHelper.milestonesAchieved(player)` against entity data `AQTSolCarrotMilestones` and calls `StaminaMaxSync.sync(player)` whenever it changed. When a new milestone is earned (`now > old`) and `AQTSolCarrotMilestones` already exists, `onFoodFinished` immediately fills the unlocked socket (`FeathersHelper.increaseFeathers(player, min(now * 2, 20) - min(old * 2, 20))`) so the newly unlocked feather starts full instead of empty.
+- **Fallback & login seeding:** On login and respawn, `StaminaModule` seeds `AQTSolCarrotMilestones` if readable (syncing only if a previously stored count changed). If SolCarrot's capability is temporarily unreadable, `SolCarrotHelper.milestonesAchieved` returns `SolCarrotHelper.UNREADABLE` (`-1`, logged once) rather than `0`, so `onMaxFeathers` retains `AQTSolCarrotMilestones` instead of stripping earned sockets (while a genuine `0` reduces max feathers).
+- **Food Book cleanliness (`mixins.aqtweaks.solcarrot.json`, late client mixin gated on `solcarrot`):**
+  - `MixinGuiFoodBook`: strips `ConfigInfoPage` at RETURN of `initPages` so foods are not partitioned by nutrition level and the book flows directly from stats into the food lists.
+  - `MixinFoodItemStacks`: filters JEI-blacklisted items from `FoodItemStacks.getAllFoods()` at RETURN via `mezz.jei.Internal.getHelpers().getIngredientBlacklist()`, hiding disabled pack items from the Food Book.
+  - Pack `config/solcarrot.cfg`: `I:"Minimum Food Value"=0` lets 0-hunger drinks and teas count toward food diversity milestones.
 
 ## Files
 
 | Piece | Role |
 | --- | --- |
 | `ArcanaQuestTweaksConfig.StaminaModuleConfig` | All knobs → `aqtweaks_stamina.cfg`. `DssSkillCosts.invalidate()` on any `aqtweaks` cfg change |
-| `stamina/StaminaModule.java` | Server spend/gate; SolCarrot milestone sync and immediate fill |
+| `stamina/StaminaModule.java` | Server spend/gate; SolCarrot milestone sync and immediate fill; starter & Reskillable stamina perk hooks |
+| `stamina/StaminaMaxSync.java` | Safe mid-game max-feathers clamp + `PacketTemperatureMax` sync (`never` calls `syncMaxFeathers`) |
+| `stamina/SolCarrotHelper.java` | Guarded SolCarrot milestone reader (`UNREADABLE = -1` fallback) |
+| `stamina/MiningHold.java`, `stamina/MiningBilling.java` | Dig-session state machine and hold billing on `LeftClickBlock` + server dig ticks |
 | `stamina/StaminaPerks.java` | Perk spend reductions + Adrenaline |
+| `reskillable/ForagerBlocks.java`, `reskillable/StarterClassPerks.java`, `reskillable/StarterPerkMath.java` | Plant classification (`Forager`) and starter class perks (`Riposte`, `Steady Draw`, `Fleetfoot`, `Vein Rhythm`) |
 | `stamina/StaminaModuleClient.java` | HUD if dodge locked; climb fall + jump packet; ledge FSM; grapple `InputUpdateEvent` LOWEST |
 | `stamina/ElenaiFeatherHudColors.java` | Blue / green / gold draw for Extended’s layered bar |
+| `mixin/MixinPlayerInteractionManagerMining.java` | Server dig tick hook (`updateBlockRemoving`) for `MiningBilling`; `mixins.aqtweaks.early.json` |
 | `mixin/elenaidodge/MixinDodgeGui.java` | Client cancel of `renderLayeredBar` and `renderBaseWeightBar`. `mixins.aqtweaks.elenaidodge.json` |
+| `mixin/elenaidodge/MixinCUpdateRegenHandler.java` | Client: clamp Elenai's running regen timer when a new modifier arrives, so a faster state applies at once |
+| `mixin/elenaidodge/MixinReplenishmentPotion.java` | Cancels `func_111185_a` / `func_111187_a` so the Replenishment potion no longer changes the regen modifier itself (common) |
+| `stamina/StaminaRegenPace.java` | State-based refill: resolves Resting / Moving / Active every 5 ticks and applies the difference to Elenai's regen modifier (`AQTPaceDelta`) |
+| `stamina/StaminaRegenMath.java` | Pure interval rules (states, Rested cap, Replenishment, Cardio Master, Marathon sprint) and the melee swing window |
 | `mixin/elenaidodge/MixinTooltipEventListener.java` | Client replace of `getWeight`. Local split of `weightValues`; static list unused |
 | `mixin/solcarrot/MixinGuiFoodBook.java` | Remove `ConfigInfoPage` nutrition partition from food book. `mixins.aqtweaks.solcarrot.json` |
 | `mixin/solcarrot/MixinFoodItemStacks.java` | Filter JEI-blacklisted items from `getAllFoods()`. `mixins.aqtweaks.solcarrot.json` |
@@ -132,6 +182,11 @@ Food Book cleanliness: `mixins.aqtweaks.solcarrot.json` (late client mixin, gate
 | `stamina/OpenGliderHelper.java` | Compile-hard Open Glider: `isGliding`, `undeploy`. Guarded by `isModLoaded("openglider")` |
 | `mixin/grapple/MixinGrappleController.java` | Class-target mixin on `grappleController`; Redirect `GrappleCustomization.motor` GET in `updatePlayerPos` (direct field read, `@Shadow entity`) |
 | `mixin/dss/MixinSkillActive.java` | Gate/spend/exhaustion on `trigger` |
+| `mixin/dss/MixinDSSClientEvents.java` | Client: `performComboAttack` waits for the weapon's attack cooldown |
+| `mixin/dss/MixinCombo.java` | `Combo.add` RETURN: combo timer = DSS grace + weapon attack period |
+| `mixin/dss/MixinDSSCombatEvents.java` | Redirects `setAmount` in `onHurt`: scales DSS's flat combo bonus by weapon category |
+| `stamina/DssWeaponBalance.java` | Category multipliers, bypass share, attack period ticks |
+| `stamina/HeavyArmorBypass.java` | Adds back a share of armor reduction on player melee hits |
 
 ## Default costs (half-feathers)
 
@@ -141,11 +196,11 @@ Tune in cfg unless noted. Interval `20` = once per second.
 | --- | --- | --- | --- | --- |
 | Jump | `enableJumpCost` | 1 | per jump | If below `jumpThreshold` (1): `motionY = 0` |
 | Sprint | `enableSprintCost` | 1 | 20 | If below `sprintThreshold` (2): `setSprinting(false)` + sprint key up |
-| Melee light | `enableAttackCost` | 1 | connecting hit (and block-punch swing) | Drain remaining usable; next hurt × `0.8` |
-| Melee medium | | 2 | | remaining; × `0.5` |
+| Melee light | `enableAttackCost` | 2 | connecting hit | Drain remaining usable; next hurt × `0.8` |
+| Melee medium | | 3 | | remaining; × `0.5` |
 | Melee heavy | | 4 | | remaining; × `0.3` |
 | Bow draw | `enableBowCost` | 2 | on `UseItem.Start` | Cancel draw |
-| Bow hold | | 1 | 20, **two timers** | Cancel / reset active hand |
+| Bow hold | | 1 | 20, once (`UseItem.Tick`) | Cancel / reset active hand |
 | Throw hold | `enableThrowingCost` | bow hold cost | bow interval × **2** | Reset active hand |
 | Throw release | | 1 | `UseItem.Stop` | Cancel throw |
 | Ladder climb | `enableClimbCost` | 1 | 20 | `fallOnDepleted`: slide `motionY = -0.15` |
@@ -155,9 +210,9 @@ Tune in cfg unless noted. Interval `20` = once per second.
 | Climb slide down | | 0 | — | attached |
 | Ledge mantle | `enableLedgeClimb` | 2 grab, +1 at 15/23/31 | while airborne | Empty extra: drop. Lip = collision-list maxY (fences 1.5) |
 | Shield hold | `enableShieldCost` | 1 | 20 after first tick | Lower shield |
-| Mine default | `enableMiningCost` | 1 | per break | Drain remaining usable; **block still breaks** |
-| Mine ore / obsidian | | 2 | | same; Mining Efficiency perk −1 |
-| Mining Fatigue III | | — | while **regular** feathers ≤ **4** | Duration **40**, amp 2, ambient; re-apply when remaining ≤ **20** |
+| Mine (real block, hardness above 0) | `enableMiningCost` | `Mine Hold Cost` 1 | at the start of a dig session and every `Mine Hold Interval Ticks` (15); Mining / Gathering Efficiency 20 | Drain remaining usable; **block still breaks** |
+| Mine plant (hardness exactly 0) | | `Plant Break Cost` 1 | per break, flat | Same; **Forager** makes plants free |
+| Mining Fatigue III | | — | while **usable** stamina (feathers above the armor weight floor plus absorption) ≤ **3** | Duration **40**, amp 2, ambient; re-apply when remaining ≤ **20** |
 | Glider | `enableGliderCost` | 1 | 20 | Undeploy |
 | Grapple climb | `enableGrappleCost` | 3 | 20 | Detach |
 | Grapple swing | | 2 | 20 | Detach |
@@ -174,17 +229,19 @@ DSS default list is every stock skill `=0`. Change `Skill Costs` in cfg; no rebu
 | Event | Handler | What happens |
 | --- | --- | --- |
 | `EntityJoinWorldEvent` HIGHEST/LOWEST | `StaminaModule` | Clear/restore Elenai weight array for `EntityPlayerMP` (nested-join depth). Throw release is billed on `ItemUseStop`, not join |
-| `TickEvent.PlayerTickEvent` START | `StaminaModule` | Bow hold, throw hold, climb, ledge extras, grapple, glider, sprint, shield, mining fatigue, thirst-on-regen |
+| `TickEvent.PlayerTickEvent` END | `StaminaRegenPace.Events` | Pace counters every tick; resolve and apply every 5 ticks. Also `RightClickItem`, `LivingEntityUseItemEvent.Start` (item use), login and logout |
+| `TickEvent.PlayerTickEvent` START | `StaminaModule` | Throw hold, climb, ledge extras, grapple, glider, sprint (with `Fleetfoot`), shield, mining fatigue, thirst-on-regen; clears legacy `StaminaTweaksBowTicks` |
 | `LivingJumpEvent` | | Spend jump or zero `motionY` |
 | `AttackEntityEvent` | | Melee spend or drain + `StaminaTweaksAttackPenalty`; full-bar Power Attack on medium/heavy |
-| `PlayerInteractEvent.LeftClickBlock` | | Melee spend if enough (block punch). **No** remaining-drain / penalty |
 | `PlayerInteractEvent.LeftClickEmpty` | | Intended air-swing spend; Forge fires this **client-side**, and the handler returns on `isRemote` → **air swings do not spend** |
 | `LivingAttackEvent` HIGH | | Evasion: living attacker, dodge-cost spend, cancel, dodge sound, 30s CD |
 | `LivingHurtEvent` | | If **attacker** has Power Attack or empty-stamina penalty NBT, multiply damage then clear. If **victim** is a player, `StaminaPerks.tryAdrenaline` |
-| `LivingEntityUseItemEvent.Start` | | Bow (`ItemBow`) draw cost or cancel. Throwing weapons are not billed here unless they are `ItemBow` |
-| `LivingEntityUseItemEvent.Tick` | | Extra bow-hold spend on use-duration cadence (independent of player-tick timer) |
+| `LivingEntityUseItemEvent.Start` | | Bow (`ItemBow`) draw cost or cancel (waived with `Steady Draw`). Throwing weapons are not billed here unless they are `ItemBow` |
+| `LivingEntityUseItemEvent.Tick` | | Bow-hold spend on `ticksUsed % interval` cadence (single bow-hold billing path; `Steady Draw` delays hold start until full draw) |
 | `LivingEntityUseItemEvent.Stop` | | Throw release or cancel |
-| `BlockEvent.BreakEvent` | | Mining spend (break is not cancelled) |
+| `BlockEvent.BreakEvent` | | Plant breaks only (flat cost; real blocks are billed by the hold) |
+| `PlayerInteractEvent.LeftClickBlock` | | Start of a dig (`MiningBilling.onStartDig`, also for instant breaks); no melee block-punch bill |
+| `PlayerInteractionManager.updateBlockRemoving` (mixin) | `MixinPlayerInteractionManagerMining` | One touch per server tick while a dig is active (`MiningBilling.onDigTick`) |
 | `PlayerRespawnEvent` | | `increaseFeathers` to max (not `fillFeathers`) |
 | `TickEvent.PlayerTickEvent` START (client, local) | `StaminaModuleClient` | Weight restore; climb jump packet + client slide; ledge state machine; sprint cancel |
 | `InputUpdateEvent` LOWEST (client) | | Grapple packet |
@@ -218,7 +275,7 @@ Toughness Bar overlay (armor column, LTR) is the [client module](client.md), not
 
 ### Sprint
 
-Replaces Universal Tweaks `UTED2Sprinting`. Server: while `isSprinting`, NBT `StaminaTweaksSprintTicks`; at `sprintInterval` spend `sprintCost` if `hasEnoughStamina(cost)`, else cancel sprint. Below `sprintThreshold` cancel immediately (no spend). Timer resets when not sprinting. Client: same threshold → `setSprinting(false)` and sprint key up. Creative/spectator skipped. Armor Mastery / Endurance apply via `StaminaFeathers.getWeight`. Keep UT sprint consumption and requirement at 0 (leave UT interval at 20 so `% 0` cannot throw if their handler still runs).
+`Sprint` replaces Universal Tweaks `UTED2Sprinting`. Server: while `isSprinting`, NBT `StaminaTweaksSprintTicks` counts up; once past `Fleetfoot` free ticks (if active), at `sprintInterval` spend `sprintCost` if `hasEnoughStamina(cost)`, else cancel sprint. Below `sprintThreshold` cancel immediately (no spend). Timer resets when not sprinting. Client: same threshold → `setSprinting(false)` and sprint key up. Creative/spectator skipped. Armor Mastery / Endurance apply via `StaminaFeathers.getWeight`. Keep UT sprint consumption and requirement at 0 (leave UT interval at 20 so `% 0` cannot throw if their handler still runs).
 
 ### Melee
 
@@ -226,15 +283,11 @@ Replaces Universal Tweaks `UTED2Sprinting`. Server: while `isSprinting`, NBT `St
 
 **Connecting hit** (`AttackEntityEvent`): enough → spend; else drain remaining usable (regular−weight + absorption) and stash multiplier on attacker NBT. `LivingHurtEvent` applies it once then clears.
 
-**Block punch** (`LeftClickBlock` on server): spend only if enough. No penalty tag.
-
-**Air swing:** not billed with the current Forge event sides.
-
-A player who punches a block and also hits a mob in the same sequence can pay twice (block click + attack). Do not “fix” that unless asked — document it.
+**Air swings and block punches:** neither bills melee stamina (`LeftClickEmpty` fires client-side only; `LeftClickBlock` routes exclusively to `MiningBilling.onStartDig`).
 
 ### Bow and throwing
 
-Bow: draw on `Start` if `ItemBow`. Hold on **both** `PlayerTick` `StaminaTweaksBowTicks` and `UseItemEvent.Tick` (`ticksUsed % interval == 0`). Those counters are independent, so hold can bill **twice per interval**. Empty hold cancels the use / resets the hand.
+Bow: draw on `Start` if `ItemBow`. Hold on `UseItemEvent.Tick` only (`ticksUsed % interval == 0`, from the start of the draw — or from `ticksUsed > Steady Draw Full Draw Ticks` with `Steady Draw` — skipping throwing weapons). `handleServerBowDrawing` clears legacy `StaminaTweaksBowTicks` rather than billing a second hold timer. Empty hold cancels the use / resets the hand.
 
 Throwing weapons: class/registry keywords (`throwingweapon`, javelin, throwing_knife/axe, dagger). Aiming hold uses **bow hold cost** at `bowHoldInterval × throwingHoldIntervalMultiplier` (default half rate), **player tick only**. Release spends `throwingReleaseCost` or cancels.
 
@@ -258,11 +311,25 @@ Client: while on a climbable, send `PacketSyncClimbingInput` (jump held). Off th
 
 ### Shield / glider / mining
 
-Shield: `isActiveItemStackBlocking`; first tick arms timer (no spend); then spend each interval or `resetActiveHand`.
+Shield: `isActiveItemStackBlocking`; first tick arms timer (no spend); then spend each interval or `resetActiveHand`. A raised Aegis focus (see [thaumcraft-additions.md](thaumcraft-additions.md)) counts as blocking but is skipped here (it pays vis), unless `Aegis Uses Stamina Shield Cost` is on.
 
 Glider: empty → `undeployGlider`.
 
-Mining: `BreakEvent` — registry string contains `ore` or block is obsidian → ore cost, else default. Mining Efficiency perk subtracts `miningEfficiencyReduction` (floor 0). Gathering Efficiency subtracts `gatheringEfficiencyReduction` only when the block is forage (`ReskillableBonuses.isForageBlock`). Break is **not** cancelled. Fatigue III (amp 2, 40 ticks, ambient, no particles) while **regular** `getFeatherLevel` ≤ threshold (default 4 = two full feathers). Not usable-after-weight.
+Mining and woodcutting (hold billing, plan 20261120-1700). Real blocks (hardness above 0) are billed by how long the player keeps digging, not per break:
+- **Session and interval (`MiningHold`, pure, tested):** the first dig activity after more than `Mine Session Gap Ticks` (10) of quiet starts a session and pays `Mine Hold Cost` (1 half-feather) at once; every later interval of `Mine Hold Interval Ticks` (15) pays again. The timer is not reset by moving to the next block, so a faster tool, which breaks blocks sooner, pays less per block (about 1.33 half-feathers per second whatever the tool). Tapping single blocks pays every tap.
+- **Where it hooks (`MiningBilling`):** the server `LeftClickBlock` event (the start of a dig, also for blocks that break instantly) and `MixinPlayerInteractionManagerMining`, a per-tick hook on `PlayerInteractionManager.updateBlockRemoving` that fires while the server's dig flag (`isDestroyingBlock`) is set. No client code or packet. Creative, spectators and fake players pay nothing.
+- **Plants:** a block of hardness exactly 0 (grass, flowers, crops, saplings, torches) never starts a session; it costs a flat `Plant Break Cost` (1) in the `BreakEvent`. The **Forager** perk (Farming, `ForagerBlocks.isPlant`: bushes, plantables, plant or vine material, fully grown pumpkins and melons, plus `Forager Free Blocks`) makes plants free, also hardness-above-0 ones such as cactus.
+- **Perks:** Mining Efficiency bills non-forage blocks every `Mining Efficiency Interval Ticks` (20); Gathering Efficiency bills forage blocks (logs, leaves, gravel, mushrooms; `ReskillableBonuses.isForageBlock`) every `Gathering Efficiency Interval Ticks` (20). Neither changes the flat plant cost. Perks that shorten the dig now lower the bill: Lumberjack (logs twice as fast), the Reskillable mining level, Vein Rhythm, Haste, Efficiency, Obsidian Smasher.
+- **Trees:** Tree Chopper's `BreakSpeed` handler divides the speed by the tree's log count, so the first log's hold, and therefore the bill, grows with tree size; the axe-click swing charge no longer applies to blocks (`LeftClickBlock` bills only through `MiningBilling`; attacks still bill).
+- **Fatigue:** Mining Fatigue III applies while **usable** stamina (`MiningHold.usable`: regular feathers minus the armor weight floor plus absorption feathers) is at or below `Mining Fatigue Feather Threshold` (3). Before 2026-11-20 it compared the raw feather count, which a heavily armored player could never reach (the weight floor stops spending first), so armor hid an empty pool.
+- Break is never cancelled; when a payment cannot be made the usable remainder is drained.
+
+### Starter & Reskillable class perk hooks in `StaminaModule`
+
+In addition to the 12 stamina-tree Reskillable perks listed in the config tables below (`Melee`, `Ranged`, `Shield`, `Adrenaline`, `Climber`, `Marathon Runner`, `Cardio Master`, `Evasion`, `Power Attack`, `Armor Mastery`, `Mining Efficiency`, `Gathering Efficiency`, `Forager`), `StaminaModule` integrates three starter-class stamina perks (full class spec in [starter-classes.md](starter-classes.md) and [reskillable.md](reskillable.md)):
+- **Riposte** (`StarterClassPerks.onAttack`, `StarterClassPerks.onAegisBlock`, `StarterPerkMath.isParry`): when a player takes a blocked hit within `Riposte Parry Window Ticks` (`10`), resets `StaminaTweaksShieldTicks` if `Riposte Free Parry Block` is enabled (`true`) so the raised shield gets a fresh interval, and applies `Riposte Stagger Ticks` (`10`) of shared `Stun` to the attacker.
+- **Steady Draw** (`StaminaModule.onItemUseStart`, `StaminaModule.onItemUseTick`, `StarterPerkMath.billsBowHold`): waives initial bow-draw cost on `UseItemEvent.Start` and delays bow-hold stamina billing until `ticksUsed > Steady Draw Full Draw Ticks` (`20` ticks).
+- **Fleetfoot** (`StaminaModule`, `StarterPerkMath.freeSprintTick`, `StarterPerkMath.sprintFreeStartArmed`): waives sprint-interval stamina drain for the first `60` continuous sprint ticks (`Fleetfoot Free Sprint Ticks`), requiring `40` non-sprinting ticks (`Fleetfoot Free Sprint Rearm Ticks`) to re-arm.
 
 ### Simple Difficulty thirst
 
@@ -356,7 +423,7 @@ All live unless noted. Nested Forge categories.
 | Cling Interval Multiplier | 2 | |
 | Fall on Stamina Depleted | true | Slide + clear climb keys |
 | Enable Melee Attack Cost | true | |
-| Light/Medium/Heavy cost | 1 / 2 / 4 | |
+| Light/Medium/Heavy cost | 2 / 3 / 4 | Raised from 1 / 2 / 4 on 2026-11-22 so per-second drain is close across classes (cost x swings per second); Melee Efficiency subtracts 1; Weapon Tempo makes some DSS combo hits free (see the DSS section) |
 | Light/Medium/Heavy damage multiplier | 0.8 / 0.5 / 0.3 | Empty-stamina hit |
 | Custom weapon lists | empty | Exact registry ids |
 | Enable Grapple Stamina Cost | true | |
@@ -371,16 +438,18 @@ All live unless noted. Nested Forge categories.
 | Glider interval / cost | 20 / 1 | |
 | Enable Shield Stamina Cost | true | |
 | Shield interval / cost | 20 / 1 | |
-| Enable Mining Stamina Cost | true | Break + fatigue |
-| Ore/Obsidian / default break | 2 / 1 | |
-| Mining Fatigue Feather Threshold | 4 | Regular feathers, not usable |
-| Enable Reskillable Perks | true | Gates **all** stamina perk lookups (`StaminaPerks.unlocked`, Armor Mastery in `getWeight`, Mining Efficiency on break) |
+| Enable Mining Stamina Cost | true | Hold billing + plant cost + fatigue |
+| Mine Hold Interval Ticks / Mine Hold Cost / Mine Session Gap Ticks | 10 / 1 / 10 | Real-block billing: one payment of the cost at the start of each interval; a quiet gap longer than the third starts a new session |
+| Plant Break Cost | 1 | Flat cost of a hardness 0 block; Forager makes it 0 |
+| Forager Free Blocks | (empty) | Extra plant registry names (wildcards) for Forager |
+| Mining Fatigue Feather Threshold | 3 | **Usable** half-feathers (after armor weight, plus absorption) at or below which Mining Fatigue III applies |
+| Enable Reskillable Perks | true | Gates **all** stamina perk lookups (`StaminaPerks.unlocked`, Armor Mastery in `getWeight`, Mining and Gathering Efficiency intervals, Forager) |
 | Armor Mastery Perk ID | `aqtweaks:armor_mastery` | Tweaks registers |
 | Armor Mastery Reduction | 1.0 | Per armor piece |
 | Mining Efficiency Perk ID | `aqtweaks:mining_efficiency` | Tweaks registers |
-| Mining Efficiency Reduction | 1 | Subtracted from break cost |
-| Melee / Ranged / Shield / Adrenaline / Climber / Cardio / Evasion / Power Attack perk ids | `aqtweaks:…` | Tweaks registers these |
-| Melee / Climber / Cardio reduction | 1 | Half-feathers, floor 0 |
+| Mining Efficiency Interval Ticks | 20 | Billing interval for non-forage blocks with Mining Efficiency (base 15; 25% less) |
+| Melee / Ranged / Shield / Adrenaline / Climber / Marathon Runner / Cardio Master / Evasion / Power Attack perk ids | `aqtweaks:…` | Tweaks registers these |
+| Melee / Climber reduction | 1 | Half-feathers, floor 0 |
 | Ranged draw reduction / hold interval × | 1 / 1.5 | Draw 2→1; hold 20→30 |
 | Shield hold interval × | 2 | 20→40 |
 | Adrenaline threshold / restore / cooldown | 3 / 20 / 400 ticks | Half-feathers; 20s; CD potion |
@@ -415,6 +484,7 @@ Also `AQTSolCarrotMilestones` (last SolCarrot milestone count applied to the max
 | `aqt_hyperthermia_ticks` / `aqt_hyper_thirst_ticks` / `aqt_hyper_max_penalty` / `aqt_hyper_recover_ticks` | server | Heat exposure, thirst drip, last cap step, ticks toward the next half-feather restored |
 | `aqt_lethal_freeze` / `aqt_lethal_heat` | server | Set only for the zero-stamina thermia hit |
 | `SprintTicks` | server | Sprint interval counter |
+| `AQTPaceDelta` | server | Regen modifier applied by `StaminaRegenPace` (interval minus Elenai's rate); removed at 0 |
 | `AttackPenalty` | server | Empty-stamina melee damage multiplier until next hurt |
 | `BowTicks` / `ThrowTicks` | server | Hold timers |
 | `ClimbPrevY` / `LadderTicks` / `ClimbJumpInput` | server | Climb dy + cling timer; jump from packet 0 |
@@ -510,10 +580,10 @@ Exact `@Config.Name` strings and code defaults, so the doc and the cfg cannot dr
 | Vine Climb Tick Interval | `20` | Climbing | Ticks between feather consumption while ascending vines (20 ticks = 1 second) |
 | Vine Climb Cost | `3` | Climbing | Stamina cost (in half-feathers) per ascend interval on vines |
 | Rope Climb Tick Interval | `20` | Climbing | Ticks between feather consumption while ascending ropes (20 ticks = 1 second) |
-| Light Weapons Cost | `1` | Weapons | Feather cost (in half-feathers) for light weapons |
+| Light Weapons Cost | `2` | Weapons | Feather cost (in half-feathers) for light weapons |
 | Light Weapons Damage Multiplier | `0.8` | Weapons | Damage multiplier applied if attacking without enough feathers |
 | Light Weapons Custom List | `{}` | Weapons | List of registry names of custom items to treat as light weapons (e.g. |
-| Medium Weapons Cost | `2` | Weapons | Feather cost (in half-feathers) for medium weapons |
+| Medium Weapons Cost | `3` | Weapons | Feather cost (in half-feathers) for medium weapons |
 | Medium Weapons Damage Multiplier | `0.5` | Weapons | Damage multiplier applied if attacking without enough feathers |
 | Medium Weapons Custom List | `{}` | Weapons | List of registry names of custom items to treat as medium weapons |
 | Heavy Weapons Cost | `4` | Weapons | Feather cost (in half-feathers) for heavy weapons |
@@ -529,12 +599,13 @@ Exact `@Config.Name` strings and code defaults, so the doc and the cfg cannot dr
 | Glider Glide Cost | `1` | Glider | Stamina cost (in half-feathers) consumed per glide interval |
 | Shield Hold Tick Interval | `20` | Shield | Ticks between feather consumption while holding a shield raised (20 ticks = 1 second) |
 | Shield Hold Cost | `1` | Shield | Stamina cost (in half-feathers) consumed per hold interval |
-| Ore/Obsidian Break Cost | `2` | Mining | Stamina cost (in half-feathers) for breaking ores and obsidian |
-| Default Block Break Cost | `1` | Mining | Stamina cost (in half-feathers) for breaking any other block |
+| Gathering Efficiency Interval Ticks | `20` | Reskillable | Billing interval for forage blocks with Gathering Efficiency (base 15; 25% less) |
 | Gathering Efficiency Perk ID | `aqtweaks:gathering_efficiency` | Reskillable |  |
-| Gathering Efficiency Reduction | `1` | Reskillable | Subtracted from forage BreakEvent stamina only (logs, leaves, gravel, flowers, mushrooms, tall grass). |
 | Melee Efficiency Perk ID | `aqtweaks:melee_efficiency` | Reskillable |  |
 | Melee Efficiency Reduction | `1` | Reskillable | Subtracted from light/medium/heavy melee costs (half-feathers). |
+| Weapon Tempo Perk ID | `aqtweaks:weapon_tempo` | Reskillable |  |
+| Weapon Tempo Free Hit Interval | `3` | Reskillable | Every Nth hit of a live DSS combo is free (2 to 10) |
+| Weapon Tempo Bonus Chance Per Level | `0.05` | Reskillable | Chance per Basic Technique level for the other hits from the 3rd on to be free (0 to 0.1); level 10 = 50% |
 | Ranged Efficiency Perk ID | `aqtweaks:ranged_efficiency` | Reskillable |  |
 | Ranged Draw Reduction | `1` | Reskillable | Subtracted from bow draw cost (half-feathers). |
 | Ranged Hold Interval Multiplier | `1.5` | Reskillable | Multiplies bow hold interval (and throw hold, which uses bow interval). |
@@ -546,8 +617,8 @@ Exact `@Config.Name` strings and code defaults, so the doc and the cfg cannot dr
 | Adrenaline Cooldown Ticks | `400` | Reskillable | Ticks after a proc before it can fire again. |
 | Expert Climber Perk ID | `aqtweaks:expert_climber` | Reskillable |  |
 | Expert Climber Reduction | `1` | Reskillable | Subtracted from ladder/vine/rope/cling, ledge, and grapple climb/swing/hang (half-feathers). |
-| Cardio Master Perk ID | `aqtweaks:cardio_master` | Reskillable |  |
-| Cardio Master Reduction | `1` | Reskillable | Subtracted from jump and sprint costs (half-feathers). |
+| Marathon Runner Perk ID | `aqtweaks:marathon_runner` | Reskillable | Sprint and jump refill as Moving; walking refills at the Resting rate. No cost reduction. |
+| Cardio Master Perk ID | `aqtweaks:cardio_master` | Reskillable | Active counts as Moving for refill. |
 | Evasion Perk ID | `aqtweaks:evasion` | Reskillable |  |
 | Evasion Cooldown Ticks | `600` | Reskillable | Ticks after a successful evade. |
 | Power Attack Perk ID | `aqtweaks:power_attack` | Reskillable |  |
@@ -576,12 +647,12 @@ Exact `@Config.Name` strings and code defaults, so the doc and the cfg cannot dr
 - `hasEnoughStamina` must keep absorption-then-usable-after-weight. Armor Mastery must affect `getWeight` and the client `SWeightMessage` sync. Endurance `(amp+1)×4` must still apply with Mastery; Weight potion 200 must not be overwritten.
 - Sprint uses Tweaks `hasEnoughStamina` and a sprint-only interval. Keep Universal Tweaks **Sprinting Feather Consumption** and **Requirement** at **0** so feathers are not billed twice. Hunger sprint threshold is a different UT tweak.
 - Ledge grace / jump packet must keep `fallOnDepleted` from cancelling a mantle. Mantle lip uses **collision-list** maxY (fence/wall 1.5, not the 1.0 outline). Grab 2 + extras cap 5. Client and server both refuse the grab when stamina is short. Server mantle state must clear on land. Fence/wall rise is Y-only then finish on the nearest lip collision XZ (not block center); `fallDistance` must stay 0 while climbing. Successful land pauses jump/WASD (`ledgeClimbLandPauseTicks`); abort does not.
-- Mining break is never cancelled. Fatigue uses **regular** feathers.
+- Mining break is never cancelled. Fatigue uses **usable** stamina (armor floor respected).
 - Armor weight tooltips read a local split of `ClientStorage.weightValues`. Do not iterate or clear `TooltipEventListener.weights`. Do not call `ConstructsArmory`. Join blank/restore of the config weight array stays. `hud.tooltips` stays on.
 
 ## Verify
 
-**Combat / tools:** jump costs 1 and blocks at 0; sprint 1/s and stops below 2 usable (Tweaks weight); Feathers potion gold icons drop on Tweaks spend like a dodge; sword 2, axe 4, dagger 1; empty-hand punch is light **on a hit**; short-stamina **hit** deals reduced damage once; bow 2 on draw + hold (hold may tick twice); throw hold slower than bow, 1 on release; shield 1/s then drops; break stone 1, ore 2; Fatigue III at ≤ 2 full feathers; glider 1/s then folds; DSS with cost > 0 spends and blocks when empty; hunger not also drained if replace exhaustion is on. MineMenu keybind entry for Skills GUI opens the DSS menu once with the key unbound or assigned. Space does not open it while the bind is unbound. The real P key opens it once and does not crash. `/dssgui` opens it with no key.
+**Combat / tools:** jump costs 1 and blocks at 0; sprint 1/s and stops below 2 usable (Tweaks weight); Feathers potion gold icons drop on Tweaks spend like a dodge; sword 2, axe 4, dagger 1; empty-hand punch is light **on a hit**; short-stamina **hit** deals reduced damage once; bow 2 on draw + 1/s hold (ticks once per interval; free draw & delayed hold with Steady Draw); throw hold slower than bow, 1 on release; shield 1/s then drops; mining bills by hold (1 half-feather at session start + 1 per 15t, or 20t with Mining/Gathering Efficiency), plants flat 1 (free with Forager); Fatigue III at **usable** stamina ≤ 3 half-feathers (after armor weight, plus absorption); glider 1/s then folds; DSS with cost > 0 spends and blocks when empty; hunger not also drained if replace exhaustion is on. MineMenu keybind entry for Skills GUI opens the DSS menu once with the key unbound or assigned. Space does not open it while the bind is unbound. The real P key opens it once and does not crash. `/dssgui` opens it with no key.
 
 **Climb / ledge:** ladder 1/s up, cling half rate, slide free; empty slides; jump+forward mantle 2 short / up to 5 long; empty stamina does not start a mantle; fences/walls use 1.5-high lip and finish on the near collision (not block center); no fall-damage charge while holding; ~0.4s land pause so held W+space does not hop off; does not fight slide.
 
@@ -592,5 +663,4 @@ Exact `@Config.Name` strings and code defaults, so the doc and the cfg cannot dr
 ## Out of scope unless asked
 
 - Billing air swings (would need a server-bound swing packet)
-- Deduplicating bow hold (player tick vs `UseItem.Tick`)
 - Recarving / worldgen (stamina has none)

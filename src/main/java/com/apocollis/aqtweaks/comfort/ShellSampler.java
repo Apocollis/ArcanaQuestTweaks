@@ -91,7 +91,7 @@ public final class ShellSampler {
         return name != null && name.getPath().contains("carpet");
     }
 
-    private static boolean isGlass(IBlockState state) {
+    static boolean isGlass(IBlockState state) {
         ResourceLocation name = state.getBlock().getRegistryName();
         if (name == null) return false;
         String path = name.getPath();

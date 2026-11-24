@@ -20,6 +20,22 @@ public class ComfortSettings {
     public long attack_cooldown_ticks = 300;
     public int scan_radius = 12;
     public int scan_dy = 2;
+    public boolean home_enabled = true;
+    public int home_max_cells = 4000;
+    public int home_fill_cells_per_tick = 400;
+    public int home_recheck_minutes = 10;
+    public int home_rebuild_cooldown_ticks = 100;
+    public int home_fallback_radius = 12;
+    public int home_fallback_down = 6;
+    public int home_fallback_up = 8;
+    public int home_trigger_range = 24;
+    public String home_name_format = "%s's Home";
+    /** Door test (see HomeFiller): ray length, escaping-ray share that means outside or clearly enclosed, sub-fill budget, doors judged per rebuild. */
+    public int home_door_ray_range = 16;
+    public double home_door_exterior_fraction = 0.70;
+    public double home_door_interior_fraction = 0.30;
+    public int home_door_probe_cells = 800;
+    public int home_max_doors = 24;
     public float repeat_decay = 0.6f;
     public Map<String, Float> repeat_decay_overrides = defaultDecayOverrides();
     public Integer band_min_categories = null;
@@ -28,6 +44,8 @@ public class ComfortSettings {
     public String structure_decay_key = "role_family";
     public float non_shell_weight = 1.0f;
     public float unlisted_structure_weight = 0.25f;
+    /** Any stairs block (vanilla or modded) not listed under categories.structure counts as structure at this weight; 0 turns it off. */
+    public float structure_stairs_weight = 1.0f;
     public List<String> natural_blocks = defaultNaturalBlocks();
     public Map<String, String> families = new LinkedHashMap<>();
     public int vigor_base_interval = 30;

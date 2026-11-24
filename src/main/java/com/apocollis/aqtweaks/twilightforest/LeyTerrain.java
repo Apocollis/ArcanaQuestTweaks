@@ -154,23 +154,52 @@ public final class LeyTerrain {
         }
     }
 
-    /** True if the position is inside the bounds of a feature on the Shelter Features list. */
+    /** True if the position is inside the footprint of a feature on the Shelter Features list. */
     public static boolean structureShelter(World world, BlockPos pos) {
+        return shelterReport(world, pos, null);
+    }
+
+    /**
+     * The shelter test, optionally narrating each step into {@code out} (for /leyrupture status). A position counts when
+     * it is inside a structure component box or the structure's whole footprint, and the feature at it (or the region
+     * feature when the structure lookup finds none) is on the list. Plan 2.2.
+     */
+    public static boolean shelterReport(World world, BlockPos pos, StringBuilder out) {
         IChunkProvider provider = world.getChunkProvider();
-        if (!(provider instanceof AccessorChunkProviderServer accessor)) return false;
-        IChunkGenerator generator = accessor.aqtweaks$getChunkGenerator();
-        if (!(generator instanceof ChunkGeneratorTFBase tf)) return false;
-        try {
-            if (!tf.isBlockInStructureBB(pos)) return false;
-            TFFeature feature = tf.getFeatureAt(pos);
-            if (feature == null) return false;
-            String name = feature.name();
-            for (String allowed : ArcanaQuestTweaksConfig.TwilightForestModuleConfig.ley.shelterFeatures) {
-                if (allowed.trim().equalsIgnoreCase(name)) return true;
-            }
-        } catch (RuntimeException ignored) {
+        if (!(provider instanceof AccessorChunkProviderServer accessor)) {
+            if (out != null) out.append("no server chunk provider");
+            return false;
         }
-        return false;
+        IChunkGenerator generator = accessor.aqtweaks$getChunkGenerator();
+        if (!(generator instanceof ChunkGeneratorTFBase tf)) {
+            if (out != null) out.append("generator is ").append(generator == null ? "null" : generator.getClass().getName());
+            return false;
+        }
+        try {
+            boolean component = tf.isBlockInStructureBB(pos);
+            boolean full = tf.isBlockInFullStructure(pos.getX(), pos.getZ());
+            TFFeature feature = tf.getFeatureAt(pos);
+            TFFeature region = TFFeature.getFeatureForRegionPos(pos.getX(), pos.getZ(), world);
+            TFFeature used = feature != null && feature != TFFeature.NOTHING ? feature : region;
+            String name = used == null ? "none" : used.name();
+            boolean listed = false;
+            for (String allowed : ArcanaQuestTweaksConfig.TwilightForestModuleConfig.ley.shelterFeatures) {
+                if (allowed.trim().equalsIgnoreCase(name)) {
+                    listed = true;
+                    break;
+                }
+            }
+            if (out != null) {
+                out.append("componentBox=").append(component).append(" fullFootprint=").append(full)
+                        .append(" featureAt=").append(feature == null ? "null" : feature.name())
+                        .append(" regionFeature=").append(region == null ? "null" : region.name())
+                        .append(" listed=").append(listed);
+            }
+            return (component || full) && listed;
+        } catch (RuntimeException e) {
+            if (out != null) out.append("error ").append(e);
+            return false;
+        }
     }
 
     /** True if a real roof (an opaque non-leaf block) lies within 3 blocks above the position. */

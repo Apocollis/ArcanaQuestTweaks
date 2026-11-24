@@ -71,6 +71,31 @@ public class CommonProxy {
         ArcanaQuestTweaks.NETWORK.registerMessage(
                 com.apocollis.aqtweaks.network.PacketSplashTelegraph.Handler.class,
                 com.apocollis.aqtweaks.network.PacketSplashTelegraph.class, 14, Side.CLIENT);
+        ArcanaQuestTweaks.NETWORK.registerMessage(
+                com.apocollis.aqtweaks.network.PacketAegisShield.Handler.class,
+                com.apocollis.aqtweaks.network.PacketAegisShield.class, 15, Side.CLIENT);
+        ArcanaQuestTweaks.NETWORK.registerMessage(
+                com.apocollis.aqtweaks.network.PacketStructureTitle.Handler.class,
+                com.apocollis.aqtweaks.network.PacketStructureTitle.class, 16, Side.CLIENT);
+        ArcanaQuestTweaks.NETWORK.registerMessage(
+                com.apocollis.aqtweaks.network.PacketOpenStarterClassGui.Handler.class,
+                com.apocollis.aqtweaks.network.PacketOpenStarterClassGui.class, 17, Side.CLIENT);
+        ArcanaQuestTweaks.NETWORK.registerMessage(
+                com.apocollis.aqtweaks.network.PacketSelectStarterClass.Handler.class,
+                com.apocollis.aqtweaks.network.PacketSelectStarterClass.class, 18, Side.SERVER);
+        ArcanaQuestTweaks.NETWORK.registerMessage(
+                com.apocollis.aqtweaks.network.PacketStarterClassResult.Handler.class,
+                com.apocollis.aqtweaks.network.PacketStarterClassResult.class, 19, Side.CLIENT);
+        ArcanaQuestTweaks.NETWORK.registerMessage(
+                com.apocollis.aqtweaks.network.PacketStarterRevealDone.Handler.class,
+                com.apocollis.aqtweaks.network.PacketStarterRevealDone.class, 20, Side.SERVER);
+        ArcanaQuestTweaks.NETWORK.registerMessage(
+                com.apocollis.aqtweaks.network.PacketTogglePerk.Handler.class,
+                com.apocollis.aqtweaks.network.PacketTogglePerk.class, 21, Side.SERVER);
+        ArcanaQuestTweaks.NETWORK.registerMessage(
+                com.apocollis.aqtweaks.network.PacketSyncPerkToggles.Handler.class,
+                com.apocollis.aqtweaks.network.PacketSyncPerkToggles.class, 22, Side.CLIENT);
+        com.apocollis.aqtweaks.additions.AdditionsConfigMigration.migrateLegacyWeaponConfig(event.getModConfigurationDirectory());
         ComfortConfigLoader.load(event.getModConfigurationDirectory());
         GaiaDamageConfig.load(event.getModConfigurationDirectory());
         com.apocollis.aqtweaks.spawning.SpawnTypeLists.load(event.getModConfigurationDirectory());
@@ -96,14 +121,19 @@ public class CommonProxy {
         MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.hazard.Hazards.Handler());
         com.apocollis.aqtweaks.paragon.ParagonModule.init();
         MinecraftForge.EVENT_BUS.register(new StaminaModule());
+        MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.stamina.HeavyArmorBypass());
+        com.apocollis.aqtweaks.stamina.StaminaRegenPace.register();
         MinecraftForge.EVENT_BUS.register(new GaiaDamageHandler());
+        MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.potion.StunHandler());
 
         if (net.minecraftforge.fml.common.Loader.isModLoaded("thaumcraft")) {
             MinecraftForge.EVENT_BUS.register(new ThaumcraftModule());
             ThaumcraftModule.enableVisBatterySubtypes();
+            com.apocollis.aqtweaks.thaumcraft.studious.StudiousModule.init();
             MinecraftForge.EVENT_BUS.register(com.apocollis.aqtweaks.thaumcraft.ThaumcraftFocusHooks.class);
             com.apocollis.aqtweaks.thaumcraft.ThaumcraftFocusHooks.warnNerfedHealFocus();
             DeepCrystalGenerator.register();
+            com.apocollis.aqtweaks.thaumadditions.ThaumAdditionsModule.init();
             if (net.minecraftforge.fml.common.Loader.isModLoaded("botania")) {
                 com.apocollis.aqtweaks.thaumcraft.ManaRepairModule.init();
             }
@@ -114,6 +144,8 @@ public class CommonProxy {
         }
 
         MinecraftForge.EVENT_BUS.register(new ComfortSystemHandler());
+        MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.comfort.home.HomeEvents());
+        MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.titles.StructureTitleTracker());
         MinecraftForge.EVENT_BUS.register(RestedBonuses.class);
         MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.rtg.VillageLandHelper.Events());
 
@@ -132,7 +164,12 @@ public class CommonProxy {
         if (net.minecraftforge.fml.common.Loader.isModLoaded("reskillable")) {
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.reskillable.ReskillableModule());
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.reskillable.RespiteHandler());
+            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.reskillable.PerkToggleEvents());
+            if (net.minecraftforge.fml.common.Loader.isModLoaded("customstartinggear")) {
+                com.apocollis.aqtweaks.starter.StarterModule.register();
+            }
             MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.reskillable.PerkWishlist());
+            MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.reskillable.StarterClassPerks());
             if (net.minecraftforge.fml.common.Loader.isModLoaded("dynamicstealth")) {
                 MinecraftForge.EVENT_BUS.register(new com.apocollis.aqtweaks.reskillable.PerkStealth());
             }

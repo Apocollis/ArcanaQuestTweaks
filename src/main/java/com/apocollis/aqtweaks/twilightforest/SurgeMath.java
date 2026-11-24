@@ -15,6 +15,11 @@ public final class SurgeMath {
         return capacity * (percent / 100.0D) * exposure * intensity;
     }
 
+    /** A flat per-cycle amount scaled by exposure and biome intensity. */
+    public static double flat(double perCycle, double exposure, double intensity) {
+        return Math.max(0.0D, perCycle) * exposure * intensity;
+    }
+
     /** How much of {@code wanted} warp can still be given without exceeding {@code cap} for this surge. */
     public static int warpAllowed(int already, int wanted, int cap) {
         return Math.max(0, Math.min(wanted, cap - already));

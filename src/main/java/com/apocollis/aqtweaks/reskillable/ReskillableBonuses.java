@@ -111,7 +111,7 @@ public final class ReskillableBonuses {
         return level;
     }
 
-    static void invalidateLevels(EntityPlayer player) {
+    public static void invalidateLevels(EntityPlayer player) {
         if (player == null) return;
         levelCache(player).remove(player.getUniqueID());
     }

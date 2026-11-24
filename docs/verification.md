@@ -88,6 +88,8 @@ Seam, village world push/pop and Mineshaft locate were dead code until the 2026-
 | Fell a tree with Tree Chopper at gathering 16+ with Lumberjack and Reforester | Extra logs roll per log; saplings roll per leaf (gathering x 0.03), never more than 64 from one tree; breaking a single log or leaf by hand still rolls; without Tree Chopper nothing changes | [reskillable.md](reskillable.md) |
 | New RTG plains mineshaft, shaft built | `latest.log` has `[AQ-MINESHAFT] surface shaft hub=... target=... surfaceY=... siblings=N hubInside=...`; the ladder shaft ends inside a mineshaft tunnel or room (no stone-only shaft); when `hubInside=false` the shaft is at the nearest tunnel box, not the hub | [bettermineshafts.md](bettermineshafts.md) |
 | Building 32, Normal mode: place and break a block about 2 blocks past normal reach (4.5 + 2) | Works; at Building 0 the same target is out of reach. Melee reach unchanged | [reskillable.md](reskillable.md) |
+| Unlock Tunnel Sense; left-click it in the Mining skill screen; relog, die, respawn; Shift+Left-click refund and re-buy | Tile shows OFF and the tooltip says Disabled, hostiles stop pinging; still off after relog and death; re-bought perk is on; a non-toggleable perk ignores the click | [reskillable.md](reskillable.md) |
+| Inventory with Patchouli's `Inventory Button Book` set | The crafting-grid book button is gone; a book tab sits between Skills and Comfort, shows the unread marker, tooltip names the book, click opens it; `Move Inventory Button To Sidebar` false restores the stock button | [patchouli.md](patchouli.md) |
 | Building perks Reach I/II/III, EB non-Normal mode | No perk: reach 5; Reach I (Building 10): 20; Reach II locked until I owned, then 50; III: 100. Upgrade items not craftable, do nothing on right-click; icons show the EB item art | [reskillable.md](reskillable.md) |
 | Boot with the Batch 4 jar | No `Unlockable ... not found` Reskillable errors; `cleanmix.log` has no `aqtweaks` injection failure (required jsons now fail loudly); no `quality-wear` lines in `latest.log` unless `Trace Wear` is on | [qualitytools.md](qualitytools.md) |
 | Enter the Nether for the first time, then wait 2s | Dimension warp, sound and chat arrive about 2 seconds later, with no new thread | [thaumcraft.md](thaumcraft.md) |
@@ -252,17 +254,22 @@ Full spec: [temperature.md](temperature.md). The hypothermia / hyperthermia **fe
 | Check | Expect | Doc |
 | --- | --- | --- |
 | `/leyrupture surge` | 30 s of warning: crickets and ambient animals go silent, a hum is audible from the first second, the edge static grows with the countdown, and columns of runes (about 30 percent) and wisps, sparks and dots begin to rise through the ground around you from the first second, about half within 18 blocks, thickening toward the surge; they start 24 blocks below you (never above Y30), pass through stone, dirt, trees and leaves, stay bright to Y50 and dissolve between Y50 and Y55; none inside a Lich Tower or other sheltered structure | twilightforest |
-| Forest floor in diamond armor / full Steeleaf or Thaumium robes | 3.0 / 1.0 magic damage per hit (every 8 s), hunger burn, violet-emerald edge static | twilightforest |
+| Forest floor in diamond armor / full Steeleaf or Thaumium robes | 5.0 / 3.0 magic damage per hit every 4 s (a charge cycle; the shield soaks it first), hunger burn, violet-emerald edge static | twilightforest |
 | Climb a tree; stand on a leaf block; go underground | The effect shrinks steadily and stops about 20 blocks above the ground (about Y50); a leaf counts the ground below; caves are full effect | twilightforest |
 | Stand at Y12 (cave), Y35 and Y70 during a surge | Columns start 24 below you, never above Y30; underground you see them coming up through the cave floor; the damage and static stop about 20 blocks above the local ground (about Y50 over typical forest) | twilightforest |
-| Hold or wear partly drained Thaumcraft rings, amulets, charms, the Thaumostatic Harness, a caster gauntlet with a Thaumic Augmentation vis battery (and the same in a Baubles slot) during an active surge | Their charge rises every 10 s (6 percent of capacity at full exposure); no aura is drained | twilightforest |
-| 3 minutes exposed in proper gear / unprotected | About 22 / 67 damage over a full surge (8 s between hits, 1.0 / 3.0 each), hunger burn 0.25 a second; blindness and the like keep their 4 s beat | twilightforest || Inside a Lich Tower, Labyrinth, Knight Stronghold; just outside | Damage stops inside, resumes just outside; hills, hedge maze, naga courtyard are not shelter | twilightforest |
-| Use a Thaumcraft gauntlet, Botania rod, Astral wand, Aether staff, Twilight scepter, mount a Bewitchment broom while exposed | 3.0 recoil scaled by exposure, sparks and hiss, once per cooldown; a caster adds capped warp; `/leyrupture item` reports the rule | twilightforest |
-| Carry an Embers cartridge and a Botania mana tablet in the open | About 10% charge per 5 s, scour damage taken, temporary warp up to the cap | twilightforest |
-| Place a Vis Battery in the open before a surge | Its charge rises about 1 per 5 s during the active phase, with flux added; not under a roof, in a structure or high in the canopy | twilightforest |
+| Hold or wear partly drained Thaumcraft rings, amulets, charms, the Thaumostatic Harness, a caster gauntlet with a Thaumic Augmentation vis battery (and the same in a Baubles slot) during an active surge | Their charge rises by 8 every 4 s cycle at full exposure; no aura is drained | twilightforest |
+| 3 minutes exposed in proper gear / unprotected | About 135 / 225 damage over a 180 s surge (45 cycles of 3.0 / 5.0), hunger burn 0.25 a second; blindness and the like keep their 4 s beat | twilightforest |
+| Inside a Lich Tower, Labyrinth, Knight Stronghold; just outside | Damage stops inside, resumes just outside; hills, hedge maze, naga courtyard are not shelter | twilightforest |
+| Use a Botania rod, Astral wand, Aether staff, Twilight scepter or mount a Bewitchment broom while exposed | 3.0 recoil scaled by exposure, sparks and hiss, once per cooldown; `/leyrupture item` reports the rule | twilightforest |
+| Cast a Thaumcraft focus from a gauntlet while exposed in an active surge | Overchannel: the cast has twice the power, you take 3.0 backlash damage (scaled by exposure) and gain 1 temporary warp per cast; an Aegis raise gives warp only, a doubled pool (up to 50) and another warp every 20 to 30 ticks while it stays up | twilightforest |
+| Carry an Embers cartridge and a Botania mana tablet in the open | Embers +50 and mana +5,500 every 4 s cycle at full exposure (about 247,500 mana over an average surge); the scour damage keeps coming | twilightforest |
+| Stay exposed for several cycles, then step out | Temporary warp +1 every 4 exposed cycles, normal warp +1 every 40; each cycle out of the surge takes one back, so 3 cycles in need 3 out to avoid the next | twilightforest |
+| Wear runic armor in a surge and take a hit | The shield drops and does not refill until you shelter (Thaumcraft recharge is skipped); golden-apple absorption still works | twilightforest |
+| Place a Vis Battery in the open before a surge, and carry a portable one | Each gains one level per 4 cycles (10 levels in about 40 cycles), with flux added; not under a roof, in a structure or high in the canopy (placed ones) | twilightforest |
+| `/leyrupture status` inside a Dark Tower | Prints the shelter test (componentBox, fullFootprint, featureAt, regionFeature, listed) and whether it counts; damage stops inside | twilightforest |
 | Active phase | A few wraiths or wolves surface 12 to 24 blocks away, glowing, no drops, and dissipate at the end | twilightforest |
 | `/leyrupture biome` in the Dark Forest, Fire Swamp, Highlands, a Clearing | Intensity and extra effect differ as configured | twilightforest |
-| Continuous outdoor exposure ≥ 16 s during active surge (geared and ungeared) | Warning ticks do not count; at 16 s rolls once per exposure across None (1), Flight 16s + Slowfall 26s (2), or Levitation 16s + Slowfall 26s (2); longer existing potions preserved; sheltering or surge end resets the counter | twilightforest |
+| Continuous outdoor exposure of 16 s during an active surge (geared and ungeared) | Warning ticks do not count; every 16 s of continued exposure rolls Flight 16 s + Slowfall 26 s (1) or Levitation 16 s + Slowfall 26 s (1); longer existing potions are kept; sheltering or surge end resets the counter | twilightforest |
 | Startup log with modpack loaded | `[hazard-gear]` startup audit logs zero unmatched pattern warnings for default `aqtweaks_hazard_gear.cfg` entries | [hazards.md](hazards.md) |
 
 ## Nether hazards
@@ -422,6 +429,65 @@ Build, deploy, then in a creative world with a Tartarite item of each kind (`met
 | `Disabled Traits` = `fiery` and restart | The Fiery recipes no longer match and an existing Fiery item does nothing | paragon |
 | Server and client | No errors at startup from the recipe factory; a pack without a trait's mod loads without its recipes | paragon |
 
+## Player homes
+
+Build, deploy, then in a creative or survival world. `/aqhome info` and `/aqcomfort` show what the home sees.
+
+| Check | Expect | Doc |
+| --- | --- | --- |
+| Sleep in a bed inside a closed two-storey house (bed downstairs, hearth and chair upstairs, open stair shaft), then `/aqhome info` | After a second or two: enclosed, a cell count in the hundreds, bounds covering both floors, you inside | comfort |
+| `/aqcomfort` on the upper floor and on the lower floor | Same cozy score both places; furnishings from both floors count; the old scan alone would miss one floor | comfort |
+| Place or remove a hearth or chair, wait about 5 seconds | `/aqhome info` shows a new version; `/aqcomfort` score moves | comfort |
+| Break the roof or open the exterior door, wait for the rebuild | Info says box with a cell cap or unloaded reason; the home still works around the bed | comfort |
+| Sleep in a bed on open ground or in a cave | Box fallback around the bed | comfort |
+| Restart the world, walk back within 24 blocks | Home rebuilds on its own; before that `/aqhome list` shows it as not built | comfort |
+| A second player sleeps in another bed inside the same house | `/aqhome list` shows both owners on one home; the second player scores the same cozy value | comfort |
+| Set spawn elsewhere (another bed, or `/spawnpoint`) | The old home is removed; `/aqhome list` no longer shows it | comfort |
+| Destroy the bed, then rest near the old home | After the next rebuild the home is dropped | comfort |
+| Outside every home | Comfort works as before (25x5x25 scan, shell rays) | comfort |
+| A house with closed doors between rooms, bed in one room, `/aqhome info` | Enclosed (not box); all rooms in the cell count; doors line says interior verdicts (rays or fill), none for the interior doors counted as outside | comfort |
+| Leave the exterior door open (and closed), rebuild with `/aqhome rescan` | Same region either way; no box fallback; the exterior door is an exterior verdict (open air or rays) | comfort |
+| An underground base: bed in a room, door onto a cave or tunnel, rescan | Room only; the door verdict is by fill (or rays) as exterior; a closed side room behind another door joins | comfort |
+| A house with a flower bed or farm beside a window, `/aqcomfort` inside, then break the garden | Garden pieces count while it stands (nature, decoration) and the score drops when removed; blocks of the house are not counted twice | comfort |
+| A starter house roofed and walled in stairs only (no listed structure blocks), `/aqcomfort` | A roof (and wall) structure piece shows with weight about 1.0; set `structure_stairs_weight` to 0 and reload, the roof falls to the unlisted weight | comfort |
+| `structure:Home` as a Music Triggers structure trigger / an In Control `structure: home` spawn rule | True inside a home, false outside; village and other structure names behave as before. In Control path is untested in the pack: confirm | comfort |
+| Spark with several players resting in one large home | No tick spikes beyond a short bump when a home rebuilds | comfort |
+
+## Structure titles (Traveler's Titles)
+
+Build, deploy, play with Traveler's Titles installed. Docs: [titles.md](titles.md).
+
+| Check | Expect | Doc |
+| --- | --- | --- |
+| Sleep in a bed in a closed house, walk out and back in | On entering the home a title `<your name>'s Home` shows in the biome title's place, one line, no subtitle. Leaving and re-entering inside 10 s shows nothing; after 10 s it shows again | [titles.md](titles.md) |
+| Stand in a player home next to a waystone | Only the home title shows: no Waystones title or sound before or after it. Leave waystone range and return later: the Waystones title shows. A village next to a waystone does not suppress it | [titles.md](titles.md) |
+| Another player (or a second account) enters your home | They see `<your name>'s Home` | [titles.md](titles.md) |
+| Set `Show Owner Name On Homes` to false (client), rejoin | The same title reads just "Home" | [titles.md](titles.md) |
+| Walk into a village, a mineshaft, a Roguelike dungeon | "Village", "Abandoned Mineshaft", "Roguelike Dungeon" | [titles.md](titles.md) |
+| Enter a structure while the biome title is on screen, and in a village with a Waystones gazebo | The biome and Waystones titles are cleared or not shown; only the structure title shows; the biome title can return after you leave and cross a biome border | [titles.md](titles.md) |
+| Add an unknown name to `Structure Titles Extra Names` | A modded structure with that name shows a prettified title (or a lang entry if you add one) | [titles.md](titles.md) |
+| Run without Traveler's Titles on the client | No crash, no error in the log, no title | [titles.md](titles.md) |
+| Set `Structure Titles Enabled` false | No packets and no titles | [titles.md](titles.md) |
+| New character logs in (CSG start gear given first) | The class menu opens within about 2 s; the player cannot move, be hurt, break blocks or open containers; chat works | [starter-classes.md](starter-classes.md) |
+| Pick a class | Skills raised to the plan levels, the class perk unlocked (Reskillable tab), the kit replaces the inventory, the reveal panel lists levels, perk and gear; the Scholar has FIRSTSTEPS research done | [starter-classes.md](starter-classes.md) |
+| Drink Tabula Rasa (`/give @p aqtweaks:tabula_rasa`) after buying skill levels and perks | After 32 ticks the player stays in place, skills are 1, perks gone, XP back for bought levels only, the menu opens with the reawakening text; the pick gives skills and perk but no kit and no gear section; the item is gone (kept in creative) | [starter-classes.md](starter-classes.md) |
+| Lock on with DSS and spam attack with a dagger, a sword and a heavy weapon (iron Spartan) | Swings land only at each weapon's cooldown (about 8 / 14 / 20 ticks), no rapid weak hits; Sword Beam and other skills still work | [stamina.md](stamina.md) |
+| Basic Technique level 5, 6-hit combo with each weapon | Combo survives the slow swings; hit 4 bonus is about 3 x 1.0 / 1.6 / 3.0 before armor; setting the multipliers to 1.0 restores stock DSS | [stamina.md](stamina.md) |
+| Heavy weapon against armor 20 and 30 targets | Heavy hits do about 12 and 7 damage per second of the plan's table with 25% bypass; `Enable Armor Bypass` = false lowers it | [stamina.md](stamina.md) |
+| Buy Weapon Tempo (Attack 24, Melee Efficiency), lock on, chain a combo | Combo hits 3, 6, 9 and 12 cost no stamina (feathers do not drop on them), and other hits from the 3rd on are sometimes free, more often at higher Basic Technique levels; no lock-on means no free hits; icon is the iron sword with five gold ticks | [reskillable.md](reskillable.md) |
+| Stand still with empty stamina, then walk, then sprint (no perks) | Refill about 10 s (still or sneaking, after about 1.5 s), about 20 s walking, about 30 s while sprinting or climbing; stops being fast again as soon as you sprint | [stamina.md](stamina.md#regen-pace) |
+| Swing a sword, stop, watch the bar | Refill stays slow for about 20 ticks plus the weapon's attack period after the last swing, then speeds up; taking a hit does not slow it | [stamina.md](stamina.md#regen-pace) |
+| Use a caster gauntlet or eat while sneaking | Refill is the Moving rate (20), not Resting, for about 1 s after use; raising a shield stays at Moving | [stamina.md](stamina.md#regen-pace) |
+| Drink Replenishment (amplifier 0), fight | Active refill is 15 ticks (double base); Resting and Moving unchanged; the old near-instant refill is gone | [stamina.md](stamina.md#regen-pace) |
+| Rested tier III, walk and sprint | Moving 15, Active 15, Resting still 10; Moonfrost storm still slows refill | [comfort.md](comfort.md) |
+| Buy Marathon Runner (Agility 16), sprint, then walk | Sprint costs 1 per second and refills 1 per second (net 0); walking refills at the Resting rate; sprint and jump costs are no longer reduced | [reskillable.md](reskillable.md) |
+| Buy Cardio Master (Agility 24, Marathon Runner) and fight or climb | Active refill is the Moving rate (20) | [reskillable.md](reskillable.md) |
+| Quit during the menu and log in again | The menu returns; inventory and skills unchanged; no second kit | [starter-classes.md](starter-classes.md) |
+| Break `csg_kit` for one class, then `/aqclass reload` | That class is gone from the menu, the others work, the log names the reason | [starter-classes.md](starter-classes.md) |
+| Empty the `classes` list, then `/aqclass reload` | No lockdown, no menu, an operator gets a red chat line when a new character joins | [starter-classes.md](starter-classes.md) |
+| An existing character from before the module logs in | No menu, no lockdown | [starter-classes.md](starter-classes.md) |
+| `/aqclass reset <player> confirm`, `skip`, `regrant`, `info` | Each does what the page says | [starter-classes.md](starter-classes.md) |
+
 ## Doc drift check
 
 Run `python scripts/doc_audit.py` (stdlib only, read-only). Expect `OK 0 hard findings`. It checks: every `docs/*.md` is linked from the README and every README link resolves; every class file named in a doc (written with its package path and .java suffix) exists (history and changelog are skipped); every `Mixin*` class and non-mixin class is named in some doc; every `mixins.aqtweaks*.json` appears in the docs and names no missing class; every `Mixin*` class is registered in a json; every `@Config.Name` appears in a doc (category objects and perk layouts excepted); the README `@Mod` dependency string equals the code. The last section, table row names that are not config keys, is informational (many rows are labels). A new config key, class or mixin json without a doc line fails the check: add the line, do not add an exclusion.
@@ -429,3 +495,23 @@ Run `python scripts/doc_audit.py` (stdlib only, read-only). Expect `OK 0 hard fi
 ## After mixin / parent bumps
 
 Re-read mixin targets ([compatibility-matrix.md](compatibility-matrix.md) upgrade check). RC version bumps: confirm `RayMatcher.cast` `@Overwrite` still matches.
+
+## Stamina: hold-based mining and woodcutting (2026-11-20)
+
+| Check | Expect | Doc |
+| --- | --- | --- |
+| Mine stone for 10 s with a wooden, an iron and an Efficiency V pick (full stamina) | About the same stamina per second for all three (1 half-feather every 15 ticks, plus the first at the start); clearly less per block for the fast pick | stamina |
+| Tap one stone block and let go, many times | Each tap pays 1 | stamina |
+| Hold the button across a meadow of tall grass and flowers | Each plant costs 1 half-feather (no per-second drain); with the Forager perk nothing | stamina |
+| Chop one log and a 10-log tree with an axe, with and without Lumberjack | The tree takes about ten times as long as one log (Tree Chopper) and costs about one half-feather per 15 ticks of that hold; with Lumberjack half the time and half the cost; Gathering Efficiency bills every 20 ticks | stamina, reskillable |
+| Empty the usable pool while wearing heavy armor, then keep mining | Mining Fatigue III starts once usable stamina (above the armor floor) is 3 half-feathers or fewer | stamina |
+| Time one log with and without Lumberjack (client and server) | The perk shortens the dig on the client too; if it does not, the break-speed bonuses need the both-sides fix noted in the plan | reskillable |
+| Perk screen | Forager (Farming 1,1, cost 1, needs Farming 4) and Heartwood (Gathering 3,2, cost 3, needs Gathering 16) show with their icons | reskillable |
+| Hold a shield (offhand), no quiver, no Smart HUD items | The offhand slot is right of the hotbar; the left strip is empty | client |
+| Shield + quiver + 5 Smart HUD items, then set `Smart HUD Wrap = false` | Wrap on: the slots that fit on the bottom row, the rest one row up right-aligned to it, both framed, counts correct; off: one row running off the edge. With no shield or quiver the single row is stock | client |
+| Press F3+T with the Stoneborn Additions pack on and a Smart HUD item shown, single and wrapped rows | Smart HUD's frames use the Stoneborn stone-brick hotbar look with seamless joins; with the pack off the stock olive frames return | client |
+| Shoot a villager, iron golem and a hostile mob with a Damage-lens mana blaster, then an Explosive-lens shot, in survival | Each turns on you (golem attacks, hostile mob approaches); kills give XP and player drops; damage amounts as before; your own Explosive blast still hurts you. A spreader with a Damage lens still hurts without aggro | combat |
+| Sit on a bed while not tired (then again wearing armor with `Sleep With Armor` off) | One action-bar line, `You're not tired yet. Press SHIFT to get up.`, no overlap; SHIFT gets up. With armor and armor sleep off Somnia's own message shows and there is no seat. Riding a horse or boat still shows vanilla's hint | [somnia.md](somnia.md) |
+| Carry a quiver with an empty offhand | The quiver sits right beside the hotbar, level with the hotbar slots (adjust `Quiver Bottom Offset` if not) | client |
+| Offhand shield, quiver and a clock or compass (Smart HUD whitelist) | Offhand, then quiver, then Smart HUD slots, no overlap; remove the shield or quiver and the later ones move back toward the hotbar | client |
+| Set `Offhand Slot Side = left` | Vanilla offhand side; quiver and Smart HUD back to their own configs | client |

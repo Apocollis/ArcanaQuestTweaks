@@ -7,7 +7,7 @@ Metallurgy's Tartarite tools and armor can take a Paragon: four metal blocks aro
 * Only the **nine** Metallurgy items take a trait: `metallurgy:tartarite_sword`, `pickaxe`, `axe`, `shovel`, `hoe`, `helmet`, `chestplate`, `leggings`, `boots`. Spartan Weaponry Tartarite weapons are not generated in this pack (`Spartan Weaponry Integration=false` in `config/metallurgy_reforged/general.cfg`) and Metallurgy gives them no Paragon in any case.
 * **One Paragon per item.** An item with Metallurgy's `paragon` tag takes none of ours. An item with one of ours can be swapped to another trait (the old trait's data is removed) but not re-applied with the same one.
 * **Per-piece and set effects.** A trait's per-item effect (burn on hit, wear scaling) works on that item alone. A perk that is a **full-set** effect in its home mod (Gravitite's high jump) works only when **all four worn armor pieces carry the same trait** (16 metal blocks in total). A mixed set gets only the per-piece parts.
-* Properties that belong to a particular item, not to the metal (right-click abilities of boss weapons, Betweenlands corrosion, Embers clockwork), are not absorbable. The material survey is in `.plans/20261108-1335-expand-tartarite-paragon-absorption.md` (sections 10 to 13).
+* Properties that belong to a particular item, not to the metal (right-click abilities of boss weapons, Betweenlands corrosion, Embers clockwork), are not absorbable. The material survey is in `.plans/archive/20261108-1335-expand-tartarite-paragon-absorption.md` (sections 10 to 13).
 
 ## How Metallurgy's Paragon works (checked in `Metallurgy-4-Reforged-1.4.1.jar`)
 

@@ -11,7 +11,7 @@ import net.minecraftforge.fml.common.event.FMLServerStoppingEvent;
 import net.minecraftforge.fml.common.network.NetworkRegistry;
 import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 
-@Mod(modid = ArcanaQuestTweaks.MODID, name = ArcanaQuestTweaks.NAME, version = ArcanaQuestTweaks.VERSION, dependencies = "required-after:elenaidodge2;required-after:charm;after:incontrol;after:grimoireofgaia;after:thaumcraft;after:bewitchment;after:grapplemod;after:dynamicswordskills;after:baubles;after:embers;after:qualitytools;after:reskillable;after:effortlessbuilding;after:stats_keeper;after:randomportals;after:twilightforest;after:aether_legacy;after:metallurgy;after:theaurorian;after:thebetweenlands;after:chisel;after:gamestages;after:recipestages;after:simpletomb;after:chunksteward;after:thaumicaugmentation")
+@Mod(modid = ArcanaQuestTweaks.MODID, name = ArcanaQuestTweaks.NAME, version = ArcanaQuestTweaks.VERSION, dependencies = "required-after:elenaidodge2;required-after:charm;after:incontrol;after:grimoireofgaia;after:thaumcraft;after:bewitchment;after:grapplemod;after:dynamicswordskills;after:baubles;after:embers;after:qualitytools;after:reskillable;after:effortlessbuilding;after:stats_keeper;after:randomportals;after:twilightforest;after:aether_legacy;after:metallurgy;after:theaurorian;after:thebetweenlands;after:chisel;after:gamestages;after:recipestages;after:simpletomb;after:chunksteward;after:thaumicaugmentation;after:geckolib3;after:patchouli")
 public class ArcanaQuestTweaks {
     public static final String MODID = "aqtweaks";
     public static final String NAME = "Arcana Quest Tweaks";
@@ -67,6 +67,10 @@ public class ArcanaQuestTweaks {
         event.registerServerCommand(new com.apocollis.aqtweaks.world.CommandAqLight());
         event.registerServerCommand(new com.apocollis.aqtweaks.spawning.CommandAqSpawnTable());
         event.registerServerCommand(new com.apocollis.aqtweaks.comfort.CommandAqComfort());
+        event.registerServerCommand(new com.apocollis.aqtweaks.comfort.home.CommandAqHome());
+        if (Loader.isModLoaded("reskillable") && Loader.isModLoaded("customstartinggear")) {
+            event.registerServerCommand(new com.apocollis.aqtweaks.starter.CommandAqClass());
+        }
         if (Loader.isModLoaded("simpletomb")) {
             event.registerServerCommand(new com.apocollis.aqtweaks.simpletomb.CommandAqTomb());
         }

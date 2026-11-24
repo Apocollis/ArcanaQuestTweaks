@@ -26,7 +26,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 @SideOnly(Side.CLIENT)
 public final class ComfortToggleButton {
 
-    private static final int BUTTON_ID = 4901;
+    public static final int BUTTON_ID = 4901;
     private static final int TAB_WIDTH = 32;
     private static final int TAB_HEIGHT = 28;
     private static final ResourceLocation TAB =

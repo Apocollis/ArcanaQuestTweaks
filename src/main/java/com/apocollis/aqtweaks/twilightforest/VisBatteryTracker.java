@@ -38,6 +38,8 @@ public class VisBatteryTracker {
     private final Long2ObjectMap<LongOpenHashSet> byChunk = new Long2ObjectOpenHashMap<>();
     private final ArrayDeque<long[]> scanQueue = new ArrayDeque<>();
     private final Random rand = new Random();
+    /** Fraction of a level each placed battery has gathered (in memory; a restart only loses the fraction). */
+    private final it.unimi.dsi.fastutil.longs.Long2DoubleOpenHashMap carry = new it.unimi.dsi.fastutil.longs.Long2DoubleOpenHashMap();
     private Block battery;
 
     private Block battery() {
@@ -114,10 +116,10 @@ public class VisBatteryTracker {
         }
     }
 
-    /** One charging pulse for every tracked battery that is exposed. */
+    /** One charge cycle (every scour interval) for every tracked battery that is exposed. */
     public void pulse(WorldServer world) {
         ArcanaQuestTweaksConfig.LeyRupture c = ArcanaQuestTweaksConfig.TwilightForestModuleConfig.ley;
-        if (!c.chargeVisBatteries || c.batteryLevelsPerPulse <= 0) return;
+        if (!c.chargeVisBatteries || c.batteryLevelsPerCycle <= 0.0D) return;
         for (LongOpenHashSet set : byChunk.values()) {
             LongIterator it = set.iterator();
             while (it.hasNext()) {
@@ -134,9 +136,11 @@ public class VisBatteryTracker {
                 double exposure = LeyTerrain.heightExposure(world, pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D);
                 if (exposure < c.chargeMinExposure) continue;
                 double intensity = LeyTerrain.intensity(LeyTerrain.biomeName(world, pos.getX(), pos.getZ()));
-                double add = c.batteryLevelsPerPulse * exposure * intensity;
-                int levels = (int) Math.floor(add) + (rand.nextDouble() < add - Math.floor(add) ? 1 : 0);
-                levels = Math.min(levels, 10 - charge);
+                double add = SurgeMath.flat(c.batteryLevelsPerCycle, exposure, intensity);
+                long key = pos.toLong();
+                LevelAccumulator.Step step = LevelAccumulator.step(carry.get(key), add, 10 - charge);
+                if (step.carry > 0.0D) carry.put(key, step.carry); else carry.remove(key);
+                int levels = step.levels;
                 if (levels <= 0) continue;
                 world.setBlockState(pos, state.withProperty(BlockVisBattery.CHARGE, charge + levels), 3);
                 if (c.batteryFluxPerLevel > 0.0D) {

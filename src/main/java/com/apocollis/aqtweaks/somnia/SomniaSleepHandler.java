@@ -227,6 +227,7 @@ public class SomniaSleepHandler {
     @SubscribeEvent
     public void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase != TickEvent.Phase.END || event.player.world.isRemote) return;
+        if (com.apocollis.aqtweaks.starter.StarterLockdown.isLocked(event.player)) return;
         EntityPlayer player = event.player;
         UUID id = player.getUniqueID();
         boolean isSleeping = player.isPlayerSleeping();

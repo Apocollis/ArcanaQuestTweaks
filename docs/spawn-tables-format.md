@@ -21,7 +21,7 @@ Commands (`/aqspawntable`):
 - `check` validates `spawn_conditions.json`, `spawn_modifiers.json` and `spawn_gear.json` in the pack folder and lists every problem.
 - `convert` reads `config/incontrol/spawn.json` and writes the three files, plus `convert_report.txt`, to `config/arcanaquesttweaks/converted/`. Nothing in the pack folder is touched; copy the files across when you are happy with them. The report lists what was moved, merged or dropped. On the pack's current `spawn.json`: 78 rules become 48 condition rows, 34 modifier rows and 9 gear rows; the 19 rules that were not `onjoin` become `phase: spawn`; the three Crimson cultist rows move above the cultist underground row; 23 rules that carried both a result and a stat lose the result (no condition rule comes after them, so there was nothing for it to shield).
 
-## Conditions evaluator and the comparison with In Control (built; conditions only)
+## Conditions evaluator and the comparison with In Control (built; conditions, modifiers and gear)
 
 `ConditionTable` (plain Java, `spawning/rules/`) decides a spawn from `spawn_conditions.json`: at the spawn check every row is walked in order, at join only the `both` rows, and the first matching row decides. Each row's tests run in In Control's own order (hostile, spawner, mob, random, dimension, time, height, weather, player distance, sky, biome, stage, structure, collision, mod, counts), with the same definitions: a `spawner` row never matches at join, the stage is the nearest player's within In Control's `maxPlayerDistance`, `mincount` is `count >= amount` and `maxcount` is `count < amount` (amount scaled per player or per chunk as In Control does), time wraps at 24000 and windows are inclusive. `generate` rows are skipped with a note until their generators exist.
 
@@ -150,7 +150,7 @@ Generated placeholders read `mob_spawnrules.cfg` (`du_tier*`, `dim_*`, `deadly_m
 
 ## spawn_gear.json
 
-Runs at join, once per mob, after the modifiers. One row per mob (or loadout) with every slot it sets. A slot left out is left as the mob spawned. Slots: `hand`, `offhand`, `head`, `chest`, `legs`, `feet`. An Enderman's `hand` is the block it carries. Optional match keys: `dimension`, `minheight`, `maxheight`, `seesky`, `weather`. The first matching row for a mob supplies the whole loadout; rows never merge slot by slot. A row with `random` (a chance, as in the other files) matches only when the roll succeeds, so a chance of a different whole set is a row with `random` above the plain row; further sets chain the same way, each roll applying to what is left. There are no per-slot weighted lists (In Control's pick each slot independently and would mix sets); an N-way `weight` key can be added if chaining proves awkward.
+Runs at join, once per mob, after the modifiers. One row per mob (or loadout) with every slot it sets. A slot left out is left as the mob spawned. Slots: `hand`, `offhand`, `head`, `chest`, `legs`, `feet`. An Enderman's `hand` is the block it carries. `GearTable` uses `ConditionRow.matcher` and supports all condition match keys (`mob`, `dimension`, `minheight`, `maxheight`, `seesky`, `weather`, `biomecat`, `biomereg`, `structure`, `gamestage`, `random`, etc., excluding `phase`/`result` and spawn-only keys). The first matching row for a mob supplies the whole loadout; rows never merge slot by slot. A row with `random` (a chance, as in the other files) matches only when the roll succeeds, so a chance of a different whole set is a row with `random` above the plain row; further sets chain the same way, each roll applying to what is left. There are no per-slot weighted lists (In Control's pick each slot independently and would mix sets); an N-way `weight` key can be added if chaining proves awkward.
 
 ```json
 [
@@ -171,7 +171,7 @@ Runs at join, once per mob, after the modifiers. One row per mob (or loadout) wi
 
 1. A converter reads `spawn.json` and writes the three files. Each rule is split into its condition part and its action part. Every converted modifier row gets `stop: true`, which is In Control's first-match rule, so the first version decides exactly as today.
 2. The comparison log runs with In Control still in charge. At each spawn check and join it records the result and the actions Tweaks would give, next to what In Control did, and lists every difference.
-3. When the log is quiet over real play, switch the Tweaks tables on, one file at a time (conditions, then modifiers, then gear), each with its own switch.
+3. When the log is quiet over real play, switch `Spawn Rules Decide` on (`aqtweaks_spawning.cfg`, off by default) so Tweaks takes over conditions, modifiers, and gear together in one step (switching it off falls back to In Control; see [spawning-handoff.md](spawning-handoff.md)).
 4. After that you loosen the rows you choose by removing `stop` (for example the Stray, so it also picks up the Nether and depth buffs for the stats its own row does not set), and keep it on the ones that must stay as written (Vex, Mimic).
 
 ## Differences from In Control, on purpose

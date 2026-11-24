@@ -97,6 +97,10 @@ public final class CommandLeyRupture extends CommandBase {
                 }
                 if (caller != null) {
                     sb.append(String.format(" | your exposure %.2f", LeyChannels.handler.exposureOf(caller)));
+                    StringBuilder shelter = new StringBuilder();
+                    boolean sheltered = LeyTerrain.shelterReport(world, caller.getPosition(), shelter);
+                    sb.append(" | shelter ").append(sheltered ? "YES" : "no").append(" [").append(shelter).append("]");
+                    sb.append(" | shield recharge ").append(com.apocollis.aqtweaks.thaumcraft.RunicRechargeHooks.blocked(caller) ? "BLOCKED" : "normal");
                 }
                 reply(sender, TextFormatting.GOLD, sb.toString());
                 break;

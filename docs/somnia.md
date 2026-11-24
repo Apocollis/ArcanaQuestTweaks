@@ -1,6 +1,6 @@
 # Somnia module (1.9)
 
-Last updated: 2026-10-17.
+Last updated: 2026-11-20.
 
 Optional mixin layer if Somnia Refreshed is present (`mixins.aqtweaks.somnia.json`, `required: false`).
 Configured via `config/arcanaquesttweaks/aqtweaks_somnia.cfg`.
@@ -23,14 +23,15 @@ Configured via `config/arcanaquesttweaks/aqtweaks_somnia.cfg`.
    - Explicitly overrides and ignores Somnia's parent `fatigueReplenishRate`, `fasterWorldTime`, and `fasterWorldTimeMultiplier`.
 4. **Morpheus-Style Notifications**:
    - Bed enter: `<Player> is now sleeping. [<sleeping>/<total> (<pct>%)]`
-   - Sleep activation: `[Somnia] 1/1 (100%) of players are sleeping! Fast-forwarding the night...` (live non-spectator count, not the cfg threshold)
+   - Sleep activation: `[Somnia] 1/1 (100%) of players are sleeping! Fast-forwarding the night...` (live non-spectator count, not the cfg threshold; fires when entering `SomniaState.ACTIVE`, and re-announces if sleepers drop below the threshold and re-cross)
    - Premature bed exit: `<Player> has left their bed. [<sleeping>/<total> (<pct>%)]`
    - Morning wakeup: suppressed to prevent spam.
 5. **Rest on Beds & Hammocks When Not Tired**:
    - When Somnia refuses sleep because the player is not tired (`fatigue < fatigueSleepy`, producing `OTHER_PROBLEM`) or the time is not right (`NOT_POSSIBLE_NOW`), the player is mounted in a sitting posture on an invisible `EntityBedSeat`.
-   - Supports vanilla beds (`+0.52`), Comforts hammocks (`+0.35`), and Comforts sleeping bags (`+0.20`).
+   - `EntityBedSeat.isValidBedOrHammockBlock` accepts blocks where `block.isBed(...)` is true or whose class name contains `BlockHammock`, `BlockSleepingBag`, or `BlockBase`, supporting vanilla beds (`+0.52`), Comforts hammocks (`+0.35`), and Comforts sleeping bags (`+0.20`).
    - Does not trigger sleeping, time acceleration, or sleep notifications. Player is mounted (`isRiding()`), which qualifies for Comfort homestead resting bonuses.
    - Sneak dismounts cleanly, block break or player logout destroys the seat entity.
+   - **One message:** Somnia's "You're not tired yet" action-bar line and vanilla's "Press SHIFT to dismount" used to draw over each other. `mixin/somnia/MixinNetHandlerPlayClientBedSeat` (early json, client) shows `aqtweaks.somnia.resting` ("You're not tired yet. Press SHIFT to get up.") instead of the vanilla hint when the vehicle is `EntityBedSeat` (matched by class name); `somnia/client/RestMessageHandler` cancels Somnia's own `somnia.status.cooldown` action-bar message while this option is on, except when armor blocks sleep (no seat follows). Other mounts keep vanilla's hint.
    - Respects Somnia's armor sleeping rule (will not sit if `sleepWithArmor` is disabled and armor is equipped).
 
 ## How the parent works
@@ -66,14 +67,21 @@ Configured via `config/arcanaquesttweaks/aqtweaks_somnia.cfg`.
 
 ## Live config (`config/arcanaquesttweaks/aqtweaks_somnia.cfg`)
 
-| Category / Key | Type | Default | Description |
+| Key | Default | Type | Description |
 | --- | --- | --- | --- |
-| `Enable Somnia Module` | boolean | `true` | Master toggle for AQTweaks Somnia enhancements |
-| `Sleep Percentage Threshold` | double | `0.50` | Percentage of non-spectator players required to activate fast-forward (0.01 - 1.0) |
-| `Case B Partial Sleep Time Multiplier` | double | `2.0` | Total world-time / sleeper-fatigue rate vs one vanilla world tick during Case B (Tweaks extra = multiplier − 1) |
-| `Fatigue Recovered Per In-Game Hour` | double | `10.0` | Fatigue points recovered per in-game hour (1,000 ticks) in bed |
-| `Enable Sleep Notifications` | boolean | `true` | Morpheus-style chat notifications |
-| `Rest on Beds When Not Tired` | boolean | `true` | Sit on beds, hammocks, and sleeping bags when Somnia detects player is not tired enough to sleep |
+| `Enable Somnia Module` | `true` | boolean | Master toggle for AQTweaks Somnia enhancements |
+| `Sleep Percentage Threshold` | `0.50` | double | Percentage of non-spectator players required to activate fast-forward (0.01 - 1.0) |
+| `Case B Partial Sleep Time Multiplier` | `2.0` | double | Total world-time / sleeper-fatigue rate vs one vanilla world tick during Case B (Tweaks extra = multiplier − 1) |
+| `Fatigue Recovered Per In-Game Hour` | `10.0` | double | Fatigue points recovered per in-game hour (1,000 ticks) in bed |
+| `Enable Sleep Notifications` | `true` | boolean | Morpheus-style chat notifications |
+| `Rest on Beds When Not Tired` | `true` | boolean | Sit on beds, hammocks, and sleeping bags when Somnia detects player is not tired enough to sleep |
+
+## Cross-module integrations
+
+- **Comfort Rest Pose & Debuffs:** Mounting `EntityBedSeat` satisfies `isRiding()`, granting the Comfort `sitting` bonus (`+3.0`), while actually sleeping in bed grants `lying` (`+5.0`); Somnia's tiredness debuffs (`sleepy`, `exhausted`, `fading`) apply Comfort penalties ([comfort.md](comfort.md)).
+- **Player Homes:** Waking from a bed (`PlayerWakeUpEvent`) registers or refreshes the bed-anchored Home (`HomeEvents`, [comfort.md#player-homes](comfort.md#player-homes)).
+- **Warp Cleansing:** Sleeping at least `Sleep Minimum Hours` (`5` h / `5000` ticks) cleanses `-1` sticky warp and credits Case B `uncovered` sleep ticks (the extra skipped ticks minus 1) to `ComfortSystemHandler.applyAcceleratedWarpCleanse` for accelerated temporary warp cleansing ([thaumcraft.md](thaumcraft.md)).
+- **Off-thread Wake Camera Fix:** `MixinMinecraftMouseGrab` marshals Somnia's off-thread `displayGuiScreen(null)` wake call back to the client thread so cursor grab resumes immediately ([minemenu.md](minemenu.md)).
 
 ## Do not regress
 

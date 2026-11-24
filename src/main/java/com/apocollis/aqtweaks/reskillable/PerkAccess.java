@@ -20,8 +20,16 @@ public final class PerkAccess {
 
     private PerkAccess() {}
 
-    /** True when Reskillable is loaded and the player has unlocked {@code registryId}. */
+    /**
+     * True when Reskillable is loaded, the player has unlocked {@code registryId}, and the player has not switched it
+     * off (see {@link PerkToggleState}; only perks in {@code Toggleable Perks} can be switched off).
+     */
     public static boolean has(EntityPlayer player, String registryId) {
+        return unlocked(player, registryId) && !PerkToggleState.isDisabled(player, registryId);
+    }
+
+    /** True when Reskillable is loaded and the player has unlocked {@code registryId}, ignoring any toggle. */
+    public static boolean unlocked(EntityPlayer player, String registryId) {
         if (!RESKILLABLE || player == null || registryId == null || registryId.isEmpty()) return false;
         try {
             return ReskillableUnlockHelper.hasUnlockable(player, registryId);

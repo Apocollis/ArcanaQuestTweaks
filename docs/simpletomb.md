@@ -42,7 +42,7 @@ Key classes:
 ### 1. Transient Slot Tagging & Redirect Injection
 
 Simple Tomb populates its tile entity from `PlayerDropsEvent` drops. However, `EntityItem` drops do not natively store player slot coordinates.
-- In `SimpleTombModule.onPlayerDeath` (`LivingDeathEvent` at `LOWEST`), Tweaks inspects the dying player's `InventoryPlayer` (main 0–35, armor 0–3, offhand 0) and worn Baubles (`IBaublesItemHandler` 0–6).
+- In `SimpleTombModule.onLivingDeath` (`LivingDeathEvent` at `LOWEST`), Tweaks inspects the dying player's `InventoryPlayer` (main 0–35, armor 0–3, offhand 0) and worn Baubles (`IBaublesItemHandler` 0–6).
 - Tweaks tags each non-empty stack with transient compound NBT (`AQTweaks_GraveSlot`: `{type: int, slot: int}`).
 - In `MixinPlayerTombEvents`, Tweaks redirects the call to `ItemHandlerHelper.insertItemStacked(te.getInventory(), dropStack)`:
   - If the stack has `AQTweaks_GraveSlot`, Tweaks finds the first empty slot in `te.getInventory()` and calls `setStackInSlot(targetSlot, stack)`. This preserves 1:1 stack identity without stack-merging or slot scrambling.

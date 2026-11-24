@@ -1,10 +1,22 @@
 # Thaumcraft module (1.9)
 
-Last updated: 2026-10-25.
+Last updated: 2026-11-20.
 
 Config: `config/arcanaquesttweaks/aqtweaks_thaumcraft.cfg`. Event handler registers only if `thaumcraft` is loaded (`CommonProxy.init`). Warp API is compile-hard (`ThaumcraftHelper` calls `ThaumcraftCapabilities.getWarp` / `IPlayerWarp` directly). Comfort and the Bewitchment ritual wrapper call it only behind `Loader.isModLoaded("thaumcraft")`, and the helper itself no-ops without TC, so TC types are never touched when it is absent. Focus mixins **compile-hard** TC **6.1 BETA26** (`libs/`); missing that jar fails compile. Optional `mixins.aqtweaks.thaumcraft.json` (`required: false`) skips at runtime if TC is absent.
 
 Comfort homestead drain is a **different** NBT key and module ([comfort.md](comfort.md)). Bewitchment ritual warp is [bewitchment.md](bewitchment.md). Village `isInsideStructure` padding is [rtg.md](rtg.md) — not this dungeon check. Cultist cage fail delay is [spawning.md](spawning.md) (`MobSpawnerBaseLogic`), not a Thaumcraft entity mixin.
+
+## Warp conditions overview (all sources, freezes, and sinks)
+
+| Role | Mechanic | Owner / Trigger | Effect |
+| --- | --- | --- | --- |
+| Source | Dimension first visit | `ThaumcraftModule.onPlayerChangedDimension` (40t queue) | Grants `5` sticky (`NORMAL`) + `5` temporary warp once per new dimension (`VisitedDimensions`, seeded at first login). |
+| Source | Periodic exposure | `ThaumcraftModule` + `ExposureRules` (every `30 s`) | Picks highest-`G` match among `underDeep`, `dungeon`, `under`, `dim:<id>`; adds `30 s` (`15 s` underground with `Spelunker` perk) to `WarpExposureBySource`; grants `G` temp warp at `300 s`. |
+| Source | Bewitchment rituals | `WarpRitualWrapper` ([bewitchment.md](bewitchment.md)) | Awards configured `normal` / `temporary` / `permanent` warp on qualifying ritual execution. |
+| Source | Twilight Forest Ley-Rupture | `LeyRuptureHandler` (`WarpMeter`) & `LeyOverchannel` ([twilightforest.md](twilightforest.md)) | Unsheltered surface exposure fills `WarpMeter` (`1` temp warp per 4 cycles, `1` sticky per 40; decays 1 per sheltered cycle); overchanneling casts/Aegis grants temp warp. |
+| Freeze / Mitigation | Warp Ward & Quiet Mind | `PotionWarpWard`; `MixinWarpEvents` (`ThaumcraftPerkHooks.quietMindSeverity`) | Warp Ward freezes all exposure banks without decay. Quiet Mind subtracts `round(0.35 × incident bound)` from Thaumcraft warp event severity after visor (`<= 0` cancels event). |
+| Sink | Sleep sticky cleanse | `ThaumcraftModule.onPlayerWakeUp` | Sleeping `>= 5` in-game hours (`5000` ticks) clears `1` sticky (`NORMAL`) warp on wake. |
+| Sink | Comfort Homestead & Somnia temp cleanse | `ComfortSystemHandler` (`onPlayerTick` + `applyAcceleratedWarpCleanse`, [comfort.md](comfort.md)) | Score bands 1/2/3+ add `2`/`3`/`6` progress per `30 s` (`12` clears `1` temp warp); on wake, `Sleep Comfort Temporary Warp Clear` credits skipped Somnia Case B sleep ticks (`worldSlept - playerTicks`) at the same rate. |
 
 ## Locked intent
 
@@ -64,7 +76,7 @@ After the 2s delay, abort if the player is dead, world is null, or the player is
 
 Not a nap: the player must have slept **at least `Sleep Minimum Hours`** (default **5**; 1 hour = 1000 ticks). The clock is `World.getWorldTime()`, so Somnia fast-forward counts, and it does not matter whether the player wakes at morning, at night, or by leaving the bed. The start is recorded by the first `PlayerTickEvent` that sees `isPlayerSleeping()` and cleared on wake, logout and dimension change; a sleep with no record (restart mid-sleep) does not qualify. Sticky reduce `normalWarpReduction` if `clearNormalWarp`.
 
-Temporary warp: the flat `clearTempWarp` extra stays **false**. Instead `sleepComfortTempClear` (default on) credits Homestead cleansing for the time the player's own ticks missed: `uncovered = (world time slept) - (player ticks while asleep)`. Somnia's Case B skips player ticks, so Comfort's 30s scan never ran for that time; Case A ticks the player too, so `uncovered` is about 0 and nothing is counted twice. `ComfortSystemHandler.applyAcceleratedWarpCleanse` converts it at the player's band (granted band if resting, else a fresh evaluation that needs furniture): `uncovered / 600 x (2 / 3 / 6)` progress added to the same `WarpCleansingProgress` counter, each 12 clears 1 temporary warp (capped at the temp warp the player has; the remainder carries over). Chat only if something was actually cleared and `enableChatMessage`.
+Temporary warp: the flat `clearTempWarp` extra stays **false**. Instead `sleepComfortTempClear` (default on) credits Homestead cleansing for the time the player's own ticks missed: `uncovered = (world time slept) - (player ticks while asleep)`. Somnia's Case B skips player ticks, so Comfort's 30s scan never ran for that time; Case A ticks the player too, so `uncovered` is about 0 and nothing is counted twice. `ComfortSystemHandler.applyAcceleratedWarpCleanse` converts it at the player's band (granted band if resting, else a fresh evaluation that needs furniture): `uncovered * (2 / 3 / 6) / 600` progress added to the same `WarpCleansingProgress` counter, each 12 clears 1 temporary warp (capped at the temp warp the player has; remainder carries over, or resets to `0` if capped below `due`). Chat only if something was actually cleared and `enableChatMessage`.
 
 ### Exposure
 
@@ -75,12 +87,12 @@ The handler **returns immediately** unless `ticksExisted % (exposureTickSeconds 
 Sources this pass (G from config; skip G ≤ 0):
 
 1. `exposureDimensionGrants` `dimId=G` if current dim matches (parsed once into an int array, re-parsed when the config array object changes).
-2. If `enableUndergroundExposure`: floor Y **in [Y Min, Y Max]** → `under` G; **Y < Y Min** → `underDeep` G. Y > Y Max is not underground.
+2. If `enableUndergroundExposure`: floor Y **in [Y Min, Y Max]** → `under` G; **Y < Y Min** → `underDeep` G. Y > Y Max is not underground. Both also need **darkness**: `World.getLightFromNeighbors` at the player's eye block (combined block and sky light, as mob spawning uses) **≤ `Underground Exposure Max Light`** (default 6; 15 turns the gate off). A lit base or a pit open to daylight is not a match, so its bank does not advance (and does not decrement). Decision in `ExposureRules.undergroundKey`. Dimension and dungeon sources have no light gate.
 3. If `enableDungeonExposure` and `ChunkProviderServer.isInsideStructure(..., "RoguelikeDungeon", pos)` → `dungeon` G.
 
 There is **no Tweaks mixin** on `isInsideStructure`. Roguelike Dungeons Arcana must register that name. Village detection ([rtg.md](rtg.md)) is a different inject.
 
-**Winner:** highest G among matches. Tie-break: `underDeep` > `dungeon` > `under` > `dim:<id>`. Only that key’s bank in persisted `WarpExposureBySource` gets **+tickSeconds**. Losing matches get +0. No source / Warp Ward: **no decrement**.
+**Winner:** highest G among matches. Tie-break: `underDeep` > `dungeon` > `under` > `dim:<id>`. Only that key’s bank in persisted `WarpExposureBySource` gets **+tickSeconds** (halved to `max(1, tickSeconds / 2)` for `under` / `underDeep` when the player has `aqtweaks:spelunker` and `SpelunkerComfort.underground(player)` is true). Losing matches get +0. No source / Warp Ward: **no decrement**.
 
 When that key **≥ grantSeconds** (300): add **that G** temporary warp, sync, optional whispers, set **that** key to 0.
 
@@ -90,6 +102,10 @@ Y knobs `@Config.RangeInt` **−256..256** (Depths).
 
 Java G defaults: Nether 7, End 9, Aether 6, TF 5, Betweenlands 8, Atum 6, Beneath 7, Emptiness 10, Aurorian 6, upper underground (−20..30) 5, deep (Y < −20) 6, dungeon 4.
 
+### Crimson Battlemage
+
+A caster miniboss built on these focus mixins (Touch and Bolt for mobs, player-only seek, bats and clouds). Entity, focus library, cooldowns, brain and the mixin table are in [cultist-battlemage.md](cultist-battlemage.md).
+
 ### Focus & crucible mixins
 
 Optional `mixins.aqtweaks.thaumcraft.json`. Vanilla INVOKEs MCP + `remap = true` (Gaia rule). Helpers in `ThaumcraftFocusHooks`.
@@ -97,7 +113,7 @@ Optional `mixins.aqtweaks.thaumcraft.json`. Vanilla INVOKEs MCP + `remap = true`
 - `MixinFocusEffectExecute` — Fire / Frost / Air / Earth / Flux / Curse / Heal `execute` → `attackEntityFrom`: `setMagicDamage()`. Does **not** change the hurt float (Reskillable `LivingHurtEvent` does). Fire keeps `isFireDamage`.
 - `MixinFocusEffectHeal` — Heal only. HEAD/RETURN mark the caster and the non-undead living hit. `ThaumcraftFocusHooks` scales that target's `LivingHealEvent` (Magic outgoing, Benevolent, Blood Pact, Full Font). Other heals are unchanged. Does not redirect `heal`, so Thaumic Tweaker's heal-focus redirect can apply first. With `Nerfed Heal Focus Effect` on, Tweaker applies Regeneration and this scale does not run.
 - `MixinCasterManager` — `getTotalVisDiscount` RETURN: Vis Thrift +0.30. `changeFocus` / `fetchFocusFromPouch` / `addFocusToPouch`: bauble pouch offset **4 → 100** so BaublesEX slots ≥ 4 stay negative (not `mainInventory`). Does **not** rewrite the armor `4` in `getTotalVisDiscount`. Those two pouch methods **skip** `IBaublesItemHandler.setChanged`: stock BaublesEX is a no-op, and the transformed method reads missing field `player` (`NoSuchFieldError`) after the focus was already taken out of the pouch. `markDirty` still runs.
-- `MixinWarpEvents` — `checkWarpEvent`: Quiet Mind severity after visor, before `PacketMiscEvent`.
+- `MixinWarpEvents` — `checkWarpEvent`: Quiet Mind subtracts `round(0.35 × incident bound)` from warp severity after visor, before `PacketMiscEvent` (`<= 0` cancels the event).
 - `MixinTileCrucible` — `update` (`func_73660_a`) heat check: redirects `IBlockState.getMaterial()` to return `Material.LAVA` if the block beneath is burning `simpledifficulty:campfire` (`burning == true`), enabling Simple Difficulty campfires as crucible heat sources without hard compile coupling. Heat runs only while the crucible tank has fluid (`getFluidAmount() > 0`). Returning `LAVA` uses the stock `+1` per tick branch, cap 200. An unlit campfire is left as `Material.CIRCUITS` and cools the crucible.
 - `MixinTileInfernalFurnace` — gated metals below.
 
@@ -149,8 +165,12 @@ Thaumic Tweaker with **Runic Shielding Overhaul** off stores the shield in vanil
 `MixinGuiIngameForgeRunicShield` is in **`mixins.aqtweaks.early.json`** (client). A late mixin on `GuiIngameForge` is refused (`loaded too early`) and the gold hearts stay. It reports absorption 0 from `renderHealth` while the client cap is above 0, then `RunicShieldHud` draws the rune overlay. `MixinRunicShieldingHudHandler` stays in `mixins.aqtweaks.thaumcraft.json` and cancels Tweaker's ten-rune bar. Compile-hard Thaumcraft, Thaumic Tweaker, Baubles, and Astral. The early mixin class does not import those parents; `RunicShieldHud` does.
 
 - Shield points `min(absorption, cap)` are runes (`ParticleEngine.particleTexture`, `UtilsFX.drawTexturedQuad`). The first 10 sit on the red health hearts. Further points are rows above the health stack, each on an empty heart socket.
+- **Armor bar clearance (2026-11-19):** Overloaded Armor Bar clamps the absorption it reads to 20 (one row) unless its "Override for Armor shift" option is on, so it could not clear a rune row plus a gold row. While our HUD replaces the hearts `MixinOverloadedArmorBarRunic` now makes it read no absorption (`RunicShieldHud.absorptionForArmorBar`) and moves its finished Y up by the real extra rows (`armorBarShift`, a `@ModifyVariable` on the `int y` local, slot 12 in 1.0.4g, `require = 0` so a different version fails soft). The Lava Charm bar still uses `absorptionForLayout`.
 - Surplus `max(0, absorption - cap)` is gold absorption hearts above those rows (full offset 144, half 153), with the same socket. The cap is computed on the client; do not read `runicInfo` there.
 - Extra rows add to `left_height` so the armor bar sits above them.
+- **Mantle takes over the health bar.** Mantle's `ExtraHeartRenderHandler` (always registered) cancels `RenderGameOverlayEvent.Pre(HEALTH)` and paints every heart and the gold absorption itself, so `GuiIngameForge.renderHealth` (our redirect above) and Thaumic Tweaker's `Post(HEALTH)` rune overlay never run. `MixinMantleExtraHeartRunicShield` (`mixins.aqtweaks.thaumcraft.json`, client array, target by class-name string, SRG `func_110139_bj`) applies the same three steps to Mantle's `renderHealthbar`: `RunicShieldHud.prepare` at HEAD (HEALTH event only), `absorptionForHealth` in place of both of Mantle's absorption reads (`renderHealthbar`, `renderExtraAbsorption`), `RunicShieldHud.draw` at RETURN. The vanilla mixin stays for when Mantle's handler stands aside.
+- **Overloaded Armor Bar draws the armor bar.** It cancels the `ARMOR` element and places its own bar from the raw `getAbsorptionAmount()` (`ceil(absorption / 20)` rows above the health rows), ignoring `GuiIngameForge.left_height`, so runic charge drawn on the health row left an empty row under the armor bar. `MixinOverloadedArmorBarRunic` (`renderArmorBar`) and `MixinOverloadedLavaCharmRunic` (`renderLavaCharm`, `require = 0`) redirect that read to `RunicShieldHud.absorptionForLayout`: raw absorption when the rune HUD is not replacing, otherwise 20 per row actually drawn above the health row (`extraRows`: rune rows past the first, plus gold surplus rows). Both are `@Pseudo`, by name, client list of the thaumcraft json.
+- Diagnostics: set `Runic HUD Debug=true` (`aqtweaks_client.cfg`, category `runic hud`, default false) to log (once per 5 s, `[aqtweaks runic HUD]`) absorption, per-slot runic charge, the computed cap, `active` and whether Gnetum is loaded. Off by default.
 - Overhaul on: Tweaker's attribute and overlay stay. No cap in `runicInfo`: absorption stays gold hearts. An apple that only fills a partial shield stays runes.
 
 ### Ring models
@@ -167,16 +187,16 @@ Client mixins in `mixins.aqtweaks.baubles.json` (`required: false`). The `getMod
 | Name | Default | Live? | Meaning |
 | --- | --- | --- | --- |
 | Enable Sleep Warp Cleansing | true | yes | Master sleep sink |
-| Sleep Minimum Hours | **5** | yes | In-game hours slept (world clock, 1000 ticks each) before any sleep cleanse applies. 0 = any recorded sleep |
+| Sleep Minimum Hours | 5 | yes | In-game hours slept (world clock, 1000 ticks each) before any sleep cleanse applies. 0 = any recorded sleep |
 | Sleep Comfort Temporary Warp Clear | true | yes | Credit Homestead temp-warp cleansing for sleep time the player ticks missed (see Sleep cleanse) |
 | Clear Normal Warp | true | yes | Reduce sticky on sleep |
 | Normal Warp Reduction | 1 | yes | Per successful sleep |
-| Clear Temporary Warp | **false** | yes | Extra temp on wake; leave off |
+| Clear Temporary Warp | false | yes | Extra temp on wake; leave off |
 | Temporary Warp Reduction | 2 | yes | Unused unless Clear Temporary is on |
 | Enable Sleep Chat Message | true | yes | Chat if anything cleared |
 | Sleep Chat Message Text | (purple “whispers grow quieter”) | yes | |
 | Enable Dimension Entry Warp | true | yes | Master first-visit source |
-| Dimension Entry Normal Warp | **5** | yes | Sticky |
+| Dimension Entry Normal Warp | 5 | yes | Sticky |
 | Dimension Entry Temporary Warp | 5 | yes | |
 | Dimension Chat Message Text | (purple “ancient whispers”) | yes | |
 | Dimension Entry Sound | `thaumcraft:whispers` | yes | Empty = no sound |
@@ -187,9 +207,10 @@ Client mixins in `mixins.aqtweaks.baubles.json` (`required: false`). The `getMod
 | Exposure Dimension Grants | `-1=7` `1=9` `4=6` `7=5` `20=8` `17=6` `10=7` `14676=10` `424=6` | yes | `id=G` not seconds |
 | Enable Deep Underground Exposure | true | yes | Both Y bands |
 | Underground Y Max | 30 | yes | Upper band inclusive |
-| Underground Y Min | −20 | yes | Upper inclusive; below = deep |
+| Underground Y Min | -20 | yes | Upper inclusive; below = deep |
 | Underground Exposure Warp | 5 | yes | G for −20..30 |
 | Deep Underground Exposure Warp | 6 | yes | G for Y < −20 |
+| Underground Exposure Max Light | 6 | yes | Both Y bands need light at the player's head ≤ this. 15 = no darkness gate |
 | Enable Dungeon Exposure | true | yes | `RoguelikeDungeon` |
 | Dungeon Exposure Warp | 4 | yes | |
 | Enable Exposure Sound | true | yes | |
@@ -197,8 +218,8 @@ Client mixins in `mixins.aqtweaks.baubles.json` (`required: false`). The `getMod
 | Exposure Sound Volume | 2.0 | yes | |
 | Enable Infernal Furnace Gated Metals | true | yes | Infernal Furnace smelts the furnace-gated ores and dusts (one ingot) and may add a nugget or Rare Earth for those ores. Off does not restore the furnace recipes; the Infernal Furnace destroys those stacks |
 | Enable Deep Vis Crystals | true | yes | Seed vis crystal clusters below Y 0 on new Overworld chunks. Off leaves Thaumcraft's surface pass as it is. Also skipped when Thaumcraft `generateCrystals` is off |
-| Deep Crystal Min Y | −60 | yes | Inclusive low Y for a cluster centre |
-| Deep Crystal Max Y | −1 | yes | Inclusive high Y for a cluster centre |
+| Deep Crystal Min Y | -60 | yes | Inclusive low Y for a cluster centre |
+| Deep Crystal Max Y | -1 | yes | Inclusive high Y for a cluster centre |
 | Portable Vis Battery Charge | true | yes | A broken or picked Vis Battery keeps its charge as item damage 0 to 10 |
 | Vis Battery Charge Tooltip | true | yes | Client: `Stored vis: N/10` line |
 | Charged Battery Model | false | restart | Client: charged items use the block's `charge=N` variants; off keeps the empty icon |
@@ -220,6 +241,7 @@ Client mixins in `mixins.aqtweaks.baubles.json` (`required: false`). The `getMod
 - `thaumcraft/RunicShieldHud.java` — client gear cap, rune rows, and gold surplus. Not `@SideOnly`
 - `mixin/thaumcraft/MixinGuiIngameForgeRunicShield.java` — early json client, `GuiIngameForge.renderHealth`
 - `mixin/thaumcraft/MixinRunicShieldingHudHandler.java` — late thaumcraft json
+- `mixin/thaumcraft/MixinOverloadedArmorBarRunic.java`, `MixinOverloadedLavaCharmRunic.java` — late thaumcraft json client, Overloaded Armor Bar row offset
 - `mixins.aqtweaks.thaumcraft.json`
 - `mixin/baubles/MixinItemBaublesRingModel.java`, `MixinModelBaubleNullTexture.java` — ring skip before the null texture bind; `mixins.aqtweaks.baubles.json` client array
 

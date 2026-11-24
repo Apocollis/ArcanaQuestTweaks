@@ -14,6 +14,7 @@ public class ReskillablePerkRegistry {
 
     public static void preInit() {
         MinecraftForge.EVENT_BUS.register(new ReskillablePerkRegistry());
+        ClassPerkSupport.preInit();
         if (net.minecraftforge.fml.common.Loader.isModLoaded("bewitchment")) {
             MinecraftForge.EVENT_BUS.register(new StitchRecipeEvents());
         }
@@ -27,6 +28,7 @@ public class ReskillablePerkRegistry {
         event.getRegistry().register(new AqtweaksTrait("shield_efficiency", perks.shieldEfficiency));
         event.getRegistry().register(new AqtweaksTrait("adrenaline", perks.adrenaline));
         event.getRegistry().register(new AqtweaksTrait("expert_climber", perks.expertClimber));
+        event.getRegistry().register(new AqtweaksTrait("marathon_runner", perks.marathonRunner));
         event.getRegistry().register(new AqtweaksTrait("cardio_master", perks.cardioMaster));
         event.getRegistry().register(new AqtweaksTrait("mining_expert", perks.miningExpert));
         event.getRegistry().register(new AqtweaksTrait("evasion", perks.evasion));
@@ -71,6 +73,8 @@ public class ReskillablePerkRegistry {
         event.getRegistry().register(new AqtweaksTrait("lithomancy", perks.lithomancy));
         event.getRegistry().register(new AqtweaksTrait("stone_cleaver", perks.stoneCleaver));
         event.getRegistry().register(new AqtweaksTrait("lumberjack", perks.lumberjack));
+        event.getRegistry().register(new AqtweaksTrait("heartwood", perks.heartwood));
+        event.getRegistry().register(new AqtweaksTrait("forager", perks.forager));
         event.getRegistry().register(new AqtweaksTrait("reforester", perks.reforester));
         event.getRegistry().register(new AqtweaksTrait("sifter", perks.sifter));
         event.getRegistry().register(new AqtweaksTrait("wood_splitter", perks.woodSplitter));
@@ -97,6 +101,14 @@ public class ReskillablePerkRegistry {
         event.getRegistry().register(new AqtweaksTrait("reach1", perks.reach1));
         event.getRegistry().register(new AqtweaksTrait("reach2", perks.reach2));
         event.getRegistry().register(new AqtweaksTrait("reach3", perks.reach3));
+        event.getRegistry().register(new AqtweaksTrait("weapon_tempo", perks.weaponTempo));
+        // Starter class perks: free, unobtainable otherwise (ClassPerkSupport). Appended, ids of earlier perks unchanged.
+        ClassPerkSupport.register(event.getRegistry(), "riposte", perks.riposte);
+        ClassPerkSupport.register(event.getRegistry(), "steady_draw", perks.steadyDraw);
+        ClassPerkSupport.register(event.getRegistry(), "fleetfoot", perks.fleetfoot);
+        ClassPerkSupport.register(event.getRegistry(), "vein_rhythm", perks.veinRhythm);
+        ClassPerkSupport.register(event.getRegistry(), "studious", perks.studious);
+        ClassPerkSupport.register(event.getRegistry(), "hearthkeeper", perks.hearthkeeper);
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)

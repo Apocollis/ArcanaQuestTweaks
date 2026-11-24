@@ -2,6 +2,195 @@
 
 Stay on version **1.10** until a plan bumps `ArcanaQuestTweaks.VERSION`.
 
+## 2026-11-23 — Bed rest: one action-bar line
+
+- **Plan `20261123-1745`:** resting on a bed while not tired showed Somnia's "You're not tired yet" and vanilla's "Press SHIFT to dismount" drawn over each other. It now shows one line, "You're not tired yet. Press SHIFT to get up.": new early client mixin `somnia.MixinNetHandlerPlayClientBedSeat` (replaces the vanilla hint on `EntityBedSeat` only) and `somnia/client/RestMessageHandler` (cancels Somnia's own action-bar line while `Rest on Beds When Not Tired` is on, except when armour blocks sleep). [somnia.md](somnia.md).
+
+## 2026-11-23 — Botania mana burst damage credits the shooter
+
+- **Plan `20261123-1705`:** shooting villagers, golems or mobs with a Damage-lens mana blaster now provokes them and credits kills to the player. Botania's Damage lens used `DamageSource.MAGIC` (no attacker); new `mixin/botania/MixinLensDamage` uses `causeIndirectMagicDamage(burst, shooter)`, and new early `mixin/explosion/MixinExplosionBurstOwner` credits the shooter for Explosive and Storm lens blasts. Damage amounts are unchanged. First build did nothing because the blaster's burst has no thrower; new `MixinEntityManaBurstShooter` records the player. Not Dynamic Stealth. [reskillable.md](reskillable.md).
+
+## 2026-11-23 — Smart HUD Stoneborn frames
+
+- **Plan `20261123-1830`:** Smart HUD's slot frames were unthemed because no Stoneborn pack had a `smarthud` texture. `scripts/generate_smarthud_stoneborn.py` builds the sheet from Stoneborn's hotbar and adds it to `Stoneborn-ArcanaQuest-Additions.zip`. [client.md](client.md#hotbar-side).
+
+## 2026-11-23 — Player home covers the Waystones title
+
+- **Plan `20261123-1000`:** the Waystones title no longer appears after a player home's title; only homes cover it, other structures leave it alone. New `mixin/travelerstitles/MixinWaystonesCompat` marks the closest waystone as seen while a home title shows; the old `updateWaystoneTitle` inject on `TitleRenderManager` is gone. [titles.md](titles.md).
+
+## 2026-11-23 — Smart HUD second row
+
+- **Plan `20261123-1700`:** when the offhand slot and quiver leave too little room on the right, Smart HUD's extra slots draw as a second row one frame height above, right-aligned to the first row (`client/SmartHudRows`, an `@Inject` in `MixinSmartHudSlotRenderer`). New `Smart HUD Wrap` setting in `Hotbar Side` (default on) and `Smart HUD Max Slots` (default 8, replaces Smart HUD's limit of 5 while wrapping).
+
+## 2026-11-23 — Hotbar side: offhand, quiver and Smart HUD on the right
+
+- **Plan `20261123-1420`:** the offhand slot, Spartan Weaponry's quiver and Smart HUD's item slots now sit right of the hotbar in that order, each taking room only while on screen, so the left strip is free for the Rested panel. New `Hotbar Side` category in `aqtweaks_client.cfg` (`Offhand Slot Side = left` restores vanilla). New client mixins `hud.MixinGuiIngameOffhandSide` (early json), `spartanweaponry.MixinHudQuiverAmmo` and `smarthud.MixinSmartHudSlotRenderer` (new late json `mixins.aqtweaks.spartanweaponry.json` and `mixins.aqtweaks.smarthud.json`). The quiver is also level with the hotbar. The Spartan Weaponry and Smart HUD jars are now copied into `libs/` by `build_gradle.ps1`.
+
+## 2026-11-22 — State-based stamina regen, Marathon Runner and Cardio Master
+
+- **Plan `20261122-0610`:** stamina refill now follows what the player is doing: Resting 10, Moving 20, Active (sprint, climb, glide, swim, grapple, bow hold, mining, melee) 30 ticks per half-feather. Costs unchanged. Rested Vigor (25 / 20 / 15) now caps every state instead of applying a flat modifier. Melee keeps the player Active for 20 plus the weapon's attack period after a swing (rank excluded). New `Regen Pace` category in `aqtweaks_stamina.cfg`.
+- **Replenishment (Elenai potion):** its own modifier (which refilled one half-feather per tick) is cancelled by `MixinReplenishmentPotion`. It now caps only the Active state: 15 / 10 / 5 ticks for amplifier 0 / I / II, floor 5. Astromancer's Star Powered gets the same new meaning.
+- **Marathon Runner** (`aqtweaks:marathon_runner`, the old Cardio Master renamed, Agility 16, cost 3): sprinting and jumping refill as Moving, plain walking refills at the Resting rate. It no longer reduces sprint or jump cost, so net sprint stamina is 0. **Cardio Master** (`aqtweaks:cardio_master`, new, Agility 24, cost 4, cell 4,3, needs Marathon Runner): Active counts as Moving. A save that held the old `cardio_master` now holds the new perk. The new perks use the old Cardio icon until the art is approved.
+
+## 2026-11-22 — DSS weapon speed, combo balance, Weapon Tempo
+
+- **Plan `20261122-0327`:** Dynamic Sword Skills lock-on swings now wait for the weapon's own attack cooldown (`MixinDSSClientEvents`); the combo window is DSS's grace plus the weapon's attack period (`MixinCombo`); DSS's flat combo bonus is scaled by stamina weapon category, light 1.0 / medium 1.6 / heavy 3.0 (`MixinDSSCombatEvents`); heavy melee hits ignore 25% of target armor reduction (medium 10%) (`HeavyArmorBypass`). New `aqtweaks_dss.cfg`.
+- **Stamina costs:** `Light Weapons Cost` 1 to 2, `Medium Weapons Cost` 2 to 3 (heavy stays 4). Melee Efficiency stays a flat -1.
+- **Weapon Tempo perk (`aqtweaks:weapon_tempo`):** Attack tree (3,2), cost 4, needs Attack 24 and Melee Efficiency. While locked on in a DSS combo, hits 3, 6, 9 and 12 cost no stamina, and every other hit from the 3rd on has `5% x Basic Technique level` (1 to 10) to be free too. A free hit also skips Power Attack and the empty-stamina penalty. It replaced a short-lived Heavy Efficiency perk (heavy-only, flat -1) that overshot. Melee Efficiency icon rebuilt (vanilla iron sword + feather); Weapon Tempo icon is the iron sword with five gold tick marks. [stamina.md](stamina.md), [reskillable.md](reskillable.md).
+
+## 2026-11-22 — Tabula Rasa
+
+- **Tabula Rasa class reset (plan `20261121-1416`):** drinkable `aqtweaks:tabula_rasa` resets Reskillable skills and perks in place, refunds XP for purchased levels only, and reopens the class menu with `resetIntro` / `resetPrompt` and no second kit (`AQTStarterClassNoKit`; a new Scholar still gets `FIRSTSTEPS`). Also clears perk toggle flags. Thaumcraft Infusion recipe and `AQ_TABULA_RASA` research. [starter-classes.md](starter-classes.md).
+
+## 2026-11-21 — Patchouli inventory tab and perk toggling
+
+- **Patchouli inventory tab (plan `20261121-1534`):** the inventory guidebook button is now a 32x28 left-sidebar tab (Stoneborn-styled via `tab_left.png`) between the Skills and Comfort tabs; `aqtweaks_patchouli.cfg` (`Move Inventory Button To Sidebar`, tab offsets). Patchouli is now a compile-hard parent. [patchouli.md](patchouli.md).
+- **Reskillable perk toggling (plan `20261121-1542`):** left-click an unlocked perk in the skill screen to switch it off or on (persisted, synced, refund resets it); `Toggleable Perks` defaults to Dark Vision, Tunnel Sense, Power Attack, Respite, Low Profile, Taunt, Full Font and Sower, whose descriptions now say so. Packets 21 and 22, `mixins.aqtweaks.reskillable.json`. [reskillable.md](reskillable.md).
+
+## 2026-11-21 — Stamina hold billing tuning
+
+- **Plan `20261120-1700` section 21:** `Mine Hold Interval Ticks` default 10 → **15** (about 1.33 half-feathers per second); Mining and Gathering Efficiency stay at 20 ticks (25% less). Both perks now require level **8** (Mining 8, Gathering 8; costs 3 and 2) and their descriptions say "25% less stamina".
+
+## 2026-11-20 — Perk description cleanup
+
+- **Reskillable perk descriptions (plan `20261120-1855`):** cleaned up **38** perk descriptions in [en_us.lang](file:///C:/dev/ArcanaQuestTweaks/src/main/resources/assets/aqtweaks/lang/en_us.lang) to drop internal jargon (`half-feather`, hidden temperature numbers `9`/`15`, `"Classified magic"`, `"deep and shallow warp"`, `"type by type, rounding down"`, `"after Magic skill bonuses"`, `"outside the block arc"`, `"feather replenishment"`, mod-name trivia), add missing accuracy/target details (`Prospector` `+25%`, `Orchard` vine tomatoes, `Tunnel Sense` `10` blocks / `5s` cooldown, `Full Font` `50%`), and make the 4 Magic school keystones name their mutually exclusive schools while their 8 dependent perks state `Requires <School>`. (`Mining Efficiency` and `Gathering Efficiency` stay reserved for plan `20261120-1700`.)
+
+## 2026-11-19 — Ley-Rupture overhaul, Battlemage stage 4, HUD, starter class follow-ups
+
+- **Ley-Rupture surge (plans `20261119-1530`):** scour 5.0 / 3.0 every 4 s (a charge cycle, anchored to exposure, first hit at 4 s); runic shield and absorption soak it and **do not refill while exposed** (`MixinPlayerEventsRunicRecharge`); the escape roll has no "nothing" outcome and repeats every 16 s; a warp buildup meter (1 temporary per 4 exposed cycles, 1 normal per 40, 1 back per cycle out) replaces the old hit and charge warp; charging is flat per cycle (mana 5,500, embers 50, vis 8, Vis Batteries 0.25 level, held batteries included); **overchannel** doubles a surge-exposed caster's power for backlash damage and temporary warp (Aegis: warp only, pool and cap doubled; Battlemages overchannel too, damage only); a Battlemage below 10% health only heals, blinks, rifts and melees. Structure shelter now accepts the whole structure footprint and the default list covers every built structure; `/leyrupture status` prints the shelter test.
+- **Battlemage stage 4 (plan `20261113-2124`):** boss bar, three phases (Empowered, Desperate), reset rule, optional per-hit damage cap, and the drop tables (loot table, gear, bauble, two weighted foci). Casting slowed again (Tier 1 gap 40 and regen 5.5, Tier 2 30 and 8, Bombardier volley 48 and 130 after a second 20% cut).
+- **Battlemage melee:** during each cast hold a mage now closes in for a melee burst 60% of the time (`ai.melee.closeInChance`, `closeInMaxRange` 14) instead of standing in its band.
+- **Battlemage strike blink:** half of the melee close-ins now blink next to the target, hit, and blink back out when the burst ends (`ai.melee.strikeBlinkChance`). It now waits 10 ticks after landing before the first blow and 10 ticks after the last before blinking out. A Stun that breaks the combo is answered with Knock Back and an escape blink once it ends.
+- **Battlemage speed:** ground movement is capped at `Battlemage Max Move Speed` (4.3 blocks per second, a walking player).
+- **Bombardier:** area shots every 64 ticks (was 48), 180 ticks between volleys (was 130), volley cap 300.
+- **Battlemage heals and escapes:** 4 heal charges every 160 ticks, healing from 65% health, Desperate heal charges every 96 ticks; Knock Back peel every 80 ticks, sidestep every 30, blink every 80, escape blink below 30% health; the shield refills fully at every phase change. Casting power unchanged. Heal charges return every 100 ticks (was 160); the Swarm Mage's Healing Aura has its own 5-charge pool, one back per 100 ticks.
+- **Battlemage reposition blink:** every 200 ticks a 40% chance to blink to a new spot on its firing band (`ai.blink.repositionIntervalTicks`, `repositionChance`).
+- **Starter class emblems redrawn (plan 20261120-1900):** the six icons are now native 32x32 pixel art in the perk-icon palette (`scripts/generate_starter_icons_32.py` — heater shield & sword, bow & arrow, crossed daggers, socketed pickaxe, cottage, open tome with ribbon) instead of flat polygons.
+- **Stamina overhaul (plan 20261120-1700):** mining and woodcutting stamina is billed by how long you dig (1 half-feather at the start and every 10 ticks, `MiningHold`, `MiningBilling`, a mixin on `PlayerInteractionManager.updateBlockRemoving`) instead of per break; plants (hardness 0) cost a flat 1; Mining and Gathering Efficiency slow the drain to every 20 ticks; Mining Fatigue starts at 3 usable half-feathers and now respects the armor weight floor; new perks Forager (plants free) and Heartwood (the extra-log roll), Lumberjack now makes logs break twice as fast; the axe-click swing charge no longer applies to blocks.
+- **Runic HUD:** the Overloaded Armor Bar now clears two or more extra rune and gold rows (`absorptionForArmorBar`, `armorBarShift`).
+- **Starter classes:** Hearthkeeper moved to the Building skill (cell 1,1); icons redrawn (archer bow and arrow, miner pickaxe, scout dagger, scholar star, warrior shield without the cross); a new home takes its Hearthkeeper flag from the owner's perk at once.
+- **Docs audit (2026-11-20):** `scripts/doc_audit.py` is clean (0 hard findings); added the Nameless config table (weapon.md), the starter perk key table (reskillable.md), the Battlemage "At a glance", tuning key reference and files-by-role sections, a Quality on mobs section (qualitytools.md), a files list for the starter module, and refreshed the Ley-Rupture rows of verification.md. Scratch checkers `scripts/_defaults_check.py` (config defaults vs doc tables) and `scripts/_method_check.py` (documented members that do not exist) are read-only helpers.
+- **Tests:** `SurgeCycleTest`, `SurgeCastRulesTest`, `Stage4Test`; `LibraryParserTest` updated for the new pacing. Docs: [twilightforest.md](twilightforest.md), [cultist-battlemage.md](cultist-battlemage.md), [thaumcraft.md](thaumcraft.md), [thaumcraft-additions.md](thaumcraft-additions.md), [reskillable.md](reskillable.md), [comfort.md](comfort.md).
+
+## 2026-11-18 — Crimson Battlemage stage 3: shield, heal budget, escape, Rift (plan 22)
+
+- **Shield:** faked runic shield in vanilla absorption (16 / 28), recharge +1 per 40 ticks, 40 tick wait after a break, real `PacketFXShield` hit cue; a broken shield widens the band and halves the peel cooldown; heavy hits stagger casting.
+- **Defence:** heal budget (3 charges, 200 ticks each), retreat to heal at 50% (Swarm Mage toward its escorts, not the Bombardier), Knock Back peel, projectile and bow sidestep, strict four-condition defensive blink or rift, blink back to the band after melee and when there is no firing line, stuck-in-a-wall escape, hazard step-out, target re-scoring, raised-shield reading.
+- **Rift:** real temporary `BlocksTC.hole` tunnels (`RiftPicker`, `BattlemageRift`, `ReachabilityProbe`), defensive and offensive, own 300 to 400 tick cooldown.
+- **Mixin:** `MixinFocusEffectBlockPlacement` stops a mob's Fire and Frost foci placing blocks (`Allow Mob Focus Block Placement`, default false).
+- **Config:** `Battlemage Shield Enabled`, `Battlemage Shield Drains Aura`, `Battlemage Blink Enabled`, `Battlemage Rift Enabled`, `Allow Real Rift Holes`, `Allow Mob Focus Block Placement`. New `ai` blocks `shield`, `healBudget`, `defense`, `rift`, `unstick`; no schema change (absent blocks use the defaults).
+- **Tests:** `Stage3Test`, `RiftPickerTest`. Docs: [cultist-battlemage.md](cultist-battlemage.md) (Defence, shield and mobility; checks 21 to 28).
+
+## 2026-11-18 — Battlemages never despawn, escort id fix (plan 21)
+
+- **Fix:** the Swarm Mage escort listed `thaumcraft:cultist_knight` / `thaumcraft:cultist_cleric`, which are not registered (Thaumcraft's ids are `thaumcraft:cultistknight` / `thaumcraft:cultistcleric`), so only the Crimson Archer spawned. Ids corrected; library `schemaVersion` 4 so a stale config copy is backed up to `.bak` and replaced. An escort id that does not resolve now logs one WARN per id.
+- **Never despawn:** all four battlemage entities have `canDespawn()` false and `BattlemageDespawnGuard` denies Forge's `AllowDespawn` for them. Swarm Mage escorts carry an `aqtweaks_escort` tag (owner UUID) and are denied despawning while the mage lives; when it dies, loaded escorts lose the tag and unloaded ones are released from `EscortReleasedData` (`aqtweaks_released_escort_owners`), so they despawn normally again.
+- **Tests:** `EscortReleaseTest`, escort id tests in `EscortSpawnerTest`, schema 4 in `LibraryMigrationTest`. Docs: [cultist-battlemage.md](cultist-battlemage.md) (checks 19 and 20).
+
+## 2026-11-18 — Crimson Swarm Mage: Healing Aura guard (plan 20)
+
+- **Guard:** when a player closes on the Swarm Mage's own Healing Aura cloud (within 3.5 of the centre, mage within 6), it hits 1 to 2 times in melee and casts Knock Back, or Knock Back alone when the player is in reach and stepping toward the cloud; beyond Touch reach it walks in for up to 20 ticks first. 30 tick cooldown between sequences. New `ai` keys `cloudGuardRange`, `cloudGuardNearRange`, `cloudGuardCastTicks`, `cloudGuardMeleeMin`/`Max`, `cloudGuardCooldownTicks`, `cloudGuardCloseTicks` (in the `swarm_mage` variant).
+- **Tests:** `CloudGuardTest`, guard keys in `LibraryParserTest`. Docs: [cultist-battlemage.md](cultist-battlemage.md) (Swarm Mage).
+
+## 2026-11-18 — Crimson Bombardier Mage: volley, close response, reposition blink (plan 19, part C)
+
+- **Volley:** `aqtweaks:cultist_bombardier_mage` fires one area focus every 30 ticks, each of its five once in a random order, then pauses 80 ticks; a focus waits while its own cooldown runs or its previous clouds are alive (`CloudLedger`, one live cast per focus, so up to five casts' clouds can be out). The energy pool is off for this variant. New `ai` keys `volleyGapTicks`, `volleyPauseTicks`, `volleyMaxTicks`.
+- **Close response:** a target inside 6 blocks gets 1 to 2 melee attacks, Knock Back, then a blink (3 to 6 blocks: straight to the blink; Blink on cooldown: it steps back on foot). New `close` block (`meleeMin`, `meleeMax`, `maxTicks`).
+- **Reposition blink:** `BlinkPicker.Mode.REPOSITION_BAND` lands 8 to 14 blocks from the target with line of sight preferred, never inside its own clouds, avoiding enemy clouds and mines (`CloudAvoidance`). New `blink` keys `bandMinDistance`, `bandMaxDistance`, `cloudAvoidMargin`, `enemyCloudCost`.
+- **Tests:** `VolleyPlannerTest`, `CloseSequenceTest`, `CloudAvoidanceTest`, `CloudLedgerTest`, band cases in `BlinkPickerTest`, keys in `LibraryParserTest`. Docs: [cultist-battlemage.md](cultist-battlemage.md) (Bombardier Mage).
+
+## 2026-11-18 — Crimson Swarm Mage: escort, portal arrival and ally heal (plan 18.7, part B)
+
+- **Escort:** the Swarm Mage spawns its escort (2 Crimson Knights, a Cleric, a Crimson Archer, from the library `escort` list) once, staggered out of a cosmetic lesser crimson portal (`aqtweaks:escort_portal`, id 10, drawn by Thaumcraft's portal renderer, a neutralised `EntityCultistPortalLesser`), `Escort:0b` NBT skips it. Escorts share the mage's target and the mage takes the player an escort was hurt by. Escort uuids and an unfinished arrival are saved.
+- **Ally heal:** an escort within 16 blocks below 60% health gets a Healing Aura; the mage blinks next to it first when it is farther than 2.5 blocks (walks if Blink is on cooldown and no player is in melee range). `AllyHealPlanner`, `BattlemageBlink`, `BlinkPicker` (`TOWARD_ALLY` only), shared 100 tick blink cooldown; new `ai.blink` keys.
+- **Tests:** `AllyHealPlannerTest`, `BlinkPickerTest`, `EscortSpawnerTest`, blink keys in `LibraryParserTest`. Docs: [cultist-battlemage.md](cultist-battlemage.md) (Swarm Mage).
+
+## 2026-11-18 — Crimson Battlemage: four entities, real gear, slower casting (plan 17 to 19, part A)
+
+- **Entity split:** `aqtweaks:cultist_battlemage` (Tier 1, id 4), `cultist_master_battlemage` (Tier 2, id 7), `cultist_swarm_mage` (Tier 1 variant, id 8) and `cultist_bombardier_mage` (Tier 2 variant, id 9), one shared renderer, one egg each. The `Tier` NBT is gone; the entity id is the identity. Ids 5 and 6 belong to the Nameless entities; id 10 is reserved for the escort portal. The variants are fixed-loadout stubs with hooks (escort, ally heal and volley are a later build part).
+- **Library schema 3:** per-tier and per-variant `ai` overrides, `variants` (fixed loadout, role weights, escort), `castBudget.enabled`, ally-heal and volley keys, equipment as `{item, nbt, enchantments}`. A schema 2 copy is backed up to `.bak` and replaced.
+- **Gear:** the Crimson Paladin set, Crimson boots, the named Serrated blade (five enchantments resolved to registry ids) and the Mystical caster replace the stock robes, with the Quality Tools modifiers applied straight to the mob (`GearAttributes`; Quality Tools only does it for players).
+- **Slower casting:** cast gap 24 / 16 ticks, pool refill 10 / 14 per second, resume at 60%, startup delay 40 / 30 ticks (Tier 1 / Tier 2).
+- **Loadout rules:** at most 2 heavy foci (complexity 50 or more) on Tier 1 and 3 on Tier 2; the area slot keeps a heavy seat; Tier 2 forces a heavy bolt or projectile; Spell Bat Swarm is an ordinary Tier 1 summon option and a 20% add-on at Tier 2 (always with Curse Bat).
+- **Tests:** `LoadoutRollerTest` (heavy caps, forced heavy, Swarm rates), `LibraryParserTest` (variants, resolved pacing, gear, SNBT sanity), `LibraryMigrationTest` (schema 3). Docs: [cultist-battlemage.md](cultist-battlemage.md).
+
+## 2026-11-18 — Starter class perks: Studious and Hearthkeeper
+
+- **Studious (Scholar / Magic):** three Scholar-only theorycrafting cards (Eureka, Cross-Reference, Second Opinion) delivered by a virtual research aid that `MixinTileResearchTable` adds to a Scholar's theory (also +1 starting inspiration and 3 extra-choice rounds). **Steady Focus:** `MixinCasterManager` shortens the Scholar's focus cooldowns by 25% (`CasterManager.setCooldown`). Marginalia dropped.
+- **Hearthkeeper (Homesteader / Building):** Open Hearth (+8 comfort for others within 16 blocks of the Homesteader, diminishing company bonus for the Homesteader, cap 15) and the home box (+15% cozy score and a Rested that lingers 50% longer for anyone resting in the Homesteader's home, owner online or not). Hooks in `ComfortSystemHandler`; the home record's `hearthkeeper` flag follows the owner's perk.
+- **Tests:** `StudiousMathTest`, `HearthkeeperMathTest`. Docs: [reskillable.md](reskillable.md), [comfort.md](comfort.md). Config: `aqtweaks_reskillable.cfg` Starter Scholar Perks, Starter Home Perks, Perks cells (Magic 1,3 and Building 1,1).
+
+## 2026-11-18 — Starter classes: server module, lockdown and commands
+
+- **Module** (`starter/`): a new character is shown the class menu, locked down until they choose, then gets the class skills, the free class perk, the CSG kit and the class commands (Scholar: `tc research %player% add FIRSTSTEPS`). Config `aqtweaks_starter_classes.json` (written on first run, validated at load), failsafe when no class is valid.
+- **Lockdown:** immune to damage, effects and targeting, held in place, no block, item or container actions; guards in the Comfort, Stamina, Simple Difficulty, Somnia and Thaumcraft player ticks.
+- **Packets 17-20** (open, select, result, reveal done). **`/aqclass`** reload, skip, reset, regrant, info. Login re-grants a missing class perk.
+- **CSG** is now a compile parent (`libs/`, copied by `build_gradle.ps1`).
+- **Tests:** `StarterClassValidatorTest`, `StarterSettingsIOTest`, `StarterKitDiffTest`, `StarterRulesTest`. Docs: [starter-classes.md](starter-classes.md).
+
+## 2026-11-18 — Starter class perks: Riposte, Steady Draw, Fleetfoot, Vein Rhythm
+
+- **Class-perk support:** `ClassPerkSupport` registers free (cost 0) Reskillable traits whose only requirement is the impossible `adv|aqtweaks:class_only`, and cancels `LockUnlockableEvent.Pre` so a class perk is never bought or given back. `AqtweaksTrait` gained a package-private constructor that takes forced requirement rows.
+- **Riposte (Defense):** a shield raised within 10 ticks of a hit staggers a melee attacker with Stun for 10 ticks and restarts the shield stamina hold timer. Vanilla/modded shields via `LivingAttackEvent`, Aegis via `AegisBlockEvent`.
+- **Steady Draw (Attack):** bows cost no draw stamina and the hold cost starts at full draw; 75% of arrows that hit are returned at the target's feet (pickup-allowed vanilla arrows only).
+- **Fleetfoot (Agility):** sneak speed gives back half the vanilla slowdown, +10% sprint with a LIGHT weapon or empty hand, first 3 seconds of a sprint free (re-arms after 40 idle ticks).
+- **Vein Rhythm (Mining):** consecutive pickaxe breaks of stone/ore within 2 s stack up to 5 times for +4% break speed each.
+- **Tests:** `StarterPerkMathTest`. Docs: `reskillable.md` Starter class perks. Config: `aqtweaks_reskillable.cfg` Perks cells and Starter Combat Perks.
+
+## 2026-11-18 - Starter class screens and art (client)
+
+- **Screens:** `GuiStarterClassSelection` (intro, question, scrolling class rows, confirm line and Select) and `GuiStarterReveal` (what you gained: levels, perk, gear, with a cross-fade, Continue and a 12 s hold), entered through `StarterClientHooks.open`, `showResult` and `closeAll`. Escape does not close the selection. Details in [starter-classes.md](starter-classes.md).
+- **Art:** Stoneborn-style nine-slice panel, option, button and divider textures plus six 32x32 class emblems under `textures/gui/starter/`, generated by `scripts/generate_starter_textures.ps1`. They live in the jar, so the screens look right with Stoneborn on or off.
+- **Tests:** `StarterClientMathTest`, `RevealTimelineTest`.
+
+## 2026-11-17 — Crimson Battlemage stage 2 (loadout and combat core)
+
+- **Rolled loadouts:** `LoadoutRoller` (pure, tested) gives each mage its fixed Heal Self, Knock Back, Blink and Rift plus one Bolt, Projectile, summon and AOE focus. Tier 1 carries 8 foci (budget 160), Tier 2 carries 10 (two wildcards, budget 250). Complexity-weighted, gated by `minTier`, a dimension-named focus is x3 in its dimension, a fast filler (complexity 25 or less) is always among the direct foci, at most 2 of one role. Persisted on the entity; spawn NBT `Foci` overrides the roll.
+- **Stats:** Tier 1 health 80, armor 1, focus power 1.25, shield 16 (stored for stage 3); Tier 2 120, 3, 1.5, 28. Power is applied per cast on top of `Battlemage Focus Damage Scale`. A config copy written by stage 1 is backed up to `.bak` and replaced (`schemaVersion` 2).
+- **Combat:** cast budget with burst hold-back; the first cast of a fight prefers an opener; Spell Bat upkeep (`OwnedSummonTracker`, recast at once when bats are short); a long-range cloud is not recast while one is alive; melee burst (2 to 3 weapon attacks, then a short retreat); Stun resistance (half length, no re-stun for 4 s after); Soul Sight (`aqtweaks:cultist_battlemage` in Dynamic Stealth's Natural Soul Sight list). Details: [cultist-battlemage.md](cultist-battlemage.md).
+- **Fix:** all six equipment slots now have a 0 drop chance (armor was leaking at the vanilla 8.5%).
+
+## 2026-11-17 — Structure titles for Traveler's Titles
+
+- **Titles:** entering a player home, a Roguelike dungeon or a vanilla structure (village, mineshaft, mansion, stronghold, monument, fortress, End city, the scattered temples) shows its name through Traveler's Titles' own renderer, styled from its biome title settings. A home shows `<owner>'s Home` (option to show plain "Home"). The structure title overrides the biome title and the Waystones title. Spec: [titles.md](titles.md).
+- **Server:** `StructureTitleTracker` checks each player every 20 ticks (staggered) with vanilla's `isInsideStructure` only, and sends `PacketStructureTitle` (discriminator 16) on a change. Settings in `aqtweaks_titles.cfg`; client Y offset and owner-name option in `aqtweaks_client.cfg`.
+- **Build:** `build_gradle.ps1` copies `TravelersTitles-1.12.2-1.1.0.jar` into `libs/` (compile-hard); `MixinTitleRenderManagerStructure` is queued only when the mod is loaded.
+
+## 2026-11-17 — Player homes: door test, live-scan merge, stairs
+
+- **Doors:** every door, fence gate and trapdoor is a portal, open or closed. The fill judges the cell beyond it in layers: open sky (rain-exposed, glass and leaves count as cover), then 26-direction rays (the forward-facing ones, 16 blocks), then a speculative sub-fill with a budget of 800 cells that must close to count as interior. Outside doors are walls, so a door left open no longer leaks the home into a box fallback and a closed interior door no longer splits the house. `home_door_*` and `home_max_doors` settings; `/aqhome info` prints the verdicts.
+- **Live-scan merge:** inside a home the score is the cached home plus the live 25x5x25 scan, de-duplicated by block position, so a garden or farm beside the house still counts. Caps and decay apply to the merged list.
+- **Stairs:** any stairs block not listed under `categories.structure` counts as structure at `structure_stairs_weight` (default 1.0), so a stair-roofed starter house scores a roof. Spec: [comfort.md](comfort.md#player-homes).
+
+## 2026-11-17 — Player homes (cached whole-build Comfort scoring)
+
+- **Homes:** sleeping in a bed or setting spawn at one registers the player's home. The connected interior of the build (any number of floors, through open doors, gates, trapdoors and ladders) is found with a sliced flood fill capped at 4000 cells, cached, and scored as a whole by Comfort; category caps, decay and thresholds are unchanged. Open-air or oversized builds fall back to a box around the bed (12 wide, 6 down, 8 up). Outside any home the old 25x5x25 scan runs as before. Only the bed anchor is saved; the region rebuilds when a player comes near after a restart, after a block change, and every 10 minutes while someone is inside.
+- **Structure record and `structure:Home`:** `HomeRegistry.structureAt` returns a structure-shaped record (type home, display name "<owner>'s Home", owner UUID and name, bounds, hearthkeeper flag) for a later title display and spawn rules. `MixinChunkProviderServerHome` answers the vanilla structure test (Music Triggers) and `MixinStructureCacheHome` answers In Control's `structure` rule for the name Home.
+- **Commands and settings:** `/aqhome info|rescan|list` (OP 2); `home_*` keys in `aqtweaks_comfort_settings.json`. Spec: [comfort.md](comfort.md#player-homes).
+
+## 2026-11-17 — Crimson Battlemage, stage 1
+
+- **Crimson Battlemage (new, `aqtweaks:cultist_battlemage`):** a Crimson Cultist caster miniboss that casts real Thaumcraft focus packages for free, switching between foci as each one's natural cooldown (`max(5, (complexity/5)*(complexity/4))` ticks) runs. Stage 1: Tier 1 and Tier 2, a fixed loadout from the new `cultist_battlemages.json` focus library (20 foci), `ENGAGE`/`CAST`/`REPOSITION` brain, gauntlet orb colour follows the active focus, `/summon` and spawn egg only. Config `aqtweaks_battlemage.cfg`. See [cultist-battlemage.md](cultist-battlemage.md).
+- **Thaumcraft mixins:** `MixinFocusMediumTouch` makes Touch and Bolt work for a non-player caster (stock cast the caster to a player and returned no targets); `MixinEntityUtilsFriendly`, `MixinEntityFocusProjectileSeek`, `MixinEntitySpellBatTarget` and `MixinEntityFocusCloud` make a Battlemage's seek projectiles, hostile Spell Bats and clouds affect players only, whatever the PvP flag says. Player casts and other mobs run stock code.
+
+## 2026-11-16 — Armor bar row under runic shielding, underground warp needs darkness
+
+- **Armor bar one row too high:** Overloaded Armor Bar places its bar from the raw absorption amount, so runic charge (stored as absorption, drawn on the health row) left an empty row. `MixinOverloadedArmorBarRunic` and `MixinOverloadedLavaCharmRunic` feed it `RunicShieldHud.absorptionForLayout`. See [thaumcraft.md](thaumcraft.md).
+- **Underground warp exposure only in the dark:** the `under` and `underDeep` sources now also need combined light ≤ `Underground Exposure Max Light` (default 6, 15 = off) at the player's head, so lit underground bases no longer bank warp. Y bands, grants, dimension and dungeon sources are unchanged. `ExposureRules` + test.
+
+## 2026-11-16 — Aegis focus effect
+
+- **Aegis (new focus effect, Thaumcraft Additions):** a shield held up while you keep casting. Blocks hits from the front (vanilla's 180 degree test) and spends a damage pool of 5 per power level (5 to 25); the hit that empties the pool is absorbed in full and breaks the shield, which locks every focus containing Aegis for 5 seconds (`Shield Broken`, `aqtweaks:aegis_broken`). Costs 2 vis at the raise and every 20 ticks held (the raise is the first bill, so every raise costs 2). Lowering early discards the pool. Raised Aegis counts as a real shield (`BLOCK` use action, so `isActiveItemStackBlocking()` and Fortify work) and is skipped by the stamina shield-hold cost (`Aegis Uses Stamina Shield Cost`). New hooks for shield perks: `ShieldState`, `AegisBlockEvent`. Client draws a blue panel with runic glyphs that fade as the pool drops (`PacketAegisShield`, discriminator 15). Research `AQ_FOCUS_AEGIS` at Auromancy `[-1, 7]` beside Heal, requiring Heal and Runic Shielding. `MixinItemCaster` gains the raise, lockout and use-action hooks. See [thaumcraft-additions.md](thaumcraft-additions.md).
+
+## 2026-11-16 — Shock focus effect, runic shield HUD under Mantle, Stun, bow hold billing
+
+- **Runic shield HUD:** the rune overlay never showed because Mantle's `ExtraHeartRenderHandler` cancels the health overlay and draws its own hearts, so neither our hook in `GuiIngameForge.renderHealth` nor Thaumic Tweaker's overlay ran. New client mixin `MixinMantleExtraHeartRunicShield` hooks Mantle's `renderHealthbar` the same way. Diagnostic `Runic HUD Debug` (`aqtweaks_client.cfg`, `runic hud`, default off). See [thaumcraft.md](thaumcraft.md).
+- **Thaumcraft Additions module (new):** `thaumadditions` package, `aqtweaks_thaumadditions.cfg` (`ThaumAdditionsConfig`). First addition is the **Shock** focus effect (Potentia lightning): Frost's damage formula `(3 + power) * finalPower`, 1.5x against wet targets, chains to 2 more targets (4 blocks, 8 between two wet targets) at 0.6 damage per jump, Slowness II stun 10 ticks at duration 1 up to 50 at duration 5, hits players and mobs by Thaumcraft's `isFriendly` rule. Auromancy research `AQ_FOCUS_SHOCK` at cell `[1, 2]` next to Elemental Foci. See [thaumcraft-additions.md](thaumcraft-additions.md).
+- **Stun (new shared effect, `aqtweaks:stun`):** the target cannot attack or use items while it lasts (item use, melee hits, new projectiles including witch potions, a witch's drink) and moves at about Slowness I speed; arrows already in flight still fly. `potion/PotionStun`, `Stun`, `StunHandler`. See [thaumcraft-additions.md](thaumcraft-additions.md).
+- **Shock revised:** the Slowness stun is replaced by Stun (5 ticks at duration 1, +5 per level, so 5 to 25 ticks; `Shock Stun Base Ticks`, `Shock Stun Ticks Per Level`; the amplifier key is removed). Creepers it hits become powered with no extra damage (`Shock Charges Creepers`, `MixinEntityCreeperPowered` in the early json). Cast zap and hit crackle (Thaumcraft's `zap` and `shock` sounds, `Shock Sound Volume`).
+- **Aether lightning storm:** a primary bolt also stuns for `Lightning Stun Ticks` (default 20; 0 off), on top of the Slowness. See [aether.md](aether.md).
+- **Bow hold stamina fixed:** a held bow was billed from two places and paid twice per interval; it is now billed once (`UseItem.Tick`), which halves the effective hold cost for everyone. Throwing-weapon hold is unchanged. See [stamina.md](stamina.md).
+
 ## 2026-11-14 — Hazard gear centralization, Atum choking removal, TF surge updraft
 
 - **Centralized hazard gear (`aqtweaks_hazard_gear.cfg`, `HazardGearConfig`, `HazardGearAudit`, `WindResistanceGear`):** moved all dimension hazard armor/gear whitelists and effect IDs into seven categories (`wind`, `eye_protection`, `aether`, `atum`, `aurorian`, `nether`, `twilightforest`) with `:meta` matching and startup audit logging for unmatched patterns. Added shared additive wind-push resistance across Aether gusts, Atum sandstorms, and Aurorian Moonfrost storms from live Elenai Dodge 2 iron-feather weight (before Armor Mastery), Wind Resistant armor, grounded Anchoring boots, and additive sneaking (clamped up to 100%). Renamed Aether `Channelled` → `Channeling`, excluded Insulated and Channeling gear from Conductive, fixed `thaumicaugmentation:thaumium_robes_*` and `atum:eyes_of_atum`, and replaced hardcoded eye-protection shortcuts with `Eye Protection Gear Whitelist`.

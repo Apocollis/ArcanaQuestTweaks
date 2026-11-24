@@ -28,6 +28,7 @@ public final class StaminaPerks {
     private StaminaPerks() {}
 
     private static final boolean RESKILLABLE = net.minecraftforge.fml.common.Loader.isModLoaded("reskillable");
+    private static final boolean DSS = net.minecraftforge.fml.common.Loader.isModLoaded("dynamicswordskills");
 
     public static boolean unlocked(EntityPlayer player, String id) {
         return ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.enableReskillable
@@ -39,15 +40,19 @@ public final class StaminaPerks {
         return Math.max(0, cost - reduction);
     }
 
-    public static int gatheringForageCost(EntityPlayer player, int base,
-            net.minecraft.world.World world, net.minecraft.block.state.IBlockState state) {
+    /**
+     * Ticks between two stamina payments while digging a real block (plan 20261120-1700): the base interval, or the
+     * slower one of Gathering Efficiency (forage blocks) or Mining Efficiency (everything else).
+     */
+    public static int holdInterval(EntityPlayer player, boolean forage, int base) {
         var cfg = ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable;
-        if (!unlocked(player, cfg.gatheringEfficiencyPerkId)) return base;
-        if (!isForageBlock(world, state)) return base;
-        return Math.max(0, base - cfg.gatheringEfficiencyReduction);
+        if (forage) {
+            return unlocked(player, cfg.gatheringEfficiencyPerkId) ? cfg.gatheringEfficiencyIntervalTicks : base;
+        }
+        return unlocked(player, cfg.miningEfficiencyPerkId) ? cfg.miningEfficiencyIntervalTicks : base;
     }
 
-    private static boolean isForageBlock(net.minecraft.world.World world,
+    public static boolean isForageBlock(net.minecraft.world.World world,
             net.minecraft.block.state.IBlockState state) {
         if (!RESKILLABLE) return false;
         try {
@@ -62,14 +67,39 @@ public final class StaminaPerks {
         return minus(base, player, cfg.meleeEfficiencyPerkId, cfg.meleeEfficiencyReduction);
     }
 
-    public static int jumpCost(EntityPlayer player, int base) {
+    /**
+     * Weapon Tempo: while locked on in a DSS combo, the melee hit about to land costs nothing (every Nth hit, plus a
+     * rank-based chance on the others from the 3rd). Rolled once per attack; call only from the attack handler.
+     */
+    public static boolean tempoFree(EntityPlayer player) {
+        if (!DSS) return false;
         var cfg = ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable;
-        return minus(base, player, cfg.cardioMasterPerkId, cfg.cardioMasterReduction);
+        if (!unlocked(player, cfg.weaponTempoPerkId)) return false;
+        try {
+            return DssComboTempo.nextHitFree(player, cfg.weaponTempoInterval, cfg.weaponTempoChancePerLevel);
+        } catch (RuntimeException | LinkageError t) {
+            return false;
+        }
     }
 
+    /** Jump cost. Marathon Runner no longer reduces it (it now works through the regen pace); kept as the one call site. */
+    public static int jumpCost(EntityPlayer player, int base) {
+        return Math.max(0, base);
+    }
+
+    /** Sprint cost. Marathon Runner no longer reduces it (it now works through the regen pace). */
     public static int sprintCost(EntityPlayer player, int base) {
-        var cfg = ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable;
-        return minus(base, player, cfg.cardioMasterPerkId, cfg.cardioMasterReduction);
+        return Math.max(0, base);
+    }
+
+    /** Marathon Runner: sprinting and jumping refill as Moving, plain walking as Resting. */
+    public static boolean marathonRunner(EntityPlayer player) {
+        return unlocked(player, ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.marathonRunnerPerkId);
+    }
+
+    /** Cardio Master: Active counts as Moving for stamina refill. */
+    public static boolean cardioMaster(EntityPlayer player) {
+        return unlocked(player, ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.cardioMasterPerkId);
     }
 
     public static int climbCost(EntityPlayer player, int base) {

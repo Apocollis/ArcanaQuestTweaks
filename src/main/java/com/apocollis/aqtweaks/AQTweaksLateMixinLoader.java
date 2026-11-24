@@ -49,7 +49,11 @@ public class AQTweaksLateMixinLoader implements ILateMixinLoader {
                 "mixins.aqtweaks.aurorian.json",
                 "mixins.aqtweaks.dsurround.json",
                 "mixins.aqtweaks.mdecore.json",
-                "mixins.aqtweaks.solcarrot.json");
+                "mixins.aqtweaks.solcarrot.json",
+                "mixins.aqtweaks.travelerstitles.json",
+                "mixins.aqtweaks.spartanweaponry.json",
+                "mixins.aqtweaks.smarthud.json",
+                "mixins.aqtweaks.reskillable.json");
     }
 
     @Override
@@ -71,6 +75,18 @@ public class AQTweaksLateMixinLoader implements ILateMixinLoader {
         }
         if ("mixins.aqtweaks.solcarrot.json".equals(mixinConfig)) {
             return Loader.isModLoaded("solcarrot");
+        }
+        if ("mixins.aqtweaks.travelerstitles.json".equals(mixinConfig)) {
+            return Loader.isModLoaded("travelerstitles");
+        }
+        if ("mixins.aqtweaks.spartanweaponry.json".equals(mixinConfig)) {
+            return Loader.isModLoaded("spartanweaponry");
+        }
+        if ("mixins.aqtweaks.smarthud.json".equals(mixinConfig)) {
+            return Loader.isModLoaded("smarthud");
+        }
+        if ("mixins.aqtweaks.reskillable.json".equals(mixinConfig)) {
+            return Loader.isModLoaded("reskillable");
         }
         return true;
     }

@@ -9,6 +9,7 @@ import com.apocollis.aqtweaks.hazard.Hazards;
 import com.apocollis.aqtweaks.nether.LavaSpoutHandler;
 import com.apocollis.aqtweaks.nether.LoadedBlocks;
 import com.apocollis.aqtweaks.network.PacketLeyExposure;
+import com.apocollis.aqtweaks.thaumcraft.RunicRechargeHooks;
 import com.apocollis.aqtweaks.thaumcraft.ThaumcraftHelper;
 import com.apocollis.aqtweaks.weather.GearTierRule;
 
@@ -63,17 +64,23 @@ public class LeyRuptureHandler {
     private final Map<UUID, Double> exposure = new HashMap<>();
     private final Map<UUID, Float> sent = new HashMap<>();
     private final Map<UUID, Long> exposedSince = new HashMap<>();
-    private final Set<UUID> surgeRollDone = new HashSet<>();
+    /** Updraft rolls already made in this continuous exposure (the next is due after (n + 1) delays). */
+    private final Map<UUID, Integer> surgeRolls = new HashMap<>();
+    private final Map<UUID, WarpMeter> meters = new HashMap<>();
+    private final Map<UUID, Long> nextCalm = new HashMap<>();
     private final Map<UUID, Long> nextHit = new HashMap<>();
     private final Map<UUID, Long> nextExtra = new HashMap<>();
-    private final Map<UUID, Integer> hazardWarp = new HashMap<>();
-    private final Map<UUID, Integer> chargeWarp = new HashMap<>();
     private final Set<UUID> leyMobs = new HashSet<>();
     private long eventId = Long.MIN_VALUE;
 
     /** Exposure from the last server pass, 0 when unknown or sheltered. */
     public double exposureOf(EntityPlayer player) {
         return exposure.getOrDefault(player.getUniqueID(), 0.0D);
+    }
+
+    /** True while the active phase of a surge is running in this world. */
+    public boolean activeIn(net.minecraft.world.World world) {
+        return Hazards.state(world, LeyChannels.RUPTURE).phase == HazardEvent.Phase.ACTIVE;
     }
 
     /** True while the active phase of a surge is running in the player's world. */
@@ -95,10 +102,8 @@ public class LeyRuptureHandler {
         HazardState state = Hazards.state(world, LeyChannels.RUPTURE);
         if (state.event != null && state.event.id != eventId) {
             eventId = state.event.id;
-            hazardWarp.clear();
-            chargeWarp.clear();
             exposedSince.clear();
-            surgeRollDone.clear();
+            surgeRolls.clear();
             nextHit.clear();
             nextExtra.clear();
         }
@@ -113,7 +118,7 @@ public class LeyRuptureHandler {
         }
         ArcanaQuestTweaksConfig.LeyRupture c = ArcanaQuestTweaksConfig.TwilightForestModuleConfig.ley;
         if (visBatteries != null && state.phase == HazardEvent.Phase.ACTIVE
-                && now % (c.chargePulseSeconds * 20L) == 0L) {
+                && now % (Math.max(1, c.scourIntervalSeconds) * 20L) == 0L) {
             visBatteries.pulse(world);
         }
     }
@@ -145,20 +150,24 @@ public class LeyRuptureHandler {
             }
         }
 
-        if (state.phase != HazardEvent.Phase.ACTIVE || f <= 0.01D) {
+        boolean inSurge = state.phase == HazardEvent.Phase.ACTIVE && f > 0.01D;
+        RunicRechargeHooks.set(id, inSurge && c.surgeStopsShieldRecharge);
+        if (!inSurge) {
             exposedSince.remove(id);
-            surgeRollDone.remove(id);
+            surgeRolls.remove(id);
+            calmMeter(player, now);
             return;
         }
+        nextCalm.remove(id);
         double intensity = LeyTerrain.intensity(biome);
         boolean proper = GearTierRule.allSlotsOnList(player,
                 ArcanaQuestTweaksConfig.HazardGearConfig.twilightforest.properGear);
         Long since = exposedSince.putIfAbsent(id, now);
         long exposedFor = since == null ? 0L : now - since;
 
-        if (c.enableSurgeUpdraft && !surgeRollDone.contains(id)
-                && SurgeExposureRoll.isDue(exposedFor, c.surgeExposureDelaySeconds)) {
-            surgeRollDone.add(id);
+        int rolls = surgeRolls.getOrDefault(id, 0);
+        if (c.enableSurgeUpdraft && SurgeExposureRoll.isDue(exposedFor, c.surgeExposureDelaySeconds, rolls)) {
+            surgeRolls.put(id, rolls + 1);
             applySurgeUpdraft(player, c);
         }
 
@@ -169,17 +178,17 @@ public class LeyRuptureHandler {
             if (now >= nextHit.getOrDefault(id, 0L)) {
                 nextHit.put(id, now + c.scourIntervalSeconds * 20L);
                 scour(world, player, f, intensity, proper);
+                // One charge cycle: the same tick as the hit, so hits, charge and the warp meter share a clock.
+                if (c.enableCharging && f >= c.chargeMinExposure) {
+                    SurgeCharging.pulse(player, f, intensity);
+                }
+                warpCycle(player, c);
             }
             // Biome extras (potions, fire) and warp keep their own 4 second beat, so a long scour interval does not
             // leave blindness and slowness active only a fraction of the time.
             if (now >= nextExtra.getOrDefault(id, 0L)) {
                 nextExtra.put(id, now + 80L);
                 extras(world, player, biome, f);
-            }
-        }
-        if (c.enableCharging && f >= c.chargeMinExposure && now % (c.chargePulseSeconds * 20L) == 0L) {
-            if (SurgeCharging.pulse(player, f, intensity)) {
-                giveWarp(player, chargeWarp, c.chargeWarp, c.chargeWarpCap);
             }
         }
         if (c.enableLeyMobs && now % (c.mobPulseSeconds * 20L) == 0L && rand.nextDouble() < c.mobChance) {
@@ -238,13 +247,9 @@ public class LeyRuptureHandler {
     }
 
     private void extras(WorldServer world, EntityPlayerMP player, String biome, double f) {
-        ArcanaQuestTweaksConfig.LeyRupture c = ArcanaQuestTweaksConfig.TwilightForestModuleConfig.ley;
         BiomeIntensity.Extra extra = LeyTerrain.extra(biome);
         if (extra != null) {
             applyExtra(world, player, extra);
-        }
-        if (rand.nextDouble() < c.warpChance * f) {
-            giveWarp(player, hazardWarp, 1, c.warpCapPerSurge);
         }
     }
 
@@ -266,22 +271,39 @@ public class LeyRuptureHandler {
         player.addPotionEffect(new PotionEffect(potion, extra.ticks, extra.amplifier, false, true));
     }
 
-    /** Gives temporary warp within the per-surge cap held in {@code ledger}. Returns what was given. */
-    public int giveWarp(EntityPlayer player, Map<UUID, Integer> ledger, int wanted, int cap) {
-        if (!Loader.isModLoaded("thaumcraft") || !ThaumcraftHelper.available()) return 0;
-        int already = ledger.getOrDefault(player.getUniqueID(), 0);
-        int allowed = SurgeMath.warpAllowed(already, wanted, cap);
-        if (allowed <= 0) return 0;
-        ledger.put(player.getUniqueID(), already + allowed);
-        ThaumcraftHelper.addWarp(player, 1, allowed);
-        ThaumcraftHelper.syncWarp(player);
-        return allowed;
+    /** One exposed charge cycle on the warp buildup meter (plan 6.11). */
+    private void warpCycle(EntityPlayerMP player, ArcanaQuestTweaksConfig.LeyRupture c) {
+        WarpMeter meter = meters.computeIfAbsent(player.getUniqueID(), k -> new WarpMeter());
+        int[] give = meter.exposedCycle(c.warpTempCycles, c.warpNormalCycles);
+        grantWarp(player, give[0], give[1]);
     }
 
-    /** The backlash shares the hazard warp ledger (one point a surge by default). */
-    public int giveBacklashWarp(EntityPlayer player, int wanted) {
-        return giveWarp(player, hazardWarp, wanted,
-                ArcanaQuestTweaksConfig.TwilightForestModuleConfig.ley.warpCapPerSurge);
+    /** One cycle outside the surge takes one point off each counter, every 4 s, also after the surge has ended. */
+    private void calmMeter(EntityPlayerMP player, long now) {
+        WarpMeter meter = meters.get(player.getUniqueID());
+        if (meter == null) return;
+        if (meter.idle()) {
+            meters.remove(player.getUniqueID());
+            nextCalm.remove(player.getUniqueID());
+            return;
+        }
+        long step = Math.max(1, ArcanaQuestTweaksConfig.TwilightForestModuleConfig.ley.scourIntervalSeconds) * 20L;
+        Long due = nextCalm.get(player.getUniqueID());
+        if (due == null) {
+            nextCalm.put(player.getUniqueID(), now + step);
+            return;
+        }
+        if (now >= due) {
+            meter.calmCycle();
+            nextCalm.put(player.getUniqueID(), now + step);
+        }
+    }
+
+    private void grantWarp(EntityPlayerMP player, int temporary, int normal) {
+        if ((temporary <= 0 && normal <= 0) || !Loader.isModLoaded("thaumcraft") || !ThaumcraftHelper.available()) return;
+        if (normal > 0) ThaumcraftHelper.addWarp(player, 0, normal);
+        if (temporary > 0) ThaumcraftHelper.addWarp(player, 1, temporary);
+        ThaumcraftHelper.syncWarp(player);
     }
 
     private void sendExposure(EntityPlayerMP player, float value) {
@@ -369,9 +391,14 @@ public class LeyRuptureHandler {
         exposure.remove(id);
         sent.remove(id);
         exposedSince.remove(id);
-        surgeRollDone.remove(id);
+        surgeRolls.remove(id);
         nextHit.remove(id);
         nextExtra.remove(id);
+        meters.remove(id);
+        nextCalm.remove(id);
+        RunicRechargeHooks.set(id, false);
+        SurgeCharging.forget(id);
+        if (LeyChannels.overchannel != null) LeyChannels.overchannel.forget(id);
         shelterBoxes.forget(id);
     }
 
@@ -384,7 +411,7 @@ public class LeyRuptureHandler {
     public void reset(WorldServer world) {
         dissipateMobs(world);
         exposedSince.clear();
-        surgeRollDone.clear();
+        surgeRolls.clear();
         nextHit.clear();
         nextExtra.clear();
     }

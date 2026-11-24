@@ -12,9 +12,12 @@
     "MixinEntitySightData",
     "MixinDSEntityTrackerEntry",
     "MixinImprovedRayTracing",
-    "MixinDSVisibilityPacket"
+    "MixinDSVisibilityPacket",
+    "MixinCombo",
+    "MixinDSSCombatEvents"
   ],
   "client": [
-    "MixinDSSKeyHandler"
+    "MixinDSSKeyHandler",
+    "MixinDSSClientEvents"
   ]
 }

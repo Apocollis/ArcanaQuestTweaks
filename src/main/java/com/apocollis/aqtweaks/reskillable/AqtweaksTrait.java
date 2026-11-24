@@ -11,15 +11,27 @@ public class AqtweaksTrait extends Trait {
     static final java.util.Map<String, ReskillablePerkLayout> LAYOUTS = new java.util.LinkedHashMap<>();
 
     public AqtweaksTrait(String path, ReskillablePerkLayout layout) {
+        this(path, layout, null);
+    }
+
+    /**
+     * {@code forcedRequirements} (when not null) replace the layout rows and skip sanitising; used by class perks
+     * ({@link ClassPerkSupport}), whose single requirement is an impossible advancement.
+     */
+    AqtweaksTrait(String path, ReskillablePerkLayout layout, String[] forcedRequirements) {
         super(new ResourceLocation("aqtweaks", path), layout.x, layout.y,
-                new ResourceLocation(parentOf(layout)), layout.cost, withoutTraitRefs(reqsOf(layout)));
+                new ResourceLocation(parentOf(layout)), layout.cost,
+                forcedRequirements != null ? forcedRequirements : withoutTraitRefs(reqsOf(layout)));
         UnlockableConfig cfg = getUnlockableConfig();
         cfg.setEnabled(layout.enable);
         cfg.setX(layout.x);
         cfg.setY(layout.y);
         cfg.setCost(layout.cost);
-        cfg.setRequirementHolder(RequirementHolder.fromStringList(withoutTraitRefs(reqsOf(layout))));
-        LAYOUTS.put(path, layout);
+        cfg.setRequirementHolder(RequirementHolder.fromStringList(
+                forcedRequirements != null ? forcedRequirements : withoutTraitRefs(reqsOf(layout))));
+        if (forcedRequirements == null) {
+            LAYOUTS.put(path, layout);
+        }
     }
 
     /**

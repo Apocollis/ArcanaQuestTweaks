@@ -181,6 +181,7 @@ public class StaminaModule {
     @SubscribeEvent
     public void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase != TickEvent.Phase.START) return;
+        if (com.apocollis.aqtweaks.starter.StarterLockdown.isLocked(event.player)) return;
 
         EntityPlayer player = event.player;
         if (player == null || player.capabilities.isCreativeMode || player.isSpectator()) return;
@@ -202,8 +203,10 @@ public class StaminaModule {
 
             // Mining Fatigue exhaustion check
             if (ArcanaQuestTweaksConfig.StaminaModuleConfig.mining.enableMiningCost) {
-                int regularFeathers = FeathersHelper.getFeatherLevel(playerMP);
-                if (regularFeathers <= ArcanaQuestTweaksConfig.StaminaModuleConfig.mining.miningFatigueThreshold) {
+                // Usable stamina, not the raw feather count: armor weight is a floor the player cannot spend below, so
+                // a heavily armored player reached an empty usable pool without ever seeing fewer feathers than the threshold.
+                int usableStamina = MiningBilling.usableStamina(playerMP);
+                if (MiningHold.fatigueDue(usableStamina, ArcanaQuestTweaksConfig.StaminaModuleConfig.mining.miningFatigueThreshold)) {
                     // Only re-apply as the effect winds down. The refresh window is half the duration,
                     // so the effect never lapses while stamina stays empty.
                     PotionEffect active = playerMP.getActivePotionEffect(MobEffects.MINING_FATIGUE);
@@ -233,34 +236,13 @@ public class StaminaModule {
         }
     }
 
+    /**
+     * Bow hold is billed once, from {@link #onItemUseTick}. This player-tick path used to bill it too, from its own
+     * counter, so a held bow paid twice per interval. It now only clears that counter (a leftover from older saves).
+     */
     private void handleServerBowDrawing(EntityPlayerMP player, NBTTagCompound pData) {
-        if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.bowDrawing.enableBowCost) return;
-
-        // Bows only (throwing weapons handled separately in handleServerThrowingHold)
-        ItemStack activeStack = player.getActiveItemStack();
-        boolean isDrawing = player.isHandActive() && activeStack.getItem() instanceof ItemBow
-                            && !isThrowingWeapon(activeStack);
-
-        if (isDrawing) {
-            int ticks = pData.getInteger("StaminaTweaksBowTicks") + 1;
-            int interval = StaminaPerks.bowHoldInterval(player,
-                    ArcanaQuestTweaksConfig.StaminaModuleConfig.bowDrawing.bowHoldInterval);
-
-            if (ticks >= interval) {
-                int cost = ArcanaQuestTweaksConfig.StaminaModuleConfig.bowDrawing.bowHoldCost;
-                if (StaminaFeathers.hasEnoughStamina(player, cost)) {
-                    StaminaFeathers.decreaseFeathers(player, cost);
-                    ticks = 0;
-                } else {
-                    player.resetActiveHand();
-                    ticks = 0;
-                }
-            }
-            pData.setInteger("StaminaTweaksBowTicks", ticks);
-        } else {
-            if (pData.getInteger("StaminaTweaksBowTicks") > 0) {
-                pData.setInteger("StaminaTweaksBowTicks", 0);
-            }
+        if (pData.getInteger("StaminaTweaksBowTicks") > 0) {
+            pData.setInteger("StaminaTweaksBowTicks", 0);
         }
     }
 
@@ -605,12 +587,35 @@ public class StaminaModule {
             if (pData.getInteger("StaminaTweaksSprintTicks") > 0) {
                 pData.setInteger("StaminaTweaksSprintTicks", 0);
             }
+            // Fleetfoot bookkeeping: the run ended, count idle ticks so the free start can re-arm.
+            pData.setInteger("AqtweaksSprintRun", 0);
+            int idle = pData.getInteger("AqtweaksSprintIdle");
+            if (idle < 1000) pData.setInteger("AqtweaksSprintIdle", idle + 1);
             return;
         }
 
         int threshold = ArcanaQuestTweaksConfig.StaminaModuleConfig.sprinting.sprintThreshold;
         if (!StaminaFeathers.hasEnoughStamina(player, threshold)) {
             player.setSprinting(false);
+            pData.setInteger("StaminaTweaksSprintTicks", 0);
+            return;
+        }
+
+        // Fleetfoot (Scout class perk): the first seconds of each sprint run cost nothing. A run only counts as a
+        // fresh start after the player has not sprinted for the re-arm time, so stop-start sprinting cannot chain it.
+        int run = pData.getInteger("AqtweaksSprintRun") + 1;
+        pData.setInteger("AqtweaksSprintRun", run);
+        if (run == 1) {
+            pData.setBoolean("AqtweaksSprintFree", com.apocollis.aqtweaks.reskillable.StarterPerkMath.sprintFreeStartArmed(
+                    pData.getInteger("AqtweaksSprintIdle"),
+                    ArcanaQuestTweaksConfig.ReskillableModuleConfig.starterCombat.fleetfootFreeSprintRearmTicks));
+            pData.setInteger("AqtweaksSprintIdle", 0);
+        }
+        if (pData.getBoolean("AqtweaksSprintFree")
+                && com.apocollis.aqtweaks.reskillable.StarterPerkMath.freeSprintTick(run,
+                ArcanaQuestTweaksConfig.ReskillableModuleConfig.starterCombat.fleetfootFreeSprintTicks)
+                && PerkAccess.on(player, "aqtweaks:fleetfoot",
+                ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.fleetfoot.enable)) {
             pData.setInteger("StaminaTweaksSprintTicks", 0);
             return;
         }
@@ -660,6 +665,8 @@ public class StaminaModule {
         EntityPlayer player = event.getEntityPlayer();
         if (player.world.isRemote || player.capabilities.isCreativeMode || player.isSpectator()) return;
 
+        StaminaRegenPace.markSwing(player);
+
         if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.enableAttackCost) return;
 
         EntityPlayerMP playerMP = (EntityPlayerMP) player;
@@ -667,6 +674,9 @@ public class StaminaModule {
         WeaponType type = getWeaponType(held);
 
         if (type == WeaponType.NONE) return;
+
+        // Weapon Tempo: a free combo hit costs nothing, skips Power Attack and never takes the empty-stamina penalty.
+        if (StaminaPerks.tempoFree(playerMP)) return;
 
         int cost = (type == WeaponType.LIGHT) ? ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.lightCost : 
                    (type == WeaponType.HEAVY ? ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.heavyCost : ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.mediumCost);
@@ -700,7 +710,13 @@ public class StaminaModule {
 
     @SubscribeEvent
     public void onLeftClickBlock(PlayerInteractEvent.LeftClickBlock event) {
-        handleWeaponSwing(event.getEntityPlayer());
+        // The start of a dig bills through the hold timer (MiningBilling); hitting a block is no longer a weapon swing.
+        MiningBilling.onStartDig(event.getEntityPlayer(), event.getPos());
+    }
+
+    @SubscribeEvent
+    public void onMiningLogout(net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedOutEvent event) {
+        MiningBilling.forget(event.player.getUniqueID());
     }
 
     @SubscribeEvent
@@ -710,6 +726,7 @@ public class StaminaModule {
 
     private void handleWeaponSwing(EntityPlayer player) {
         if (player == null || player.world.isRemote || player.capabilities.isCreativeMode || player.isSpectator()) return;
+        StaminaRegenPace.markSwing(player);
         if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.weapons.enableAttackCost) return;
 
         EntityPlayerMP playerMP = (EntityPlayerMP) player;
@@ -738,6 +755,9 @@ public class StaminaModule {
 
         if (stack.getItem() instanceof ItemBow) {
             if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.bowDrawing.enableBowCost) return;
+            // Steady Draw (Archer class perk): drawing a bow costs nothing.
+            if (PerkAccess.on(playerMP, "aqtweaks:steady_draw",
+                    ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.steadyDraw.enable)) return;
             int drawCost = StaminaPerks.bowDrawCost(playerMP,
                     ArcanaQuestTweaksConfig.StaminaModuleConfig.bowDrawing.bowDrawCost);
             if (StaminaFeathers.hasEnoughStamina(playerMP, drawCost)) {
@@ -761,11 +781,15 @@ public class StaminaModule {
         int duration = event.getDuration();
         int ticksUsed = stack.getMaxItemUseDuration() - duration;
 
-        if (stack.getItem() instanceof ItemBow) {
+        if (stack.getItem() instanceof ItemBow && !isThrowingWeapon(stack)) {
             if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.bowDrawing.enableBowCost) return;
             int interval = StaminaPerks.bowHoldInterval(player,
                     ArcanaQuestTweaksConfig.StaminaModuleConfig.bowDrawing.bowHoldInterval);
-            if (ticksUsed > 0 && ticksUsed % interval == 0) {
+            // Steady Draw: the hold cost starts only at full draw, then runs at the normal interval.
+            boolean steadyDraw = PerkAccess.on(playerMP, "aqtweaks:steady_draw",
+                    ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.steadyDraw.enable);
+            if (com.apocollis.aqtweaks.reskillable.StarterPerkMath.billsBowHold(steadyDraw, ticksUsed, interval,
+                    ArcanaQuestTweaksConfig.ReskillableModuleConfig.starterCombat.steadyDrawFullTicks)) {
                 int cost = ArcanaQuestTweaksConfig.StaminaModuleConfig.bowDrawing.bowHoldCost;
                 if (StaminaFeathers.hasEnoughStamina(playerMP, cost)) {
                     StaminaFeathers.decreaseFeathers(playerMP, cost);
@@ -820,7 +844,9 @@ public class StaminaModule {
         if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.shield.enableShieldCost) return;
 
         boolean wasBlocking = data.getBoolean("StaminaTweaksShieldActive");
-        boolean isBlocking = player.isActiveItemStackBlocking();
+        boolean isBlocking = player.isActiveItemStackBlocking()
+                && (ArcanaQuestTweaksConfig.ThaumAdditionsConfig.aegisUsesStaminaShieldCost
+                || !com.apocollis.aqtweaks.thaumadditions.AegisChannels.isRaised(player));
 
         if (isBlocking) {
             int interval = StaminaPerks.shieldHoldInterval(player,
@@ -863,36 +889,8 @@ public class StaminaModule {
 
     @SubscribeEvent
     public void onBlockBreak(net.minecraftforge.event.world.BlockEvent.BreakEvent event) {
-        EntityPlayer player = event.getPlayer();
-        if (player == null || player.world.isRemote || player.capabilities.isCreativeMode || player.isSpectator()) return;
-
-        if (!ArcanaQuestTweaksConfig.StaminaModuleConfig.mining.enableMiningCost) return;
-
-        Block block = event.getState().getBlock();
-        boolean isOreOrObsidian = block == net.minecraft.init.Blocks.OBSIDIAN || 
-                                  (block.getRegistryName() != null && block.getRegistryName().toString().toLowerCase().contains("ore"));
-
-        int cost = isOreOrObsidian ? ArcanaQuestTweaksConfig.StaminaModuleConfig.mining.oreCost : ArcanaQuestTweaksConfig.StaminaModuleConfig.mining.defaultCost;
-
-        EntityPlayerMP playerMP = (EntityPlayerMP) player;
-        if (ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.enableReskillable && 
-            PerkAccess.has(playerMP, ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.miningEfficiencyPerkId)) {
-            cost = Math.max(0, cost - ArcanaQuestTweaksConfig.StaminaModuleConfig.reskillable.miningEfficiencyReduction);
-        }
-        cost = StaminaPerks.gatheringForageCost(playerMP, cost, event.getWorld(), event.getState());
-        if (cost <= 0) return;
-        if (StaminaFeathers.hasEnoughStamina(playerMP, cost)) {
-            StaminaFeathers.decreaseFeathers(playerMP, cost);
-        } else {
-            int currentFeathers = FeathersHelper.getFeatherLevel(playerMP);
-            int weight = StaminaFeathers.getWeight(playerMP);
-            int usable = currentFeathers - weight;
-            int absorption = StaminaFeathers.getAbsorptionFeathers(playerMP);
-            int totalUsable = usable + absorption;
-            if (totalUsable > 0) {
-                StaminaFeathers.decreaseFeathers(playerMP, totalUsable);
-            }
-        }
+        // Real blocks were billed by the dig hold; only plants (hardness 0) pay a flat price here (free with Forager).
+        MiningBilling.onBreak(event.getPlayer(), event.getWorld(), event.getState(), event.getPos());
     }
 
     @SubscribeEvent

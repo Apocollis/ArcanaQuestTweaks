@@ -234,6 +234,7 @@ public class ThaumcraftModule {
     @SubscribeEvent
     public void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase != TickEvent.Phase.END || event.player.world.isRemote) return;
+        if (com.apocollis.aqtweaks.starter.StarterLockdown.isLocked(event.player)) return;
         if (event.player.isPlayerSleeping()) {
             SLEEP_START.computeIfAbsent(event.player.getUniqueID(),
                     id -> new long[] {event.player.world.getWorldTime(), event.player.ticksExisted});
@@ -342,12 +343,19 @@ public class ThaumcraftModule {
             int y = (int) Math.floor(player.posY);
             int yMin = ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureUndergroundYMin;
             int yMax = ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureUndergroundYMax;
-            if (y < yMin) {
+            int maxLight = ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureUndergroundMaxLight;
+            int light = 0;
+            if (maxLight < 15 && y <= yMax && player.world != null) {
+                light = player.world.getLightFromNeighbors(
+                        new net.minecraft.util.math.BlockPos(player.posX, player.posY + player.getEyeHeight(), player.posZ));
+            }
+            String key = ExposureRules.undergroundKey(y, yMin, yMax, light, maxLight);
+            if (ExposureRules.UNDER_DEEP.equals(key)) {
                 int g = ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureDeepUndergroundWarp;
                 if (g > 0) {
                     winner = better(winner, new ExposureMatch("underDeep", g, PRI_UNDER_DEEP));
                 }
-            } else if (y >= yMin && y <= yMax) {
+            } else if (ExposureRules.UNDER.equals(key)) {
                 int g = ArcanaQuestTweaksConfig.ThaumcraftConfig.exposureUndergroundWarp;
                 if (g > 0) {
                     winner = better(winner, new ExposureMatch("under", g, PRI_UNDER));

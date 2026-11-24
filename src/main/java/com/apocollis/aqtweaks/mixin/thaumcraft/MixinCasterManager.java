@@ -1,13 +1,16 @@
 package com.apocollis.aqtweaks.mixin.thaumcraft;
 
 import com.apocollis.aqtweaks.thaumcraft.ThaumcraftPerkHooks;
+import com.apocollis.aqtweaks.thaumcraft.studious.StudiousHooks;
 import baubles.api.cap.IBaublesItemHandler;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Constant;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyConstant;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import thaumcraft.common.items.casters.CasterManager;
@@ -45,5 +48,14 @@ public abstract class MixinCasterManager {
     @Inject(method = "getTotalVisDiscount", at = @At("RETURN"), cancellable = true)
     private static void aqtweaks$visThrift(EntityPlayer player, CallbackInfoReturnable<Float> cir) {
         cir.setReturnValue(ThaumcraftPerkHooks.visDiscount(player, cir.getReturnValueF()));
+    }
+
+    /**
+     * Studious (Scholar) Steady Focus: shorter focus cooldowns. Runs on both sides, the client keeps its own cooldown
+     * clock for the use animation, so the perk lookup must answer on the client too (Reskillable syncs it).
+     */
+    @ModifyVariable(method = "setCooldown", at = @At("HEAD"), argsOnly = true, ordinal = 0)
+    private static int aqtweaks$steadyFocus(int ticks, EntityLivingBase entity, int ticksArg) {
+        return StudiousHooks.focusCooldownTicks(entity, ticks);
     }
 }

@@ -58,8 +58,8 @@ public final class ComfortTooltips {
                         + String.format(java.util.Locale.ROOT, "Insight: +%.0f%% XP from orbs", ComfortClientState.insight * 100.0f));
             }
             if (ComfortClientState.vigorInterval > 0 && ComfortClientState.vigorInterval < 30) {
-                text.add(TextFormatting.GREEN + "Vigor: restores 10 feathers in "
-                        + ComfortClientState.vigorInterval + "s (base 30s)");
+                text.add(TextFormatting.GREEN + "Vigor: stamina refills 10 feathers in "
+                        + ComfortClientState.vigorInterval + "s or faster (base 30s)");
             }
             if (ComfortClientState.halfHearts > 0) {
                 text.add(TextFormatting.RED + "Fortitude: +" + (ComfortClientState.halfHearts / 2) + " hearts, +"

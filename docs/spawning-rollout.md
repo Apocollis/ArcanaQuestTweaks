@@ -58,7 +58,7 @@ Pass: all three valid.
 
 Pass: several sessions with no differences, or only differences we have agreed to accept.
 
-## Stage 6: Tweaks takes over everything in one step (built, not yet tried in game)
+## Stage 6: Tweaks takes over everything in one step (built; initial in-game session logged — see [spawning-handoff.md](spawning-handoff.md))
 
 Conditions, modifiers and gear switch over together with one switch, `Spawn Rules Decide` (off by default, applies at once, no restart).
 

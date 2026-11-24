@@ -1,5 +1,7 @@
 package com.apocollis.aqtweaks.comfort;
 
+import com.apocollis.aqtweaks.comfort.home.HomeConfig;
+import com.apocollis.aqtweaks.comfort.home.HomeNames;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import java.io.File;
@@ -215,6 +217,7 @@ public class ComfortConfigLoader {
         ComfortSystemHandler.PROMOTE_TICKS_3 = settings.promote_ticks_3 > 0 ? settings.promote_ticks_3 : ComfortSystemHandler.PROMOTE_TICKS;
         ComfortSystemHandler.SCAN_RADIUS = settings.scan_radius > 0 ? settings.scan_radius : 12;
         ComfortSystemHandler.SCAN_DY = Math.max(0, settings.scan_dy);
+        applyHomeSettings(settings);
         ComfortSystemHandler.REPEAT_DECAY = settings.repeat_decay > 0.0f ? settings.repeat_decay : 0.6f;
         ComfortSystemHandler.DECAY_OVERRIDES.clear();
         if (settings.repeat_decay_overrides != null) {
@@ -230,6 +233,7 @@ public class ComfortConfigLoader {
                 ? "role_family" : settings.structure_decay_key;
         ComfortSystemHandler.NON_SHELL_WEIGHT = settings.non_shell_weight;
         ComfortSystemHandler.UNLISTED_STRUCTURE_WEIGHT = settings.unlisted_structure_weight;
+        ComfortSystemHandler.STRUCTURE_STAIRS_WEIGHT = Math.max(0.0f, settings.structure_stairs_weight);
         ComfortSystemHandler.VIGOR_BASE_INTERVAL = settings.vigor_base_interval > 0 ? settings.vigor_base_interval : 30;
         ComfortSystemHandler.REST_BONUS = settings.rest_bonus != null ? settings.rest_bonus : new ComfortSettings.RestBonus();
         ComfortSystemHandler.CLARITY = settings.clarity != null ? settings.clarity : new ComfortSettings.ClarityConfig();
@@ -239,6 +243,25 @@ public class ComfortConfigLoader {
         ComfortSystemHandler.NATURAL_BLOCKS.clear();
         List<String> natural = settings.natural_blocks != null ? settings.natural_blocks : ComfortSettings.defaultNaturalBlocks();
         ComfortSystemHandler.NATURAL_BLOCKS.addAll(natural);
+    }
+
+    private static void applyHomeSettings(ComfortSettings s) {
+        HomeConfig.enabled = s.home_enabled;
+        HomeConfig.maxCells = Math.max(100, s.home_max_cells);
+        HomeConfig.fillCellsPerTick = Math.max(20, s.home_fill_cells_per_tick);
+        HomeConfig.recheckMinutes = Math.max(1, s.home_recheck_minutes);
+        HomeConfig.rebuildCooldownTicks = Math.max(0, s.home_rebuild_cooldown_ticks);
+        HomeConfig.fallbackRadius = Math.max(1, s.home_fallback_radius);
+        HomeConfig.fallbackDown = Math.max(0, s.home_fallback_down);
+        HomeConfig.fallbackUp = Math.max(0, s.home_fallback_up);
+        HomeConfig.triggerRange = Math.max(4, s.home_trigger_range);
+        HomeConfig.doorRayRange = Math.max(1, Math.min(48, s.home_door_ray_range));
+        HomeConfig.doorExteriorFraction = Math.max(0.0, Math.min(1.0, s.home_door_exterior_fraction));
+        HomeConfig.doorInteriorFraction = Math.max(0.0, Math.min(HomeConfig.doorExteriorFraction, s.home_door_interior_fraction));
+        HomeConfig.doorProbeCells = Math.max(10, s.home_door_probe_cells);
+        HomeConfig.maxDoors = Math.max(0, s.home_max_doors);
+        HomeConfig.nameFormat = s.home_name_format == null || s.home_name_format.isEmpty()
+                ? HomeNames.DEFAULT_FORMAT : s.home_name_format;
     }
 
     private static List<ComfortSettings.PotionModifier> resolveBonusEffects(ComfortSettings.BonusesConfig bonuses) {

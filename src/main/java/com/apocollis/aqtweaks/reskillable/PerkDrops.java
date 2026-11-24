@@ -61,8 +61,9 @@ public final class PerkDrops {
             return;
         }
 
-        if (PerkAccess.on(player, "aqtweaks:lumberjack", perks.lumberjack.enable) && isLog(state, drops)) {
-            if (ReskillableBonuses.roll(event.getWorld(), player, "gathering", BONUS)) {
+        if (PerkAccess.on(player, "aqtweaks:heartwood", perks.heartwood.enable) && isLog(state, drops)) {
+            if (ReskillableBonuses.roll(event.getWorld(), player, "gathering",
+                    ArcanaQuestTweaksConfig.ReskillableModuleConfig.gathering.heartwoodChancePerLevel)) {
                 addOneOreName(drops, "logWood");
             }
         }

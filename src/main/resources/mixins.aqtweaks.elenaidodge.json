@@ -5,6 +5,9 @@
   "package": "com.apocollis.aqtweaks.mixin.elenaidodge",
   "compatibilityLevel": "JAVA_21",
   "injectors": {"defaultRequire": 1},
+  "mixins": [
+    "MixinReplenishmentPotion"
+  ],
   "client": [
     "MixinDodgeGui",
     "MixinTooltipEventListener",

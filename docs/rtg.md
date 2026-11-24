@@ -329,7 +329,7 @@ Teleport is **on the generated ground** at that column (`world.getHeight`, skip 
 | RTG Light Fix Max Age Ticks | 6000 | yes | Flush a queued chunk after this age |
 | Non-RTG Light Fix Enable | true | yes | Run RTG's own column light fix, through the same paced queue and with the same repair, on chunks in the dimensions below that RTG does not generate |
 | Non-RTG Light Fix Dimensions | `17` | yes | Dimension ids that get the fix (default Atum). RTG-generated dimensions are skipped automatically |
-| RTG Light Hack Fix | **true** | yes | True (default): repair a failing column with `World.checkLightFor(SKY, pos)` instead of wool, then send that chunk once to players who already have it. False: RTG's wool place-and-remove, which already notifies the client |
+| RTG Light Hack Fix | `true` | yes | True (default): repair a failing column with `World.checkLightFor(SKY, pos)` instead of wool, then send that chunk once to players who already have it. False: RTG's wool place-and-remove, which already notifies the client |
 | RTG Light Fix Adaptive Slice | true | yes | View-ordered drain sized from tick headroom. Off restores distance order and the fixed slices |
 | RTG Light Fix Reserve Ms | 4 | yes | Headroom left unused by the adaptive drain |
 | RTG Light Fix View Cone Degrees | 140 | yes | Total width of the forward cone for the visible tier |

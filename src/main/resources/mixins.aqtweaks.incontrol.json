@@ -9,6 +9,7 @@
     "MixinInControlPotentialSpawns",
     "MixinInControlSpawnRules",
     "MixinPotentialSpawnRuleIndex",
-    "MixinStructureCache"
+    "MixinStructureCache",
+    "MixinStructureCacheHome"
   ]
 }

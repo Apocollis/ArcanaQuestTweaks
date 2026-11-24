@@ -119,6 +119,22 @@ public class ReskillableModule {
         event.setNewSpeed((float) (event.getNewSpeed() * (1.0 + level * k)));
     }
 
+    /**
+     * Lumberjack: logs break faster (plan 20261120-1700). Both sides, last, so it multiplies the speed after Tree
+     * Chopper's log-count division and the other handlers.
+     */
+    @SubscribeEvent(priority = net.minecraftforge.fml.common.eventhandler.EventPriority.LOWEST)
+    public void onLumberjackBreakSpeed(PlayerEvent.BreakSpeed event) {
+        EntityPlayer player = event.getEntityPlayer();
+        if (skipPlayer(player) || !ReskillableBonuses.enabled()) return;
+        if (!PerkAccess.on(player, "aqtweaks:lumberjack", ArcanaQuestTweaksConfig.ReskillableModuleConfig.perks.lumberjack.enable)) {
+            return;
+        }
+        if (!LumberjackSpeed.isLog(event.getState())) return;
+        event.setNewSpeed(LumberjackSpeed.apply(event.getNewSpeed(),
+                ArcanaQuestTweaksConfig.ReskillableModuleConfig.gathering.lumberjackSpeedMultiplier));
+    }
+
     @SubscribeEvent
     public void onHarvestCheck(PlayerEvent.HarvestCheck event) {
         if (event.canHarvest()) return;

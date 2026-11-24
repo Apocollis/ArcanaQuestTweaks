@@ -44,6 +44,7 @@ $deps = @(
     "mysticalworld-1.12.2-1.11.0.jar",
     "GrimoireOfGaia3-1.12.2-1.7.2.jar",
     "Reskillable-1.12.2-1.13.1.jar",
+    "Patchouli-1.0-28.jar",
     "effortlessbuilding-1.12.2-2.16.jar",
     "Thaumcraft-1.12.2-6.1.BETA26.jar",
     "thaumictweaker-1.3.4.jar",
@@ -94,7 +95,12 @@ $deps = @(
     "Atum-1.12.2-2.0.20.jar",
     "DynamicSurroundings-1.12.2-3.6.3.jar",
     "OreLib-1.12.2-3.6.0.1.jar",
-    "theaurorian-1.12.2-1.2.jar"
+    "theaurorian-1.12.2-1.2.jar",
+    "SauriaLib 3-3.2.1-beta.jar",
+    "TravelersTitles-1.12.2-1.1.0.jar",
+    "SpartanWeaponry-1.12.2-1.6.1.jar",
+    "smarthud-2.1.1.jar",
+    "CustomStartingGear-1.12-1.2.0.9-universal.jar"
 )
 foreach ($dep in $deps) {
     $src = "$localModsDir/$dep"

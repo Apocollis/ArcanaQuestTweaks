@@ -306,7 +306,11 @@ public class AetherSquallHandler {
                     ArcanaQuestTweaksConfig.AetherModuleConfig.squall.lightningDamage,
                     ArcanaQuestTweaksConfig.AetherModuleConfig.squall.lightningInsulatedDamage));
             if (damage > 0.0F) entity.attackEntityFrom(DAMAGE_LIGHTNING, damage);
-            if (!secondary) entity.addPotionEffect(new PotionEffect(MobEffects.SLOWNESS, 40, 1, false, true));
+            if (!secondary) {
+                entity.addPotionEffect(new PotionEffect(MobEffects.SLOWNESS, 40, 1, false, true));
+                com.apocollis.aqtweaks.potion.Stun.apply(entity,
+                        ArcanaQuestTweaksConfig.AetherModuleConfig.squall.lightningStunTicks);
+            }
         }
     }
 

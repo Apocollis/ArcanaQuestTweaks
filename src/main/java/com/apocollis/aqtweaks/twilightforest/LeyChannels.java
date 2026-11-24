@@ -30,6 +30,7 @@ public final class LeyChannels {
     }
 
     public static LeyRuptureHandler handler;
+    public static LeyOverchannel overchannel;
 
     /** Registers the channel and the server handlers. Called from {@code CommonProxy.init}. */
     public static void register() {
@@ -41,6 +42,8 @@ public final class LeyChannels {
             VisBatteryTracker tracker = new VisBatteryTracker();
             handler.visBatteries = tracker;
             MinecraftForge.EVENT_BUS.register(tracker);
+            overchannel = new LeyOverchannel();
+            com.apocollis.aqtweaks.thaumcraft.OverchannelHooks.setSource(overchannel);
         }
     }
 }

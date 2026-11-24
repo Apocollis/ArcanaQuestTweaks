@@ -23,35 +23,40 @@ Each file covers: what Tweaks changes, how the **parent mod** implements the fea
 | Reskillable | Reskillable + optional Effortless Building, Botania, Bewitchment, Astral, Embers, Simple Difficulty | [reskillable.md](reskillable.md) |
 | Grimoire of Gaia | Grimoire of Gaia (`gaia`) | [grimoire-of-gaia.md](grimoire-of-gaia.md) |
 | Thaumcraft | Thaumcraft 6 | [thaumcraft.md](thaumcraft.md) |
+| Thaumcraft Additions | Thaumcraft 6 (new content owned by this pack: Shock and Aegis focus effects, Stun) | [thaumcraft-additions.md](thaumcraft-additions.md) |
+| Crimson Battlemage | Thaumcraft 6 (four caster miniboss entities: library, casting, defence, blink and rift, phases, drops, Swarm Mage and Bombardier variants; includes the tuning key reference) | [cultist-battlemage.md](cultist-battlemage.md) |
 | Bewitchment | Bewitchment + Thaumcraft | [bewitchment.md](bewitchment.md) |
-| Comfort | Vanilla + optional Thaumcraft, Simple Difficulty, Biomes O' Plenty | [comfort.md](comfort.md) |
+| Comfort | Vanilla + optional Thaumcraft, Simple Difficulty, Biomes O' Plenty; includes the player home areas (bed-anchored cached regions, `structure:home`, Hearthkeeper) | [comfort.md](comfort.md) |
+| Structure titles | Traveler's Titles (client) + Roguelike Dungeons optional; server tracker is Tweaks-owned | [titles.md](titles.md) |
+| Starter classes | Reskillable + CustomStartingGear; class perks in [reskillable.md](reskillable.md) | [starter-classes.md](starter-classes.md) |
 | Portal | Tweaks-owned (no parent) | [portal.md](portal.md) |
 | Dynamic Stealth cost | Dynamic Stealth + FantasticLib | [dynamicstealth.md](dynamicstealth.md) |
-| Twilight Forest | RandomPortals + Twilight Forest; Carminite phlogiston ritual also needs Thaumcraft, Game Stages, Betweenlands, ContentTweaker; Void Breach ritual needs Thaumcraft, Thaumic Augmentation, Game Stages | [twilightforest.md](twilightforest.md) |
-| Aether | RandomPortals + The Aether (`aether_legacy`) | [aether.md](aether.md) |
+| Twilight Forest | RandomPortals + Twilight Forest; Ley-Rupture hazard (`WarpMeter`, charging, overchanneling, updraft); Carminite phlogiston ritual (Thaumcraft, Game Stages, Betweenlands, ContentTweaker); Void Breach ritual (Thaumcraft, Thaumic Augmentation, Game Stages) | [twilightforest.md](twilightforest.md) |
+| Aether | RandomPortals + The Aether (`aether_legacy`); wind gusts and lightning storms with shared `Stun` | [aether.md](aether.md) |
 | Depths | Depths Update, YUNG's Better Caves, RTG, CoFH World, Recurrent Complex, optional Quark | [depths.md](depths.md) |
 | RTG | Realistic Terrain Generation + vanilla `MapGenVillage` + Recurrent Complex + Astral / Bewitchment Cambion / Mystical World huts | [rtg.md](rtg.md) |
 | Village gen (pack pipeline) | Vanilla + RTG + Geographicraft + Recurrent Complex + Charm + Tweaks overlay | [villagegen_info.md](villagegen_info.md) |
-| Client | Toughness Bar (optional), tooltip lines for non-Metallurgy tools, default world type (RTG), Atum underground fog | [client.md](client.md) |
+| Client | Toughness Bar (optional), tooltip lines for non-Metallurgy tools, default world type (RTG), Atum underground fog, Comfort/Hazard HUDs & overlays | [client.md](client.md) |
 | MineMenu | Vanilla client mouse grab (MineMenu, Reskillable, Hwyla screens) | [minemenu.md](minemenu.md) |
-| Spawning | Vanilla `PotentialSpawns` + pack `mob_overworldspawntype.json` (InControl still owns deny) | [spawning.md](spawning.md) |
+| Spawning | Vanilla `PotentialSpawns` + pack `mob_overworldspawntype.json` + shadow/decider/trace (`SpawnRules` & Stage 6 `Spawn Rules Decide` takeover) | [spawning.md](spawning.md) |
 | Spawning rollout (In Control replacement) | Tweaks-read rule files + potential-spawn table; staged takeover | [spawn-tables-format.md](spawn-tables-format.md) (file format) · [spawning-rollout.md](spawning-rollout.md) (staged test runbook) · [spawning-handoff.md](spawning-handoff.md) (state and resume prompt) |
 | Recipes | Forge `CraftingHelper` (Metallurgy / Spartan JSON) | [recipes.md](recipes.md) |
 | Advancement | Animania Base (Farm / Extra addon JSON via Base handler) | [advancement.md](advancement.md) |
-| Somnia | Somnia Refreshed | [somnia.md](somnia.md) |
+| Somnia | Somnia Refreshed (off-thread relight, 3-tier SMP Case A/B/C, Comfort & Warp Cleansing integration, wake camera fix) | [somnia.md](somnia.md) |
 | Stats Keeper | Stats Keeper (`stats_keeper`) | [statskeeper.md](statskeeper.md) |
 | Game Stages | Game Stages + Recipe Stages + Chisel | [gamestages.md](gamestages.md) |
+| Patchouli | Patchouli inventory book tab (client) | [patchouli.md](patchouli.md) |
 | Quality Tools | Quality Tools + Embers (Dawnstone) + Crafting Runes (registry names) | [qualitytools.md](qualitytools.md) |
 | Better Mineshafts | YUNG’s Better Mineshafts + RTG locate | [bettermineshafts.md](bettermineshafts.md) |
 | Simple Tomb | Simple Tomb death drop slot restore, displacement, Baubles, and admin backups | [simpletomb.md](simpletomb.md) |
-| Server | Dedicated-server fixes for client-only calls in parents: GeographiCraft spawn salvage | [server.md](server.md) |
+| Server | Dedicated-server fixes for client-only calls in parents: GeographiCraft spawn salvage, `/mde tpx` Nether teleport | [server.md](server.md) |
 | Paragon | Metallurgy Tartarite Paragon absorbing Aurorian Steel, Fiery, Octine, Knightmetal, Zanite, Gravitite (Aurorian, Twilight Forest, Betweenlands, Aether) | [paragon.md](paragon.md) |
-| Weapon | Infinity Blade (`aqtweaks:infinity_blade`): configurable damage, speed, durability, repair item, optional placeholder recipe | [weapon.md](weapon.md) |
+| Additions (Weapon & Bosses) | Optional SauriaLib 3 (`geckolib3`) + Thaumcraft for `aqtweaks:nameless_vessel` and `aqtweaks:nameless_one`; Infinity Blade (`aqtweaks:infinity_blade`) has no parent | [weapon.md](weapon.md) |
 | Rarity | Six-tier rarity colors, enchantment and Quality Tools rarity, config overrides, Mythic rainbow tooltip | [rarity.md](rarity.md) |
 | Hazards | Shared server hazard timeline and event packet (Moonfrost is channel 0) | [hazards.md](hazards.md) |
 | Nether | Lava spout events and withering ash clouds (hazard channels 1 and 2) | [nether.md](nether.md) |
 | Aurorian | The Aurorian: fixed moonlit lighting and the Moonfrost storm (Elenai Dodge regen, Simple Difficulty effects) | [aurorian.md](aurorian.md) |
-| Dimension hazards | Overview: Atum sandstorm, planned Aurorian / Nether / Aether / Twilight Forest hazards, Betweenlands decay, Beneath darkness hunt (Lycanites config) | [dimension-hazards.md](dimension-hazards.md) |
+| Dimension hazards | Overview: Atum sandstorm, Aurorian Moonfrost, Nether spouts/ash, Aether gusts/lightning, Twilight Forest Ley-Rupture, Betweenlands decay, Beneath darkness hunt (Lycanites config) | [dimension-hazards.md](dimension-hazards.md) |
 | Compatibility / jars | Compile vs mixin vs runtime vs copy script | [compatibility-matrix.md](compatibility-matrix.md) |
 | Build / deploy | `gradlew build` vs `build_gradle.ps1` | [build-and-release.md](build-and-release.md) |
 | Release smoke | Boot, optional absences, worldgen, stamina | [verification.md](verification.md) |
@@ -64,7 +69,7 @@ Astral surface shrines, Bewitchment Cambion houses, and Mystical World thatch hu
 
 `ArcanaQuestTweaks` declares:
 
-`required-after:elenaidodge2;required-after:charm;after:incontrol;after:grimoireofgaia;after:thaumcraft;after:bewitchment;after:grapplemod;after:dynamicswordskills;after:baubles;after:embers;after:qualitytools;after:reskillable;after:effortlessbuilding;after:stats_keeper;after:randomportals;after:twilightforest;after:aether_legacy;after:metallurgy;after:theaurorian;after:thebetweenlands;after:chisel;after:gamestages;after:recipestages;after:simpletomb;after:chunksteward;after:thaumicaugmentation`
+`required-after:elenaidodge2;required-after:charm;after:incontrol;after:grimoireofgaia;after:thaumcraft;after:bewitchment;after:grapplemod;after:dynamicswordskills;after:baubles;after:embers;after:qualitytools;after:reskillable;after:effortlessbuilding;after:stats_keeper;after:randomportals;after:twilightforest;after:aether_legacy;after:metallurgy;after:theaurorian;after:thebetweenlands;after:chisel;after:gamestages;after:recipestages;after:simpletomb;after:chunksteward;after:thaumicaugmentation;after:geckolib3;after:patchouli`
 
 That is **not** the full parent list. Soft parents that Tweaks mixins or events against, without `after:` / `required-after:`:
 
@@ -93,60 +98,72 @@ That is **not** the full parent list. Soft parents that Tweaks mixins or events 
 | Simple Tomb | Death drop origin slot restore + Baubles + admin backup | Module not registered; mixin json skipped; stock Simple Tomb behavior |
 | Chunk Steward | Server tick headroom pacing (pacing/StewardPacing -> ChunkStewardAPI) for DeferredRelight and SomniaOptimizationHandler | StewardPacing.isPresent() false (or LinkageError caught on stale jar); falls back to unpaced fixed budgets |
 
-### Init (`CommonProxy` / `ClientProxy`)
+#### Init (`CommonProxy` / `ClientProxy`)
 
 **preInit**
 
-- Register SimpleNetworkWrapper messages 0–2 (stamina climb/grapple), 3 (prospector marks), and 4 (temperature feather cap). See [stamina.md](stamina.md).
-- `ArcanaQuestTweaksConfig.normalizePinned()` — forces `DepthsModuleConfig.general.minWorldY` to `DEPTHS_FLOOR_Y` (−64) even if an instance cfg was hand-edited.
-- `ComfortConfigLoader.load`, `GaiaDamageConfig.load`, `SpawnTypeLists.load`, `SpawnStructureLists.load`, `SpawnParties.load`, and `SpawnGroupCounts.load` from the Forge config directory.
-- `PortalModule.preInit` (`ForgeChunkManager` callback). Item/entity register via `RegistryEvent` (not init).
-- `MapGenStructureIO.registerStructureComponent(VillagePieceVillagePlate.class, "AQTVillagePlate")` — **unconditional**. The Astral `AQTSmallShrine` piece is the conditional one (init, only if `astralsorcery`).
-- If `reskillable`: `ReskillablePerkRegistry` (Unlockable `RegistryEvent`).
+- `ArcanaQuestTweaksConfig.normalizePinned()` — forces `DepthsModuleConfig.general.minWorldY` to `DEPTHS_FLOOR_Y` (`-64`) even if an instance cfg was hand-edited; `RarityModule.init()`.
+- Register `SimpleNetworkWrapper` messages `0`–`20`: `0`–`2` (stamina climb/ledge/grapple, SERVER), `3` (prospector marks, CLIENT), `4` (temperature feather cap, CLIENT), `5`–`7` (Comfort status/catalog/placed, CLIENT), `8` (Moonfrost state, CLIENT), `9` (HazardEvent, CLIENT), `10` (SpoutTelegraph, CLIENT), `11` (AshCloud, CLIENT), `12` (AetherBoltTelegraph, CLIENT), `13` (LeyExposure, CLIENT), `14` (SplashTelegraph, CLIENT), `15` (AegisShield, CLIENT), `16` (StructureTitle, CLIENT), `17` (OpenStarterClassGui, CLIENT), `18` (SelectStarterClass, SERVER), `19` (StarterClassResult, CLIENT), `20` (StarterRevealDone, SERVER).
+- `AdditionsConfigMigration.migrateLegacyWeaponConfig`, `ComfortConfigLoader.load`, `GaiaDamageConfig.load`, `SpawnTypeLists.load`, `SpawnStructureLists.load`, `SpawnParties.load`, `SpawnGroupCounts.load`, `PotentialSpawnTable.load`, `ConditionShadow.reload` from the Forge config directory.
+- `PortalModule.preInit` (`ForgeChunkManager` callback); `ParagonModule.preInit`. Item/entity register via `RegistryEvent` (not init).
+- `MapGenStructureIO.registerStructureComponent(VillagePieceVillagePlate.class, "AQTVillagePlate")` — **unconditional**. The Astral `AQTSmallShrine` piece is registered in init only if `astralsorcery` is loaded.
+- If `reskillable`: `ReskillablePerkRegistry.preInit()` (Unlockable `RegistryEvent`).
 
 **init (common)**
 
-- Always: `StaminaModule`, `GaiaDamageHandler` (Gaia JSON bases), `ComfortSystemHandler`, `VillageLandHelper.Events`.
-- If `thaumcraft`: `ThaumcraftModule`.
-- If `bewitchment`: `BewitchmentRegistryHandler` (ritual wrap still no-ops unless Thaumcraft is also loaded; see [bewitchment.md](bewitchment.md)).
+- Always: `PipelineContext.registerPreparer/registerPopulateScope` (Chunk Steward API v3/v4), `Hazards.Handler`, `ParagonModule.init()`, `StaminaModule`, `GaiaDamageHandler` (Gaia JSON bases), `StunHandler`, `ComfortSystemHandler`, `HomeEvents`, `StructureTitleTracker`, `RestedBonuses`, `VillageLandHelper.Events`, `NetherHazards.register()`.
+- If `thaumcraft`: `ThaumcraftModule`, `ThaumcraftModule.enableVisBatterySubtypes()`, `StudiousModule.init()`, `ThaumcraftFocusHooks` (plus `warnNerfedHealFocus()`), `DeepCrystalGenerator.register()`, `ThaumAdditionsModule.init()`; plus `ManaRepairModule.init()` if `botania` is also loaded.
+- If `bewitchment`: `BewitchmentRegistryHandler` (ritual wrap still no-ops unless Thaumcraft is also loaded; [bewitchment.md](bewitchment.md)).
 - If `astralsorcery`: `VillageAstralSmallShrineHandler.register()` (structure piece id `AQTSmallShrine`).
-- If `reskillable`: `ReskillableModule`.
+- If `reskillable`: `ReskillableModule`, `RespiteHandler`, `PerkToggleEvents`, `PerkWishlist`, `StarterClassPerks`; `StarterModule.register()` if `customstartinggear`; `PerkStealth` if `dynamicstealth`.
 - If `somnia`: `SomniaSleepHandler.init()`.
 - If `stats_keeper`: `LifeElixirCapHandler` (elixir drink cancel at SK max health; level-up sound on a successful drink).
 - If `randomportals` **and** `twilightforest`: `TfPortalLandingHandler` (TF dest biome/landmark/grass landing; [twilightforest.md](twilightforest.md)).
 - If `twilightforest`, `thaumcraft`, `thaumicaugmentation`, and `gamestages`: `CarminiteReactorVoidBreachHandler` (Salis Mundus on a Void Metal-cased inactive reactor opens a permanent fracture pair to The Emptiness; [twilightforest.md](twilightforest.md)).
 - If `twilightforest`, `thaumcraft`, `gamestages`, `thebetweenlands`, and `contenttweaker`: `CarminiteReactorRitualHandler` (Salis Mundus on an Octine-shelled inactive reactor; [twilightforest.md](twilightforest.md)).
-- If `metallurgy`: `ParagonEventHandler` (Tartarite Paragon absorption; each trait also needs its metal's mod; [paragon.md](paragon.md)).
 - If `randomportals` **and** `aether_legacy`: `AetherPortalLandingHandler` (Aether island snap; [aether.md](aether.md)).
+- If `reccomplex`: `RcStructureVillageOverlapHandler`.
+- If `atum`: `AtumStormGameplayHandler`, `AtumWeatherSync`, `AtumSandHandler`.
+- If `aether_legacy`: `AetherChannels.register()`.
+- If `twilightforest`: `LeyChannels.register()`.
+- If `theaurorian`: `HazardChannels.register(MoonfrostState.CHANNEL)`, `MoonfrostHandler`, `MoonfrostSnowHandler`.
 - If `qualitytools`: `QualityToolsModule` (loot/drop stamp). `postInit` registers Dawnstone rune recipes when `embers` is also loaded. See [qualitytools.md](qualitytools.md).
 - If `simpledifficulty`: `SimpleDifficultyModule`. Its constructor also registers `DynamicModifierInsulation` with `TemperatureRegistry` once (surface indoor insulation; see [temperature.md](temperature.md)).
 - If `animania`: `AnimaniaModule`.
-- If `reskillable`: `RespiteHandler` and `PerkWishlist`.
-- If `reskillable` and `dynamicstealth`: `PerkStealth`.
 - Game Stages / Chisel: no bus handler (mixins only; [gamestages.md](gamestages.md)).
-- If `simpletomb`: `SimpleTombModule`. Server starting: `/aqtomb` (`CommandAqTomb`, [simpletomb.md](simpletomb.md)).
+- If `simpletomb`: `SimpleTombModule`.
 
 **init (client)**
 
-- `StaminaModuleClient`, `DssSkillsGuiClient` (Skills GUI `isPressed()` when DSS did not already send, plus client `/dssgui`; compile-hard DSS; registered only if `dynamicswordskills`), `BaublesMenuClient` (Baubles `isPressed()` → `PacketOpen(EXPANSION)` when Baubles did not already send; compile-hard BaublesEX; registered only if `baubles`), `DepthsFogHandler`, `ClientModule`, `GuiMouseGrab` (subscribes to Cleanroom `MouseTurnEvent`), `ProspectorOutline`.
-- Entity renderer for `EntityArcaneRift` in **client preInit**. If `grimoireofgaia` and Deep Dwarf enabled: `RenderDeepDwarf`. Item models on `ModelRegistryEvent`.
+- `ClientProxy.preInit` registers entity renderers: `EntityArcaneRift`, `EntityBedSeat` (Somnia), `GaiaDeepDwarfClient` (if `grimoireofgaia` + `enableDeepDwarf`), `BattlemageClient` (if `thaumcraft` + `enableBattlemage`), `NamelessBossClient` (if `geckolib3` + `thaumcraft`).
+- `ClientProxy.init` registers: `StaminaModuleClient`, `DssSkillsGuiClient` (if `dynamicswordskills`), `BaublesMenuClient` (if `baubles`), `DepthsFogHandler`, `TravelersTitlesStructureHook` (if `travelerstitles`), `AtumFogHandler`/`AtumOutdoorDustEmitter`/`AtumSoundFilter` (if `atum`), `AurorianSnowEmitter`/`AurorianSoundFilter`/`AurorianFrostOverlay` (if `theaurorian`), `HazardDebugHud`, `SpoutEffects`/`SpoutTremor`/`AshCloudRenderer`/`AshFogHandler` (Nether), `AetherSquallClient`/`AetherBoltEffects`/`AetherStormWarning` (if `aether_legacy`), `ParagonTooltipHandler` (if `metallurgy`), `AegisClientState`/`AegisShieldRenderer` (if `thaumcraft` + `enableAegisFocus`), `ManaRepairTooltipHandler` (if `thaumcraft` + `botania`), `LeyRuptureClient`/`LeyRuptureVignette` (if `twilightforest`), `RarityTooltipHandler`, `ClientModule`, `GuiMouseGrab`, `ProspectorOutline`, `ComfortHud`, `ComfortTooltips`, `ComfortToggleButton`, `PerkToggleClient` (if `reskillable`), `PatchouliInventoryTabHandler` (if `patchouli`). Item models register on `ModelRegistryEvent`.
 
-`postInit` registers `SpawnLayerFilter` (after InControl `PotentialSpawns`), enables structure cave exemption if `incontrol` is loaded. `ArcanaQuestTweaks.serverStarting` (`@Mod.EventHandler` on `FMLServerStartingEvent`) registers `/aqvillage` (`CommandAqVillage`, [rtg.md](rtg.md)) and `/aqcomfort` (`CommandAqComfort`, [comfort.md](comfort.md)).
+**postInit, loadComplete, serverStarting, serverStopping**
+
+- `postInit`: disables `effortlessbuilding:reach_upgrade1..3` creative tabs if `disableReachUpgradeItems`, calls `QualityToolsModule.postInit()`, enables `SpawnLayerFilter.enableStructureExemption()` and registers `ConditionShadow`, `RuleShadow`, `SpawnRuleDecider`, `SpawnTraceHandler` when `incontrol` is loaded, and always registers `SpawnLayerFilter`.
+- `loadComplete`: `ChannelErrorLogger.installAll()` and `HazardGearAudit.run()`.
+- `serverStarting`: `/aqvillage`, `/aqnether` (`CommandNetherHazard`), `/aqaether` (`CommandAetherSquall`, if `aether_legacy`), `/aqley` (`CommandLeyRupture`, if `twilightforest`), `/aqlight` (`CommandAqLight`), `/aqspawntable` (`CommandAqSpawnTable`), `/aqcomfort`, `/aqhome`, `/aqclass` (`CommandAqClass`, if `reskillable` + `customstartinggear`), `/aqtomb` (`CommandAqTomb`, if `simpletomb`), `/aqaurorian` (`CommandAurorianWeather`, if `theaurorian`).
+- `serverStopping`: flushes `PasteRelightQueue.flushAll()`, `PopulateRelightQueue.flushAll()`, and `RtgLightFixQueue.flushAll()`.
 
 ### MixinBooter: early vs late
 
-Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `BlockCrops`, client `Minecraft`, and `GuiIngameForge` are already loaded when late mixins prepare. Any new mixin on one of these goes in the early json. Portal glowstone light (`MixinWorldRiftLight` on `World.getRawLight`), deferred relight of failed light checks (`MixinWorldCheckLight` on `World.checkLight`, queue in `world/DeferredRelight`), cage fail delay (`MixinMobSpawnerBaseLogic` on `updateSpawner`), Quality loot stamp (`MixinTileEntityLockableLoot`), Quality wear (`MixinItemStackQualityDurability`), Reskillable free break (`MixinItemStackDurability` on `damageItem`), rarity overhaul (`MixinItemStackRarity` on `ItemStack.getRarity`, `MixinItemRarity` on `Item.getForgeRarity`; [rarity.md](rarity.md)) and crop seed invoker (`MixinBlockCropsSeed`), MineMenu mouse re-grab (`MixinMinecraftMouseGrab` on `displayGuiScreen`, **client** array), and the runic shielding health redirect (`thaumcraft.MixinGuiIngameForgeRunicShield` on `GuiIngameForge.renderHealth`, **client** array) are in **`mixins.aqtweaks.early.json`**. Charm village paste (`mixins.aqtweaks.charm.json`, `required: true`) is on the same jar `MixinConfigs` so Charm `ASMHooks` is mixed before Charm’s transformer defines it. MixinBooter 11 reads `MixinConfigs` from the jar manifest (set in `build.gradle`). Do not register these json files from `AQTweaksLateMixinLoader`. Missing either fails load. Charm is `@Mod required-after` (Curse / pack prerequisite).
+Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `BlockCrops`, `ChunkProviderServer`, `PlayerInteractionManager`, client `Minecraft`, and `GuiIngameForge` are already loaded when late mixins prepare. Any new mixin on one of these goes in **`mixins.aqtweaks.early.json`**:
+
+- **Client:** `MixinMinecraftMouseGrab` (`displayGuiScreen`), `thaumcraft.MixinGuiIngameForgeRunicShield` (`GuiIngameForge.renderHealth`), `hud.MixinGuiIngameOffhandSide` (`GuiIngame.renderHotbar`, offhand slot to the right; [client.md](client.md#hotbar-side)), `somnia.MixinNetHandlerPlayClientBedSeat` (`NetHandlerPlayClient.handleSetPassengers`, one action-bar line on the bed seat; [somnia.md](somnia.md)). Common: `explosion.MixinExplosionBurstOwner` (`Explosion.getExplosivePlacedBy`, a Botania mana burst's shooter is credited; [reskillable.md](reskillable.md)).
+- **Common:** `MixinWorldRiftLight`, `MixinWorldFixedSkylight` (Aurorian sky-light fix), `MixinWorldCheckLight`, `lighting.MixinChunkBulkRelight`, `lighting.MixinChunkPopulateRelight`, `lighting.MixinChunkGapRecheck`, `lighting.MixinChunkPopulateLight`, `lighting.MixinTemplateBulkRelight`, `MixinBlockRiftLight`, `MixinMobSpawnerBaseLogic`, `MixinTileEntityLockableLoot`, `MixinItemStackQualityDurability`, `MixinItemStackDurability`, `MixinItemStackRarity`, `MixinItemRarity`, `MixinBlockCropsSeed`, `MixinEntityCreeperPowered`, `MixinChunkProviderServerHome` ([comfort.md](comfort.md#player-homes)), `MixinPlayerInteractionManagerMining` ([stamina.md](stamina.md#mining--herbalism)).
+
+Charm village paste (`mixins.aqtweaks.charm.json`, `required: true`) is on the same jar `MixinConfigs` so Charm `ASMHooks` is mixed before Charm’s transformer defines it. MixinBooter 11 reads `MixinConfigs` from the jar manifest (set in `build.gradle`). Do not register these json files from `AQTweaksLateMixinLoader`. Missing either fails load. Charm is `@Mod required-after` (Curse / pack prerequisite).
 
 ### MixinBooter late loader
 
-`AQTweaksLateMixinLoader` always returns these configs (MixinBooter / Fugue). Charm paste is **not** here — it is on jar `MixinConfigs` with the early json. Its `shouldMixinConfigQueue(String)` override gates configs conditionally when their target parent mod is loaded (`geographicraft`, `atum`, `dsurround`, and `mdecore`); other late configs rely on `required: false` alone.
+`AQTweaksLateMixinLoader` returns these 43 configs (MixinBooter / Fugue). Charm paste is **not** here — it is on jar `MixinConfigs` with the early json. Its `shouldMixinConfigQueue(String)` override gates 9 configs conditionally when their target parent mod is loaded (`geographicraft`, `atum`, `theaurorian`, `dsurround`, `mdecore`, `solcarrot`, `travelerstitles`, `spartanweaponry`, `smarthud`); other late configs rely on `required: false` alone.
 
 | File | `required` | Module | If parent jar missing |
 | --- | --- | --- | --- |
-| `mixins.aqtweaks.json` | **true** | Depths, RTG villages, Recipes | Load fails |
-| `mixins.aqtweaks.vanilla.json` | **true** | Vanilla-only: `AccessorMapGenBase` (`world`, `rand`), `AccessorMapGenStructure` (`structureMap`, `structureData`, `initializeStructureData`), `AccessorMapGenVillage` (`distance`, `minTownSeparation`), `AccessorStructureComponent` (`boundingBox`), `AccessorVillageStart` (`biomeProvider`) for the village and structure code, `AccessorChunk` (Somnia light checks), `AccessorChunkProviderServer` (`chunkGenerator` and `loadedChunks`), `InvokerStructureStart` (protected `updateBoundingBox` for village/mineshaft pads), `MixinEntityAITasks` (swallows an NPE thrown by any AI task `updateTask`, then `resetTask`; logs once per task class via `util/AiTaskReport`), `MixinEntityGhastAIFireballAttack` (no target: stop attacking) | Load fails |
+| `mixins.aqtweaks.json` | **true** | Depths, RTG villages, Recipes, Nether ash fog | Load fails |
+| `mixins.aqtweaks.vanilla.json` | **true** | Vanilla-only: `AccessorMapGenBase`, `AccessorMapGenStructure`, `AccessorMapGenVillage`, `AccessorStructureComponent`, `AccessorVillageStart`, `AccessorChunk`, `AccessorChunkProviderServer`, `InvokerStructureStart`, `MixinEntityAITasks` (logs & resets AI task NPEs via `util/AiTaskReport`), `MixinEntityGhastAIFireballAttack` | Load fails |
 | `mixins.aqtweaks.grapple.json` | false | Stamina | Skip |
-| `mixins.aqtweaks.dss.json` | false | Stamina | Skip |
+| `mixins.aqtweaks.dss.json` | false | Stamina (incl. `MixinCombo`, `MixinDSSCombatEvents`, client `MixinDSSClientEvents`) | Skip |
 | `mixins.aqtweaks.elenaidodge.json` | false | Stamina feather colors + armor tooltip weight | Skip |
 | `mixins.aqtweaks.baubles.json` | false | MineMenu + Thaumcraft ring models | Skip |
 | `mixins.aqtweaks.toughnessbar.json` | false | Client HUD | Skip |
@@ -155,39 +172,43 @@ Vanilla `World`, `MobSpawnerBaseLogic`, `TileEntityLockableLoot`, `ItemStack`, `
 | `mixins.aqtweaks.mysticalworld.json` | false | RTG Mystical huts | Skip |
 | `mixins.aqtweaks.biomesoplenty.json` | false | RTG BOP water/quicksand village skip | Skip |
 | `mixins.aqtweaks.da.json` | false | RTG Dungeon Additions village overlap skip | Skip |
-| `mixins.aqtweaks.atum.json` | **true** when queued | Atum fog (client), pyramid plateau, `/atumweather` warning (`MixinAtumWeatherCommand`), the forced storm duration and the sand-loop switch (`MixinWorldProviderAtum`). Queued only when `atum` is loaded | Not queued |
-| `mixins.aqtweaks.aurorian.json` | false | The Aurorian: fixed moon phase and celestial angle (`MixinAurorianWorldProvider`). Queued only when `theaurorian` is loaded. The sky-light fix is `MixinWorldFixedSkylight` in the early json; `MixinEntityRendererFog` (main json) is now only the Nether ash fog | Not queued |
+| `mixins.aqtweaks.atum.json` | **true** when queued | Atum fog (client), pyramid plateau, `/atumweather` warning (`MixinAtumWeatherCommand`), forced storm duration & sand-loop switch (`MixinWorldProviderAtum`). Queued only if `atum` is loaded | Not queued |
+| `mixins.aqtweaks.aurorian.json` | false | The Aurorian: fixed moon phase and celestial angle (`MixinAurorianWorldProvider`). Queued only if `theaurorian` is loaded | Not queued |
 | `mixins.aqtweaks.depthsupdate.json` | false | Depths: `MixinHeightManager` dimension-indexed `HeightCache` for `HeightManager.get(int)` and `isExtended(int)` | Skip |
 | `mixins.aqtweaks.gaia.json` | false | Grimoire of Gaia drop pierce + recast bolts/bombs + Deathword ranged | Skip |
 | `mixins.aqtweaks.effortlessbuilding.json` | false | Reskillable Building EB place reach + max blocks | Skip |
-| `mixins.aqtweaks.thaumcraft.json` | false | Thaumcraft focus HP magic flag + Heal scale + runic shielding HUD + Infernal Furnace gated metals | Skip |
+| `mixins.aqtweaks.thaumcraft.json` | false | Thaumcraft focus HP magic flag + Heal scale + runic shielding HUD + Infernal Furnace gated metals + Vis Battery drops | Skip |
 | `mixins.aqtweaks.animania.json` | false | Advancement: cancel Animania `onWorldLoad` | Skip |
-| `mixins.aqtweaks.somnia.json` | false | Somnia: chunk light fix, 3-tier SMP sleep (Case A/B/C), Case B 2x time, fatigue tuning & chat notifications | Skip |
-| `mixins.aqtweaks.incontrol.json` | false | Spawning: `StructureCache.parseStructureData` BB chunk expand | Skip |
+| `mixins.aqtweaks.somnia.json` | false | Somnia: chunk light fix, 3-tier SMP sleep (Case A/B/C), Case B 2x time, fatigue tuning, chat notifications & wake camera fix | Skip |
+| `mixins.aqtweaks.incontrol.json` | false | Spawning: `MixinInControlPotentialSpawns`, `MixinInControlSpawnRules` (Stage 6 takeover), `MixinPotentialSpawnRuleIndex`, `MixinStructureCache`, `MixinStructureCacheHome` | Skip |
 | `mixins.aqtweaks.bettermineshafts.json` | false | Better Mineshafts locate pin + entrance stub + Tweaks placement + RTG 9 mineshaft paste hook (`MixinChunkGeneratorRTGMineshaftPaste`) | Skip |
 | `mixins.aqtweaks.randomportals.json` | false | TF grass pad + Aether island pad on RP generate | Skip |
 | `mixins.aqtweaks.chisel.json` | false | Game Stages: Chisel GUI + `canChisel` | Skip |
 | `mixins.aqtweaks.recipestages.json` | false | Game Stages: capture `setRecipeStage` | Skip |
 | `mixins.aqtweaks.qualitytools.json` | false | Quality Tools living-update skip, reforge base, Dawnstone mismatch | Skip |
-| `mixins.aqtweaks.simpledifficulty.json` | false | Reskillable Water Collector + Cinder/Astral temp clamp + campfire neighbor notify (`MixinBlockCampfire`: `setBlockState` flags `2` become `3` so Inspirations cauldrons see light and extinguish) + boat position lift (`MixinWorldUtil`: `getSidedBlockPos` returns one block up for a player riding a boat over water, so an open boat is not wet; [temperature.md](temperature.md)) | Skip |
+| `mixins.aqtweaks.simpledifficulty.json` | false | Reskillable Water Collector + Cinder/Astral temp clamp + campfire neighbor notify + boat position lift (`MixinWorldUtil`) | Skip |
 | `mixins.aqtweaks.playerrevive.json` | false | Reskillable Fast Revive | Skip |
 | `mixins.aqtweaks.rustic.json` | false | Reskillable Iron Gut | Skip |
 | `mixins.aqtweaks.botania.json` | false | Reskillable Druid mana thrift + Grove | Skip |
 | `mixins.aqtweaks.embers.json` | false | Reskillable Artificer Ember thrift + Foundry Pulse | Skip |
 | `mixins.aqtweaks.prospectus.json` | false | Reskillable Prospector pick accuracy + ore outline | Skip |
-| `mixins.aqtweaks.sereneseasons.json` | false | `MixinSSCommand`: `/ss setseason <TAB>` lists the sub-season names; completion never returns null (fixes the `list1` NPE, AQ-005) | Skip |
-| `mixins.aqtweaks.treechopper.json` | false | Reskillable harvest perks on Tree Chopper trees (`MixinTreeHandler` sets the felling player) | Skip |
+| `mixins.aqtweaks.sereneseasons.json` | false | `MixinSSCommand`: `/ss setseason <TAB>` lists sub-seasons without null NPE | Skip |
+| `mixins.aqtweaks.treechopper.json` | false | Reskillable harvest perks on Tree Chopper trees (`MixinTreeHandler`) | Skip |
 | `mixins.aqtweaks.simpletomb.json` | false | Simple Tomb: origin slot mapping + Baubles + non-destructive restore | Skip |
-| `mixins.aqtweaks.libraryex.json` | false | `MixinEntityHelper`: synchronize `ENTITY_RESOURCE_LOCATION_CACHE.computeIfAbsent` in `EntityHelper.getEntityLocation` so client/server entity ticks do not throw CME | Skip |
-| `mixins.aqtweaks.geographicraft.json` | false | Server: `MixinDimensionManager` redirects client-only `Biome.getBiomeName` in `salvageSpawn` to the registry name ([server.md](server.md)). Queued only if `geographicraft` is loaded | Not queued |
+| `mixins.aqtweaks.libraryex.json` | false | `MixinEntityHelper`: synchronize `ENTITY_RESOURCE_LOCATION_CACHE` lookup | Skip |
+| `mixins.aqtweaks.geographicraft.json` | false | Server: `MixinDimensionManager` redirects client-only `Biome.getBiomeName` ([server.md](server.md)). Queued only if `geographicraft` is loaded | Not queued |
 | `mixins.aqtweaks.dsurround.json` | false | Dynamic Surroundings fog & weather hooks. Queued only if `dsurround` is loaded | Not queued |
-| `mixins.aqtweaks.mdecore.json` | false | Server: `MixinTeleportHelper` fixes `/mde tpx` cross-dimension teleport crash and Nether bedrock displacement ([server.md](server.md)). Queued only if `mdecore` is loaded | Not queued |
-| `mixins.aqtweaks.solcarrot.json` | false | SolCarrot: client remove `ConfigInfoPage` and filter JEI-hidden foods from food book. Queued only if `solcarrot` is loaded | Not queued |
+| `mixins.aqtweaks.mdecore.json` | false | Server: `MixinTeleportHelper` fixes `/mde tpx` teleport crash and Nether bedrock displacement ([server.md](server.md)). Queued only if `mdecore` is loaded | Not queued |
+| `mixins.aqtweaks.solcarrot.json` | false | SolCarrot: client removes `ConfigInfoPage` and filters JEI-hidden foods from food book. Queued only if `solcarrot` is loaded | Not queued |
+| `mixins.aqtweaks.reskillable.json` | false | Perk toggling in the skill screen: `MixinGuiSkillInfo` (client, `remap = false`, SRG `func_73864_a` click hook, icon and tooltip redirects). Queued only if `reskillable` is loaded | Not queued |
+| `mixins.aqtweaks.travelerstitles.json` | false | Structure titles: `MixinTitleRenderManagerStructure`. Queued only if `travelerstitles` is loaded | Not queued |
+| `mixins.aqtweaks.spartanweaponry.json` | false | Client `MixinHudQuiverAmmo`: quiver HUD right of the hotbar ([client.md](client.md#hotbar-side)). Queued only if `spartanweaponry` is loaded | Not queued |
+| `mixins.aqtweaks.smarthud.json` | false | Client `MixinSmartHudSlotRenderer`: Smart HUD slots on the right, moved out by the offhand and quiver ([client.md](client.md#hotbar-side)). Queued only if `smarthud` is loaded | Not queued |
 
 `mixins.aqtweaks.json` contents (package `com.apocollis.aqtweaks.mixin`):
 
-- Client: `MixinRenderGlobal` (Depths hide sky), `MixinGuiCreateWorld`, `MixinEntityRendererLight` (Dark Vision lightmap lift on `updateLightmap`; [reskillable.md](reskillable.md)). (MineMenu mouse look suppression is handled by `GuiMouseGrab` subscribing to Cleanroom's `MouseTurnEvent`; `MixinEntityRendererMouse` removed; [minemenu.md](minemenu.md)).
-- Common: `depthsupdate.MixinDepthsCaveNoiseGenerator`, `cofh.MixinDistributionUniform`, `reccomplex.MixinRayMatcher`, `reccomplex.MixinGenericVillageCreationHandler`, Better Caves / RTG village mixins listed in [depths.md](depths.md) and [rtg.md](rtg.md), `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinWorldGenLakes`, `MixinMapGenVillageInside/Spawn/Start/World`, `MixinCraftingHelperFindFiles`, `MixinWorldEntitySpawner`. Charm paste: `mixins.aqtweaks.charm.json` on jar `MixinConfigs`. Portal `MixinWorldRiftLight` and `MixinBlockRiftLight`, cage `MixinMobSpawnerBaseLogic`, Quality `MixinTileEntityLockableLoot` and `MixinItemStackQualityDurability`, Reskillable `MixinItemStackDurability` and `MixinBlockCropsSeed`, rarity `MixinItemStackRarity` and `MixinItemRarity`, and MineMenu `MixinMinecraftMouseGrab` (client) are in `mixins.aqtweaks.early.json`. InControl `MixinStructureCache` is in `mixins.aqtweaks.incontrol.json`. Better Mineshafts mixins (`canSpawn`, locate pin on `MapGenMineshaft` guarded to BM, entrance stub, Start Y) are in `mixins.aqtweaks.bettermineshafts.json`. The Depths Y 0-4 seam pass is `SeamReinforcer`, called from `MixinChunkGeneratorRTG` at RETURN of `generateChunk`. RandomPortals grass pads / Aether island pads: `mixins.aqtweaks.randomportals.json`. Quality Tools parent mixins: `mixins.aqtweaks.qualitytools.json`.
+- Client: `MixinRenderGlobal` (Depths hide sky), `MixinGuiCreateWorld`, `MixinEntityRendererLight` (Dark Vision lightmap lift on `updateLightmap`; [reskillable.md](reskillable.md)), `MixinEntityRendererFog` (Nether ash fog). (MineMenu mouse look suppression is handled by `GuiMouseGrab` subscribing to Cleanroom's `MouseTurnEvent`; [minemenu.md](minemenu.md)).
+- Common: `depthsupdate.MixinDepthsCaveNoiseGenerator`, `cofh.MixinDistributionUniform`, `reccomplex.MixinRayMatcher`, `reccomplex.MixinGenericVillageCreationHandler`, Better Caves / RTG village mixins listed in [depths.md](depths.md) and [rtg.md](rtg.md), `MixinStructureVillagePieces`, `MixinStructureStartVillagePaste`, `MixinWorldGenLakes`, `MixinMapGenVillageInside/Spawn/Start/World`, `MixinCraftingHelperFindFiles`, `MixinWorldEntitySpawner`. Charm paste: `mixins.aqtweaks.charm.json` on jar `MixinConfigs`. The Depths Y 0-4 seam pass is `SeamReinforcer`, called from `MixinChunkGeneratorRTG` at RETURN of `generateChunk`.
 
 Two mixins target `ChunkGeneratorRTG` in that required json. Their order comes from injection points, not from this list:
 
@@ -198,14 +219,20 @@ Safe sequence: flatten noise → RTG carves 0–255 → fill sub-zero solid. Do 
 
 ### Config files (`config/arcanaquesttweaks/`)
 
-Forge `@Config` on nested classes in `ArcanaQuestTweaksConfig`. Comfort is JSON, not Forge cfg.
+Forge `@Config` on nested classes in `ArcanaQuestTweaksConfig` (plus JSON configs listed below).
 
 | File | Class |
 | --- | --- |
 | `aqtweaks_stamina.cfg` | `StaminaModuleConfig` |
+| `aqtweaks_titles.cfg` | `StructureTitlesConfig` |
 | `aqtweaks_client.cfg` | `ClientModuleConfig` |
+| `aqtweaks_atum.cfg` | `AtumModuleConfig` |
+| `aqtweaks_aurorian.cfg` | `AurorianModuleConfig` |
+| `aqtweaks_somnia.cfg` | `SomniaModuleConfig` |
 | `aqtweaks_grimoireofgaia.cfg` | `GrimoireOfGaiaConfig` |
-| `gaia_mob_damage.json` | `GaiaDamageConfig` (not `@Config`) |
+| `aqtweaks_thaumadditions.cfg` | `ThaumAdditionsConfig` |
+| `aqtweaks_dss.cfg` | `DssWeaponConfig` |
+| `aqtweaks_battlemage.cfg` | `BattlemageConfig` |
 | `aqtweaks_thaumcraft.cfg` | `ThaumcraftConfig` |
 | `aqtweaks_bewitchment.cfg` | `BewitchmentConfig` |
 | `aqtweaks_depths.cfg` | `DepthsModuleConfig` |
@@ -213,14 +240,21 @@ Forge `@Config` on nested classes in `ArcanaQuestTweaksConfig`. Comfort is JSON,
 | `aqtweaks_portal.cfg` | `PortalModuleConfig` |
 | `aqtweaks_twilightforest.cfg` | `TwilightForestModuleConfig` |
 | `aqtweaks_aether.cfg` | `AetherModuleConfig` |
-| `aqtweaks_paragon.cfg` | `ParagonModuleConfig` |
-| `aqtweaks_rarity.cfg` | `RarityModuleConfig` |
-| `aqtweaks_weapon.cfg` | `InfinityBladeModuleConfig` |
+| `aqtweaks_hazard_gear.cfg` | `HazardGearConfig` |
+| `aqtweaks_qualitytools.cfg` | `QualityToolsModuleConfig` |
 | `aqtweaks_statskeeper.cfg` | `StatsKeeperModuleConfig` |
 | `aqtweaks_gamestages.cfg` | `GameStagesModuleConfig` |
-| `aqtweaks_qualitytools.cfg` | `QualityToolsModuleConfig` |
-| `aqtweaks_reskillable.cfg` | `ReskillableModuleConfig` |
 | `aqtweaks_spawning.cfg` | `SpawningModuleConfig` |
+| `aqtweaks_reskillable.cfg` | `ReskillableModuleConfig` |
+| `aqtweaks_patchouli.cfg` | `PatchouliModuleConfig` |
 | `aqtweaks_bettermineshafts.cfg` | `BetterMineshaftsModuleConfig` |
+| `aqtweaks_dynamicstealth.cfg` | `DynamicStealthPerfConfig` |
 | `aqtweaks_minemenu.cfg` | `MineMenuModuleConfig` |
+| `aqtweaks_nether.cfg` | `NetherModuleConfig` |
+| `aqtweaks_paragon.cfg` | `ParagonModuleConfig` |
+| `aqtweaks_additions.cfg` | `AdditionsModuleConfig` |
+| `aqtweaks_rarity.cfg` | `RarityModuleConfig` |
+| `gaia_mob_damage.json` | `GaiaDamageConfig` (not `@Config`) |
 | `aqtweaks_comfort_settings.json` | `ComfortConfigLoader` (not `@Config`) |
+| `aqtweaks_starter_classes.json` | `StarterClassRegistry` / `StarterSettings` (not `@Config`) |
+| `cultist_battlemages.json` | `FocusLibrary` / `LibraryMigration` (not `@Config`) |
